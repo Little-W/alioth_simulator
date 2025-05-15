@@ -6,6 +6,9 @@
   `define NO_TIMEOUT
 `endif
 
+// 添加新的宏定义控制寄存器调试输出
+// `define DEBUG_DISPLAY_REGS 1
+
 module tb_top (
     input clk,
     input rst_n,
@@ -20,9 +23,13 @@ module tb_top (
     // 复位信号反相
     wire rst = ~rst_n;
     
-    wire    [`REG_DATA_WIDTH-1:0] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
-    wire    [`REG_DATA_WIDTH-1:0] x26 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[26];
-    wire    [`REG_DATA_WIDTH-1:0] x27 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[27];
+    // 通用寄存器访问 - 仅用于错误信息显示
+    wire    [31:0] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
+
+    // 新增CSR寄存器状态获取
+    wire[31:0] sim_result = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus;
+    wire sim_end = sim_result[0];
+    wire sim_succ = sim_result[1];
 
     integer           r;
     reg     [8*300:1] testcase;
@@ -33,40 +40,46 @@ module tb_top (
     localparam ROM_BYTE_SIZE = ROM_DEPTH * 4; // 总字节数
 
     // 创建与ROM容量相同的临时字节数组
-    reg [7:0] rom_mem[ROM_BYTE_SIZE-1:0]; // 注意数组声明顺序调整
+    reg [7:0] prog_mem[ROM_BYTE_SIZE-1:0]; // 注意数组声明顺序调整
     integer i;
 
-    // 监控测试结果
+    // 新增/保留 CSR 寄存器结束判断逻辑
+    reg sim_end_q;
+    
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            // 复位逻辑
-        end else if (x26 == 32'b1) begin  // 等待测试结束信号
-            #100
-            if (x27 == 32'b1) begin
-                $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
-                $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
-                $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
-                $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
-                $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
-                $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            end else begin
-                $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("fail testnum = %2d", x3);
-                for (r = 0; r < 32; r = r + 1)
-                $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+            sim_end_q <= 1'b0;
+        end else begin
+            sim_end_q <= sim_end;
+            
+            // 检测sim_end从0变为1的上升沿
+            if (sim_end && (!sim_end_q)) begin
+                if (sim_succ == 1'b1) begin
+                    $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
+                    $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
+                    $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
+                    $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
+                    $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
+                    $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                end else begin
+                    $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    $display("fail testnum = %2d", x3);
+                    for (r = 0; r < 32; r = r + 1)
+                    $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+                end
+                $finish;
             end
-            $finish;
         end
     end
 
@@ -97,14 +110,14 @@ module tb_top (
             $finish;
         end
 
-        // 从.verilog文件中读取字节数据 - 不使用返回值赋值
-        $readmemh({testcase, ".verilog"}, rom_mem);
+        // 从.verilog文件中读取字节数据
+        $readmemh({testcase, ".verilog"}, prog_mem);
 
-        // 处理小端序格式
+        // 处理小端序格式并更新到新的ROM存储位置
         for (i = 0; i < ROM_DEPTH; i = i + 1) begin // 遍历ROM的每个字
             tinyriscv_soc_top_0.u_rom._rom[i] = {
-                rom_mem[i*4+3], rom_mem[i*4+2], 
-                rom_mem[i*4+1], rom_mem[i*4+0]
+                prog_mem[i*4+3], prog_mem[i*4+2],
+                prog_mem[i*4+1], prog_mem[i*4+0]
             };
         end
 
@@ -143,5 +156,38 @@ module tb_top (
         .jtag_TDI      (jtag_TDI),
         .jtag_TDO      (jtag_TDO)
     );
+
+    // 添加可选的寄存器调试输出功能
+`ifdef DEBUG_DISPLAY_REGS
+    // 监控GPR寄存器写入
+    wire write_gpr_reg = tinyriscv_soc_top_0.u_tinyriscv.u_regs.we_i;
+    wire[4:0] write_gpr_addr = tinyriscv_soc_top_0.u_tinyriscv.u_regs.waddr_i;
+
+    // 监控CSR寄存器写入
+    wire write_csr_reg = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.we_i;
+    wire[31:0] write_csr_addr = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.waddr_i;
+    
+    always @(posedge clk) begin
+        if (write_gpr_reg && (write_gpr_addr == 5'd31)) begin
+            $display("\n");
+            $display("GPR寄存器状态:");
+            for (r = 0; r < 32; r = r + 1)
+                $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+        end else if (write_csr_reg && (write_csr_addr[11:0] == 12'hc00)) begin
+            $display("\n");
+            $display("CSR寄存器状态:");
+            $display("cycle = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.cycle[31:0]);
+            $display("cycleh = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.cycle[63:32]);
+            $display("mtvec = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mtvec);
+            $display("mstatus = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus);
+            $display("mepc = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mepc);
+            $display("mie = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mie);
+            $display("mcause = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mcause);
+            $display("mscratch = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mscratch);
+            // 用于仿真的结束标志
+            $display("sim_result = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus);
+        end
+    end
+`endif
 
 endmodule
