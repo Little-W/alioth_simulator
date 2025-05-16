@@ -38,8 +38,7 @@ module exu_mul (
 
     // 状态定义 - 使用与参考代码相同的状态定义
     localparam IDLE = 2'b00;
-    localparam ADD = 2'b01;
-    localparam SHIFT = 2'b11;
+    localparam CALC = 2'b01;    // 合并了原来的ADD和SHIFT
     localparam OUTPUT = 2'b10;
 
     // 内部寄存器
@@ -85,11 +84,10 @@ module exu_mul (
     always @(*) begin
         next_state = 2'bxx;
         case (current_state)
-            IDLE:    if (start_i) next_state = ADD;
- else next_state = IDLE;
-            ADD:     next_state = SHIFT;
-            SHIFT:   if (count == 5'd16) next_state = OUTPUT;  // 32位乘法需要16次迭代
- else next_state = ADD;
+            IDLE:    if (start_i) next_state = CALC;
+                     else next_state = IDLE;
+            CALC:    if (count == 5'd15) next_state = OUTPUT;  // 32位乘法需要16次迭代
+                     else next_state = CALC;
             OUTPUT:  next_state = IDLE;
             default: next_state = IDLE;
         endcase
@@ -142,22 +140,25 @@ module exu_mul (
                     end
                 end
 
-                ADD: begin
+                CALC: begin
+                    // 使用临时变量而不是寄存器，避免混合赋值问题
+                    reg [2*`REG_DATA_WIDTH+2:0] temp_result;
+                    
                     // Radix-4 Booth算法核心计算 - 根据乘数的低3位决定操作
                     case (p_reg[2:0])
-                        3'b000, 3'b111: p_reg <= p_reg;  // 不操作
-                        3'b001, 3'b010: p_reg <= p_reg + add1;  // +1倍被乘数
-                        3'b101, 3'b110: p_reg <= p_reg + sub1;  // -1倍被乘数
-                        3'b011:         p_reg <= p_reg + add_x2;  // +2倍被乘数
-                        3'b100:         p_reg <= p_reg + sub_x2;  // -2倍被乘数
-                        default:        p_reg <= p_reg;
+                        3'b000, 3'b111: temp_result = p_reg;  // 不操作
+                        3'b001, 3'b010: temp_result = p_reg + add1;  // +1倍被乘数
+                        3'b101, 3'b110: temp_result = p_reg + sub1;  // -1倍被乘数
+                        3'b011:         temp_result = p_reg + add_x2;  // +2倍被乘数
+                        3'b100:         temp_result = p_reg + sub_x2;  // -2倍被乘数
+                        default:        temp_result = p_reg;
                     endcase
-                    count <= count + 5'd1;  // 计数增加
-                end
-
-                SHIFT: begin
+                    
                     // 算术右移2位（Radix-4）
-                    p_reg <= {p_reg[2*`REG_DATA_WIDTH+2], p_reg[2*`REG_DATA_WIDTH+2], p_reg[2*`REG_DATA_WIDTH+2:2]};
+                    p_reg <= {temp_result[2*`REG_DATA_WIDTH+2],
+                             temp_result[2*`REG_DATA_WIDTH+2],
+                             temp_result[2*`REG_DATA_WIDTH+2:2]};
+                    count <= count + 5'd1;  // 计数增加
                 end
 
                 OUTPUT: begin
