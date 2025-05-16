@@ -1,5 +1,5 @@
 /*                                                                      
- Copyright 2020 Blue Liang, liangkangnan@163.com
+ Copyright 2025 Yusen Wang @yusen.w@qq.com
                                                                          
  Licensed under the Apache License, Version 2.0 (the "License");         
  you may not use this file except in compliance with the License.        
@@ -16,8 +16,8 @@
 
 `include "../core/defines.v"
 
-// tinyriscv soc顶层模块
-module tinyriscv_soc_top(
+// alioth soc顶层模块
+module alioth_soc_top(
 
     input wire clk,
     input wire rst,
@@ -68,13 +68,13 @@ module tinyriscv_soc_top(
             over <= 1'b1;
             succ <= 1'b1;
         end else begin
-            over <= ~u_tinyriscv.u_regs.regs[26];  // when = 1, run over
-            succ <= ~u_tinyriscv.u_regs.regs[27];  // when = 1, run succ, otherwise fail
+            over <= ~u_cpu_top.u_regs.regs[26];  // when = 1, run over
+            succ <= ~u_cpu_top.u_regs.regs[27];  // when = 1, run succ, otherwise fail
         end
     end
 
-    // tinyriscv处理器核模块例化
-    tinyriscv u_tinyriscv(
+    // alioth处理器核模块例化
+    cpu_top u_cpu_top(
         .clk(clk),
         .rst(rst),
         .jtag_reg_addr_i(jtag_reg_addr_o),

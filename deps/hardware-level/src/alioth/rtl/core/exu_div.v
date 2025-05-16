@@ -1,5 +1,5 @@
- /*                                                                      
- Copyright 2019 Blue Liang, liangkangnan@163.com
+/*                                                                      
+ Copyright 2025 Yusen Wang @yusen.w@qq.com
                                                                          
  Licensed under the Apache License, Version 2.0 (the "License");         
  you may not use this file except in compliance with the License.        
@@ -19,7 +19,7 @@
 // 除法模块
 // 试商法实现32位整数除法
 // 每次除法运算至少需要33个时钟周期才能完成
-module div(
+module exu_div(
 
     input wire clk,
     input wire rst,

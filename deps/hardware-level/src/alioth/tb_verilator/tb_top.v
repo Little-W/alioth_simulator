@@ -12,7 +12,7 @@
 // ToHost程序地址,用于监控测试是否结束
 `define PC_WRITE_TOHOST       32'h000000a0
 
-`define ITCM  tinyriscv_soc_top_0.u_tinyriscv.u_mems.u_itcm
+`define ITCM  alioth_soc_top_0.u_cpu_top.u_mems.u_itcm
 
 module tb_top (
     input clk,
@@ -29,9 +29,9 @@ module tb_top (
     wire rst = rst_n;
     
     // 通用寄存器访问 - 仅用于错误信息显示
-    wire    [31:0] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
+    wire    [31:0] x3 = alioth_soc_top_0.u_cpu_top.u_regs.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [31:0] pc = tinyriscv_soc_top_0.u_tinyriscv.u_pc_reg.pc_o;
+    wire    [31:0] pc = alioth_soc_top_0.u_cpu_top.u_pc_reg.pc_o;
 
     integer           r;
     reg     [8*300:1] testcase;
@@ -164,7 +164,7 @@ module tb_top (
                 $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 $display("fail testnum = %2d", x3);
                 for (r = 0; r < 32; r = r + 1)
-                    $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+                    $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
             end
             $finish;
         end
@@ -188,7 +188,7 @@ module tb_top (
 `endif
 
     // 实例化顶层模块
-    tinyriscv_soc_top tinyriscv_soc_top_0 (
+    alioth_soc_top alioth_soc_top_0 (
         .clk           (clk),
         .rst           (rst),
         .uart_debug_pin(1'b0),
@@ -201,30 +201,30 @@ module tb_top (
     // 添加可选的寄存器调试输出功能
 `ifdef DEBUG_DISPLAY_REGS
     // 监控GPR寄存器写入
-    wire write_gpr_reg = tinyriscv_soc_top_0.u_tinyriscv.u_regs.we_i;
-    wire[4:0] write_gpr_addr = tinyriscv_soc_top_0.u_tinyriscv.u_regs.waddr_i;
+    wire write_gpr_reg = alioth_soc_top_0.u_cpu_top.u_regs.we_i;
+    wire[4:0] write_gpr_addr = alioth_soc_top_0.u_cpu_top.u_regs.waddr_i;
 
     // 监控CSR寄存器写入
-    wire write_csr_reg = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.we_i;
-    wire[31:0] write_csr_addr = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.waddr_i;
+    wire write_csr_reg = alioth_soc_top_0.u_cpu_top.u_csr_reg.we_i;
+    wire[31:0] write_csr_addr = alioth_soc_top_0.u_cpu_top.u_csr_reg.waddr_i;
     
     always @(posedge clk) begin
         if (write_gpr_reg && (write_gpr_addr == 5'd31)) begin
             $display("\n");
             $display("GPR寄存器状态:");
             for (r = 0; r < 32; r = r + 1)
-                $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+                $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
         end else if (write_csr_reg && (write_csr_addr[11:0] == 12'hc00)) begin
             $display("\n");
             $display("CSR寄存器状态:");
-            $display("cycle = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.cycle[31:0]);
-            $display("cycleh = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.cycle[63:32]);
-            $display("mtvec = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mtvec);
-            $display("mstatus = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus);
-            $display("mepc = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mepc);
-            $display("mie = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mie);
-            $display("mcause = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mcause);
-            $display("mscratch = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mscratch);
+            $display("cycle = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.cycle[31:0]);
+            $display("cycleh = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.cycle[63:32]);
+            $display("mtvec = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mtvec);
+            $display("mstatus = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mstatus);
+            $display("mepc = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mepc);
+            $display("mie = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mie);
+            $display("mcause = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mcause);
+            $display("mscratch = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mscratch);
         end
     end
 `endif
