@@ -11,6 +11,10 @@ SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32ua-p
 SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}ui-p*.dump))
 SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}mi-p*.dump))
 
+# 添加ASM编译目录设置
+ASM_BUILD_DIR := ${BUILD_DIR}/asm_compiled
+ASM_SRC_DIR := ${SIM_ROOT_DIR}/c_src
+
 alioth:
 	@mkdir -p ${BUILD_DIR}
 	@if [ ! -h ${BUILD_DIR}/Makefile ] ; \
@@ -36,12 +40,78 @@ test: alioth compile_test_src
 		echo ;	\
 	else	\
 		make test SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR} ;	\
+		if [ -e "${BUILD_DIR}/dump.vcd" ] ; then \
+			if command -v gtkwave > /dev/null 2>&1; then \
+				gtkwave ${BUILD_DIR}/dump.vcd & \
+			else \
+				echo "gtkwave not found, skipping waveform display"; \
+			fi \
+		fi; \
+		if [ -e "${BUILD_DIR}/run.log" ] ; then \
+			if command -v gvim > /dev/null 2>&1; then \
+				gvim ${BUILD_DIR}/run.log & \
+			elif command -v vim > /dev/null 2>&1; then \
+				vim ${BUILD_DIR}/run.log & \
+			else \
+				echo "vim/gvim not found, skipping log view"; \
+			fi \
+		fi \
 	fi
 
 compile_test_src:
 	@if [ ! -e ${TEST_PROGRAM} ] ; \
 	then	\
 		make SIM_ROOT_DIR=${SIM_ROOT_DIR} XLEN=${XLEN} USE_OPEN_GNU_GCC=${USE_OPEN_GNU_GCC} -j$(nproc) -C ${ISA_TEST_DIR}/test_src/;	\
+	fi
+
+asm: alioth
+	@mkdir -p ${ASM_BUILD_DIR}
+	@echo "Compiling assembly files from ${ASM_SRC_DIR}"
+	@if [ ! -d ${ASM_SRC_DIR} ] ; \
+	then \
+		echo "Error: ${ASM_SRC_DIR} directory not found"; \
+		exit 1; \
+	fi
+	make SIM_ROOT_DIR=${SIM_ROOT_DIR} XLEN=${XLEN} -C ${ASM_SRC_DIR}
+	@echo "Assembly compilation completed"
+
+run: alioth
+	@if [ -z "$(PROGRAM_NAME)" ] ; \
+	then \
+		echo "Error: Please specify a program with PROGRAM_NAME=<filename>"; \
+		echo "Example: make run PROGRAM_NAME=test"; \
+		exit 1; \
+	fi
+	
+	@if [ ! -e "${ASM_BUILD_DIR}/$(PROGRAM_NAME).verilog" ] ; \
+	then \
+		echo "Error: Program files not found at ${ASM_BUILD_DIR}/$(PROGRAM_NAME)"; \
+		echo "Please compile it first with 'make asm'"; \
+		exit 1; \
+	fi
+	
+	@echo "Running $(PROGRAM_NAME)"
+	@make run SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=1 PROGRAM="${ASM_BUILD_DIR}/$(PROGRAM_NAME)" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
+	
+	@# 打开波形和日志文件
+	@if [ -e "${BUILD_DIR}/sim_out/tb_top.vcd" ] ; \
+	then \
+		if command -v gtkwave > /dev/null 2>&1; then \
+			gtkwave ${BUILD_DIR}/sim_out/tb_top.vcd & \
+		else \
+			echo "gtkwave not found, skipping waveform display"; \
+		fi \
+	fi
+	
+	@if [ -e "${ASM_BUILD_DIR}/$(PROGRAM_NAME).dump" ] ; \
+	then \
+		if command -v gvim > /dev/null 2>&1; then \
+			gvim ${ASM_BUILD_DIR}/$(PROGRAM_NAME).dump & \
+		elif command -v vim > /dev/null 2>&1; then \
+			vim ${ASM_BUILD_DIR}/$(PROGRAM_NAME).dump & \
+		else \
+			echo "vim/gvim not found, skipping asm view"; \
+		fi \
 	fi
 
 test_all: alioth compile_test_src
@@ -84,5 +154,5 @@ clean:
 	@rm -rf build
 	@echo "Clean done."
 
-.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim
+.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run
 
