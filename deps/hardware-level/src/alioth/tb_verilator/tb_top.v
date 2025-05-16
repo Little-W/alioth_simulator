@@ -105,6 +105,7 @@ module tb_top (
         if ($value$plusargs("itcm_init=%s", testcase)) begin
             // 只输出有效的testcase内容
             display_testcase_name();
+            $display("");
         end else begin
             $display("No itcm_init defined!");
             $finish;
@@ -171,15 +172,15 @@ module tb_top (
     end
 
     // 添加一个任务来显示处理过的testcase名称
-    task display_testcase_name;
-        integer i, j;
+    task automatic display_testcase_name;
+        integer i;
         reg [7:0] ch;
         reg printing;
 
         printing = 0;
 
         // 跳过前导空格和空字符
-        for (i = 1; i <= 300; i = i + 1) begin
+        for (i = 300; i >= 1; i = i - 1) begin
             ch = testcase[i*8-:8];
 
             // 如果找到有效字符，开始打印
