@@ -3,16 +3,16 @@
 `include "defines.v"
 
 `ifdef JTAGVPI
-  `define NO_TIMEOUT
+`define NO_TIMEOUT
 `endif
 
 // 宏定义控制寄存器调试输出
 // `define DEBUG_DISPLAY_REGS 1
 
 // ToHost程序地址,用于监控测试是否结束
-`define PC_WRITE_TOHOST       32'h000000a0
+`define PC_WRITE_TOHOST 32'h000000a0
 
-`define ITCM  alioth_soc_top_0.u_cpu_top.u_mems.u_itcm
+`define ITCM alioth_soc_top_0.u_cpu_top.u_mems.u_itcm
 
 module tb_top (
     input clk,
@@ -26,23 +26,23 @@ module tb_top (
 );
 
     // 复位信号反相
-    wire rst = rst_n;
-    
+    wire              rst = rst_n;
+
     // 通用寄存器访问 - 仅用于错误信息显示
-    wire    [31:0] x3 = alioth_soc_top_0.u_cpu_top.u_regs.regs[3];
+    wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_regs.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [31:0] pc = alioth_soc_top_0.u_cpu_top.u_pc_reg.pc_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_pc_reg.pc_o;
 
     integer           r;
     reg     [8*300:1] testcase;
     integer           dumpwave;
 
     // 计算ITCM的深度和字节大小
-    localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2)); // ITCM中的字数
-    localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 4; // 总字节数
+    localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数
+    localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 4;  // 总字节数
 
     // 创建与ITCM容量相同的临时字节数组
-    reg [7:0] prog_mem[0:ITCM_BYTE_SIZE-1]; // 注意数组声明顺序调整
+    reg [7:0] prog_mem[0:ITCM_BYTE_SIZE-1];  // 注意数组声明顺序调整
     integer i;
 
     // 添加PC监控变量
@@ -51,26 +51,26 @@ module tb_top (
     reg [31:0] valid_ir_cycle;
     reg [31:0] cycle_count;
     reg pc_write_to_host_flag;
-    reg [31:0] last_pc; // 添加一个寄存器来存储上一次的PC值
+    reg [31:0] last_pc;  // 添加一个寄存器来存储上一次的PC值
 
     // 周期计数器 - 保持同步实现
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             cycle_count <= 32'b0;
-            last_pc <= 32'b0; // 初始化上一次的PC值
+            last_pc     <= 32'b0;  // 初始化上一次的PC值
         end else begin
             cycle_count <= cycle_count + 1'b1;
-            last_pc <= pc; // 在时钟边缘更新上一次的PC值，用于检测变化
+            last_pc     <= pc;  // 在时钟边缘更新上一次的PC值，用于检测变化
         end
     end
 
     // PC监控逻辑
-    always @(pc) begin 
+    always @(pc) begin
         if (pc == `PC_WRITE_TOHOST && pc != last_pc) begin
             pc_write_to_host_cnt = pc_write_to_host_cnt + 1'b1;
             if (pc_write_to_host_flag == 1'b0) begin
                 pc_write_to_host_cycle = cycle_count;
-                pc_write_to_host_flag = 1'b1;
+                pc_write_to_host_flag  = 1'b1;
             end
         end
     end
@@ -78,8 +78,8 @@ module tb_top (
     // 添加异步复位逻辑
     always @(negedge rst_n) begin
         if (!rst_n) begin
-            pc_write_to_host_cnt = 32'b0;
-            pc_write_to_host_flag = 1'b0;
+            pc_write_to_host_cnt   = 32'b0;
+            pc_write_to_host_flag  = 1'b0;
             pc_write_to_host_cycle = 32'b0;
         end
     end
@@ -98,12 +98,13 @@ module tb_top (
 `endif
         end
     end
-    
+
     // 测试用例解析
     initial begin
         $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         if ($value$plusargs("itcm_init=%s", testcase)) begin
-            $display("itcm_init=%s", testcase);
+            // 只输出有效的testcase内容
+            display_testcase_name();
         end else begin
             $display("No itcm_init defined!");
             $finish;
@@ -113,14 +114,11 @@ module tb_top (
         $readmemh({testcase, ".verilog"}, prog_mem);
 
         // 处理小端序格式并更新到新的ITCM存储位置
-        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin // 遍历ITCM的每个字
-            `ITCM.mem_r[i] = {
-                prog_mem[i*4+3], prog_mem[i*4+2],
-                prog_mem[i*4+1], prog_mem[i*4+0]
-            };
+        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
+            `ITCM.mem_r[i] = {prog_mem[i*4+3], prog_mem[i*4+2], prog_mem[i*4+1], prog_mem[i*4+0]};
         end
 
-        $display("成功加载指令到ITCM，ITCM深度:%0d字，字节大小:%0d", ITCM_DEPTH, ITCM_BYTE_SIZE);
+        $display("Successfully loaded instructions to ITCM");
         $display("ITCM 0x00: %h", `ITCM.mem_r[0]);
         $display("ITCM 0x01: %h", `ITCM.mem_r[1]);
         $display("ITCM 0x02: %h", `ITCM.mem_r[2]);
@@ -136,12 +134,15 @@ module tb_top (
             $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~~~~~~~~~~~");
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            $display("~TESTCASE: %s ~~~~~~~~~~~~~", testcase);
+            // 使用处理过的输出代替直接输出testcase
+            $write("~TESTCASE: ");
+            display_testcase_name();
+            $display("~");
             $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", cycle_count);
             $display("~~~~~The test ending reached at cycle: %d ~~~~~~~~~~~~~", pc_write_to_host_cycle);
             $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            
+
             if (x3 == 1) begin
                 $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
                 $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -163,12 +164,42 @@ module tb_top (
                 $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
                 $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 $display("fail testnum = %2d", x3);
-                for (r = 0; r < 32; r = r + 1)
-                    $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
+                for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
             end
             $finish;
         end
     end
+
+    // 添加一个任务来显示处理过的testcase名称
+    task display_testcase_name;
+        integer i, j;
+        reg [7:0] ch;
+        reg printing;
+
+        printing = 0;
+
+        // 跳过前导空格和空字符
+        for (i = 1; i <= 300; i = i + 1) begin
+            ch = testcase[i*8-:8];
+
+            // 如果找到有效字符，开始打印
+            if (!printing && ch != " " && ch != 8'h00 && ch != 8'h20) begin
+                printing = 1;
+            end
+
+            // 如果处于打印模式且碰到结束字符，则停止
+            if (printing && (ch == 8'h00 || ch == 8'h0A)) begin
+                printing = 0;
+                // 完成打印
+                break;
+            end
+
+            // 处于打印模式且有有效字符时输出
+            if (printing && ch >= 8'h20) begin
+                $write("%c", ch);
+            end
+        end
+    endtask
 
 `ifdef JTAGVPI
     wire jtag_TDI;
@@ -176,7 +207,7 @@ module tb_top (
     wire jtag_TCK;
     wire jtag_TMS;
     assign jtag_TDI = tdi_i;
-    assign tdo_o = jtag_TDO;
+    assign tdo_o    = jtag_TDO;
     assign jtag_TCK = tck_i;
     assign jtag_TMS = tms_i;
 `else
@@ -201,22 +232,21 @@ module tb_top (
     // 添加可选的寄存器调试输出功能
 `ifdef DEBUG_DISPLAY_REGS
     // 监控GPR寄存器写入
-    wire write_gpr_reg = alioth_soc_top_0.u_cpu_top.u_regs.we_i;
-    wire[4:0] write_gpr_addr = alioth_soc_top_0.u_cpu_top.u_regs.waddr_i;
+    wire        write_gpr_reg = alioth_soc_top_0.u_cpu_top.u_regs.we_i;
+    wire [ 4:0] write_gpr_addr = alioth_soc_top_0.u_cpu_top.u_regs.waddr_i;
 
     // 监控CSR寄存器写入
-    wire write_csr_reg = alioth_soc_top_0.u_cpu_top.u_csr_reg.we_i;
-    wire[31:0] write_csr_addr = alioth_soc_top_0.u_cpu_top.u_csr_reg.waddr_i;
-    
+    wire        write_csr_reg = alioth_soc_top_0.u_cpu_top.u_csr_reg.we_i;
+    wire [31:0] write_csr_addr = alioth_soc_top_0.u_cpu_top.u_csr_reg.waddr_i;
+
     always @(posedge clk) begin
         if (write_gpr_reg && (write_gpr_addr == 5'd31)) begin
             $display("\n");
-            $display("GPR寄存器状态:");
-            for (r = 0; r < 32; r = r + 1)
-                $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
+            $display("GPR Register Status:");
+            for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
         end else if (write_csr_reg && (write_csr_addr[11:0] == 12'hc00)) begin
             $display("\n");
-            $display("CSR寄存器状态:");
+            $display("CSR Register Status:");
             $display("cycle = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.cycle[31:0]);
             $display("cycleh = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.cycle[63:32]);
             $display("mtvec = 0x%x", alioth_soc_top_0.u_cpu_top.u_csr_reg.mtvec);
