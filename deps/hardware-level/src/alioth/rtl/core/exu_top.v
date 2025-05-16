@@ -68,6 +68,7 @@ module exu(
 );
 
     // 内部连线定义
+    // 除法器信号
     wire div_ready;
     wire[`REG_DATA_WIDTH-1:0] div_result;
     wire div_busy;
@@ -78,6 +79,18 @@ module exu(
     wire[`REG_DATA_WIDTH-1:0] div_divisor;
     wire[2:0] div_op;
     wire[`REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
+    
+    // 乘法器信号
+    wire mul_ready;
+    wire[`REG_DATA_WIDTH-1:0] mul_result;
+    wire mul_busy;
+    wire[`REG_ADDR_WIDTH-1:0] mul_reg_waddr;
+    
+    wire mul_start;
+    wire[`REG_DATA_WIDTH-1:0] mul_multiplicand;
+    wire[`REG_DATA_WIDTH-1:0] mul_multiplier;
+    wire[2:0] mul_op;
+    wire[`REG_ADDR_WIDTH-1:0] mul_reg_waddr_o;
     
     wire[`REG_DATA_WIDTH-1:0] alu_result;
     wire alu_reg_we;
@@ -93,12 +106,12 @@ module exu(
     wire[`REG_DATA_WIDTH-1:0] csr_unit_wdata;
     wire[`REG_DATA_WIDTH-1:0] csr_unit_reg_wdata;
     
-    wire div_hold_flag;
-    wire div_jump_flag;
-    wire[`INST_ADDR_WIDTH-1:0] div_jump_addr;
-    wire[`REG_DATA_WIDTH-1:0] div_wdata;
-    wire div_we;
-    wire[`REG_ADDR_WIDTH-1:0] div_waddr;
+    wire muldiv_hold_flag;
+    wire muldiv_jump_flag;
+    wire[`INST_ADDR_WIDTH-1:0] muldiv_jump_addr;
+    wire[`REG_DATA_WIDTH-1:0] muldiv_wdata;
+    wire muldiv_we;
+    wire[`REG_ADDR_WIDTH-1:0] muldiv_waddr;
     
     // 除法器模块例化
     exu_div u_div(
@@ -114,7 +127,22 @@ module exu(
         .busy_o(div_busy),
         .reg_waddr_o(div_reg_waddr)
     );
-    
+
+    // 乘法器模块例化
+    exu_mul u_mul(
+        .clk(clk),
+        .rst(rst),
+        .multiplicand_i(mul_multiplicand),
+        .multiplier_i(mul_multiplier),
+        .start_i((int_assert_i == `INT_ASSERT)? 1'b0: mul_start),
+        .op_i(mul_op),
+        .reg_waddr_i(mul_reg_waddr_o),
+        .result_o(mul_result),
+        .ready_o(mul_ready),
+        .busy_o(mul_busy),
+        .reg_waddr_o(mul_reg_waddr)
+    );
+
     // 地址生成单元模块例化
     agu u_agu(
         .rst(rst),
@@ -179,8 +207,8 @@ module exu(
         .reg_wdata_o(csr_unit_reg_wdata)
     );
     
-    // 除法控制逻辑
-    exu_div_ctrl u_div_ctrl(
+    // 乘除法控制逻辑
+    exu_muldiv_ctrl u_muldiv_ctrl(
         .rst(rst),
         .inst_i(inst_i),
         .reg_waddr_i(reg_waddr_i),
@@ -192,6 +220,10 @@ module exu(
         .div_result_i(div_result),
         .div_busy_i(div_busy),
         .div_reg_waddr_i(div_reg_waddr),
+        .mul_ready_i(mul_ready),
+        .mul_result_i(mul_result),
+        .mul_busy_i(mul_busy),
+        .mul_reg_waddr_i(mul_reg_waddr),
         .int_assert_i(int_assert_i),
         
         .div_start_o(div_start),
@@ -199,42 +231,47 @@ module exu(
         .div_divisor_o(div_divisor),
         .div_op_o(div_op),
         .div_reg_waddr_o(div_reg_waddr_o),
-        .div_hold_flag_o(div_hold_flag),
-        .div_jump_flag_o(div_jump_flag),
-        .div_jump_addr_o(div_jump_addr),
-        .reg_wdata_o(div_wdata),
-        .reg_we_o(div_we),
-        .reg_waddr_o(div_waddr)
+        .mul_start_o(mul_start),
+        .mul_multiplicand_o(mul_multiplicand),
+        .mul_multiplier_o(mul_multiplier),
+        .mul_op_o(mul_op),
+        .mul_reg_waddr_o(mul_reg_waddr_o),
+        .muldiv_hold_flag_o(muldiv_hold_flag),
+        .muldiv_jump_flag_o(muldiv_jump_flag),
+        .muldiv_jump_addr_o(muldiv_jump_addr),
+        .reg_wdata_o(muldiv_wdata),
+        .reg_we_o(muldiv_we),
+        .reg_waddr_o(muldiv_waddr)
     );
     
     // 输出选择逻辑
-    assign hold_flag_o = div_hold_flag;
-    assign jump_flag_o = div_jump_flag || bru_jump_flag || 
+    assign hold_flag_o = muldiv_hold_flag;
+    assign jump_flag_o = muldiv_jump_flag || bru_jump_flag || 
                          ((int_assert_i == `INT_ASSERT)? `JumpEnable: `JumpDisable);
     assign jump_addr_o = (int_assert_i == `INT_ASSERT)? int_addr_i: 
-                         (div_jump_flag ? div_jump_addr : bru_jump_addr);
+                         (muldiv_jump_flag ? muldiv_jump_addr : bru_jump_addr);
     
     // 寄存器写数据选择
     assign reg_we_o = (int_assert_i == `INT_ASSERT)? `WriteDisable: 
-                      (div_we || alu_reg_we || agu_reg_we || 
+                      (muldiv_we || alu_reg_we || agu_reg_we || 
                       (csr_we_i && inst_i[6:0] == `INST_CSR));
     
-    assign reg_wdata_o = div_we ? div_wdata : 
-                       agu_reg_we ? agu_reg_wdata :
-                       (csr_we_i && inst_i[6:0] == `INST_CSR) ? csr_unit_reg_wdata :
-                       alu_result;
+    assign reg_wdata_o = muldiv_we ? muldiv_wdata : 
+                         agu_reg_we ? agu_reg_wdata :
+                         (csr_we_i && inst_i[6:0] == `INST_CSR) ? csr_unit_reg_wdata :
+                         alu_result;
                        
-    assign reg_waddr_o = div_we ? div_waddr : 
-                        agu_reg_we ? agu_reg_waddr :
-                        alu_reg_we ? alu_reg_waddr :
-                        reg_waddr_i;
+    assign reg_waddr_o = muldiv_we ? muldiv_waddr : 
+                         agu_reg_we ? agu_reg_waddr :
+                         alu_reg_we ? alu_reg_waddr :
+                         reg_waddr_i;
     
     // CSR写数据选择
     assign csr_we_o = (int_assert_i == `INT_ASSERT)? `WriteDisable: csr_we_i;
     assign csr_waddr_o = csr_waddr_i;
     assign csr_wdata_o = csr_unit_wdata;
 
-    // 将除法开始信号输出给clint
-    assign div_started_o = div_start;
+    // 将除法和乘法开始信号组合后输出给clint
+    assign div_started_o = div_start | mul_start;
 
 endmodule

@@ -17,7 +17,7 @@
 `include "defines.v"
 
 // 算术逻辑单元
-module exu_alu(
+module exu_alu_bak(
     input wire rst,
     
     // 指令和操作数输入
@@ -51,6 +51,13 @@ module exu_alu(
     wire[31:0] sr_shift_mask;
     wire[31:0] sri_shift_mask;
     
+    reg[`REG_DATA_WIDTH-1:0] mul_op1;
+    reg[`REG_DATA_WIDTH-1:0] mul_op2;
+    wire[`DOUBLE_REG_WIDTH-1:0] mul_temp;
+    wire[`DOUBLE_REG_WIDTH-1:0] mul_temp_invert;
+    wire[31:0] reg1_data_invert;
+    wire[31:0] reg2_data_invert;
+    
     // 从指令中提取操作码和功能码
     assign opcode = inst_i[6:0];
     assign funct3 = inst_i[14:12];
@@ -71,6 +78,39 @@ module exu_alu(
     assign sri_shift = reg1_rdata_i >> inst_i[24:20];
     assign sr_shift_mask = 32'hffffffff >> reg2_rdata_i[4:0];
     assign sri_shift_mask = 32'hffffffff >> inst_i[24:20];
+    
+    // 乘法操作
+    assign reg1_data_invert = ~reg1_rdata_i + 1;
+    assign reg2_data_invert = ~reg2_rdata_i + 1;
+    assign mul_temp = mul_op1 * mul_op2;
+    assign mul_temp_invert = ~mul_temp + 1;
+    
+    // 乘法操作数选择
+    always @(*) begin
+        if ((opcode == `INST_TYPE_R_M) && (funct7 == 7'b0000001)) begin
+            case (funct3)
+                `INST_MUL, `INST_MULHU: begin
+                    mul_op1 = reg1_rdata_i;
+                    mul_op2 = reg2_rdata_i;
+                end
+                `INST_MULHSU: begin
+                    mul_op1 = (reg1_rdata_i[31] == 1'b1) ? (reg1_data_invert) : reg1_rdata_i;
+                    mul_op2 = reg2_rdata_i;
+                end
+                `INST_MULH: begin
+                    mul_op1 = (reg1_rdata_i[31] == 1'b1) ? (reg1_data_invert) : reg1_rdata_i;
+                    mul_op2 = (reg2_rdata_i[31] == 1'b1) ? (reg2_data_invert) : reg2_rdata_i;
+                end
+                default: begin
+                    mul_op1 = reg1_rdata_i;
+                    mul_op2 = reg2_rdata_i;
+                end
+            endcase
+        end else begin
+            mul_op1 = reg1_rdata_i;
+            mul_op2 = reg2_rdata_i;
+        end
+    end
     
     // ALU逻辑
     always @(*) begin
@@ -139,8 +179,36 @@ module exu_alu(
                             `INST_AND: result_o = op1_i & op2_i;
                             default: result_o = `ZeroWord;
                         endcase
+                    end else if (funct7 == 7'b0000001) begin
+                        // 乘法指令
+                        reg_we_o = `WriteEnable;
+                        reg_waddr_o = rd;
+                        
+                        case (funct3)
+                            `INST_MUL: begin
+                                result_o = mul_temp[31:0];
+                            end
+                            `INST_MULHU: begin
+                                result_o = mul_temp[63:32];
+                            end
+                            `INST_MULH: begin
+                                case ({reg1_rdata_i[31], reg2_rdata_i[31]})
+                                    2'b00: result_o = mul_temp[63:32];
+                                    2'b11: result_o = mul_temp[63:32];
+                                    2'b10: result_o = mul_temp_invert[63:32];
+                                    default: result_o = mul_temp_invert[63:32];
+                                endcase
+                            end
+                            `INST_MULHSU: begin
+                                if (reg1_rdata_i[31] == 1'b1) begin
+                                    result_o = mul_temp_invert[63:32];
+                                end else begin
+                                    result_o = mul_temp[63:32];
+                                end
+                            end
+                            default: result_o = `ZeroWord;
+                        endcase
                     end else begin
-                        // 不处理乘除法指令，由乘除法单元处理
                         reg_we_o = `WriteDisable;
                         result_o = `ZeroWord;
                     end

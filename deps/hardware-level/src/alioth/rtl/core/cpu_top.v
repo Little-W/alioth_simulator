@@ -305,7 +305,7 @@ module cpu_top(
         .jump_flag_i(exu_jump_flag_o),
         .jump_addr_i(exu_jump_addr_o),
         .hold_flag_i(ctrl_hold_flag_o),
-        .div_started_i(exu_div_started_o), // 将1'b0改为exu_div_started_o
+        .div_started_i(exu_div_started_o),
         .data_i(csr_clint_data_o),
         .csr_mtvec(csr_clint_csr_mtvec),
         .csr_mepc(csr_clint_csr_mepc),

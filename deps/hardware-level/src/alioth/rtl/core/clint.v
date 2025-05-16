@@ -91,7 +91,7 @@ module clint(
             int_state = S_INT_IDLE;
         end else begin
             if (inst_i == `INST_ECALL || inst_i == `INST_EBREAK) begin
-                // 如果执行阶段的指令为除法指令，则先不处理同步中断，等除法指令执行完再处理
+                // 如果执行阶段的指令为乘除法指令，则先不处理同步中断，等乘除法指令执行完再处理
                 if (div_started_i == `DivStop) begin
                     int_state = S_INT_SYNC_ASSERT;
                 end else begin
@@ -143,7 +143,7 @@ module clint(
                         csr_state <= S_CSR_MEPC;
                         if (jump_flag_i == `JumpEnable) begin
                             inst_addr <= jump_addr_i;
-                        // 异步中断可以中断除法指令的执行，中断处理完再重新执行除法指令
+                        // 异步中断可以中断乘除法指令的执行，中断处理完再重新执行乘除法指令
                         end else if (div_started_i == `DivStart) begin
                             inst_addr <= inst_addr_i - 4'h4;
                         end else begin

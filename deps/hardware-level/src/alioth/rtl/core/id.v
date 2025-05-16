@@ -128,6 +128,8 @@ module id(
                             reg2_raddr_o = rs2;
                             op1_o = reg1_rdata_i;
                             op2_o = reg2_rdata_i;
+                            op1_jump_o = inst_addr_i;
+                            op2_jump_o = 32'h4;
                         end
                         `INST_DIV, `INST_DIVU, `INST_REM, `INST_REMU: begin
                             reg_we_o = `WriteDisable;
