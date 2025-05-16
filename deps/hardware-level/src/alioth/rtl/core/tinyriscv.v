@@ -22,21 +22,11 @@ module tinyriscv(
     input wire clk,
     input wire rst,
 
-    output wire[`BUS_ADDR_WIDTH-1:0] rib_ex_addr_o,    // 读、写外设的地址
-    input wire[`BUS_DATA_WIDTH-1:0] rib_ex_data_i,         // 从外设读取的数据
-    output wire[`BUS_DATA_WIDTH-1:0] rib_ex_data_o,        // 写入外设的数据
-    output wire rib_ex_req_o,                  // 访问外设请求
-    output wire rib_ex_we_o,                   // 写外设标志
-
-    output wire[`BUS_ADDR_WIDTH-1:0] rib_pc_addr_o,    // 取指地址
-    input wire[`BUS_DATA_WIDTH-1:0] rib_pc_data_i,         // 取到的指令内容
-
     input wire[`REG_ADDR_WIDTH-1:0] jtag_reg_addr_i,   // jtag模块读、写寄存器的地址
     input wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_i,       // jtag模块写寄存器数据
     input wire jtag_reg_we_i,                  // jtag模块写寄存器标志
     output wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_o,      // jtag模块读取到的寄存器数据
 
-    input wire rib_hold_flag_i,                // 总线暂停标志
     input wire jtag_halt_flag_i,               // jtag暂停标志
     input wire jtag_reset_flag_i,              // jtag复位PC标志
 
@@ -45,10 +35,10 @@ module tinyriscv(
     );
 
     // pc_reg模块输出信号
-	wire[`INST_ADDR_WIDTH-1:0] pc_pc_o;
+    wire[`INST_ADDR_WIDTH-1:0] pc_pc_o;
 
     // if_id模块输出信号
-	wire[`INST_DATA_WIDTH-1:0] if_inst_o;
+    wire[`INST_DATA_WIDTH-1:0] if_inst_o;
     wire[`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
     wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;
 
@@ -125,7 +115,7 @@ module tinyriscv(
 
     // div模块输出信号
     wire[`REG_DATA_WIDTH-1:0] div_result_o;
-	wire div_ready_o;
+    wire div_ready_o;
     wire div_busy_o;
     wire[`REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
 
@@ -138,14 +128,10 @@ module tinyriscv(
     wire clint_int_assert_o;
     wire clint_hold_flag_o;
 
-
-    assign rib_ex_addr_o = (ex_mem_we_o == `WriteEnable)? ex_mem_waddr_o: ex_mem_raddr_o;
-    assign rib_ex_data_o = ex_mem_wdata_o;
-    assign rib_ex_req_o = ex_mem_req_o;
-    assign rib_ex_we_o = ex_mem_we_o;
-
-    assign rib_pc_addr_o = pc_pc_o;
-
+    // mems模块接口信号
+    wire hold_flag_i;
+    wire[`INST_DATA_WIDTH-1:0] inst_data_i;
+    wire[`BUS_DATA_WIDTH-1:0] ex_mem_data_i;
 
     // pc_reg模块例化
     pc_reg u_pc_reg(
@@ -164,7 +150,7 @@ module tinyriscv(
         .jump_flag_i(ex_jump_flag_o),
         .jump_addr_i(ex_jump_addr_o),
         .hold_flag_ex_i(ex_hold_flag_o),
-        .hold_flag_rib_i(rib_hold_flag_i),
+        .hold_flag_rib_i(hold_flag_i),
         .hold_flag_o(ctrl_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
         .jump_flag_o(ctrl_jump_flag_o),
@@ -213,7 +199,7 @@ module tinyriscv(
     if_id u_if_id(
         .clk(clk),
         .rst(rst),
-        .inst_i(rib_pc_data_i),
+        .inst_i(inst_data_i),
         .inst_addr_i(pc_pc_o),
         .int_flag_i(int_i),
         .int_flag_o(if_int_flag_o),
@@ -295,7 +281,7 @@ module tinyriscv(
         .op2_i(ie_op2_o),
         .op1_jump_i(ie_op1_jump_o),
         .op2_jump_i(ie_op2_jump_o),
-        .mem_rdata_i(rib_ex_data_i),
+        .mem_rdata_i(ex_mem_data_i),
         .mem_wdata_o(ex_mem_wdata_o),
         .mem_raddr_o(ex_mem_raddr_o),
         .mem_waddr_o(ex_mem_waddr_o),
@@ -364,6 +350,23 @@ module tinyriscv(
         .global_int_en_i(csr_global_int_en_o),
         .int_addr_o(clint_int_addr_o),
         .int_assert_o(clint_int_assert_o)
+    );
+
+    // mems模块例化
+    mems u_mems(
+        .clk(clk),
+        .rst(rst),
+        // PC接口
+        .pc_i(pc_pc_o),
+        .inst_o(inst_data_i),
+        // EX接口
+        .ex_addr_i(ex_mem_we_o ? ex_mem_waddr_o : ex_mem_raddr_o),
+        .ex_data_i(ex_mem_wdata_o),
+        .ex_data_o(ex_mem_data_i),
+        .ex_we_i(ex_mem_we_o),
+        .ex_req_i(ex_mem_req_o),
+        // 暂停信号
+        .hold_flag_o(hold_flag_i)
     );
 
 endmodule

@@ -6,8 +6,13 @@
   `define NO_TIMEOUT
 `endif
 
-// 添加新的宏定义控制寄存器调试输出
+// 宏定义控制寄存器调试输出
 // `define DEBUG_DISPLAY_REGS 1
+
+// ToHost程序地址,用于监控测试是否结束
+`define PC_WRITE_TOHOST       32'h000000a0
+
+`define ITCM  tinyriscv_soc_top_0.u_tinyriscv.u_mems.u_itcm
 
 module tb_top (
     input clk,
@@ -25,131 +30,65 @@ module tb_top (
     
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [31:0] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
-    // 添加通用寄存器x26和x27的监控 - 用于新的测试结果判断
-    wire    [31:0] x26 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[26];
-    wire    [31:0] x27 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[27];
-
-    // 新增CSR寄存器状态获取
-    wire[31:0] sim_result = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus;
-    wire sim_end = sim_result[0];
-    wire sim_succ = sim_result[1];
+    // 添加通用寄存器监控 - 用于结果判断
+    wire    [31:0] pc = tinyriscv_soc_top_0.u_tinyriscv.u_pc_reg.pc_o;
 
     integer           r;
     reg     [8*300:1] testcase;
     integer           dumpwave;
 
-    // 计算ROM的深度和字节大小
-    localparam ROM_DEPTH = 4096; // ROM中的字数
-    localparam ROM_BYTE_SIZE = ROM_DEPTH * 4; // 总字节数
+    // 计算ITCM的深度和字节大小
+    localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2)); // ITCM中的字数
+    localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 4; // 总字节数
 
-    // 创建与ROM容量相同的临时字节数组
-    reg [7:0] prog_mem[0:ROM_BYTE_SIZE-1]; // 注意数组声明顺序调整
+    // 创建与ITCM容量相同的临时字节数组
+    reg [7:0] prog_mem[0:ITCM_BYTE_SIZE-1]; // 注意数组声明顺序调整
     integer i;
 
-    // 新增/保留 CSR 寄存器结束判断逻辑
-    reg sim_end_q;
-    
-    // 新增基于x26的测试结束检测
-    reg x26_detected;
-    reg [7:0] x26_delay_counter; // 用于替代#100延迟的计数器
-    
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            sim_end_q <= 1'b0;
-            x26_detected <= 1'b0;
-            x26_delay_counter <= 8'd0;
+    // 添加PC监控变量
+    reg [31:0] pc_write_to_host_cnt;
+    reg [31:0] pc_write_to_host_cycle;
+    reg [31:0] valid_ir_cycle;
+    reg [31:0] cycle_count;
+    reg pc_write_to_host_flag;
+    reg [31:0] last_pc; // 添加一个寄存器来存储上一次的PC值
+
+    // 周期计数器 - 保持同步实现
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            cycle_count <= 32'b0;
+            last_pc <= 32'b0; // 初始化上一次的PC值
         end else begin
-            sim_end_q <= sim_end;
-            
-            // 检测x26是否为1 - 新增逻辑
-            if (x26 == 32'b1 && !x26_detected) begin
-                x26_detected <= 1'b1;
-            end
-            
-            // 如果检测到x26为1，则开始计数延迟
-            if (x26_detected && x26_delay_counter < 8'd100) begin
-                x26_delay_counter <= x26_delay_counter + 8'd1;
-            end
-            
-            // 当延迟计数达到100后，输出测试结果
-            if (x26_detected && x26_delay_counter == 8'd100) begin
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~ (x26/x27) ~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            cycle_count <= cycle_count + 1'b1;
+            last_pc <= pc; // 在时钟边缘更新上一次的PC值，用于检测变化
+        end
+    end
 
-                if (x27 == 32'b1) begin
-                    $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
-                    $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
-                    $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
-                    $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
-                    $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
-                    $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                end else begin
-                    $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                    $display("fail testnum = %2d", x3);
-                    for (r = 0; r < 32; r = r + 1)
-                    $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
-                end
-                $finish;
-            end
-            
-            // 检测sim_end从0变为1的上升沿 - 原有逻辑
-            if (sim_end && (!sim_end_q)) begin
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~ (CSR) ~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-
-                if (sim_succ == 1'b1) begin
-                    $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
-                    $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
-                    $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
-                    $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
-                    $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
-                    $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                end else begin
-                    $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                    $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
-                    $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
-                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                    $display("fail testnum = %2d", x3);
-                    for (r = 0; r < 32; r = r + 1)
-                    $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
-                end
-                $finish;
+    // PC监控逻辑
+    always @(pc) begin 
+        if (pc == `PC_WRITE_TOHOST && pc != last_pc) begin
+            pc_write_to_host_cnt = pc_write_to_host_cnt + 1'b1;
+            if (pc_write_to_host_flag == 1'b0) begin
+                pc_write_to_host_cycle = cycle_count;
+                pc_write_to_host_flag = 1'b1;
             end
         end
     end
 
+    // 添加异步复位逻辑
+    always @(negedge rst_n) begin
+        if (!rst_n) begin
+            pc_write_to_host_cnt = 32'b0;
+            pc_write_to_host_flag = 1'b0;
+            pc_write_to_host_cycle = 32'b0;
+        end
+    end
+
     // 超时监控
-    reg [31:0] cycle_count;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            cycle_count <= 32'b0;
+            // Reset logic
         end else begin
-            cycle_count <= cycle_count + 1'b1;
 `ifdef NO_TIMEOUT
 `else
             if (cycle_count[20] == 1'b1) begin
@@ -159,7 +98,7 @@ module tb_top (
 `endif
         end
     end
-
+    
     // 测试用例解析
     initial begin
         $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -173,20 +112,62 @@ module tb_top (
         // 从.verilog文件中读取字节数据
         $readmemh({testcase, ".verilog"}, prog_mem);
 
-        // 处理小端序格式并更新到新的ROM存储位置
-        for (i = 0; i < ROM_DEPTH; i = i + 1) begin // 遍历ROM的每个字
-            tinyriscv_soc_top_0.u_rom._rom[i] = {
+        // 处理小端序格式并更新到新的ITCM存储位置
+        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin // 遍历ITCM的每个字
+            `ITCM.mem_r[i] = {
                 prog_mem[i*4+3], prog_mem[i*4+2],
                 prog_mem[i*4+1], prog_mem[i*4+0]
             };
         end
 
-        $display("成功加载指令到ROM，ROM深度:%0d字，字节大小:%0d", ROM_DEPTH, ROM_BYTE_SIZE);
-        $display("ROM 0x00: %h", tinyriscv_soc_top_0.u_rom._rom[0]);
-        $display("ROM 0x01: %h", tinyriscv_soc_top_0.u_rom._rom[1]);
-        $display("ROM 0x02: %h", tinyriscv_soc_top_0.u_rom._rom[2]);
-        $display("ROM 0x03: %h", tinyriscv_soc_top_0.u_rom._rom[3]);
-        $display("ROM 0x04: %h", tinyriscv_soc_top_0.u_rom._rom[4]);
+        $display("成功加载指令到ITCM，ITCM深度:%0d字，字节大小:%0d", ITCM_DEPTH, ITCM_BYTE_SIZE);
+        $display("ITCM 0x00: %h", `ITCM.mem_r[0]);
+        $display("ITCM 0x01: %h", `ITCM.mem_r[1]);
+        $display("ITCM 0x02: %h", `ITCM.mem_r[2]);
+        $display("ITCM 0x03: %h", `ITCM.mem_r[3]);
+        $display("ITCM 0x04: %h", `ITCM.mem_r[4]);
+    end
+
+    // 对pc_write_to_host_cnt的变化进行监控
+    always @(pc_write_to_host_cnt) begin
+        if (pc_write_to_host_cnt == 32'd8) begin
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~TESTCASE: %s ~~~~~~~~~~~~~", testcase);
+            $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", cycle_count);
+            $display("~~~~~The test ending reached at cycle: %d ~~~~~~~~~~~~~", pc_write_to_host_cycle);
+            $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            
+            if (x3 == 1) begin
+                $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
+                $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
+                $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
+                $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
+                $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
+                $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            end else begin
+                $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
+                $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
+                $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
+                $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
+                $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
+                $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("fail testnum = %2d", x3);
+                for (r = 0; r < 32; r = r + 1)
+                    $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+            end
+            $finish;
+        end
     end
 
 `ifdef JTAGVPI
@@ -244,8 +225,6 @@ module tb_top (
             $display("mie = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mie);
             $display("mcause = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mcause);
             $display("mscratch = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mscratch);
-            // 用于仿真的结束标志
-            $display("sim_result = 0x%x", tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus);
         end
     end
 `endif

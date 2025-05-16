@@ -1,5 +1,5 @@
 /*                                                                      
- Copyright 2020 Blue Liang, liangkangnan@163.com
+ Copyright 2019 Blue Liang, liangkangnan@163.com
                                                                          
  Licensed under the Apache License, Version 2.0 (the "License");         
  you may not use this file except in compliance with the License.        
@@ -16,42 +16,45 @@
 
 `include "../core/defines.v"
 
-// ROM模块 - 使用宏定义的地址宽度
-module rom (
+// 通用RAM模块 - 参数化设计
+module gnrl_ram #(
+    parameter ADDR_WIDTH = 16,           // 地址宽度参数
+    parameter DATA_WIDTH = 32            // 数据宽度参数
+)(
     input wire clk,
     input wire rst,
 
-    input wire we_i,                           // write enable
-    input wire[`ROM_ADDR_WIDTH-1:0] addr_i,    // addr
-    input wire[`BUS_DATA_WIDTH-1:0] data_i,
+    input wire we_i,                     // write enable
+    input wire[ADDR_WIDTH-1:0] addr_i,   // addr
+    input wire[DATA_WIDTH-1:0] data_i,   // write data
 
-    output reg[`BUS_DATA_WIDTH-1:0] data_o     // read data
+    output reg[DATA_WIDTH-1:0] data_o    // read data
 );
 
     // 字节地址到字地址转换的偏移量（每个字4字节，需要右移2位）
     localparam ADDR_OFFSET = 2;
-    
-    // 自动计算深度 = 2^(`ROM_ADDR_WIDTH - ADDR_OFFSET)，因为是按字寻址
-    localparam DEPTH = (1 << (`ROM_ADDR_WIDTH - ADDR_OFFSET));
-    
+
+    // 自动计算深度 = 2^(ADDR_WIDTH - ADDR_OFFSET)，因为是按字寻址
+    localparam DEPTH = (1 << (ADDR_WIDTH - ADDR_OFFSET));
+
     // 使用计算出的深度定义存储器
-    reg[`BUS_DATA_WIDTH-1:0] _rom[0:DEPTH-1];
+    reg[DATA_WIDTH-1:0] mem_r[0:DEPTH-1];
 
     // 从字节地址计算出字地址
-    wire[`ROM_ADDR_WIDTH-ADDR_OFFSET-1:0] word_addr;
-    assign word_addr = addr_i[`ROM_ADDR_WIDTH-1:ADDR_OFFSET];
+    wire[ADDR_WIDTH-ADDR_OFFSET-1:0] word_addr;
+    assign word_addr = addr_i[ADDR_WIDTH-1:ADDR_OFFSET];
 
     always @ (posedge clk) begin
         if (we_i == `WriteEnable) begin
-            _rom[word_addr] <= data_i;
+            mem_r[word_addr] <= data_i;
         end
     end
 
     always @ (*) begin
         if (rst == `RstEnable) begin
-            data_o = {`BUS_DATA_WIDTH{1'b0}};
+            data_o = {DATA_WIDTH{1'b0}};
         end else begin
-            data_o = _rom[word_addr];
+            data_o = mem_r[word_addr];
         end
     end
 

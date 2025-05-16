@@ -49,7 +49,7 @@ module regs(
 
     );
 
-    reg[`REG_DATA_WIDTH-1:0] regs[0:`RegNum - 1];
+    reg[`REG_DATA_WIDTH-1:0] regs[0:`REG_NUM - 1];
 
     // 写寄存器
     always @ (posedge clk) begin

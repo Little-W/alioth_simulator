@@ -44,7 +44,7 @@ compile_test_src:
 		make SIM_ROOT_DIR=${SIM_ROOT_DIR} XLEN=${XLEN} USE_OPEN_GNU_GCC=${USE_OPEN_GNU_GCC} -j$(nproc) -C ${ISA_TEST_DIR}/test_src/;	\
 	fi
 
-test_all: alioth
+test_all: alioth compile_test_src
 	@if [ ! -e ${BUILD_DIR}/test_compiled ] ; \
 	then	\
 		echo -e "\n" ;	\
@@ -54,8 +54,8 @@ test_all: alioth
 		echo -e "\n" ;	\
 	else	\
 		$(foreach tst,$(SELF_TESTS), make test DUMPWAVE=0 SIM_ROOT_DIR=${SIM_ROOT_DIR} TEST_PROGRAM=${tst} SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR};)\
-		rm -rf ${BUILD_DIR}/regress.res ;\
-		find ${BUILD_DIR}/test_out/ -name "rv${XLEN}*.log" -exec ${SIM_ROOT_DIR}/deps/tools/find_test_fail.csh {} >> ${BUILD_DIR}/regress.res \;; cat ${BUILD_DIR}/regress.res ;	\
+		rm -rf ${BUILD_DIR}/regress.res; \
+		find ${BUILD_DIR}/test_out/ -name "rv${XLEN}*.log" -exec ${SIM_ROOT_DIR}/deps/tools/find_test_fail.sh {} \; ;	\
 	fi
 
 debug_env:

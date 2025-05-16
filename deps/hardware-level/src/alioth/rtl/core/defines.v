@@ -14,6 +14,8 @@
  limitations under the License.                                          
  */
 
+`include "config.v"
+
 `define CpuResetAddr 32'h0
 
 `define RstEnable 1'b0
@@ -145,22 +147,3 @@
 `define CSR_MIE     12'h304
 `define CSR_MSTATUS 12'h300
 `define CSR_MSCRATCH 12'h340
-
-// 内存和地址配置
-`define ROM_ADDR_WIDTH 16  // ROM地址宽度，16位对应64KB
-`define RAM_ADDR_WIDTH 16  // RAM地址宽度，16位对应64KB
-
-// 总线宽度定义 - 规范化命名
-`define BUS_DATA_WIDTH 32
-`define BUS_ADDR_WIDTH 32
-
-`define INST_DATA_WIDTH 32
-`define INST_ADDR_WIDTH 32
-
-// common regs
-`define REG_ADDR_WIDTH 5
-`define REG_DATA_WIDTH 32
-`define DOUBLE_REG_WIDTH 64
-`define RegWidth 32
-`define RegNum 32        // reg num
-`define RegNumLog2 5

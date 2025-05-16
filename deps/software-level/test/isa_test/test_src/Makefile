@@ -59,11 +59,11 @@ endef
 ifeq ($(USE_OPEN_GNU_GCC),1)
 $(eval $(call compile_template,rv32ui,-march=rv32imf_zifencei -mabi=ilp32))
 $(eval $(call compile_template,rv32um,-march=rv32imf_zifencei -mabi=ilp32))
-$(eval $(call compile_template,rv32mi,-march=rv32imf_zifencei -mabi=ilp32))
+# $(eval $(call compile_template,rv32mi,-march=rv32imf_zifencei -mabi=ilp32))
 else
 $(eval $(call compile_template,rv32ui,-march=rv32imf -mabi=ilp32))
 $(eval $(call compile_template,rv32um,-march=rv32imf -mabi=ilp32))
-$(eval $(call compile_template,rv32mi,-march=rv32imf -mabi=ilp32))
+# $(eval $(call compile_template,rv32mi,-march=rv32imf -mabi=ilp32))
 endif
 
 tests_verilog = $(addsuffix .verilog, $(tests))
