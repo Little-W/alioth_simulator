@@ -21,10 +21,13 @@ module tb_top (
 );
 
     // 复位信号反相
-    wire rst = ~rst_n;
+    wire rst = rst_n;
     
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [31:0] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
+    // 添加通用寄存器x26和x27的监控 - 用于新的测试结果判断
+    wire    [31:0] x26 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[26];
+    wire    [31:0] x27 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[27];
 
     // 新增CSR寄存器状态获取
     wire[31:0] sim_result = tinyriscv_soc_top_0.u_tinyriscv.u_csr_reg.mstatus;
@@ -36,24 +39,81 @@ module tb_top (
     integer           dumpwave;
 
     // 计算ROM的深度和字节大小
-    localparam ROM_DEPTH = (1 << (`ROM_ADDR_WIDTH - 2)); // ROM中的字数
+    localparam ROM_DEPTH = 4096; // ROM中的字数
     localparam ROM_BYTE_SIZE = ROM_DEPTH * 4; // 总字节数
 
     // 创建与ROM容量相同的临时字节数组
-    reg [7:0] prog_mem[ROM_BYTE_SIZE-1:0]; // 注意数组声明顺序调整
+    reg [7:0] prog_mem[0:ROM_BYTE_SIZE-1]; // 注意数组声明顺序调整
     integer i;
 
     // 新增/保留 CSR 寄存器结束判断逻辑
     reg sim_end_q;
     
+    // 新增基于x26的测试结束检测
+    reg x26_detected;
+    reg [7:0] x26_delay_counter; // 用于替代#100延迟的计数器
+    
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             sim_end_q <= 1'b0;
+            x26_detected <= 1'b0;
+            x26_delay_counter <= 8'd0;
         end else begin
             sim_end_q <= sim_end;
             
-            // 检测sim_end从0变为1的上升沿
+            // 检测x26是否为1 - 新增逻辑
+            if (x26 == 32'b1 && !x26_detected) begin
+                x26_detected <= 1'b1;
+            end
+            
+            // 如果检测到x26为1，则开始计数延迟
+            if (x26_detected && x26_delay_counter < 8'd100) begin
+                x26_delay_counter <= x26_delay_counter + 8'd1;
+            end
+            
+            // 当延迟计数达到100后，输出测试结果
+            if (x26_detected && x26_delay_counter == 8'd100) begin
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~ (x26/x27) ~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
+                if (x27 == 32'b1) begin
+                    $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
+                    $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
+                    $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
+                    $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
+                    $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
+                    $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                end else begin
+                    $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
+                    $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
+                    $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                    $display("fail testnum = %2d", x3);
+                    for (r = 0; r < 32; r = r + 1)
+                    $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
+                end
+                $finish;
+            end
+            
+            // 检测sim_end从0变为1的上升沿 - 原有逻辑
             if (sim_end && (!sim_end_q)) begin
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~ (CSR) ~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
                 if (sim_succ == 1'b1) begin
                     $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
                     $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -85,8 +145,8 @@ module tb_top (
 
     // 超时监控
     reg [31:0] cycle_count;
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
             cycle_count <= 32'b0;
         end else begin
             cycle_count <= cycle_count + 1'b1;

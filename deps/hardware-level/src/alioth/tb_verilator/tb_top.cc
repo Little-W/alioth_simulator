@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     if (trace_en) tfp->dump(tick); tick++;
 
     // enough time to reset
-    for (int i = 0; i < 500; i++)
+    for (int i = 0; i < 100; i++)
     {
         soc->clk = !soc->clk;
         soc->eval();
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     soc->rst_n = 1;
     soc->eval();
 
-    for (int i = 0; i < 5000; i++)
+    for (int i = 0; i < 50000; i++)
     {
         soc->clk = !soc->clk;
         soc->eval();

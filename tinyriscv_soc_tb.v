@@ -2,126 +2,519 @@
 
 `include "defines.v"
 
-`ifdef JTAGVPI
-  `define NO_TIMEOUT
+// select one option only
+`define TEST_PROG  1
+//`define TEST_JTAG  1
+
+
+// testbench module
+module tinyriscv_soc_tb;
+
+    reg clk;
+    reg rst;
+
+
+    always #10 clk = ~clk;     // 50MHz
+
+    wire[`RegBus] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
+    wire[`RegBus] x26 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[26];
+    wire[`RegBus] x27 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[27];
+
+    integer r;
+
+`ifdef TEST_JTAG
+    reg TCK;
+    reg TMS;
+    reg TDI;
+    wire TDO;
+
+    integer i;
+    reg[39:0] shift_reg;
+    reg in;
+    wire[39:0] req_data = tinyriscv_soc_top_0.u_jtag_top.u_jtag_driver.dtm_req_data;
+    wire[4:0] ir_reg = tinyriscv_soc_top_0.u_jtag_top.u_jtag_driver.ir_reg;
+    wire dtm_req_valid = tinyriscv_soc_top_0.u_jtag_top.u_jtag_driver.dtm_req_valid;
+    wire[31:0] dmstatus = tinyriscv_soc_top_0.u_jtag_top.u_jtag_dm.dmstatus;
 `endif
 
-module tb_top (
-    input clk,
-    input rst,
-
-    // JTAG接口作为外部输入
-    input  tck_i,
-    input  tms_i,
-    input  tdi_i,
-    output tdo_o
-);
-
-    wire    [`REG_DATA_WIDTH-1:0] x3 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[3];
-    wire    [`REG_DATA_WIDTH-1:0] x26 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[26];
-    wire    [`REG_DATA_WIDTH-1:0] x27 = tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[27];
-
-    integer           r;
-    reg     [8*300:1] testcase;
-    integer           dumpwave;
-
-    // 监控测试结果
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            // 复位逻辑
-        end else if (x26 == 32'b1) begin  // 等待测试结束信号
-            #100
-            if (x27 == 32'b1) begin
-                $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
-                $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
-                $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
-                $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
-                $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
-                $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            end else begin
-                $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
-                $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
-                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-                $display("fail testnum = %2d", x3);
-                for (r = 0; r < 32; r = r + 1)
-                $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
-            end
-            $finish;
-        end
-    end
-
-    // 超时监控
-    reg [31:0] cycle_count;
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            cycle_count <= 32'b0;
-        end else begin
-            cycle_count <= cycle_count + 1'b1;
-`ifdef NO_TIMEOUT
-`else
-            if (cycle_count[20] == 1'b1) begin
-                $display("Time Out !!!");
-                $finish;
-            end
-`endif
-        end
-    end
-
-    // 测试用例解析
     initial begin
-        $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        if ($value$plusargs("itcm_init=%s", testcase)) begin
-            $display("itcm_init=%s", testcase);
+        clk = 0;
+        rst = `RstEnable;
+`ifdef TEST_JTAG
+        TCK = 1;
+        TMS = 1;
+        TDI = 1;
+`endif
+        $display("test running...");
+        #40
+        rst = `RstDisable;
+        #200
+
+`ifdef TEST_PROG
+        wait(x26 == 32'b1)   // wait sim end, when x26 == 1
+        #100
+        if (x27 == 32'b1) begin
+            $display("~~~~~~~~~~~~~~~~~~~ TEST_PASS ~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~ #####     ##     ####    #### ~~~~~~~~~");
+            $display("~~~~~~~~~ #    #   #  #   #       #     ~~~~~~~~~");
+            $display("~~~~~~~~~ #    #  #    #   ####    #### ~~~~~~~~~");
+            $display("~~~~~~~~~ #####   ######       #       #~~~~~~~~~");
+            $display("~~~~~~~~~ #       #    #  #    #  #    #~~~~~~~~~");
+            $display("~~~~~~~~~ #       #    #   ####    #### ~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
         end else begin
-            $display("No itcm_init defined!");
-            $finish;
+            $display("~~~~~~~~~~~~~~~~~~~ TEST_FAIL ~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("~~~~~~~~~~######    ##       #    #     ~~~~~~~~~~");
+            $display("~~~~~~~~~~#        #  #      #    #     ~~~~~~~~~~");
+            $display("~~~~~~~~~~#####   #    #     #    #     ~~~~~~~~~~");
+            $display("~~~~~~~~~~#       ######     #    #     ~~~~~~~~~~");
+            $display("~~~~~~~~~~#       #    #     #    #     ~~~~~~~~~~");
+            $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
+            $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            $display("fail testnum = %2d", x3);
+            for (r = 0; r < 32; r = r + 1)
+                $display("x%2d = 0x%x", r, tinyriscv_soc_top_0.u_tinyriscv.u_regs.regs[r]);
         end
-
-        // 使用testcase变量加载程序
-        $readmemh({testcase, ".verilog"}, tinyriscv_soc_top_0.u_rom._rom);
-
-        $display("ROM 0x00: %h", tinyriscv_soc_top_0.u_rom._rom[0]);
-        $display("ROM 0x01: %h", tinyriscv_soc_top_0.u_rom._rom[1]);
-        $display("ROM 0x02: %h", tinyriscv_soc_top_0.u_rom._rom[2]);
-        $display("ROM 0x03: %h", tinyriscv_soc_top_0.u_rom._rom[3]);
-        $display("ROM 0x04: %h", tinyriscv_soc_top_0.u_rom._rom[4]);
-    end
-
-`ifdef JTAGVPI
-    wire jtag_TDI;
-    wire jtag_TDO;
-    wire jtag_TCK;
-    wire jtag_TMS;
-    assign jtag_TDI = tdi_i;
-    assign tdo_o = jtag_TDO;
-    assign jtag_TCK = tck_i;
-    assign jtag_TMS = tms_i;
-`else
-    wire jtag_TDI = 1'b0;
-    wire jtag_TDO;
-    wire jtag_TCK = 1'b0;
-    wire jtag_TMS = 1'b0;
-    wire jtag_TRST = 1'b0;
 `endif
 
-    // 实例化顶层模块
-    tinyriscv_soc_top tinyriscv_soc_top_0 (
-        .clk           (clk),
-        .rst           (rst),
-        .uart_debug_pin(1'b0),
-        .jtag_TCK      (jtag_TCK),
-        .jtag_TMS      (jtag_TMS),
-        .jtag_TDI      (jtag_TDI),
-        .jtag_TDO      (jtag_TDO)
+`ifdef TEST_JTAG
+        // reset
+        for (i = 0; i < 8; i++) begin
+            TMS = 1;
+            TCK = 0;
+            #100
+            TCK = 1;
+            #100
+            TCK = 0;
+        end
+
+        // IR
+        shift_reg = 40'b10001;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SELECT-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SELECT-IR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // CAPTURE-IR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-IR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-IR & EXIT1-IR
+        for (i = 5; i > 0; i--) begin
+            if (shift_reg[0] == 1'b1)
+                TDI = 1'b1;
+            else
+                TDI = 1'b0;
+
+            if (i == 1)
+                TMS = 1;
+
+            TCK = 0;
+            #100
+            in = TDO;
+            TCK = 1;
+            #100
+            TCK = 0;
+
+            shift_reg = {{(35){1'b0}}, in, shift_reg[4:1]};
+        end
+
+        // PAUSE-IR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // EXIT2-IR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // UPDATE-IR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // dmi write
+        shift_reg = {6'h10, {(32){1'b0}}, 2'b10};
+
+        // SELECT-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // CAPTURE-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-DR & EXIT1-DR
+        for (i = 40; i > 0; i--) begin
+            if (shift_reg[0] == 1'b1)
+                TDI = 1'b1;
+            else
+                TDI = 1'b0;
+
+            if (i == 1)
+                TMS = 1;
+
+            TCK = 0;
+            #100
+            in = TDO;
+            TCK = 1;
+            #100
+            TCK = 0;
+
+            shift_reg = {in, shift_reg[39:1]};
+        end
+
+        // PAUSE-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // EXIT2-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // UPDATE-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        $display("ir_reg = 0x%x", ir_reg);
+        $display("dtm_req_valid = %d", dtm_req_valid);
+        $display("req_data = 0x%x", req_data);
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        $display("dmstatus = 0x%x", dmstatus);
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SELECT-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // dmi read
+        shift_reg = {6'h11, {(32){1'b0}}, 2'b01};
+
+        // CAPTURE-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-DR & EXIT1-DR
+        for (i = 40; i > 0; i--) begin
+            if (shift_reg[0] == 1'b1)
+                TDI = 1'b1;
+            else
+                TDI = 1'b0;
+
+            if (i == 1)
+                TMS = 1;
+
+            TCK = 0;
+            #100
+            in = TDO;
+            TCK = 1;
+            #100
+            TCK = 0;
+
+            shift_reg = {in, shift_reg[39:1]};
+        end
+
+        // PAUSE-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // EXIT2-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // UPDATE-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // IDLE
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SELECT-DR
+        TMS = 1;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // dmi read
+        shift_reg = {6'h11, {(32){1'b0}}, 2'b00};
+
+        // CAPTURE-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-DR
+        TMS = 0;
+        TCK = 0;
+        #100
+        TCK = 1;
+        #100
+        TCK = 0;
+
+        // SHIFT-DR & EXIT1-DR
+        for (i = 40; i > 0; i--) begin
+            if (shift_reg[0] == 1'b1)
+                TDI = 1'b1;
+            else
+                TDI = 1'b0;
+
+            if (i == 1)
+                TMS = 1;
+
+            TCK = 0;
+            #100
+            in = TDO;
+            TCK = 1;
+            #100
+            TCK = 0;
+
+            shift_reg = {in, shift_reg[39:1]};
+        end
+
+        #100
+
+        $display("shift_reg = 0x%x", shift_reg[33:2]);
+
+        if (dmstatus == shift_reg[33:2]) begin
+            $display("######################");
+            $display("### jtag test pass ###");
+            $display("######################");
+        end else begin
+            $display("######################");
+            $display("!!! jtag test fail !!!");
+            $display("######################");
+        end
+`endif
+
+        $finish;
+    end
+
+    // sim timeout
+    initial begin
+        #500000
+        $display("Time Out.");
+        $finish;
+    end
+
+    // read mem data
+    initial begin
+        $readmemh ("inst.data", tinyriscv_soc_top_0.u_rom._rom);
+    end
+
+    // generate wave file, used by gtkwave
+    initial begin
+        $dumpfile("tinyriscv_soc_tb.vcd");
+        $dumpvars(0, tinyriscv_soc_tb);
+    end
+
+    tinyriscv_soc_top tinyriscv_soc_top_0(
+        .clk(clk),
+        .rst(rst),
+        .uart_debug_pin(1'b0)
+`ifdef TEST_JTAG
+        ,
+        .jtag_TCK(TCK),
+        .jtag_TMS(TMS),
+        .jtag_TDI(TDI),
+        .jtag_TDO(TDO)
+`endif
     );
 
 endmodule

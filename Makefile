@@ -44,7 +44,7 @@ compile_test_src:
 		make SIM_ROOT_DIR=${SIM_ROOT_DIR} XLEN=${XLEN} USE_OPEN_GNU_GCC=${USE_OPEN_GNU_GCC} -j$(nproc) -C ${ISA_TEST_DIR}/test_src/;	\
 	fi
 
-test_all: alioth compile_test_src
+test_all: alioth
 	@if [ ! -e ${BUILD_DIR}/test_compiled ] ; \
 	then	\
 		echo -e "\n" ;	\
