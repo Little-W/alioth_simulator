@@ -23,9 +23,6 @@ module clint(
     input wire clk,
     input wire rst,
 
-    // from core
-    // input wire[`INT_BUS] int_flag_i, // 注释掉该信号
-
     // from id
     input wire[`INST_DATA_WIDTH-1:0] inst_i,
     input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,

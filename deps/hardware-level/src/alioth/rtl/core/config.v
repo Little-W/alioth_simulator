@@ -9,7 +9,7 @@
 `define DTCM_SIZE      (1 << `DTCM_ADDR_WIDTH)     // DTCM大小：64KB
 
 // 内存初始化控制
-`define INIT_ITCM      1       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
+`define INIT_ITCM      0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
 `define ITCM_INIT_FILE "/media/5/Projects/RISC-V/tinyriscv/tools/prog.mem" // ITCM初始化文件路径
 
 // 总线宽度定义 - 规范化命名

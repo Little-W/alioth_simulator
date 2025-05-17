@@ -37,10 +37,7 @@ module regs(
     input wire[`REG_ADDR_WIDTH-1:0] raddr2_i,     // 读寄存器2地址
 
     // to id
-    output reg[`REG_DATA_WIDTH-1:0] rdata2_o,         // 读寄存器2数据
-
-    // to jtag
-    output reg[`REG_DATA_WIDTH-1:0] jtag_data_o       // 读寄存器数据
+    output reg[`REG_DATA_WIDTH-1:0] rdata2_o         // 读寄存器2数据
 
     );
 
