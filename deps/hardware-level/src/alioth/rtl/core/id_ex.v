@@ -22,7 +22,22 @@ module id_ex(
     input wire clk,
     input wire rst,
 
-    input wire[`INST_DATA_WIDTH-1:0] inst_i,            // 指令内容
+    // input wire[`INST_DATA_WIDTH-1:0] inst_i,            // 指令内容
+    // input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,   // 指令地址
+    // input wire reg_we_i,                    // 写通用寄存器标志
+    // input wire[`REG_ADDR_WIDTH-1:0] reg_waddr_i,    // 写通用寄存器地址
+    // input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,       // 通用寄存器1读数据
+    // input wire[`REG_DATA_WIDTH-1:0] reg2_rdata_i,       // 通用寄存器2读数据
+    // input wire csr_we_i,                    // 写CSR寄存器标志
+    // input wire[`BUS_ADDR_WIDTH-1:0] csr_waddr_i,    // 写CSR寄存器地址
+    // input wire[`REG_DATA_WIDTH-1:0] csr_rdata_i,        // CSR寄存器读数据
+    // input wire[`BUS_ADDR_WIDTH-1:0] op1_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op1_jump_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op2_jump_i,
+
+     // 输入
+    input wire[31:0] inst_i, // 指令内容
     input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,   // 指令地址
     input wire reg_we_i,                    // 写通用寄存器标志
     input wire[`REG_ADDR_WIDTH-1:0] reg_waddr_i,    // 写通用寄存器地址
@@ -31,17 +46,20 @@ module id_ex(
     input wire csr_we_i,                    // 写CSR寄存器标志
     input wire[`BUS_ADDR_WIDTH-1:0] csr_waddr_i,    // 写CSR寄存器地址
     input wire[`REG_DATA_WIDTH-1:0] csr_rdata_i,        // CSR寄存器读数据
-    input wire[`BUS_ADDR_WIDTH-1:0] op1_i,
-    input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
-    input wire[`BUS_ADDR_WIDTH-1:0] op1_jump_i,
-    input wire[`BUS_ADDR_WIDTH-1:0] op2_jump_i,
+    input wire[`DECINFO_WIDTH-1:0] dec_info_bus_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op1_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op1_jump_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op2_jump_i,
+    input wire[31:0] dec_imm_i,    
+
 
     input wire[`Hold_Flag_Bus] hold_flag_i, // 流水线暂停标志
 
-    output wire[`BUS_ADDR_WIDTH-1:0] op1_o,
-    output wire[`BUS_ADDR_WIDTH-1:0] op2_o,
-    output wire[`BUS_ADDR_WIDTH-1:0] op1_jump_o,
-    output wire[`BUS_ADDR_WIDTH-1:0] op2_jump_o,
+    // output wire[`BUS_ADDR_WIDTH-1:0] op1_o,
+    // output wire[`BUS_ADDR_WIDTH-1:0] op2_o,
+    // output wire[`BUS_ADDR_WIDTH-1:0] op1_jump_o,
+    // output wire[`BUS_ADDR_WIDTH-1:0] op2_jump_o,
     output wire[`INST_DATA_WIDTH-1:0] inst_o,            // 指令内容
     output wire[`INST_ADDR_WIDTH-1:0] inst_addr_o,   // 指令地址
     output wire reg_we_o,                    // 写通用寄存器标志
@@ -49,9 +67,10 @@ module id_ex(
     output wire[`REG_DATA_WIDTH-1:0] reg1_rdata_o,       // 通用寄存器1读数据
     output wire[`REG_DATA_WIDTH-1:0] reg2_rdata_o,       // 通用寄存器2读数据
     output wire csr_we_o,                    // 写CSR寄存器标志
+    output wire[`REG_DATA_WIDTH-1:0] csr_rdata_o,        // CSR寄存器读数据
+    output wire[31:0] dec_imm_o,                         // 立即数
     output wire[`BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
-    output wire[`REG_DATA_WIDTH-1:0] csr_rdata_o         // CSR寄存器读数据
-
+    output wire[`DECINFO_WIDTH-1:0] dec_info_bus_o       // 译码信息总线
     );
 
     wire hold_en = (hold_flag_i >= `Hold_Id);
@@ -92,20 +111,30 @@ module id_ex(
     gen_pipe_dff #(32) csr_rdata_ff(clk, rst, hold_en, `ZeroWord, csr_rdata_i, csr_rdata);
     assign csr_rdata_o = csr_rdata;
 
-    wire[`BUS_ADDR_WIDTH-1:0] op1;
-    gen_pipe_dff #(32) op1_ff(clk, rst, hold_en, `ZeroWord, op1_i, op1);
-    assign op1_o = op1;
+    // wire[`BUS_ADDR_WIDTH-1:0] op1;
+    // gen_pipe_dff #(32) op1_ff(clk, rst, hold_en, `ZeroWord, op1_i, op1);
+    // assign op1_o = op1;
 
-    wire[`BUS_ADDR_WIDTH-1:0] op2;
-    gen_pipe_dff #(32) op2_ff(clk, rst, hold_en, `ZeroWord, op2_i, op2);
-    assign op2_o = op2;
+    // wire[`BUS_ADDR_WIDTH-1:0] op2;
+    // gen_pipe_dff #(32) op2_ff(clk, rst, hold_en, `ZeroWord, op2_i, op2);
+    // assign op2_o = op2;
 
-    wire[`BUS_ADDR_WIDTH-1:0] op1_jump;
-    gen_pipe_dff #(32) op1_jump_ff(clk, rst, hold_en, `ZeroWord, op1_jump_i, op1_jump);
-    assign op1_jump_o = op1_jump;
+    // wire[`BUS_ADDR_WIDTH-1:0] op1_jump;
+    // gen_pipe_dff #(32) op1_jump_ff(clk, rst, hold_en, `ZeroWord, op1_jump_i, op1_jump);
+    // assign op1_jump_o = op1_jump;
 
-    wire[`BUS_ADDR_WIDTH-1:0] op2_jump;
-    gen_pipe_dff #(32) op2_jump_ff(clk, rst, hold_en, `ZeroWord, op2_jump_i, op2_jump);
-    assign op2_jump_o = op2_jump;
+    // wire[`BUS_ADDR_WIDTH-1:0] op2_jump;
+    // gen_pipe_dff #(32) op2_jump_ff(clk, rst, hold_en, `ZeroWord, op2_jump_i, op2_jump);
+    // assign op2_jump_o = op2_jump;
+
+    // 新增译码信息总线传递
+    wire[`DECINFO_WIDTH-1:0] dec_info_bus;
+    gen_pipe_dff #(`DECINFO_WIDTH) dec_info_bus_ff(clk, rst, hold_en, `ZeroWord, dec_info_bus_i, dec_info_bus);
+    assign dec_info_bus_o = dec_info_bus;
+
+    // 新增立即数传递
+    wire[31:0] dec_imm;
+    gen_pipe_dff #(32) dec_imm_ff(clk, rst, hold_en, `ZeroWord, dec_imm_i, dec_imm);
+    assign dec_imm_o = dec_imm;
 
 endmodule

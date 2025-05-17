@@ -17,7 +17,7 @@
 `include "defines.v"
 
 // PC寄存器模块
-module pc_reg(
+module ifu_pc_nxt(
 
     input wire clk,
     input wire rst,
@@ -25,7 +25,6 @@ module pc_reg(
     input wire jump_flag_i,                 // 跳转标志
     input wire[`INST_ADDR_WIDTH-1:0] jump_addr_i,   // 跳转地址
     input wire[`Hold_Flag_Bus] hold_flag_i, // 流水线暂停标志
-    input wire jtag_reset_flag_i,           // 复位标志
 
     output reg[`INST_ADDR_WIDTH-1:0] pc_o           // PC指针
 
@@ -34,7 +33,7 @@ module pc_reg(
 
     always @ (posedge clk) begin
         // 复位
-        if (rst == `RstEnable || jtag_reset_flag_i == 1'b1) begin
+        if (rst == `RstEnable) begin
             pc_o <= `CpuResetAddr;
         // 跳转
         end else if (jump_flag_i == `JumpEnable) begin

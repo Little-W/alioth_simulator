@@ -17,7 +17,7 @@
 `include "defines.v"
 
 // 将指令向译码模块传递
-module if_id(
+module ifu_ifetch(
 
     input wire clk,
     input wire rst,

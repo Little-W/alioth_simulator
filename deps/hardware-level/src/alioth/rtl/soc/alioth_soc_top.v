@@ -82,7 +82,7 @@ module alioth_soc_top(
         .jtag_reg_we_i(jtag_reg_we_o),
         .jtag_reg_data_o(jtag_reg_data_i),
         .jtag_halt_flag_i(jtag_halt_req_o),
-        .jtag_reset_flag_i(jtag_reset_req_o),
+        // .jtag_reset_flag_i(jtag_reset_req_o),
         .int_i(int_flag)
     );
 

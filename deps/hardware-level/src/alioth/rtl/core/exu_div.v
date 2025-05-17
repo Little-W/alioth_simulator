@@ -178,9 +178,7 @@ module exu_div(
                         ready_o <= `DivResultNotReady;
                         busy_o <= `False;
                     end
-                end
-
-                STATE_END: begin
+                end                STATE_END: begin
                     if (start_i == `DivStart) begin
                         ready_o <= `DivResultReady;
                         state <= STATE_IDLE;

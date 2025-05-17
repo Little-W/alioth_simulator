@@ -28,7 +28,6 @@ module cpu_top(
     output wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_o,  // jtag模块读取到的寄存器数据
 
     input wire jtag_halt_flag_i,               // jtag暂停标志
-    input wire jtag_reset_flag_i,              // jtag复位PC标志
 
     input wire[`INST_DATA_WIDTH-1:0] int_i                 // 中断信号
 
@@ -40,9 +39,7 @@ module cpu_top(
     // if_id模块输出信号
     wire[`INST_DATA_WIDTH-1:0] if_inst_o;
     wire[`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
-    wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;
-
-    // id模块输出信号
+    wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;    // id模块输出信号
     wire[`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
     wire[`REG_ADDR_WIDTH-1:0] id_reg2_raddr_o;
     wire[`INST_DATA_WIDTH-1:0] id_inst_o;
@@ -54,13 +51,8 @@ module cpu_top(
     wire[`BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
     wire id_csr_we_o;
     wire[`REG_DATA_WIDTH-1:0] id_csr_rdata_o;
-    wire[`BUS_ADDR_WIDTH-1:0] id_csr_waddr_o;
-    wire[`BUS_ADDR_WIDTH-1:0] id_op1_o;
-    wire[`BUS_ADDR_WIDTH-1:0] id_op2_o;
-    wire[`BUS_ADDR_WIDTH-1:0] id_op1_jump_o;
-    wire[`BUS_ADDR_WIDTH-1:0] id_op2_jump_o;
-
-    // id_ex模块输出信号
+    wire[`BUS_ADDR_WIDTH-1:0] id_csr_waddr_o;    wire[31:0] id_dec_imm_o;
+    wire[`DECINFO_WIDTH-1:0] id_dec_info_bus_o;// id_ex模块输出信号
     wire[`INST_DATA_WIDTH-1:0] ie_inst_o;
     wire[`INST_ADDR_WIDTH-1:0] ie_inst_addr_o;
     wire ie_reg_we_o;
@@ -70,10 +62,8 @@ module cpu_top(
     wire ie_csr_we_o;
     wire[`BUS_ADDR_WIDTH-1:0] ie_csr_waddr_o;
     wire[`REG_DATA_WIDTH-1:0] ie_csr_rdata_o;
-    wire[`BUS_ADDR_WIDTH-1:0] ie_op1_o;
-    wire[`BUS_ADDR_WIDTH-1:0] ie_op2_o;
-    wire[`BUS_ADDR_WIDTH-1:0] ie_op1_jump_o;
-    wire[`BUS_ADDR_WIDTH-1:0] ie_op2_jump_o;
+    wire[31:0] ie_dec_imm_o;
+    wire[`DECINFO_WIDTH-1:0] ie_dec_info_bus_o;
 
     // exu模块输出信号
     wire[`BUS_DATA_WIDTH-1:0] exu_mem_wdata_o;
@@ -91,6 +81,11 @@ module cpu_top(
     wire exu_csr_we_o;
     wire[`BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
     wire exu_div_started_o;
+    // 添加系统指令状态信号
+    wire exu_inst_ecall_o;
+    wire exu_inst_ebreak_o;
+    wire exu_inst_mret_o;
+    wire exu_inst_dret_o;
 
     // regs模块输出信号
     wire[`REG_DATA_WIDTH-1:0] regs_rdata1_o;
@@ -123,15 +118,19 @@ module cpu_top(
     wire[`INST_DATA_WIDTH-1:0] inst_data_i;
     wire[`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
 
-    // pc_reg模块例化
-    pc_reg u_pc_reg(
+    // IFU模块例化（替换原先的pc_reg和if_id模块例化）
+    ifu u_ifu(
         .clk(clk),
         .rst(rst),
-        .jtag_reset_flag_i(jtag_reset_flag_i),
-        .pc_o(pc_pc_o),
-        .hold_flag_i(ctrl_hold_flag_o),
         .jump_flag_i(ctrl_jump_flag_o),
-        .jump_addr_i(ctrl_jump_addr_o)
+        .jump_addr_i(ctrl_jump_addr_o),
+        .hold_flag_i(ctrl_hold_flag_o),
+        .int_flag_i(int_i),
+        .inst_i(inst_data_i),
+        .pc_o(pc_pc_o),
+        .int_flag_o(if_int_flag_o),
+        .inst_o(if_inst_o),
+        .inst_addr_o(if_inst_addr_o)
     );
 
     // ctrl模块例化
@@ -183,49 +182,32 @@ module cpu_top(
         .clint_csr_mtvec(csr_clint_csr_mtvec),
         .clint_csr_mepc(csr_clint_csr_mepc),
         .clint_csr_mstatus(csr_clint_csr_mstatus)
-    );
-
-    // if_id模块例化
-    if_id u_if_id(
-        .clk(clk),
-        .rst(rst),
-        .inst_i(inst_data_i),
-        .inst_addr_i(pc_pc_o),
-        .int_flag_i(int_i),
-        .int_flag_o(if_int_flag_o),
-        .hold_flag_i(ctrl_hold_flag_o),
-        .inst_o(if_inst_o),
-        .inst_addr_o(if_inst_addr_o)
-    );
-
-    // id模块例化
+    );     // id模块例化
     id u_id(
         .rst(rst),
         .inst_i(if_inst_o),
         .inst_addr_i(if_inst_addr_o),
         .reg1_rdata_i(regs_rdata1_o),
         .reg2_rdata_i(regs_rdata2_o),
-        .ex_jump_flag_i(exu_jump_flag_o),
+        .csr_rdata_i(csr_data_o),
+        
         .reg1_raddr_o(id_reg1_raddr_o),
         .reg2_raddr_o(id_reg2_raddr_o),
+        .csr_raddr_o(id_csr_raddr_o),
+        
         .inst_o(id_inst_o),
         .inst_addr_o(id_inst_addr_o),
         .reg1_rdata_o(id_reg1_rdata_o),
         .reg2_rdata_o(id_reg2_rdata_o),
         .reg_we_o(id_reg_we_o),
         .reg_waddr_o(id_reg_waddr_o),
-        .op1_o(id_op1_o),
-        .op2_o(id_op2_o),
-        .op1_jump_o(id_op1_jump_o),
-        .op2_jump_o(id_op2_jump_o),
-        .csr_rdata_i(csr_data_o),
-        .csr_raddr_o(id_csr_raddr_o),
         .csr_we_o(id_csr_we_o),
         .csr_rdata_o(id_csr_rdata_o),
-        .csr_waddr_o(id_csr_waddr_o)
-    );
-
-    // id_ex模块例化
+        .csr_waddr_o(id_csr_waddr_o),
+        
+        .dec_imm_o(id_dec_imm_o),
+        .dec_info_bus_o(id_dec_info_bus_o)
+    );// id_ex模块例化
     id_ex u_id_ex(
         .clk(clk),
         .rst(rst),
@@ -235,31 +217,26 @@ module cpu_top(
         .reg_waddr_i(id_reg_waddr_o),
         .reg1_rdata_i(id_reg1_rdata_o),
         .reg2_rdata_i(id_reg2_rdata_o),
+        .csr_we_i(id_csr_we_o),
+        .csr_waddr_i(id_csr_waddr_o),
+        .csr_rdata_i(id_csr_rdata_o),
+        .dec_info_bus_i(id_dec_info_bus_o),
+        .dec_imm_i(id_dec_imm_o),
         .hold_flag_i(ctrl_hold_flag_o),
+        
         .inst_o(ie_inst_o),
         .inst_addr_o(ie_inst_addr_o),
         .reg_we_o(ie_reg_we_o),
         .reg_waddr_o(ie_reg_waddr_o),
         .reg1_rdata_o(ie_reg1_rdata_o),
-        .reg2_rdata_o(ie_reg2_rdata_o),
-        .op1_i(id_op1_o),
-        .op2_i(id_op2_o),
-        .op1_jump_i(id_op1_jump_o),
-        .op2_jump_i(id_op2_jump_o),
-        .op1_o(ie_op1_o),
-        .op2_o(ie_op2_o),
-        .op1_jump_o(ie_op1_jump_o),
-        .op2_jump_o(ie_op2_jump_o),
-        .csr_we_i(id_csr_we_o),
-        .csr_waddr_i(id_csr_waddr_o),
-        .csr_rdata_i(id_csr_rdata_o),
+        .reg2_rdata_o(ie_reg2_rdata_o),        
         .csr_we_o(ie_csr_we_o),
         .csr_waddr_o(ie_csr_waddr_o),
-        .csr_rdata_o(ie_csr_rdata_o)
-    );
-
-    // exu模块例化
-    exu u_exu(
+        .csr_rdata_o(ie_csr_rdata_o),
+        .dec_info_bus_o(ie_dec_info_bus_o),
+        .dec_imm_o(ie_dec_imm_o)
+    );     // exu模块例化
+    exu_top u_exu(
         .clk(clk),
         .rst(rst),
         .inst_i(ie_inst_o),
@@ -268,11 +245,14 @@ module cpu_top(
         .reg_waddr_i(ie_reg_waddr_o),
         .reg1_rdata_i(ie_reg1_rdata_o),
         .reg2_rdata_i(ie_reg2_rdata_o),
-        .op1_i(ie_op1_o),
-        .op2_i(ie_op2_o),
-        .op1_jump_i(ie_op1_jump_o),
-        .op2_jump_i(ie_op2_jump_o),
+        .csr_we_i(ie_csr_we_o),
+        .csr_waddr_i(ie_csr_waddr_o),
+        .csr_rdata_i(ie_csr_rdata_o),
+        .dec_info_bus_i(ie_dec_info_bus_o),  // 添加译码信息总线
+        .dec_imm_i(ie_dec_imm_o),            // 添加立即数
         .mem_rdata_i(exu_mem_data_i),
+        .int_assert_i(clint_int_assert_o),
+        .int_addr_i(clint_int_addr_o),
         .mem_wdata_o(exu_mem_wdata_o),
         .mem_raddr_o(exu_mem_raddr_o),
         .mem_waddr_o(exu_mem_waddr_o),
@@ -284,11 +264,6 @@ module cpu_top(
         .hold_flag_o(exu_hold_flag_o),
         .jump_flag_o(exu_jump_flag_o),
         .jump_addr_o(exu_jump_addr_o),
-        .int_assert_i(clint_int_assert_o),
-        .int_addr_i(clint_int_addr_o),
-        .csr_we_i(ie_csr_we_o),
-        .csr_waddr_i(ie_csr_waddr_o),
-        .csr_rdata_i(ie_csr_rdata_o),
         .csr_wdata_o(exu_csr_wdata_o),
         .csr_we_o(exu_csr_we_o),
         .csr_waddr_o(exu_csr_waddr_o),

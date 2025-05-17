@@ -20,12 +20,34 @@
 module exu_alu(
     input wire rst,
     
-    // 指令和操作数输入
-    input wire[`INST_DATA_WIDTH-1:0] inst_i,
-    input wire[`BUS_ADDR_WIDTH-1:0] op1_i,
-    input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
-    input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,
-    input wire[`REG_DATA_WIDTH-1:0] reg2_rdata_i,
+    
+    // ALU
+    input wire req_alu_i,
+    input wire[31:0] alu_op1_i,
+    input wire[31:0] alu_op2_i,
+    input wire alu_op_add_i,
+    input wire alu_op_sub_i,
+    input wire alu_op_sll_i,
+    input wire alu_op_slt_i,
+    input wire alu_op_sltu_i,
+    input wire alu_op_xor_i,
+    input wire alu_op_srl_i,
+    input wire alu_op_sra_i,
+    input wire alu_op_or_i,
+    input wire alu_op_and_i,
+    input wire[4:0] alu_rd_i,
+    // // 中断信号
+    // input wire int_assert_i,
+    
+    // output wire[31:0] alu_res_o
+    // //,
+
+    // // 指令和操作数输入
+    // input wire[`INST_DATA_WIDTH-1:0] inst_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op1_i,
+    // input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
+    // input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,
+    // input wire[`REG_DATA_WIDTH-1:0] reg2_rdata_i,
     
     // 中断信号
     input wire int_assert_i,
@@ -36,202 +58,264 @@ module exu_alu(
     output reg[`REG_ADDR_WIDTH-1:0] reg_waddr_o
 );
 
-    // 内部信号
-    wire[6:0] opcode;
-    wire[2:0] funct3;
-    wire[6:0] funct7;
-    wire[4:0] rd;
-    wire[31:0] op1_add_op2_res;
-    wire[31:0] op1_sub_op2_res;
-    wire op1_ge_op2_signed;
-    wire op1_ge_op2_unsigned;
-    wire op1_eq_op2;
-    wire[31:0] sr_shift;
-    wire[31:0] sri_shift;
-    wire[31:0] sr_shift_mask;
-    wire[31:0] sri_shift_mask;
+
+
+
+    // ALU操作数选择
+    wire[31:0] mux_op1 = alu_op1_i;
+    wire[31:0] mux_op2 = alu_op2_i;
+    // ALU运算类型选择(包括R与I类型)
+    wire op_add;
+    wire op_sub;
+    wire op_sll;
+    wire op_slt;
+    wire op_sltu;
+    wire op_xor;
+    wire op_srl;
+    wire op_sra;
+    wire op_or;
+    wire op_and;
+
+    wire[31:0] xor_res = mux_op1 ^ mux_op2; //异或
+    wire[31:0] or_res = mux_op1 | mux_op2; //  或
+    wire[31:0] and_res = mux_op1 & mux_op2; // 与
+    //加、减
+    wire[31:0] add_op1 =  mux_op1;
+    wire[31:0] add_op2 =  mux_op2;
+    wire[31:0] add_sub_res = add_op1 + (op_sub? (-add_op2): add_op2);
+    //左移
+    wire[31:0] sll_res = mux_op1 << mux_op2[4:0];
+    //逻辑右移
+    wire[31:0] srl_res = mux_op1 >> mux_op2[4:0];
+    //算数右移  
+    wire[31:0] sr_shift_mask = 32'hffffffff >> mux_op2[4:0];
+    wire[31:0] sra_res = (srl_res & sr_shift_mask) | ({32{mux_op1[31]}} & (~sr_shift_mask));   
+    //有符号数比较 op2>op1
+    wire op2_ge_op1_signed = ($signed(mux_op2) >= $signed(mux_op1));
+    // 无符号数比较 op2>op1
+    wire op2_ge_op1_unsigned = (mux_op2 >= mux_op1);
+
+    wire[31:0] slt_res = (op2_ge_op1_signed)? 32'h1: 32'h0;
+    wire[31:0] sltu_res = (op2_ge_op1_unsigned)? 32'h1: 32'h0;    
     
-    reg[`REG_DATA_WIDTH-1:0] mul_op1;
-    reg[`REG_DATA_WIDTH-1:0] mul_op2;
-    wire[`DOUBLE_REG_WIDTH-1:0] mul_temp;
-    wire[`DOUBLE_REG_WIDTH-1:0] mul_temp_invert;
-    wire[31:0] reg1_data_invert;
-    wire[31:0] reg2_data_invert;
-    
-    // 从指令中提取操作码和功能码
-    assign opcode = inst_i[6:0];
-    assign funct3 = inst_i[14:12];
-    assign funct7 = inst_i[31:25];
-    assign rd = inst_i[11:7];
-    
-    // 基本运算结果
-    assign op1_add_op2_res = op1_i + op2_i;
-    assign op1_sub_op2_res = op1_i - op2_i;
-    
-    // 比较结果
-    assign op1_ge_op2_signed = $signed(op1_i) >= $signed(op2_i);
-    assign op1_ge_op2_unsigned = op1_i >= op2_i;
-    assign op1_eq_op2 = (op1_i == op2_i);
-    
-    // 移位操作结果
-    assign sr_shift = reg1_rdata_i >> reg2_rdata_i[4:0];
-    assign sri_shift = reg1_rdata_i >> inst_i[24:20];
-    assign sr_shift_mask = 32'hffffffff >> reg2_rdata_i[4:0];
-    assign sri_shift_mask = 32'hffffffff >> inst_i[24:20];
-    
-    // 乘法操作
-    assign reg1_data_invert = ~reg1_rdata_i + 1;
-    assign reg2_data_invert = ~reg2_rdata_i + 1;
-    assign mul_temp = mul_op1 * mul_op2;
-    assign mul_temp_invert = ~mul_temp + 1;
-    
-    // 乘法操作数选择
-    always @(*) begin
-        if ((opcode == `INST_TYPE_R_M) && (funct7 == 7'b0000001)) begin
-            case (funct3)
-                `INST_MUL, `INST_MULHU: begin
-                    mul_op1 = reg1_rdata_i;
-                    mul_op2 = reg2_rdata_i;
-                end
-                `INST_MULHSU: begin
-                    mul_op1 = (reg1_rdata_i[31] == 1'b1) ? (reg1_data_invert) : reg1_rdata_i;
-                    mul_op2 = reg2_rdata_i;
-                end
-                `INST_MULH: begin
-                    mul_op1 = (reg1_rdata_i[31] == 1'b1) ? (reg1_data_invert) : reg1_rdata_i;
-                    mul_op2 = (reg2_rdata_i[31] == 1'b1) ? (reg2_data_invert) : reg2_rdata_i;
-                end
-                default: begin
-                    mul_op1 = reg1_rdata_i;
-                    mul_op2 = reg2_rdata_i;
-                end
-            endcase
-        end else begin
-            mul_op1 = reg1_rdata_i;
-            mul_op2 = reg2_rdata_i;
-        end
-    end
-    
-    // ALU逻辑
-    always @(*) begin
-        // 默认值
-        result_o = `ZeroWord;
-        reg_we_o = `WriteDisable;
-        reg_waddr_o = 5'b0;
-        
-        // 响应中断时不进行操作
+    reg [31:0] alu_res;
+    always @ (*) begin
         if (int_assert_i == `INT_ASSERT) begin
-            reg_we_o = `WriteDisable;
+            alu_res = 32'h0;
         end else begin
-            case (opcode)
-                `INST_TYPE_I: begin
-                    reg_we_o = `WriteEnable;
-                    reg_waddr_o = rd;
-                    
-                    case (funct3)
-                        `INST_ADDI: result_o = op1_add_op2_res;
-                        `INST_SLTI: result_o = {32{(~op1_ge_op2_signed)}} & 32'h1;
-                        `INST_SLTIU: result_o = {32{(~op1_ge_op2_unsigned)}} & 32'h1;
-                        `INST_XORI: result_o = op1_i ^ op2_i;
-                        `INST_ORI: result_o = op1_i | op2_i;
-                        `INST_ANDI: result_o = op1_i & op2_i;
-                        `INST_SLLI: result_o = reg1_rdata_i << inst_i[24:20];
-                        `INST_SRI: begin
-                            if (inst_i[30] == 1'b1) begin
-                                // 算术右移
-                                result_o = (sri_shift & sri_shift_mask) | ({32{reg1_rdata_i[31]}} & (~sri_shift_mask));
-                            end else begin
-                                // 逻辑右移
-                                result_o = reg1_rdata_i >> inst_i[24:20];
-                            end
-                        end
-                        default: result_o = `ZeroWord;
-                    endcase
-                end
-                
-                `INST_TYPE_R_M: begin
-                    if ((funct7 == 7'b0000000) || (funct7 == 7'b0100000)) begin
-                        reg_we_o = `WriteEnable;
-                        reg_waddr_o = rd;
-                        
-                        case (funct3)
-                            `INST_ADD_SUB: begin
-                                if (inst_i[30] == 1'b0) begin
-                                    result_o = op1_add_op2_res;
-                                end else begin
-                                    result_o = op1_sub_op2_res;
-                                end
-                            end
-                            `INST_SLL: result_o = op1_i << op2_i[4:0];
-                            `INST_SLT: result_o = {32{(~op1_ge_op2_signed)}} & 32'h1;
-                            `INST_SLTU: result_o = {32{(~op1_ge_op2_unsigned)}} & 32'h1;
-                            `INST_XOR: result_o = op1_i ^ op2_i;
-                            `INST_SR: begin
-                                if (inst_i[30] == 1'b1) begin
-                                    // 算术右移
-                                    result_o = (sr_shift & sr_shift_mask) | ({32{reg1_rdata_i[31]}} & (~sr_shift_mask));
-                                end else begin
-                                    // 逻辑右移
-                                    result_o = reg1_rdata_i >> reg2_rdata_i[4:0];
-                                end
-                            end
-                            `INST_OR: result_o = op1_i | op2_i;
-                            `INST_AND: result_o = op1_i & op2_i;
-                            default: result_o = `ZeroWord;
-                        endcase
-                    end else if (funct7 == 7'b0000001) begin
-                        // 乘法指令
-                        reg_we_o = `WriteEnable;
-                        reg_waddr_o = rd;
-                        
-                        case (funct3)
-                            `INST_MUL: begin
-                                result_o = mul_temp[31:0];
-                            end
-                            `INST_MULHU: begin
-                                result_o = mul_temp[63:32];
-                            end
-                            `INST_MULH: begin
-                                case ({reg1_rdata_i[31], reg2_rdata_i[31]})
-                                    2'b00: result_o = mul_temp[63:32];
-                                    2'b11: result_o = mul_temp[63:32];
-                                    2'b10: result_o = mul_temp_invert[63:32];
-                                    default: result_o = mul_temp_invert[63:32];
-                                endcase
-                            end
-                            `INST_MULHSU: begin
-                                if (reg1_rdata_i[31] == 1'b1) begin
-                                    result_o = mul_temp_invert[63:32];
-                                end else begin
-                                    result_o = mul_temp[63:32];
-                                end
-                            end
-                            default: result_o = `ZeroWord;
-                        endcase
-                    end else begin
-                        reg_we_o = `WriteDisable;
-                        result_o = `ZeroWord;
-                    end
-                end
-                
-                `INST_LUI, `INST_AUIPC: begin
-                    reg_we_o = `WriteEnable;
-                    reg_waddr_o = rd;
-                    result_o = op1_add_op2_res;
-                end
-                
-                `INST_JAL, `INST_JALR: begin
-                    reg_we_o = `WriteEnable;
-                    reg_waddr_o = rd;
-                    result_o = op1_add_op2_res;
-                end
-                
-                default: begin
-                    reg_we_o = `WriteDisable;
-                    result_o = `ZeroWord;
-                end
+            alu_res = 32'h0;
+            case (1'b1)                             //优先级判断
+                op_xor:  alu_res = xor_res;
+                op_or:   alu_res = or_res;
+                op_and:  alu_res = and_res;
+                op_add:  alu_res = add_sub_res;
+                op_sub:  alu_res = add_sub_res;
+                op_sll:  alu_res = sll_res;
+                op_srl:  alu_res = srl_res;
+                op_sra:  alu_res = sra_res;
+                op_slt:  alu_res = slt_res;
+                op_sltu: alu_res = sltu_res;
             endcase
         end
     end
+
+    assign result_o = alu_res;
+    wire [4:0] rd = alu_rd_i;
+    // 写使能逻辑
+    reg alu_reg_we;
+    always @ (*) begin
+        if (int_assert_i == `INT_ASSERT) begin
+            alu_reg_we = `WriteDisable;
+        end else begin
+            // 所有算术逻辑操作都需要写回寄存器
+            alu_reg_we = req_alu_i ? `WriteEnable : `WriteDisable;
+        end
+    end
+    
+    assign reg_we_o = alu_reg_we;
+    // 目标寄存器地址逻辑
+    reg [4:0] alu_reg_waddr;    always @ (*) begin
+        if (int_assert_i == `INT_ASSERT) begin
+            alu_reg_waddr = 5'b0;
+        end else begin
+            alu_reg_waddr = rd;
+        end
+    end
+    assign reg_waddr_o = alu_reg_waddr;     
+    assign {op_add,
+            op_sub,
+            op_sll,
+            op_slt,
+            op_sltu,
+            op_xor,
+            op_srl,
+            op_sra,
+            op_or,
+            op_and
+            } =  {   
+                  alu_op_add_i,
+                  alu_op_sub_i,
+                  alu_op_sll_i,
+                  alu_op_slt_i,
+                  alu_op_sltu_i,
+                  alu_op_xor_i,
+                  alu_op_srl_i,
+                  alu_op_sra_i,
+                  alu_op_or_i,
+                  alu_op_and_i
+                 };
+    
+
+//     wire[31:0] mux_op1;
+//     wire[31:0] mux_op2;
+//     wire op_add;
+//     wire op_sub;
+//     wire op_sll;
+//     wire op_slt;
+//     wire op_sltu;
+//     wire op_xor;
+//     wire op_srl;
+//     wire op_sra;
+//     wire op_or;
+//     wire op_and;
+
+//     // 异或
+//     wire[31:0] xor_res = mux_op1 ^ mux_op2;
+//     // 或
+//     wire[31:0] or_res = mux_op1 | mux_op2;
+//     // 与
+//     wire[31:0] and_res = mux_op1 & mux_op2;
+//     // 加、减
+//     wire[31:0] add_op1 = req_bjp_i? bjp_jump_op1_i: mux_op1;
+//     wire[31:0] add_op2 = req_bjp_i? bjp_jump_op2_i: mux_op2;
+//     wire[31:0] add_sub_res = add_op1 + (op_sub? (-add_op2): add_op2);
+//     // 左移
+//     wire[31:0] sll_res = mux_op1 << mux_op2[4:0];
+//     // 逻辑右移
+//     wire[31:0] srl_res = mux_op1 >> mux_op2[4:0];
+//     // 算数右移
+//     wire[31:0] sr_shift_mask = 32'hffffffff >> mux_op2[4:0];
+//     wire[31:0] sra_res = (srl_res & sr_shift_mask) | ({32{mux_op1[31]}} & (~sr_shift_mask));    // 有符号数比较 - 仅用于SLT/SLTI指令
+//     wire op1_ge_op2_signed = ($signed(mux_op1) >= $signed(mux_op2));
+//     // 无符号数比较 - 仅用于SLTU/SLTIU指令
+//     wire op1_ge_op2_unsigned = (mux_op1 >= mux_op2);    wire[31:0] slt_res = (~op1_ge_op2_signed)? 32'h1: 32'h0;
+//     wire[31:0] sltu_res = (~op1_ge_op2_unsigned)? 32'h1: 32'h0;
+
+//     reg[31:0] alu_datapath_res;    always @ (*) begin
+//         if (int_assert_i == `INT_ASSERT) begin
+//             alu_datapath_res = 32'h0;
+//         end else begin
+//             alu_datapath_res = 32'h0;
+//             case (1'b1)
+//                 op_xor:  alu_datapath_res = xor_res;
+//                 op_or:   alu_datapath_res = or_res;
+//                 op_and:  alu_datapath_res = and_res;
+//                 op_add:  alu_datapath_res = add_sub_res;
+//                 op_sub:  alu_datapath_res = add_sub_res;
+//                 op_sll:  alu_datapath_res = sll_res;
+//                 op_srl:  alu_datapath_res = srl_res;
+//                 op_sra:  alu_datapath_res = sra_res;
+//                 op_slt:  alu_datapath_res = slt_res;
+//                 op_sltu: alu_datapath_res = sltu_res;
+//             endcase
+//         end
+//     end
+    
+//     assign alu_res_o = alu_datapath_res;
+
+    
+// //确保在任何时刻，只有一种请求类型的信号会被选择用于ALU操作
+//     assign {mux_op1,
+//             mux_op2,
+//             op_add,
+//             op_sub,
+//             op_sll,
+//             op_slt,
+//             op_sltu,
+//             op_xor,
+//             op_srl,
+//             op_sra,
+//             op_or,
+//             op_and
+//             } = ({`DATAPATH_MUX_WIDTH{req_alu_i}} & {   //alu
+//                   alu_op1_i,
+//                   alu_op2_i,
+//                   alu_op_add_i,
+//                   alu_op_sub_i,
+//                   alu_op_sll_i,
+//                   alu_op_slt_i,
+//                   alu_op_sltu_i,
+//                   alu_op_xor_i,
+//                   alu_op_srl_i,
+//                   alu_op_sra_i,
+//                   alu_op_or_i,
+//                   alu_op_and_i,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0
+//                  }) |
+//                 ({`DATAPATH_MUX_WIDTH{req_bjp_i}} & {   //bjp
+//                   bjp_op1_i,
+//                   bjp_op2_i,
+//                   1'b1,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0
+//                  }) |
+//                 ({`DATAPATH_MUX_WIDTH{req_mem_i}} & {     //mem
+//                   mem_op1_i,
+//                   mem_op2_i,
+//                   1'b1,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0
+//                  }) |
+//                 ({`DATAPATH_MUX_WIDTH{req_csr_i}} & {        //csr
+//                   csr_op1_i, 
+//                   csr_op2_i,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   csr_csrrw_i | csr_csrrs_i,
+//                   csr_csrrc_i,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0,
+//                   1'b0
+//                  });
 
 endmodule

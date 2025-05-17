@@ -17,6 +17,8 @@
 `include "defines.v"
 
 // CSR处理单元 - 处理CSR寄存器操作
+
+
 module exu_csr_unit(
     input wire rst,
     
@@ -24,6 +26,13 @@ module exu_csr_unit(
     input wire[`INST_DATA_WIDTH-1:0] inst_i,
     input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire[`REG_DATA_WIDTH-1:0] csr_rdata_i,
+    input wire req_csr_i,
+    input wire [31:0] csr_op1_i,
+    input wire [31:0] csr_addr_i,
+    input wire csr_csrrw_i,
+    input wire csr_csrrs_i,
+    input wire csr_csrrc_i,
+
     
     // 中断信号
     input wire int_assert_i,
@@ -35,16 +44,6 @@ module exu_csr_unit(
     output reg[`REG_DATA_WIDTH-1:0] reg_wdata_o
 );
 
-    // 内部信号
-    wire[6:0] opcode;
-    wire[2:0] funct3;
-    wire[4:0] uimm;
-    
-    // 从指令中提取操作码和功能码
-    assign opcode = inst_i[6:0];
-    assign funct3 = inst_i[14:12];
-    assign uimm = inst_i[19:15];
-    
     // CSR处理单元逻辑
     always @(*) begin
         // 默认值
@@ -54,39 +53,72 @@ module exu_csr_unit(
         // 响应中断时不进行CSR操作
         if (int_assert_i == `INT_ASSERT) begin
             // 不执行任何操作
-        end else if (opcode == `INST_CSR) begin
-            // CSR操作
-            case (funct3)
-                `INST_CSRRW: begin
-                    csr_wdata_o = reg1_rdata_i;
-                    reg_wdata_o = csr_rdata_i;
-                end
-                `INST_CSRRS: begin
-                    csr_wdata_o = reg1_rdata_i | csr_rdata_i;
-                    reg_wdata_o = csr_rdata_i;
-                end
-                `INST_CSRRC: begin
-                    csr_wdata_o = csr_rdata_i & (~reg1_rdata_i);
-                    reg_wdata_o = csr_rdata_i;
-                end
-                `INST_CSRRWI: begin
-                    csr_wdata_o = {27'h0, uimm};
-                    reg_wdata_o = csr_rdata_i;
-                end
-                `INST_CSRRSI: begin
-                    csr_wdata_o = {27'h0, uimm} | csr_rdata_i;
-                    reg_wdata_o = csr_rdata_i;
-                end
-                `INST_CSRRCI: begin
-                    csr_wdata_o = (~{27'h0, uimm}) & csr_rdata_i;
-                    reg_wdata_o = csr_rdata_i;
-                end
-                default: begin
-                    csr_wdata_o = `ZeroWord;
-                    reg_wdata_o = `ZeroWord;
-                end
-            endcase
+        end else if (req_csr_i) begin
+            reg_wdata_o = csr_rdata_i;  // 所有CSR指令都将CSR的值读出来放入目标寄存器
+            
+            // 基于dispatch传来的信号确定CSR写入值
+            if (csr_csrrw_i) begin
+                // CSRRW: 将rs1的值写入CSR
+                csr_wdata_o = csr_op1_i;
+            end else if (csr_csrrs_i) begin
+                // CSRRS: 将rs1的值与CSR的值按位或，结果写入CSR
+                csr_wdata_o = csr_op1_i | csr_rdata_i;
+            end else if (csr_csrrc_i) begin
+                // CSRRC: 将CSR的值与rs1的值按位与非，结果写入CSR
+                csr_wdata_o = csr_rdata_i & (~csr_op1_i);
+            end
         end
     end
 
 endmodule
+
+
+// module exu_csr_unit(
+//     input wire rst,
+    
+//     // 指令和操作数输入
+//     input wire[`INST_DATA_WIDTH-1:0] inst_i,
+//     input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,
+//     input wire[`REG_DATA_WIDTH-1:0] csr_rdata_i,
+    
+//     // dispatch模块传来的译码信号
+//     input wire csr_csrrw_i,        // CSRRW指令
+//     input wire csr_csrrs_i,        // CSRRS指令
+//     input wire csr_csrrc_i,        // CSRRC指令
+//     input wire[31:0] csr_op1_i,    // 操作数1，可能是rs1或立即数
+    
+//     // 中断信号
+//     input wire int_assert_i,
+    
+//     // CSR写数据输出
+//     output reg[`REG_DATA_WIDTH-1:0] csr_wdata_o,
+    
+//     // 寄存器写回数据
+//     output reg[`REG_DATA_WIDTH-1:0] reg_wdata_o
+// );
+    
+//     // CSR处理单元逻辑
+//     always @(*) begin
+//         // 默认值
+//         csr_wdata_o = `ZeroWord;
+//         reg_wdata_o = `ZeroWord;
+        
+//         // 响应中断时不进行CSR操作
+//         if (int_assert_i == `INT_ASSERT) begin
+//             // 不执行任何操作
+//         end else begin
+//             // 使用dispatch模块传来的译码信号进行操作
+//             if (csr_csrrw_i) begin
+//                 csr_wdata_o = csr_op1_i;
+//                 reg_wdata_o = csr_rdata_i;
+//             end else if (csr_csrrs_i) begin
+//                 csr_wdata_o = csr_op1_i | csr_rdata_i;
+//                 reg_wdata_o = csr_rdata_i;
+//             end else if (csr_csrrc_i) begin
+//                 csr_wdata_o = csr_rdata_i & (~csr_op1_i);
+//                 reg_wdata_o = csr_rdata_i;
+//             end
+//         end
+//     end
+
+// endmodule
