@@ -44,6 +44,9 @@ default: compile_test_src
 %.bin: %
 	$(OBJCOPY) -O binary $(OUT_DIR)/$< $(OUT_DIR)/$@
 
+%.mem: %.bin
+	hexdump -v -e '1/4 "%08x\n"' $(OUT_DIR)/$< > $(OUT_DIR)/$@
+
 define compile_template
 
 $$($(1)_p_tests): $(1)-p-%: $(1)/%.S
@@ -74,10 +77,10 @@ tests_verilog = $(addsuffix .verilog, $(tests))
 tests_dump = $(addsuffix .dump, $(tests))
 tests_hex = $(addsuffix .hex, $(tests))
 tests_bin = $(addsuffix .bin, $(tests))
-
+tests_mem = $(addsuffix .mem, $(tests))
 
 $(OUT_DIR):
 	mkdir -p $(OUT_DIR)
 
-compile_test_src: $(OUT_DIR) $(tests_dump) $(tests_bin)
+compile_test_src: $(OUT_DIR) $(tests_dump) $(tests_bin) $(tests_mem)
 
