@@ -70,16 +70,12 @@ module exu_muldiv_ctrl (
     // 控制输出
     output reg                        muldiv_hold_flag_o,
     output reg                        muldiv_jump_flag_o,
-    output reg [`INST_ADDR_WIDTH-1:0] muldiv_jump_addr_o,
 
     // 寄存器写回接口
     output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
     output reg                       reg_we_o,
     output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o
 );
-
-    // 计算跳转地址
-    wire [31:0] op1_jump_add_op2_jump_res = op1_jump_i + op2_jump_i;
 
     // 生成div_op_o的组合逻辑
     wire [ 3:0] div_op_sel;
@@ -113,7 +109,6 @@ module exu_muldiv_ctrl (
 
         muldiv_hold_flag_o = `HoldDisable;
         muldiv_jump_flag_o = `JumpDisable;
-        muldiv_jump_addr_o = `ZeroWord;
 
         reg_wdata_o        = `ZeroWord;
         reg_we_o           = `WriteDisable;
@@ -125,8 +120,6 @@ module exu_muldiv_ctrl (
             mul_start_o = 1'b0;
         end else begin
             if (req_muldiv_i) begin
-                muldiv_jump_addr_o = op1_jump_add_op2_jump_res;
-
                 // 区分乘法和除法指令
                 if (is_mul_op) begin
                     // 已经开始乘法运算
@@ -180,7 +173,6 @@ module exu_muldiv_ctrl (
                 end
             end else begin
                 muldiv_jump_flag_o = `JumpDisable;
-                muldiv_jump_addr_o = `ZeroWord;
 
                 // 乘除法器在忙，继续保持hold状态
                 if (div_busy_i == `True) begin

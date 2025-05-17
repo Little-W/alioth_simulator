@@ -38,27 +38,27 @@ module exu_mul (
 
     // 状态定义 - 使用与参考代码相同的状态定义
     localparam IDLE = 2'b00;
-    localparam CALC = 2'b01;    // 合并了原来的ADD和SHIFT
+    localparam CALC = 2'b01;  // 合并了原来的ADD和SHIFT
     localparam OUTPUT = 2'b10;
 
     // 内部寄存器
     reg [1:0] current_state, next_state;
-    reg [4:0] count;  // 迭代计数器，32位需要16次迭代
-    reg [3:0] op_r;
-    reg [`REG_DATA_WIDTH-1:0] multiplicand_r;
-    reg [`REG_DATA_WIDTH-1:0] multiplier_r;
-    reg [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    reg  [                  4:0] count;  // 迭代计数器，32位需要16次迭代
+    reg  [                  3:0] op_r;
+    reg  [  `REG_DATA_WIDTH-1:0] multiplicand_r;
+    reg  [  `REG_DATA_WIDTH-1:0] multiplier_r;
+    reg  [  `REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
     // booth算法相关寄存器
-    reg [2*`REG_DATA_WIDTH+2:0] add1;  // +1倍被乘数
-    reg [2*`REG_DATA_WIDTH+2:0] sub1;  // -1倍被乘数
-    reg [2*`REG_DATA_WIDTH+2:0] add_x2;  // +2倍被乘数
-    reg [2*`REG_DATA_WIDTH+2:0] sub_x2;  // -2倍被乘数
-    reg [2*`REG_DATA_WIDTH+2:0] p_reg;  // 部分积
+    reg  [2*`REG_DATA_WIDTH+2:0] add1;  // +1倍被乘数
+    reg  [2*`REG_DATA_WIDTH+2:0] sub1;  // -1倍被乘数
+    reg  [2*`REG_DATA_WIDTH+2:0] add_x2;  // +2倍被乘数
+    reg  [2*`REG_DATA_WIDTH+2:0] sub_x2;  // -2倍被乘数
+    reg  [2*`REG_DATA_WIDTH+2:0] p_reg;  // 部分积
 
     // 把高 32 位先拿出来
-    wire [`REG_DATA_WIDTH-1:0] mult_tmp_high;
-    wire [`REG_DATA_WIDTH-1:0] mult_tmp_low;
+    wire [  `REG_DATA_WIDTH-1:0] mult_tmp_high;
+    wire [  `REG_DATA_WIDTH-1:0] mult_tmp_low;
 
     assign mult_tmp_high = p_reg[2*`REG_DATA_WIDTH:(`REG_DATA_WIDTH+1)];
     assign mult_tmp_low  = p_reg[`REG_DATA_WIDTH:1];
@@ -111,21 +111,21 @@ module exu_mul (
                     if (start_i) begin
                         // 保存操作数和指令类型
                         multiplicand_r <= multiplicand_i;
-                        multiplier_r <= multiplier_i;
-                        op_r <= op_i;
-                        reg_waddr_r <= reg_waddr_i;
-                        reg_waddr_o <= reg_waddr_i;
+                        multiplier_r   <= multiplier_i;
+                        op_r           <= op_i;
+                        reg_waddr_r    <= reg_waddr_i;
+                        reg_waddr_o    <= reg_waddr_i;
 
                         // 初始化Booth Radix-4乘法器相关寄存器
-                        add1    <= {{2{multiplicand_i[31]}}, multiplicand_i, {`REG_DATA_WIDTH+1{1'b0}}};
-                        sub1    <= { -{{2{multiplicand_i[31]}}, multiplicand_i}, {`REG_DATA_WIDTH+1{1'b0}} };
-                        add_x2  <= { {multiplicand_i[31], multiplicand_i, 1'b0}, {`REG_DATA_WIDTH+1{1'b0}} };
-                        sub_x2  <= { -{multiplicand_i[31], multiplicand_i, 1'b0}, {`REG_DATA_WIDTH+1{1'b0}} };
-                        p_reg   <= {{`REG_DATA_WIDTH+1{1'b0}}, multiplier_i, 1'b0};
+                        add1           <= {{2{multiplicand_i[31]}}, multiplicand_i, {`REG_DATA_WIDTH + 1{1'b0}}};
+                        sub1           <= {-{{2{multiplicand_i[31]}}, multiplicand_i}, {`REG_DATA_WIDTH + 1{1'b0}}};
+                        add_x2         <= {{multiplicand_i[31], multiplicand_i, 1'b0}, {`REG_DATA_WIDTH + 1{1'b0}}};
+                        sub_x2         <= {-{multiplicand_i[31], multiplicand_i, 1'b0}, {`REG_DATA_WIDTH + 1{1'b0}}};
+                        p_reg          <= {{`REG_DATA_WIDTH + 1{1'b0}}, multiplier_i, 1'b0};
 
-                        count <= 5'd0;
-                        busy_o <= `True;
-                        ready_o <= 1'b0;
+                        count          <= 5'd0;
+                        busy_o         <= `True;
+                        ready_o        <= 1'b0;
                     end else begin
                         busy_o  <= `False;
                         ready_o <= 1'b0;
@@ -135,7 +135,7 @@ module exu_mul (
                 CALC: begin
                     // 使用临时变量而不是寄存器，避免混合赋值问题
                     reg [2*`REG_DATA_WIDTH+2:0] temp_result;
-                    
+
                     // Radix-4 Booth算法核心计算 - 根据乘数的低3位决定操作
                     case (p_reg[2:0])
                         3'b000, 3'b111: temp_result = p_reg;  // 不操作
@@ -145,27 +145,34 @@ module exu_mul (
                         3'b100:         temp_result = p_reg + sub_x2;  // -2倍被乘数
                         default:        temp_result = p_reg;
                     endcase
-                    
+
                     // 算术右移2位（Radix-4）
-                    p_reg <= {temp_result[2*`REG_DATA_WIDTH+2],
-                             temp_result[2*`REG_DATA_WIDTH+2],
-                             temp_result[2*`REG_DATA_WIDTH+2:2]};
+                    p_reg <= {
+                        temp_result[2*`REG_DATA_WIDTH+2],
+                        temp_result[2*`REG_DATA_WIDTH+2],
+                        temp_result[2*`REG_DATA_WIDTH+2:2]
+                    };
                     count <= count + 5'd1;  // 计数增加
                 end
 
                 OUTPUT: begin
                     // 根据指令类型选择输出结果
                     case (op_r)
-                        4'b0001: result_o <= p_reg[`REG_DATA_WIDTH:1];  // MUL - 取低32位
+                        4'b0001: begin  // MUL - 取低32位
+                            result_o <= mult_tmp_low;
+                        end
                         4'b0010: begin  // MULH - 有符号*有符号=有符号
-                            result_o <= p_reg[2*`REG_DATA_WIDTH:(`REG_DATA_WIDTH+1)];
+                            result_o <= mult_tmp_high;
                         end
                         4'b0100: begin  // MULHSU - 有符号*无符号=有符号
                             result_o <= mult_tmp_high + add_mcand;
                         end
-                        4'b1000:  // MULHU - 无符号*无符号=无符号
+                        4'b1000: begin  // MULHU - 无符号*无符号=无符号
                             result_o <= mult_tmp_high + add_mul + add_mcand;
-                        default: result_o <= p_reg[`REG_DATA_WIDTH:1];
+                        end
+                        default: begin
+                            result_o <= mult_tmp_low;
+                        end
                     endcase
 
                     ready_o <= 1'b1;

@@ -272,9 +272,6 @@ module exu_top(
         .sys_op_dret_o(sys_op_dret_o)
     );
 
-
-    
-
       // 除法器模块例化
     exu_div u_div(
         .clk(clk),
@@ -322,7 +319,6 @@ module exu_top(
         .rd_addr_i(reg_waddr_i),
         .mem_rdata_i(mem_rdata_i),
         .int_assert_i(int_assert_i),
-        
         .mem_wdata_o(mem_wdata_o),
         .mem_raddr_o(mem_raddr_o),
         .mem_waddr_o(mem_waddr_o),
@@ -331,33 +327,6 @@ module exu_top(
         .reg_wdata_o(agu_reg_wdata),
         .reg_we_o(agu_reg_we),
         .reg_waddr_o(agu_reg_waddr)
-        // // 来自dispatch模块的输入
-        // .op1_i(mem_op1_o),
-        // .op2_i(mem_op2_o),
-        // .rs2_data_i(mem_rs2_data_o),
-        // .rd_addr_i(reg_waddr_i),
-        
-        // // 内存操作类型信号
-        // .op_lb_i(mem_op_lb_o),
-        // .op_lh_i(mem_op_lh_o),
-        // .op_lw_i(mem_op_lw_o),
-        // .op_lbu_i(mem_op_lbu_o),
-        // .op_lhu_i(mem_op_lhu_o),
-        // .op_sb_i(mem_op_sb_o),
-        // .op_sh_i(mem_op_sh_o),
-        // .op_sw_i(mem_op_sw_o),
-        
-        // .mem_rdata_i(mem_rdata_i),
-        // .int_assert_i(int_assert_i),
-        
-        // .mem_wdata_o(mem_wdata_o),
-        // .mem_raddr_o(mem_raddr_o),
-        // .mem_waddr_o(mem_waddr_o),
-        // .mem_we_o(mem_we_o),
-        // .mem_req_o(mem_req_o),
-        // .reg_wdata_o(agu_reg_wdata),
-        // .reg_we_o(agu_reg_we),
-        // .reg_waddr_o(agu_reg_waddr)
     );   
       // 算术逻辑单元模块例化
     exu_alu u_alu(
@@ -403,6 +372,7 @@ module exu_top(
         .bjp_op_bgeu_i(bjp_op_bgeu_o),
         .bjp_op_jalr_i(bjp_op_jalr_o),
         .sys_op_fence_i(sys_op_fence_o),
+        .muldiv_jump_flag_i(muldiv_jump_flag),
         .int_assert_i(int_assert_i),
         .int_addr_i(int_addr_i),
         
@@ -427,23 +397,6 @@ module exu_top(
         .reg_wdata_o(csr_unit_reg_wdata)
     );
 
-    // exu_csr_unit u_csr_unit(
-    //     .rst(rst),
-    //     .inst_i(inst_i),
-    //     .reg1_rdata_i(reg1_rdata_i),
-    //     .csr_rdata_i(csr_rdata_i),
-        
-    //     // 连接dispatch模块的译码信号
-    //     .csr_csrrw_i(csr_csrrw_o),
-    //     .csr_csrrs_i(csr_csrrs_o),
-    //     .csr_csrrc_i(csr_csrrc_o),
-    //     .csr_op1_i(csr_op1_o),
-        
-    //     .int_assert_i(int_assert_i),
-        
-    //     .csr_wdata_o(csr_unit_wdata),
-    //     .reg_wdata_o(csr_unit_reg_wdata)
-    // );
       // 乘除法控制逻辑
     exu_muldiv_ctrl u_muldiv_ctrl(
         .rst(rst),
@@ -486,76 +439,29 @@ module exu_top(
         .mul_reg_waddr_o(mul_reg_waddr_o),
         .muldiv_hold_flag_o(muldiv_hold_flag),
         .muldiv_jump_flag_o(muldiv_jump_flag),
-        .muldiv_jump_addr_o(muldiv_jump_addr),
         .reg_wdata_o(muldiv_wdata),
         .reg_we_o(muldiv_we),
         .reg_waddr_o(muldiv_waddr)
     );     
      // 输出选择逻辑
     assign hold_flag_o = muldiv_hold_flag;  // 使用muldiv控制模块的hold信号
-    assign jump_flag_o = muldiv_jump_flag || bru_jump_flag || 
+    assign jump_flag_o = bru_jump_flag ||
                          ((int_assert_i == `INT_ASSERT)? `JumpEnable: `JumpDisable);
-    assign jump_addr_o = (int_assert_i == `INT_ASSERT)? int_addr_i: 
-                         (muldiv_jump_flag ? muldiv_jump_addr : bru_jump_addr);
-    //   // 使用exu_commit模块进行寄存器写回选择
-    // wire bjp_reg_we = bjp_op_jump_o;  // 使用dispatch模块的bjp_op_jump_o信号
-    // wire[31:0] bjp_reg_wdata = inst_addr_i + 4;
-    //   // 寄存器写回使用exu_commit模块进行仲裁
-    // exu_commit u_exu_commit(
-    //     .clk(clk),
-    //     .rst(rst),  
-    //       // 乘除法单元输入
-    //     .req_muldiv_i(req_muldiv_o),
-    //     .muldiv_reg_we_i(muldiv_we),
-    //     .muldiv_reg_waddr_i(muldiv_waddr),
-    //     .muldiv_reg_wdata_i(muldiv_wdata),
-        
-    //     // 内存访问单元输入
-    //     .req_mem_i(req_mem_o),
-    //     .mem_reg_we_i(agu_reg_we),
-    //     .mem_reg_waddr_i(agu_reg_waddr),
-    //     .mem_reg_wdata_i(agu_reg_wdata),
-        
-    //     // CSR单元输入
-    //     .req_csr_i(req_csr_o),
-    //     .csr_reg_we_i(csr_we_i && req_csr_o),  // 使用dispatch模块的req_csr_o信号
-    //     .csr_reg_waddr_i(reg_waddr_i),
-    //     .csr_reg_wdata_i(csr_unit_reg_wdata),
-        
-    //     // 分支跳转单元输入
-    //     .req_bjp_i(req_bjp_o),
-    //     .bjp_reg_we_i(bjp_reg_we),
-    //     .bjp_reg_waddr_i(reg_waddr_i),
-    //     .bjp_reg_wdata_i(bjp_reg_wdata),
-        
-    //     // ALU单元输入
-    //     .rd_we_i(alu_reg_we),
-    //     .rd_waddr_i(alu_reg_waddr),
-    //     .alu_reg_wdata_i(alu_result),
-        
-    //     // 最终输出
-    //     .reg_we_o(reg_we_o),
-    //     .reg_waddr_o(reg_waddr_o),
-    //     .reg_wdata_o(reg_wdata_o)
-    // );
+    assign jump_addr_o = (int_assert_i == `INT_ASSERT)? int_addr_i: bru_jump_addr;
     // 寄存器写数据选择
     assign reg_we_o = (int_assert_i == `INT_ASSERT)? `WriteDisable: 
-                      (muldiv_we || alu_reg_we || agu_reg_we || 
+                      (muldiv_we || alu_reg_we || agu_reg_we ||
                       (csr_we_i && inst_i[6:0] == `INST_CSR));
-    
+
     assign reg_wdata_o = muldiv_we ? muldiv_wdata : 
                          agu_reg_we ? agu_reg_wdata :
                          (csr_we_i && inst_i[6:0] == `INST_CSR) ? csr_unit_reg_wdata :
                          alu_result;
-                       
+
     assign reg_waddr_o = muldiv_we ? muldiv_waddr : 
                          agu_reg_we ? agu_reg_waddr :
                          alu_reg_we ? alu_reg_waddr :
                          reg_waddr_i;
-    
-    // // CSR写数据选择
-    // assign csr_we_o = (int_assert_i == `INT_ASSERT)? `WriteDisable: req_csr_o;
-    // assign csr_waddr_o = csr_addr_o;
 
           // CSR写数据选择直接使用输入端口信号
     assign csr_we_o = (int_assert_i == `INT_ASSERT)? `WriteDisable: (csr_we_i && inst_i[6:0] == `INST_CSR);
