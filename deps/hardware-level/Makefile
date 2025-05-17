@@ -42,8 +42,8 @@ SIM_OPTIONS   := -o vvp.exec -I "${VSRC_DIR}/core/" -I "${VSRC_DIR}/perips/" -I 
 SIM_OPTIONS   += ${SIM_OPTIONS_COMMON}
 endif
 
-RTL_V_FILES		:= $(wildcard ${VSRC_DIR}/*/*.v ${VSRC_DIR}/*/*/*.v)
-TB_V_FILES		:= $(wildcard ${VTB_DIR}/*.v)
+RTL_V_FILES		:= $(wildcard ${VSRC_DIR}/*/*.v ${VSRC_DIR}/*/*/*.v ${VSRC_DIR}/*/*.sv ${VSRC_DIR}/*/*/*.sv)
+TB_V_FILES		:= $(wildcard ${VTB_DIR}/*.v ${VTB_DIR}/*.sv)
 
 ifeq ($(SMIC130LL),1)
 SIM_OPTIONS   += +define+SMIC130_LL
@@ -287,7 +287,7 @@ compile.flg: ${RTL_V_FILES} ${TB_V_FILES}
 	@-rm -rf compile.flg
 	@rm -rf ${CPU_EXEC_DIR}
 	@mkdir -p ${CPU_EXEC_DIR}
-	@sed -i '1i\`define ${SIM_TOOL}\'  ${VTB_DIR}/tb_top.v
+	@sed -i '1i\`define ${SIM_TOOL}\'  ${VTB_DIR}/tb_top.sv
 	${SIM_TOOL_EXEC} ${SIM_OPTIONS}  ${RTL_V_FILES} ${TB_V_FILES} ${VERILATOR_CC_FILE} ${SIM_OPTIONS_BACK}
 	${VERILATOR_COMPILE_CMD}
 	${EXEC_POST_PROC}
