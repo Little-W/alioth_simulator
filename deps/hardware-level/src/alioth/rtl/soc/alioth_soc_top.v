@@ -5,7 +5,7 @@
  you may not use this file except in compliance with the License.        
  You may obtain a copy of the License at                                 
                                                                          
-     http://www.apache.org/licenses/LICENSE-2.0                          
+    http://www.apache.org/licenses/LICENSE-2.0                          
                                                                          
  Unless required by applicable law or agreed to in writing, software    
  distributed under the License is distributed on an "AS IS" BASIS,       
@@ -22,20 +22,26 @@ module alioth_soc_top(
     input wire clk,
     input wire rst,
 
-    output wire halted_ind,  // jtag是否已经halt住CPU信号
+    //output wire halted_ind,  // jtag是否已经halt住CPU信号
 
+    /*
     input wire uart_debug_pin, // 串口下载使能引脚
 
     output wire uart_tx_pin, // UART发送引脚
     input wire uart_rx_pin,  // UART接收引脚
     inout wire[1:0] gpio,    // GPIO引脚
-
+    */
+    /*
     input wire jtag_TCK,     // JTAG TCK引脚
     input wire jtag_TMS,     // JTAG TMS引脚
     input wire jtag_TDI,     // JTAG TDI引脚
     output wire jtag_TDO    // JTAG TDO引脚
+    */
+    /*
+    */
     );
 
+    /*
     // jtag接口
     wire jtag_halt_req_o;
     wire jtag_reset_req_o;
@@ -43,30 +49,26 @@ module alioth_soc_top(
     wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_o;
     wire jtag_reg_we_o;
     wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_i;
-
-    // timer0信号
-    wire timer0_int;
-
-    // 中断总线
-    wire[`INT_BUS] int_flag;
-    assign int_flag = {7'h0, timer0_int};
+    */
 
     // halted指示
-    assign halted_ind = ~jtag_halt_req_o;
+    //assign halted_ind = ~jtag_halt_req_o;
 
     // alioth处理器核模块例化
     cpu_top u_cpu_top(
         .clk(clk),
-        .rst(rst),
+        .rst(rst)
+        /*
         .jtag_reg_addr_i(jtag_reg_addr_o),
         .jtag_reg_data_i(jtag_reg_data_o),
         .jtag_reg_we_i(jtag_reg_we_o),
         .jtag_reg_data_o(jtag_reg_data_i),
         .jtag_halt_flag_i(jtag_halt_req_o),
-        // .jtag_reset_flag_i(jtag_reset_req_o),
-        .int_i(int_flag)
+        .jtag_reset_flag_i(jtag_reset_req_o)
+        */
     );
 
+    /*
     // timer模块例化
     timer timer_0(
         .clk(clk),
@@ -74,10 +76,11 @@ module alioth_soc_top(
         .data_i(32'h0),  // 暂时不连接
         .addr_i(32'h0),  // 暂时不连接
         .we_i(1'b0),     // 暂时不连接
-        .data_o(),       // 暂时不连接
-        .int_sig_o(timer0_int)
+        .data_o()        // 暂时不连接
     );
+    */
 
+    /*
     // jtag模块例化
     jtag_top #(
         .DMI_ADDR_BITS(6),
@@ -102,5 +105,5 @@ module alioth_soc_top(
         .halt_req_o(jtag_halt_req_o),
         .reset_req_o(jtag_reset_req_o)
     );
-
+    */
 endmodule

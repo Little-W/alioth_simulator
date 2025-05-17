@@ -27,10 +27,12 @@ module regs(
     input wire[`REG_ADDR_WIDTH-1:0] waddr_i,      // 写寄存器地址
     input wire[`REG_DATA_WIDTH-1:0] wdata_i,          // 写寄存器数据
 
+    /*
     // from jtag
     input wire jtag_we_i,                 // 写寄存器标志
     input wire[`REG_ADDR_WIDTH-1:0] jtag_addr_i,  // 读、写寄存器地址
     input wire[`REG_DATA_WIDTH-1:0] jtag_data_i,      // 写寄存器数据
+    */
 
     // from id
     input wire[`REG_ADDR_WIDTH-1:0] raddr1_i,     // 读寄存器1地址
@@ -57,9 +59,12 @@ module regs(
             // 优先ex模块写操作
             if ((we_i == `WriteEnable) && (waddr_i != `ZeroReg)) begin
                 regs[waddr_i] <= wdata_i;
-            end else if ((jtag_we_i == `WriteEnable) && (jtag_addr_i != `ZeroReg)) begin
+            end 
+            /*
+            else if ((jtag_we_i == `WriteEnable) && (jtag_addr_i != `ZeroReg)) begin
                 regs[jtag_addr_i] <= jtag_data_i;
             end
+            */
         end
     end
 
@@ -87,6 +92,7 @@ module regs(
         end
     end
 
+    /*
     // jtag读寄存器
     always @ (*) begin
         if (jtag_addr_i == `ZeroReg) begin
@@ -95,5 +101,6 @@ module regs(
             jtag_data_o = regs[jtag_addr_i];
         end
     end
+    */
 
 endmodule

@@ -20,17 +20,17 @@
 module cpu_top(
 
     input wire clk,
-    input wire rst,
+    input wire rst
 
+    /*
     input wire[`REG_ADDR_WIDTH-1:0] jtag_reg_addr_i,   // jtag模块读、写寄存器的地址
     input wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_i,   // jtag模块写寄存器数据
     input wire jtag_reg_we_i,                // jtag模块写寄存器标志
     output wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_o,  // jtag模块读取到的寄存器数据
 
     input wire jtag_halt_flag_i,               // jtag暂停标志
-    input wire jtag_reset_flag_i,              // jtag复位PC标志
-
-    input wire[`INST_DATA_WIDTH-1:0] int_i                 // 中断信号
+    input wire jtag_reset_flag_i               // jtag复位PC标志
+    */
 
     );
 
@@ -40,7 +40,7 @@ module cpu_top(
     // if_id模块输出信号
     wire[`INST_DATA_WIDTH-1:0] if_inst_o;
     wire[`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
-    wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;
+    //wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;
 
     // id模块输出信号
     wire[`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
@@ -128,7 +128,7 @@ module cpu_top(
     pc_reg u_pc_reg(
         .clk(clk),
         .rst(rst),
-        .jtag_reset_flag_i(jtag_reset_flag_i),
+        //.jtag_reset_flag_i(jtag_reset_flag_i),
         .pc_o(pc_pc_o),
         .hold_flag_i(ctrl_hold_flag_o),
         .jump_flag_i(ctrl_jump_flag_o),
@@ -145,8 +145,8 @@ module cpu_top(
         .hold_flag_o(ctrl_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
         .jump_flag_o(ctrl_jump_flag_o),
-        .jump_addr_o(ctrl_jump_addr_o),
-        .jtag_halt_flag_i(jtag_halt_flag_i)
+        .jump_addr_o(ctrl_jump_addr_o)
+        //.jtag_halt_flag_i(jtag_halt_flag_i)
     );
 
     // regs模块例化
@@ -159,11 +159,13 @@ module cpu_top(
         .raddr1_i(id_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
         .raddr2_i(id_reg2_raddr_o),
-        .rdata2_o(regs_rdata2_o),
+        .rdata2_o(regs_rdata2_o)
+        /*
         .jtag_we_i(jtag_reg_we_i),
         .jtag_addr_i(jtag_reg_addr_i),
         .jtag_data_i(jtag_reg_data_i),
         .jtag_data_o(jtag_reg_data_o)
+        */
     );
 
     // csr_reg模块例化
@@ -192,8 +194,6 @@ module cpu_top(
         .rst(rst),
         .inst_i(inst_data_i),
         .inst_addr_i(pc_pc_o),
-        .int_flag_i(int_i),
-        .int_flag_o(if_int_flag_o),
         .hold_flag_i(ctrl_hold_flag_o),
         .inst_o(if_inst_o),
         .inst_addr_o(if_inst_addr_o)
@@ -301,7 +301,7 @@ module cpu_top(
     clint u_clint(
         .clk(clk),
         .rst(rst),
-        .int_flag_i(if_int_flag_o),
+        //.int_flag_i(if_int_flag_o),
         .inst_i(id_inst_o),
         .inst_addr_i(id_inst_addr_o),
         .jump_flag_i(exu_jump_flag_o),

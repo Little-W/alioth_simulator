@@ -16,13 +16,15 @@
 
 module tb_top (
     input clk,
-    input rst_n,
+    input rst_n
 
+    /*
     // JTAG接口作为外部输入
     input  tck_i,
     input  tms_i,
     input  tdi_i,
     output tdo_o
+    */
 );
 
     // 复位信号反相
@@ -165,7 +167,8 @@ module tb_top (
                 $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
                 $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 $display("fail testnum = %2d", x3);
-                for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
+                for (r = 0; r < 32; r = r + 1) 
+                $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
             end
             $finish;
         end
@@ -202,6 +205,7 @@ module tb_top (
         end
     endtask
 
+    /*
 `ifdef JTAGVPI
     wire jtag_TDI;
     wire jtag_TDO;
@@ -218,16 +222,19 @@ module tb_top (
     wire jtag_TMS = 1'b0;
     wire jtag_TRST = 1'b0;
 `endif
+    */
 
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
         .clk           (clk),
-        .rst           (rst),
+        .rst           (rst)
+        /*
         .uart_debug_pin(1'b0),
         .jtag_TCK      (jtag_TCK),
         .jtag_TMS      (jtag_TMS),
         .jtag_TDI      (jtag_TDI),
         .jtag_TDO      (jtag_TDO)
+        */
     );
 
     // 添加可选的寄存器调试输出功能

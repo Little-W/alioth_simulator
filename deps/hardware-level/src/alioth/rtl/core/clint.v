@@ -18,18 +18,17 @@
 
 
 // core local interruptor module
-// ºËĞÄÖĞ¶Ï¹ÜÀí¡¢ÖÙ²ÃÄ£¿é
 module clint(
 
     input wire clk,
     input wire rst,
 
     // from core
-    input wire[`INT_BUS] int_flag_i,         // ÖĞ¶ÏÊäÈëĞÅºÅ
+    // input wire[`INT_BUS] int_flag_i, // æ³¨é‡Šæ‰è¯¥ä¿¡å·
 
     // from id
-    input wire[`INST_DATA_WIDTH-1:0] inst_i,             // Ö¸ÁîÄÚÈİ
-    input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,    // Ö¸ÁîµØÖ·
+    input wire[`INST_DATA_WIDTH-1:0] inst_i,
+    input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,
 
     // from ex
     input wire jump_flag_i,
@@ -37,39 +36,38 @@ module clint(
     input wire div_started_i,
 
     // from ctrl
-    input wire[`Hold_Flag_Bus] hold_flag_i,  // Á÷Ë®ÏßÔİÍ£±êÖ¾
+    input wire[`Hold_Flag_Bus] hold_flag_i, //ä¿ç•™
 
     // from csr_reg
-    input wire[`REG_DATA_WIDTH-1:0] data_i,              // CSR¼Ä´æÆ÷ÊäÈëÊı¾İ
-    input wire[`REG_DATA_WIDTH-1:0] csr_mtvec,           // mtvec¼Ä´æÆ÷
-    input wire[`REG_DATA_WIDTH-1:0] csr_mepc,            // mepc¼Ä´æÆ÷
-    input wire[`REG_DATA_WIDTH-1:0] csr_mstatus,         // mstatus¼Ä´æÆ÷
+    input wire[`REG_DATA_WIDTH-1:0] data_i,
+    input wire[`REG_DATA_WIDTH-1:0] csr_mtvec,
+    input wire[`REG_DATA_WIDTH-1:0] csr_mepc,
+    input wire[`REG_DATA_WIDTH-1:0] csr_mstatus,
 
-    input wire global_int_en_i,              // È«¾ÖÖĞ¶ÏÊ¹ÄÜ±êÖ¾
+    input wire global_int_en_i,  // å…¨å±€ä¸­æ–­ä½¿èƒ½æ ‡å¿—ï¼Œå¯èƒ½ä¸å½±å“ecallå’Œebreakçš„æ‰§è¡Œ,æš‚æ—¶ä¿ç•™
 
     // to ctrl
-    output wire hold_flag_o,                 // Á÷Ë®ÏßÔİÍ£±êÖ¾
+    output wire hold_flag_o,
 
     // to csr_reg
-    output reg we_o,                         // Ğ´CSR¼Ä´æÆ÷±êÖ¾
-    output reg[`BUS_ADDR_WIDTH-1:0] waddr_o,         // Ğ´CSR¼Ä´æÆ÷µØÖ·
-    output reg[`BUS_ADDR_WIDTH-1:0] raddr_o,         // ¶ÁCSR¼Ä´æÆ÷µØÖ·
-    output reg[`REG_DATA_WIDTH-1:0] data_o,              // Ğ´CSR¼Ä´æÆ÷Êı¾İ
+    output reg we_o,
+    output reg[`BUS_ADDR_WIDTH-1:0] waddr_o,
+    output reg[`BUS_ADDR_WIDTH-1:0] raddr_o,
+    output reg[`REG_DATA_WIDTH-1:0] data_o,
 
     // to ex
-    output reg[`INST_ADDR_WIDTH-1:0] int_addr_o,     // ÖĞ¶ÏÈë¿ÚµØÖ·
-    output reg int_assert_o                  // ÖĞ¶Ï±êÖ¾
-
+    output reg[`INST_ADDR_WIDTH-1:0] int_addr_o, //ecallå’Œebreakçš„è¿”å›åœ°å€
+    output reg int_assert_o //ecallå’Œebreakçš„ä¸­æ–­ä¿¡å·
     );
 
 
-    // ÖĞ¶Ï×´Ì¬¶¨Òå
+    // interrupt state machine
     localparam S_INT_IDLE            = 4'b0001;
     localparam S_INT_SYNC_ASSERT     = 4'b0010;
     localparam S_INT_ASYNC_ASSERT    = 4'b0100;
     localparam S_INT_MRET            = 4'b1000;
 
-    // Ğ´CSR¼Ä´æÆ÷×´Ì¬¶¨Òå
+    // CSR write state machine
     localparam S_CSR_IDLE            = 5'b00001;
     localparam S_CSR_MSTATUS         = 5'b00010;
     localparam S_CSR_MEPC            = 5'b00100;
@@ -85,20 +83,21 @@ module clint(
     assign hold_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE))? `HoldEnable: `HoldDisable;
 
 
-    // ÖĞ¶ÏÖÙ²ÃÂß¼­
+    // interrupt handling logic
     always @ (*) begin
         if (rst == `RstEnable) begin
             int_state = S_INT_IDLE;
         end else begin
             if (inst_i == `INST_ECALL || inst_i == `INST_EBREAK) begin
-                // Èç¹ûÖ´ĞĞ½×¶ÎµÄÖ¸ÁîÎª³Ë³ı·¨Ö¸Áî£¬ÔòÏÈ²»´¦ÀíÍ¬²½ÖĞ¶Ï£¬µÈ³Ë³ı·¨Ö¸ÁîÖ´ĞĞÍêÔÙ´¦Àí
+                // synchronous interrupt
                 if (div_started_i == `DivStop) begin
                     int_state = S_INT_SYNC_ASSERT;
                 end else begin
                     int_state = S_INT_IDLE;
                 end
-            end else if (int_flag_i != `INT_NONE && global_int_en_i == `True) begin
-                int_state = S_INT_ASYNC_ASSERT;
+            // else if (int_flag_i != `INT_NONE && global_int_en_i == `True) begin
+            //     int_state = S_INT_ASYNC_ASSERT;
+            // æ³¨é‡Šæ‰å¼‚æ­¥ä¸­æ–­ç›¸å…³é€»è¾‘
             end else if (inst_i == `INST_MRET) begin
                 int_state = S_INT_MRET;
             end else begin
@@ -107,7 +106,7 @@ module clint(
         end
     end
 
-    // Ğ´CSR¼Ä´æÆ÷×´Ì¬ÇĞ»»
+    // CSR write state machine
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
             csr_state <= S_CSR_IDLE;
@@ -116,10 +115,10 @@ module clint(
         end else begin
             case (csr_state)
                 S_CSR_IDLE: begin
-                    // Í¬²½ÖĞ¶Ï
+                    // synchronous interrupt
                     if (int_state == S_INT_SYNC_ASSERT) begin
                         csr_state <= S_CSR_MEPC;
-                        // ÔÚÖĞ¶Ï´¦Àíº¯ÊıÀï»á½«ÖĞ¶Ï·µ»ØµØÖ·¼Ó4
+                        // if jump occurred, set inst_addr to jump address - 4
                         if (jump_flag_i == `JumpEnable) begin
                             inst_addr <= jump_addr_i - 4'h4;
                         end else begin
@@ -136,20 +135,19 @@ module clint(
                                 cause <= 32'd10;
                             end
                         endcase
-                    // Òì²½ÖĞ¶Ï
-                    end else if (int_state == S_INT_ASYNC_ASSERT) begin
-                        // ¶¨Ê±Æ÷ÖĞ¶Ï
-                        cause <= 32'h80000004;
-                        csr_state <= S_CSR_MEPC;
-                        if (jump_flag_i == `JumpEnable) begin
-                            inst_addr <= jump_addr_i;
-                        // Òì²½ÖĞ¶Ï¿ÉÒÔÖĞ¶Ï³Ë³ı·¨Ö¸ÁîµÄÖ´ĞĞ£¬ÖĞ¶Ï´¦ÀíÍêÔÙÖØĞÂÖ´ĞĞ³Ë³ı·¨Ö¸Áî
-                        end else if (div_started_i == `DivStart) begin
-                            inst_addr <= inst_addr_i - 4'h4;
-                        end else begin
-                            inst_addr <= inst_addr_i;
-                        end
-                    // ÖĞ¶Ï·µ»Ø
+                    // else if (int_state == S_INT_ASYNC_ASSERT) begin
+                    //     // timer interrupt
+                    //     cause <= 32'h80000004;
+                    //     csr_state <= S_CSR_MEPC;
+                    //     if (jump_flag_i == `JumpEnable) begin
+                    //         inst_addr <= jump_addr_i;
+                    //     // if division started, set inst_addr to inst_addr_i - 4
+                    //     end else if (div_started_i == `DivStart) begin
+                    //         inst_addr <= inst_addr_i - 4'h4;
+                    //     end else begin
+                    //         inst_addr <= inst_addr_i;
+                    //     end
+                    // æ³¨é‡Šæ‰å¼‚æ­¥ä¸­æ–­ç›¸å…³é€»è¾‘
                     end else if (int_state == S_INT_MRET) begin
                         csr_state <= S_CSR_MSTATUS_MRET;
                     end
@@ -173,7 +171,7 @@ module clint(
         end
     end
 
-    // ·¢³öÖĞ¶ÏĞÅºÅÇ°£¬ÏÈĞ´¼¸¸öCSR¼Ä´æÆ÷
+    // write to CSR registers
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
             we_o <= `WriteDisable;
@@ -181,25 +179,25 @@ module clint(
             data_o <= `ZeroWord;
         end else begin
             case (csr_state)
-                // ½«mepc¼Ä´æÆ÷µÄÖµÉèÎªµ±Ç°Ö¸ÁîµØÖ·
+                // write to mepc register
                 S_CSR_MEPC: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MEPC};
                     data_o <= inst_addr;
                 end
-                // Ğ´ÖĞ¶Ï²úÉúµÄÔ­Òò
+                // write to mcause register
                 S_CSR_MCAUSE: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MCAUSE};
                     data_o <= cause;
                 end
-                // ¹Ø±ÕÈ«¾ÖÖĞ¶Ï
+                // disable global interrupt
                 S_CSR_MSTATUS: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
                     data_o <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
                 end
-                // ÖĞ¶Ï·µ»Ø
+                // interrupt return
                 S_CSR_MSTATUS_MRET: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
@@ -214,19 +212,19 @@ module clint(
         end
     end
 
-    // ·¢³öÖĞ¶ÏĞÅºÅ¸øexÄ£¿é
+    // send interrupt signal to ex module
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
             int_assert_o <= `INT_DEASSERT;
             int_addr_o <= `ZeroWord;
         end else begin
             case (csr_state)
-                // ·¢³öÖĞ¶Ï½øÈëĞÅºÅ.Ğ´Íêmcause¼Ä´æÆ÷²ÅÄÜ·¢
+                // assert interrupt signal
                 S_CSR_MCAUSE: begin
                     int_assert_o <= `INT_ASSERT;
                     int_addr_o <= csr_mtvec;
                 end
-                // ·¢³öÖĞ¶Ï·µ»ØĞÅºÅ
+                // assert interrupt return signal
                 S_CSR_MSTATUS_MRET: begin
                     int_assert_o <= `INT_ASSERT;
                     int_addr_o <= csr_mepc;

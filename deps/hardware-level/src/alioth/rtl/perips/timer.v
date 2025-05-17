@@ -27,8 +27,7 @@ module timer(
     input wire[31:0] addr_i,
     input wire we_i,
 
-    output reg[31:0] data_o,
-    output wire int_sig_o
+    output reg[31:0] data_o
 
     );
 
@@ -49,9 +48,6 @@ module timer(
     // timer expired value
     // addr offset: 0x08
     reg[31:0] timer_value;
-
-
-    assign int_sig_o = ((timer_ctrl[2] == 1'b1) && (timer_ctrl[1] == 1'b1))? `INT_ASSERT: `INT_DEASSERT;
 
     // counter
     always @ (posedge clk) begin
