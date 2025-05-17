@@ -314,7 +314,7 @@ module id(
 
     assign csr_waddr_o = insr_type_cstr ? {20'h0, inst_i[31:20]} : `ZeroWord;
     assign csr_we_o = inst_csrrw | inst_csrrs | inst_csrrc;
-    
+    assign csr_raddr_o = csr_we_o ? inst[31:20] : `ZeroWord;
 
     // // //之前代码
     
