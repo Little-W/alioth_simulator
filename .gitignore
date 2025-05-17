@@ -1,0 +1,9 @@
+csrc/*.o
+csrc/*.o.*
+*.o
+*.o.*
+build
+deps/hardware-level/bin
+deps/software-level/bin
+.*
+*.tar*

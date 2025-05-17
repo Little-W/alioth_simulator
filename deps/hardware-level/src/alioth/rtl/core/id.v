@@ -39,29 +39,29 @@ module id(
 
 
     // to regs
-    output reg[`REG_ADDR_WIDTH-1:0] reg1_raddr_o,    // 读通用寄存器1地址
-    output reg[`REG_ADDR_WIDTH-1:0] reg2_raddr_o,    // 读通用寄存器2地址
+    output wire[`REG_ADDR_WIDTH-1:0] reg1_raddr_o,    // 读通用寄存器1地址
+    output wire[`REG_ADDR_WIDTH-1:0] reg2_raddr_o,    // 读通用寄存器2地址
 
 
     // to csr reg
-    output reg[`BUS_ADDR_WIDTH-1:0] csr_raddr_o,     // 读CSR寄存器地址
+    output wire[`BUS_ADDR_WIDTH-1:0] csr_raddr_o,     // 读CSR寄存器地址
 
     // to ex
     output wire[31:0] dec_imm_o,                        // 立即数
     //output reg[`BUS_ADDR_WIDTH-1:0] op1_o,
     //output reg[`BUS_ADDR_WIDTH-1:0] op2_o,
-    //output reg[`BUS_ADDR_WIDTH-1:0] op1_jump_o,
-    //output reg[`BUS_ADDR_WIDTH-1:0] op2_jump_o,
+    // output wire[`BUS_ADDR_WIDTH-1:0] op1_jump_o,
+    // output wire[`BUS_ADDR_WIDTH-1:0] op2_jump_o,
     output wire[`DECINFO_WIDTH-1:0] dec_info_bus_o,     // 译码信息  [18:0] 
-    output reg[`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
-    output reg[`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
-    output reg[`REG_DATA_WIDTH-1:0] reg1_rdata_o,        // 通用寄存器1数据
-    output reg[`REG_DATA_WIDTH-1:0] reg2_rdata_o,        // 通用寄存器2数据
-    output reg reg_we_o,                     // 写通用寄存器标志
-    output reg[`REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
-    output reg csr_we_o,                     // 写CSR寄存器标志
-    output reg[`REG_DATA_WIDTH-1:0] csr_rdata_o,         // CSR寄存器数据
-    output reg[`BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
+    output wire[`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
+    output wire[`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
+    output wire[`REG_DATA_WIDTH-1:0] reg1_rdata_o,        // 通用寄存器1数据
+    output wire[`REG_DATA_WIDTH-1:0] reg2_rdata_o,        // 通用寄存器2数据
+    output wire reg_we_o,                     // 写通用寄存器标志
+    output wire[`REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
+    output wire csr_we_o,                     // 写CSR寄存器标志
+    output wire[`REG_DATA_WIDTH-1:0] csr_rdata_o,         // CSR寄存器数据
+    output wire[`BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
 
     );
 

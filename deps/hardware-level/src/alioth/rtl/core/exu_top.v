@@ -119,11 +119,9 @@ module exu_top(
     wire[31:0] bjp_res;
     wire bjp_cmp_res;
 
-
-
-
     // dispatch to ALU 
 
+    // wire [ 4:0] rd_addr_o;
     wire[31:0] alu_op1_o;
     wire[31:0] alu_op2_o;
     wire req_alu_o;
@@ -192,10 +190,7 @@ module exu_top(
     wire sys_op_ebreak_o;
     wire sys_op_fence_o;
     wire sys_op_dret_o;  
-   
 
-
- 
      exu_dispatch u_exu_dispatch(
         // input
         .clk(clk),
@@ -370,6 +365,8 @@ module exu_top(
         .req_alu_i(req_alu_o),
         .alu_op1_i(alu_op1_o),
         .alu_op2_i(alu_op2_o),
+        .alu_op_lui_i(alu_op_lui_o),
+        .alu_op_auipc_i(alu_op_auipc_o),
         .alu_op_add_i(alu_op_add_o),
         .alu_op_sub_i(alu_op_sub_o),
         .alu_op_sll_i(alu_op_sll_o),

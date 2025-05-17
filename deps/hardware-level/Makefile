@@ -21,7 +21,7 @@ SIM_OPTIONS   += --cc +incdir+${VSRC_DIR}/core  -CFLAGS -I${VSRC_DIR}/core +incd
 SIM_OPTIONS   += +incdir+${VSRC_DIR}/perips/apb_i2c/ -CFLAGS -I${VSRC_DIR}/perips/apb_i2c/
 SIM_OPTIONS   += --exe --trace --trace-structs --trace-params --trace-max-array 1024
 SIM_OPTIONS   += -CFLAGS "-Wall -DTOPLEVEL_NAME=tb_top -g -O0" -LDFLAGS "-pthread -lutil -lelf"
-SIM_OPTIONS   +=  -Wno-PINCONNECTEMPTY -Wno-fatal -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT
+SIM_OPTIONS   += -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT -Wno-TIMESCALEMOD -Wno-fatal
 
 ifeq ($(SIM_TOOL),verilator5)
 SIM_OPTIONS   += --no-timing

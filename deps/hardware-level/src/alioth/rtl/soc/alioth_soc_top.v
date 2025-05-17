@@ -22,27 +22,17 @@ module alioth_soc_top(
     input wire clk,
     input wire rst,
 
-    output reg over,         // 测试是否完成信号
-    output reg succ,         // 测试是否成功信号
-
     output wire halted_ind,  // jtag是否已经halt住CPU信号
 
     input wire uart_debug_pin, // 串口下载使能引脚
 
     output wire uart_tx_pin, // UART发送引脚
     input wire uart_rx_pin,  // UART接收引脚
-    inout wire[1:0] gpio,    // GPIO引脚
 
     input wire jtag_TCK,     // JTAG TCK引脚
     input wire jtag_TMS,     // JTAG TMS引脚
     input wire jtag_TDI,     // JTAG TDI引脚
-    output wire jtag_TDO,    // JTAG TDO引脚
-
-    input wire spi_miso,     // SPI MISO引脚
-    output wire spi_mosi,    // SPI MOSI引脚
-    output wire spi_ss,      // SPI SS引脚
-    output wire spi_clk      // SPI CLK引脚
-
+    output wire jtag_TDO    // JTAG TDO引脚
     );
 
     // jtag接口
@@ -62,16 +52,6 @@ module alioth_soc_top(
 
     // halted指示
     assign halted_ind = ~jtag_halt_req_o;
-
-    always @ (posedge clk) begin
-        if (rst == `RstEnable) begin
-            over <= 1'b1;
-            succ <= 1'b1;
-        end else begin
-            over <= ~u_cpu_top.u_regs.regs[26];  // when = 1, run over
-            succ <= ~u_cpu_top.u_regs.regs[27];  // when = 1, run succ, otherwise fail
-        end
-    end
 
     // alioth处理器核模块例化
     cpu_top u_cpu_top(

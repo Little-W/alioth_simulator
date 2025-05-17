@@ -17,51 +17,51 @@
 `include "defines.v"
 
 
-module exu_bru(
-    input wire rst,
-    input wire req_bjp_i,
-    input wire[31:0] bjp_op1_i,
-    input wire[31:0] bjp_op2_i,
-    input wire[31:0] bjp_jump_op1_i,
-    input wire[31:0] bjp_jump_op2_i,
-    input wire bjp_op_jump_i,  // JAL/JALR指令
-    input wire bjp_op_beq_i,
-    input wire bjp_op_bne_i,
-    input wire bjp_op_blt_i,
-    input wire bjp_op_bltu_i,
-    input wire bjp_op_bge_i,
-    input wire bjp_op_bgeu_i,
-    input wire bjp_op_jalr_i,   // JALR指令标志
+module exu_bru (
+    input wire        rst,
+    input wire        req_bjp_i,
+    input wire [31:0] bjp_op1_i,
+    input wire [31:0] bjp_op2_i,
+    input wire [31:0] bjp_jump_op1_i,
+    input wire [31:0] bjp_jump_op2_i,
+    input wire        bjp_op_jump_i,   // JAL/JALR指令
+    input wire        bjp_op_beq_i,
+    input wire        bjp_op_bne_i,
+    input wire        bjp_op_blt_i,
+    input wire        bjp_op_bltu_i,
+    input wire        bjp_op_bge_i,
+    input wire        bjp_op_bgeu_i,
+    input wire        bjp_op_jalr_i,   // JALR指令标志
 
-    input wire sys_op_fence_i, // FENCE指令
+    input wire                        sys_op_fence_i,  // FENCE指令
     // 中断信号
-    input wire int_assert_i,
-    input wire[`INST_ADDR_WIDTH-1:0] int_addr_i,
+    input wire                        int_assert_i,
+    input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
 
     // 跳转输出
-    output reg jump_flag_o,
-    output reg[`INST_ADDR_WIDTH-1:0] jump_addr_o
-);    
+    output reg                        jump_flag_o,
+    output reg [`INST_ADDR_WIDTH-1:0] jump_addr_o
+);
     // 内部信号
-    wire op1_eq_op2;
-    wire op1_ge_op2_signed;
-    wire op1_ge_op2_unsigned;
-    wire[31:0] op1_jump_add_op2_jump_res;
-    
+    wire        op1_eq_op2;
+    wire        op1_ge_op2_signed;
+    wire        op1_ge_op2_unsigned;
+    wire [31:0] op1_jump_add_op2_jump_res;
+
     // 比较结果
-    assign op1_eq_op2 = (bjp_op1_i == bjp_op2_i);
-    assign op1_ge_op2_signed = $signed(bjp_op1_i) >= $signed(bjp_op2_i);
-    assign op1_ge_op2_unsigned = bjp_op1_i >= bjp_op2_i;
-    
+    assign op1_eq_op2                = (bjp_op1_i == bjp_op2_i);
+    assign op1_ge_op2_signed         = $signed(bjp_op1_i) >= $signed(bjp_op2_i);
+    assign op1_ge_op2_unsigned       = bjp_op1_i >= bjp_op2_i;
+
     // 计算跳转地址
     assign op1_jump_add_op2_jump_res = bjp_jump_op1_i + bjp_jump_op2_i;
-      
+
     // 分支单元逻辑
     always @(*) begin
         // 默认值
         jump_flag_o = `JumpDisable;
         jump_addr_o = `ZeroWord;
-        
+
         // 中断处理
         if (int_assert_i == `INT_ASSERT) begin
             jump_flag_o = `JumpEnable;
@@ -92,12 +92,13 @@ module exu_bru(
             end else if (bjp_op_bgeu_i) begin  // BGEU指令
                 jump_flag_o = op1_ge_op2_unsigned ? `JumpEnable : `JumpDisable;
                 jump_addr_o = op1_ge_op2_unsigned ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else if (sys_op_fence_i) begin  // FENCE指令
-                jump_flag_o = `JumpEnable;  
             end else begin
                 jump_flag_o = `JumpDisable;
                 jump_addr_o = `ZeroWord;
             end
+        end else if (sys_op_fence_i) begin  // FENCE指令
+            jump_flag_o = `JumpEnable;
+            jump_addr_o = op1_jump_add_op2_jump_res;
         end
     end
 
@@ -107,7 +108,7 @@ endmodule
 // // 分支单元 - 处理跳转和分支指令
 // module exu_bru(
 //     input wire rst,
-    
+
 //     // 指令和操作数输入
 //     input wire[`INST_DATA_WIDTH-1:0] inst_i,
 //     input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -115,7 +116,7 @@ endmodule
 //     input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
 //     input wire[`BUS_ADDR_WIDTH-1:0] op1_jump_i,
 //     input wire[`BUS_ADDR_WIDTH-1:0] op2_jump_i,
-    
+
 //     // dispatch模块传来的译码信号
 //     input wire bjp_op_jump_i,      // JAL或JALR指令
 //     input wire bjp_op_beq_i,       // BEQ指令
@@ -126,11 +127,11 @@ endmodule
 //     input wire bjp_op_bgeu_i,      // BGEU指令
 //     input wire bjp_op_jalr_i,      // JALR指令
 //     input wire sys_op_fence_i,     // FENCE指令
-    
+
 //     // 中断信号
 //     input wire int_assert_i,
 //     input wire[`INST_ADDR_WIDTH-1:0] int_addr_i,
-    
+
 //     // 跳转输出
 //     output reg jump_flag_o,
 //     output reg[`INST_ADDR_WIDTH-1:0] jump_addr_o
@@ -141,21 +142,21 @@ endmodule
 //     wire op1_ge_op2_signed;
 //     wire op1_ge_op2_unsigned;
 //     wire[31:0] op1_jump_add_op2_jump_res;
-    
+
 //     // 比较结果
 //     assign op1_eq_op2 = (op1_i == op2_i);
 //     assign op1_ge_op2_signed = $signed(op1_i) >= $signed(op2_i);
 //     assign op1_ge_op2_unsigned = op1_i >= op2_i;
-    
+
 //     // 计算跳转地址
 //     assign op1_jump_add_op2_jump_res = op1_jump_i + op2_jump_i;
-    
+
 //     // 分支单元逻辑
 //     always @(*) begin
 //         // 默认值
 //         jump_flag_o = `JumpDisable;
 //         jump_addr_o = `ZeroWord;
-        
+
 //         // 中断处理
 //         if (int_assert_i == `INT_ASSERT) begin
 //             jump_flag_o = `JumpEnable;
