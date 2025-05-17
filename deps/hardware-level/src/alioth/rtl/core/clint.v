@@ -36,7 +36,7 @@ module clint(
     input wire div_started_i,
 
     // from ctrl
-    input wire[`Hold_Flag_Bus] hold_flag_i, //保留
+    input wire[`Hold_Flag_Bus] hold_flag_i,
 
     // from csr_reg
     input wire[`REG_DATA_WIDTH-1:0] data_i,
@@ -44,7 +44,7 @@ module clint(
     input wire[`REG_DATA_WIDTH-1:0] csr_mepc,
     input wire[`REG_DATA_WIDTH-1:0] csr_mstatus,
 
-    input wire global_int_en_i,  // 全局中断使能标志，可能不影响ecall和ebreak的执行,暂时保留
+    input wire global_int_en_i,  // 全局中断使能标志
 
     // to ctrl
     output wire hold_flag_o,
@@ -95,9 +95,6 @@ module clint(
                 end else begin
                     int_state = S_INT_IDLE;
                 end
-            // else if (int_flag_i != `INT_NONE && global_int_en_i == `True) begin
-            //     int_state = S_INT_ASYNC_ASSERT;
-            // 注释掉异步中断相关逻辑
             end else if (inst_i == `INST_MRET) begin
                 int_state = S_INT_MRET;
             end else begin
@@ -135,19 +132,6 @@ module clint(
                                 cause <= 32'd10;
                             end
                         endcase
-                    // else if (int_state == S_INT_ASYNC_ASSERT) begin
-                    //     // timer interrupt
-                    //     cause <= 32'h80000004;
-                    //     csr_state <= S_CSR_MEPC;
-                    //     if (jump_flag_i == `JumpEnable) begin
-                    //         inst_addr <= jump_addr_i;
-                    //     // if division started, set inst_addr to inst_addr_i - 4
-                    //     end else if (div_started_i == `DivStart) begin
-                    //         inst_addr <= inst_addr_i - 4'h4;
-                    //     end else begin
-                    //         inst_addr <= inst_addr_i;
-                    //     end
-                    // 注释掉异步中断相关逻辑
                     end else if (int_state == S_INT_MRET) begin
                         csr_state <= S_CSR_MSTATUS_MRET;
                     end
