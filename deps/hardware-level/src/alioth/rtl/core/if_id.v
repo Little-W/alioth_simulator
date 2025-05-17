@@ -27,8 +27,9 @@ module if_id(
 
     input wire[`Hold_Flag_Bus] hold_flag_i, // 流水线暂停标志
 
-    input wire[`INT_BUS] int_flag_i,        // 外设中断输入信号
+    /*input wire[`INT_BUS] int_flag_i,        // 外设中断输入信号
     output wire[`INT_BUS] int_flag_o,
+    */
 
     output wire[`INST_DATA_WIDTH-1:0] inst_o,           // 指令内容
     output wire[`INST_ADDR_WIDTH-1:0] inst_addr_o   // 指令地址
@@ -45,8 +46,10 @@ module if_id(
     gen_pipe_dff #(32) inst_addr_ff(clk, rst, hold_en, `ZeroWord, inst_addr_i, inst_addr);
     assign inst_addr_o = inst_addr;
 
+    /*
     wire[`INT_BUS] int_flag;
     gen_pipe_dff #(8) int_ff(clk, rst, hold_en, `INT_NONE, int_flag_i, int_flag);
     assign int_flag_o = int_flag;
+    */
 
 endmodule

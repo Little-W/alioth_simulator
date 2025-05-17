@@ -18,18 +18,17 @@
 
 
 // core local interruptor module
-// 核心中断管理、仲裁模块
 module clint(
 
     input wire clk,
     input wire rst,
 
     // from core
-    input wire[`INT_BUS] int_flag_i,         // 中断输入信号
+    // input wire[`INT_BUS] int_flag_i, // 娉ㄩ噴鎺夎淇″彿
 
     // from id
-    input wire[`INST_DATA_WIDTH-1:0] inst_i,             // 指令内容
-    input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,    // 指令地址
+    input wire[`INST_DATA_WIDTH-1:0] inst_i,
+    input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,
 
     // from ex
     input wire jump_flag_i,
@@ -37,39 +36,39 @@ module clint(
     input wire div_started_i,
 
     // from ctrl
-    input wire[`Hold_Flag_Bus] hold_flag_i,  // 流水线暂停标志
+    input wire[`Hold_Flag_Bus] hold_flag_i,
 
     // from csr_reg
-    input wire[`REG_DATA_WIDTH-1:0] data_i,              // CSR寄存器输入数据
-    input wire[`REG_DATA_WIDTH-1:0] csr_mtvec,           // mtvec寄存器
-    input wire[`REG_DATA_WIDTH-1:0] csr_mepc,            // mepc寄存器
-    input wire[`REG_DATA_WIDTH-1:0] csr_mstatus,         // mstatus寄存器
+    input wire[`REG_DATA_WIDTH-1:0] data_i,
+    input wire[`REG_DATA_WIDTH-1:0] csr_mtvec,
+    input wire[`REG_DATA_WIDTH-1:0] csr_mepc,
+    input wire[`REG_DATA_WIDTH-1:0] csr_mstatus,
 
-    input wire global_int_en_i,              // 全局中断使能标志
+    input wire global_int_en_i,
 
     // to ctrl
-    output wire hold_flag_o,                 // 流水线暂停标志
+    output wire hold_flag_o,
 
     // to csr_reg
-    output reg we_o,                         // 写CSR寄存器标志
-    output reg[`BUS_ADDR_WIDTH-1:0] waddr_o,         // 写CSR寄存器地址
-    output reg[`BUS_ADDR_WIDTH-1:0] raddr_o,         // 读CSR寄存器地址
-    output reg[`REG_DATA_WIDTH-1:0] data_o,              // 写CSR寄存器数据
+    output reg we_o,
+    output reg[`BUS_ADDR_WIDTH-1:0] waddr_o,
+    output reg[`BUS_ADDR_WIDTH-1:0] raddr_o,
+    output reg[`REG_DATA_WIDTH-1:0] data_o,
 
     // to ex
-    output reg[`INST_ADDR_WIDTH-1:0] int_addr_o,     // 中断入口地址
-    output reg int_assert_o                  // 中断标志
+    output reg[`INST_ADDR_WIDTH-1:0] int_addr_o,
+    output reg int_assert_o
 
     );
 
 
-    // 中断状态定义
+    // interrupt state machine
     localparam S_INT_IDLE            = 4'b0001;
     localparam S_INT_SYNC_ASSERT     = 4'b0010;
     localparam S_INT_ASYNC_ASSERT    = 4'b0100;
     localparam S_INT_MRET            = 4'b1000;
 
-    // 写CSR寄存器状态定义
+    // CSR write state machine
     localparam S_CSR_IDLE            = 5'b00001;
     localparam S_CSR_MSTATUS         = 5'b00010;
     localparam S_CSR_MEPC            = 5'b00100;
@@ -85,20 +84,21 @@ module clint(
     assign hold_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE))? `HoldEnable: `HoldDisable;
 
 
-    // 中断仲裁逻辑
+    // interrupt handling logic
     always @ (*) begin
         if (rst == `RstEnable) begin
             int_state = S_INT_IDLE;
         end else begin
             if (inst_i == `INST_ECALL || inst_i == `INST_EBREAK) begin
-                // 如果执行阶段的指令为乘除法指令，则先不处理同步中断，等乘除法指令执行完再处理
+                // synchronous interrupt
                 if (div_started_i == `DivStop) begin
                     int_state = S_INT_SYNC_ASSERT;
                 end else begin
                     int_state = S_INT_IDLE;
                 end
-            end else if (int_flag_i != `INT_NONE && global_int_en_i == `True) begin
-                int_state = S_INT_ASYNC_ASSERT;
+            // else if (int_flag_i != `INT_NONE && global_int_en_i == `True) begin
+            //     int_state = S_INT_ASYNC_ASSERT;
+            // 娉ㄩ噴鎺夊紓姝ヤ腑鏂浉鍏抽�昏緫
             end else if (inst_i == `INST_MRET) begin
                 int_state = S_INT_MRET;
             end else begin
@@ -107,7 +107,7 @@ module clint(
         end
     end
 
-    // 写CSR寄存器状态切换
+    // CSR write state machine
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
             csr_state <= S_CSR_IDLE;
@@ -116,10 +116,10 @@ module clint(
         end else begin
             case (csr_state)
                 S_CSR_IDLE: begin
-                    // 同步中断
+                    // synchronous interrupt
                     if (int_state == S_INT_SYNC_ASSERT) begin
                         csr_state <= S_CSR_MEPC;
-                        // 在中断处理函数里会将中断返回地址加4
+                        // if jump occurred, set inst_addr to jump address - 4
                         if (jump_flag_i == `JumpEnable) begin
                             inst_addr <= jump_addr_i - 4'h4;
                         end else begin
@@ -136,20 +136,19 @@ module clint(
                                 cause <= 32'd10;
                             end
                         endcase
-                    // 异步中断
-                    end else if (int_state == S_INT_ASYNC_ASSERT) begin
-                        // 定时器中断
-                        cause <= 32'h80000004;
-                        csr_state <= S_CSR_MEPC;
-                        if (jump_flag_i == `JumpEnable) begin
-                            inst_addr <= jump_addr_i;
-                        // 异步中断可以中断乘除法指令的执行，中断处理完再重新执行乘除法指令
-                        end else if (div_started_i == `DivStart) begin
-                            inst_addr <= inst_addr_i - 4'h4;
-                        end else begin
-                            inst_addr <= inst_addr_i;
-                        end
-                    // 中断返回
+                    // else if (int_state == S_INT_ASYNC_ASSERT) begin
+                    //     // timer interrupt
+                    //     cause <= 32'h80000004;
+                    //     csr_state <= S_CSR_MEPC;
+                    //     if (jump_flag_i == `JumpEnable) begin
+                    //         inst_addr <= jump_addr_i;
+                    //     // if division started, set inst_addr to inst_addr_i - 4
+                    //     end else if (div_started_i == `DivStart) begin
+                    //         inst_addr <= inst_addr_i - 4'h4;
+                    //     end else begin
+                    //         inst_addr <= inst_addr_i;
+                    //     end
+                    // 娉ㄩ噴鎺夊紓姝ヤ腑鏂浉鍏抽�昏緫
                     end else if (int_state == S_INT_MRET) begin
                         csr_state <= S_CSR_MSTATUS_MRET;
                     end
@@ -173,7 +172,7 @@ module clint(
         end
     end
 
-    // 发出中断信号前，先写几个CSR寄存器
+    // write to CSR registers
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
             we_o <= `WriteDisable;
@@ -181,25 +180,25 @@ module clint(
             data_o <= `ZeroWord;
         end else begin
             case (csr_state)
-                // 将mepc寄存器的值设为当前指令地址
+                // write to mepc register
                 S_CSR_MEPC: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MEPC};
                     data_o <= inst_addr;
                 end
-                // 写中断产生的原因
+                // write to mcause register
                 S_CSR_MCAUSE: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MCAUSE};
                     data_o <= cause;
                 end
-                // 关闭全局中断
+                // disable global interrupt
                 S_CSR_MSTATUS: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
                     data_o <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
                 end
-                // 中断返回
+                // interrupt return
                 S_CSR_MSTATUS_MRET: begin
                     we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
@@ -214,19 +213,19 @@ module clint(
         end
     end
 
-    // 发出中断信号给ex模块
+    // send interrupt signal to ex module
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
             int_assert_o <= `INT_DEASSERT;
             int_addr_o <= `ZeroWord;
         end else begin
             case (csr_state)
-                // 发出中断进入信号.写完mcause寄存器才能发
+                // assert interrupt signal
                 S_CSR_MCAUSE: begin
                     int_assert_o <= `INT_ASSERT;
                     int_addr_o <= csr_mtvec;
                 end
-                // 发出中断返回信号
+                // assert interrupt return signal
                 S_CSR_MSTATUS_MRET: begin
                     int_assert_o <= `INT_ASSERT;
                     int_addr_o <= csr_mepc;

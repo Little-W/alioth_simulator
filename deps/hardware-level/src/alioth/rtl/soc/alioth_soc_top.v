@@ -5,7 +5,7 @@
  you may not use this file except in compliance with the License.        
  You may obtain a copy of the License at                                 
                                                                          
-     http://www.apache.org/licenses/LICENSE-2.0                          
+    http://www.apache.org/licenses/LICENSE-2.0                          
                                                                          
  Unless required by applicable law or agreed to in writing, software    
  distributed under the License is distributed on an "AS IS" BASIS,       
@@ -53,13 +53,6 @@ module alioth_soc_top(
     wire jtag_reg_we_o;
     wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_i;
 
-    // timer0信号
-    wire timer0_int;
-
-    // 中断总线
-    wire[`INT_BUS] int_flag;
-    assign int_flag = {7'h0, timer0_int};
-
     // halted指示
     assign halted_ind = ~jtag_halt_req_o;
 
@@ -82,10 +75,10 @@ module alioth_soc_top(
         .jtag_reg_we_i(jtag_reg_we_o),
         .jtag_reg_data_o(jtag_reg_data_i),
         .jtag_halt_flag_i(jtag_halt_req_o),
-        .jtag_reset_flag_i(jtag_reset_req_o),
-        .int_i(int_flag)
+        .jtag_reset_flag_i(jtag_reset_req_o)
     );
 
+    /*
     // timer模块例化
     timer timer_0(
         .clk(clk),
@@ -93,9 +86,9 @@ module alioth_soc_top(
         .data_i(32'h0),  // 暂时不连接
         .addr_i(32'h0),  // 暂时不连接
         .we_i(1'b0),     // 暂时不连接
-        .data_o(),       // 暂时不连接
-        .int_sig_o(timer0_int)
+        .data_o()        // 暂时不连接
     );
+    */
 
     // jtag模块例化
     jtag_top #(

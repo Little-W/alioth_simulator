@@ -28,9 +28,7 @@ module cpu_top(
     output wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_o,  // jtag模块读取到的寄存器数据
 
     input wire jtag_halt_flag_i,               // jtag暂停标志
-    input wire jtag_reset_flag_i,              // jtag复位PC标志
-
-    input wire[`INST_DATA_WIDTH-1:0] int_i                 // 中断信号
+    input wire jtag_reset_flag_i               // jtag复位PC标志
 
     );
 
@@ -40,7 +38,7 @@ module cpu_top(
     // if_id模块输出信号
     wire[`INST_DATA_WIDTH-1:0] if_inst_o;
     wire[`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
-    wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;
+    //wire[`INST_DATA_WIDTH-1:0] if_int_flag_o;
 
     // id模块输出信号
     wire[`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
@@ -191,8 +189,6 @@ module cpu_top(
         .rst(rst),
         .inst_i(inst_data_i),
         .inst_addr_i(pc_pc_o),
-        .int_flag_i(int_i),
-        .int_flag_o(if_int_flag_o),
         .hold_flag_i(ctrl_hold_flag_o),
         .inst_o(if_inst_o),
         .inst_addr_o(if_inst_addr_o)
@@ -299,7 +295,7 @@ module cpu_top(
     clint u_clint(
         .clk(clk),
         .rst(rst),
-        .int_flag_i(if_int_flag_o),
+        //.int_flag_i(if_int_flag_o),
         .inst_i(id_inst_o),
         .inst_addr_i(id_inst_addr_o),
         .jump_flag_i(exu_jump_flag_o),
