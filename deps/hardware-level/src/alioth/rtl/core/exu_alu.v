@@ -37,7 +37,9 @@ module exu_alu (
     input wire        alu_op_and_i,
     input wire        alu_op_lui_i,
     input wire        alu_op_auipc_i,
+    input wire        alu_op_jump_i,
     input wire [ 4:0] alu_rd_i,
+
     // // 中断信号
     // input wire int_assert_i,
 
@@ -79,6 +81,7 @@ module exu_alu (
     wire        op_and;
     wire        op_lui;
     wire        op_auipc;
+    wire        op_jump;
 
     wire [31:0] xor_res = mux_op1 ^ mux_op2;  //异或
     wire [31:0] or_res = mux_op1 | mux_op2;  //  或
@@ -95,9 +98,9 @@ module exu_alu (
     wire [31:0] sr_shift_mask = 32'hffffffff >> mux_op2[4:0];
     wire [31:0] sra_res = (srl_res & sr_shift_mask) | ({32{mux_op1[31]}} & (~sr_shift_mask));
     //有符号数比较 op2>op1
-    wire        op2_ge_op1_signed = ($signed(mux_op2) >= $signed(mux_op1));
+    wire        op2_ge_op1_signed = ($signed(mux_op2) > $signed(mux_op1));
     // 无符号数比较 op2>op1
-    wire        op2_ge_op1_unsigned = (mux_op2 >= mux_op1);
+    wire        op2_ge_op1_unsigned = (mux_op2 > mux_op1);
 
     wire [31:0] slt_res = (op2_ge_op1_signed) ? 32'h1 : 32'h0;
     wire [31:0] sltu_res = (op2_ge_op1_unsigned) ? 32'h1 : 32'h0;
@@ -108,20 +111,25 @@ module exu_alu (
             alu_res = 32'h0;
         end else begin
             alu_res = 32'h0;
+            if (req_alu_i) begin
             case (1'b1)  //优先级判断
-                op_xor:  alu_res = xor_res;
-                op_or:   alu_res = or_res;
-                op_and:  alu_res = and_res;
-                op_add:  alu_res = add_sub_res;
-                op_sub:  alu_res = add_sub_res;
-                op_sll:  alu_res = sll_res;
-                op_srl:  alu_res = srl_res;
-                op_sra:  alu_res = sra_res;
-                op_slt:  alu_res = slt_res;
+                op_xor: alu_res = xor_res;
+                op_or: alu_res = or_res;
+                op_and: alu_res = and_res;
+                op_add: alu_res = add_sub_res;
+                op_sub: alu_res = add_sub_res;
+                op_sll: alu_res = sll_res;
+                op_srl: alu_res = srl_res;
+                op_sra: alu_res = sra_res;
+                op_slt: alu_res = slt_res;
                 op_sltu: alu_res = sltu_res;
-                op_lui:  alu_res = add_sub_res;
+                op_lui: alu_res = add_sub_res;
                 op_auipc: alu_res = add_sub_res;
             endcase
+            end else if (op_jump) begin
+                // 处理跳转指令
+                alu_res = add_sub_res;
+            end
         end
     end
 
@@ -134,7 +142,7 @@ module exu_alu (
             alu_reg_we = `WriteDisable;
         end else begin
             // 所有算术逻辑操作都需要写回寄存器
-            alu_reg_we = req_alu_i ? `WriteEnable : `WriteDisable;
+            alu_reg_we = (req_alu_i | op_jump) ? `WriteEnable : `WriteDisable;
         end
     end
 
@@ -149,7 +157,7 @@ module exu_alu (
         end
     end
     assign reg_waddr_o = alu_reg_waddr;
-    assign {op_add, op_sub, op_sll, op_slt, op_sltu, op_xor, op_srl, op_sra, op_or, op_and, op_lui, op_auipc} = {
+    assign {op_add, op_sub, op_sll, op_slt, op_sltu, op_xor, op_srl, op_sra, op_or, op_and, op_lui, op_auipc, op_jump} = {
         alu_op_add_i,
         alu_op_sub_i,
         alu_op_sll_i,
@@ -161,7 +169,8 @@ module exu_alu (
         alu_op_or_i,
         alu_op_and_i,
         alu_op_lui_i,
-        alu_op_auipc_i
+        alu_op_auipc_i,
+        alu_op_jump_i
     };
 
 

@@ -77,7 +77,7 @@ module exu_top(
     wire div_start;
     wire[`REG_DATA_WIDTH-1:0] div_dividend;
     wire[`REG_DATA_WIDTH-1:0] div_divisor;
-    wire[2:0] div_op;
+    wire[3:0] div_op;
     wire[`REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
 
      // 乘法器信号
@@ -89,7 +89,7 @@ module exu_top(
     wire mul_start;
     wire[`REG_DATA_WIDTH-1:0] mul_multiplicand;
     wire[`REG_DATA_WIDTH-1:0] mul_multiplier;
-    wire[2:0] mul_op;
+    wire[3:0] mul_op;
     wire[`REG_ADDR_WIDTH-1:0] mul_reg_waddr_o;
     
     wire[`REG_DATA_WIDTH-1:0] alu_result;
@@ -377,6 +377,7 @@ module exu_top(
         .alu_op_sra_i(alu_op_sra_o),
         .alu_op_or_i(alu_op_or_o),
         .alu_op_and_i(alu_op_and_o),
+        .alu_op_jump_i(bjp_op_jump_o),
         .alu_rd_i(reg_waddr_i),
         .int_assert_i(int_assert_i),
         
@@ -384,48 +385,8 @@ module exu_top(
         .reg_we_o(alu_reg_we),
         .reg_waddr_o(alu_reg_waddr)
     );
-    // // ALU
-        // .req_alu_i(req_alu_o),
-        // .alu_op1_i(alu_op1_o),
-        // .alu_op2_i(alu_op2_o),
-        // .alu_op_add_i(alu_op_add_o),
-        // .alu_op_sub_i(alu_op_sub_o),
-        // .alu_op_sll_i(alu_op_sll_o),
-        // .alu_op_slt_i(alu_op_slt_o),
-        // .alu_op_sltu_i(alu_op_sltu_o),
-        // .alu_op_xor_i(alu_op_xor_o),
-        // .alu_op_srl_i(alu_op_srl_o),
-        // .alu_op_sra_i(alu_op_sra_o),
-        // .alu_op_or_i(alu_op_or_o),
-        // .alu_op_and_i(alu_op_and_o),
-        
-        // // BJP (这些输入仅用于加法计算，不再进行分支比较)
-        // .req_bjp_i(req_bjp_o),
-        // .bjp_op1_i(bjp_op1_o),
-        // .bjp_op2_i(bjp_op2_o),
-        // .bjp_op_jump_i(bjp_op_jump_o),
-        // .bjp_jump_op1_i(bjp_jump_op1_o),
-        // .bjp_jump_op2_i(bjp_jump_op2_o),
-        
-        // // MEM
-        // .req_mem_i(req_mem_o),
-        // .mem_op1_i(mem_op1_o),
-        // .mem_op2_i(mem_op2_o),
-        //   // CSR
-        // .req_csr_i(req_csr_o),
-        // .csr_op1_i(csr_op1_o),
-        // .csr_op2_i(csr_addr_o),
-        // .csr_csrrw_i(csr_csrrw_o),
-        // .csr_csrrs_i(csr_csrrs_o),
-        // .csr_csrrc_i(csr_csrrc_o),
-        
-        // // 中断信号
-        // .int_assert_i(int_assert_i),
-        
-        // .alu_res_o(alu_result)
-    // );
-      // 分支单元模块例化
 
+      // 分支单元模块例化
     exu_bru u_bru(
         .rst(rst),
         .req_bjp_i(req_bjp_o),
@@ -448,32 +409,7 @@ module exu_top(
         .jump_flag_o(bru_jump_flag),
         .jump_addr_o(bru_jump_addr)
     );
-    // exu_bru u_bru(
-    //     .rst(rst),
-    //     .inst_i(inst_i),
-    //     .inst_addr_i(inst_addr_i),
-    //     .op1_i(op1_i),
-    //     .op2_i(op2_i),
-    //     .op1_jump_i(op1_jump_i),
-    //     .op2_jump_i(op2_jump_i),
-        
-    //     // 连接dispatch模块的译码信号
-    //     .bjp_op_jump_i(bjp_op_jump_o),
-    //     .bjp_op_beq_i(bjp_op_beq_o),
-    //     .bjp_op_bne_i(bjp_op_bne_o),
-    //     .bjp_op_blt_i(bjp_op_blt_o),
-    //     .bjp_op_bltu_i(bjp_op_bltu_o),
-    //     .bjp_op_bge_i(bjp_op_bge_o),
-    //     .bjp_op_bgeu_i(bjp_op_bgeu_o),
-    //     .bjp_op_jalr_i(bjp_op_jalr_o),
-    //     .sys_op_fence_i(sys_op_fence_o),
-        
-    //     .int_assert_i(int_assert_i),
-    //     .int_addr_i(int_addr_i),
-        
-    //     .jump_flag_o(bru_jump_flag),
-    //     .jump_addr_o(bru_jump_addr)
-    // );
+
       // CSR处理单元模块例化    
        exu_csr_unit u_csr_unit(
         .rst(rst),
@@ -511,12 +447,23 @@ module exu_top(
       // 乘除法控制逻辑
     exu_muldiv_ctrl u_muldiv_ctrl(
         .rst(rst),
-        .inst_i(inst_i),
         .reg_waddr_i(reg_waddr_i),
         .reg1_rdata_i(reg1_rdata_i),        
         .reg2_rdata_i(reg2_rdata_i),
         .op1_jump_i(bjp_jump_op1_o),
         .op2_jump_i(bjp_jump_op2_o),
+        
+        // 连接dispatch模块的译码信号
+        .req_muldiv_i(req_muldiv_o),
+        .muldiv_op_mul_i(muldiv_op_mul_o),
+        .muldiv_op_mulh_i(muldiv_op_mulh_o),
+        .muldiv_op_mulhsu_i(muldiv_op_mulhsu_o),
+        .muldiv_op_mulhu_i(muldiv_op_mulhu_o),
+        .muldiv_op_div_i(muldiv_op_div_o),
+        .muldiv_op_divu_i(muldiv_op_divu_o),
+        .muldiv_op_rem_i(muldiv_op_rem_o),
+        .muldiv_op_remu_i(muldiv_op_remu_o),
+        
         .div_ready_i(div_ready),
         .div_result_i(div_result),
         .div_busy_i(div_busy),

@@ -28,7 +28,7 @@ module exu_div(
     input wire[`REG_DATA_WIDTH-1:0] dividend_i,      // 被除数
     input wire[`REG_DATA_WIDTH-1:0] divisor_i,       // 除数
     input wire start_i,                  // 开始信号，运算期间这个信号需要一直保持有效
-    input wire[2:0] op_i,                // 具体是哪一条指令
+    input wire[3:0] op_i,                // 操作类型
     input wire[`REG_ADDR_WIDTH-1:0] reg_waddr_i, // 运算结束后需要写的寄存器
 
     // to ex
@@ -47,7 +47,7 @@ module exu_div(
 
     reg[`REG_DATA_WIDTH-1:0] dividend_r;
     reg[`REG_DATA_WIDTH-1:0] divisor_r;
-    reg[2:0] op_r;
+    reg[3:0] op_r;
     reg[3:0] state;
     reg[31:0] count;
     reg[`REG_DATA_WIDTH-1:0] div_result;
@@ -55,10 +55,11 @@ module exu_div(
     reg[`REG_DATA_WIDTH-1:0] minuend;
     reg invert_result;
 
-    wire op_div = (op_r == `INST_DIV);
-    wire op_divu = (op_r == `INST_DIVU);
-    wire op_rem = (op_r == `INST_REM);
-    wire op_remu = (op_r == `INST_REMU);
+    // 从op_i解析具体操作类型 (op_i现在是从控制模块传来的)
+    wire op_div = op_r[0];
+    wire op_divu = op_r[1];
+    wire op_rem = op_r[2];
+    wire op_remu = op_r[3];
 
     wire[31:0] dividend_invert = (-dividend_r);
     wire[31:0] divisor_invert = (-divisor_r);
@@ -75,7 +76,7 @@ module exu_div(
             result_o <= `ZeroWord;
             div_result <= `ZeroWord;
             div_remain <= `ZeroWord;
-            op_r <= 3'h0;
+            op_r <= 4'h0;
             reg_waddr_o <= `ZeroWord;
             dividend_r <= `ZeroWord;
             divisor_r <= `ZeroWord;
@@ -178,7 +179,9 @@ module exu_div(
                         ready_o <= `DivResultNotReady;
                         busy_o <= `False;
                     end
-                end                STATE_END: begin
+                end                
+
+                STATE_END: begin
                     if (start_i == `DivStart) begin
                         ready_o <= `DivResultReady;
                         state <= STATE_IDLE;

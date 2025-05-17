@@ -18,20 +18,20 @@
 
 // 译码模块
 // 纯组合逻辑电路
-module id(
+module id (
 
     input wire rst,
 
     // from if_id
-    input wire[`INST_DATA_WIDTH-1:0] inst_i,             // 指令内容
-    input wire[`INST_ADDR_WIDTH-1:0] inst_addr_i,    // 指令地址
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
+    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
 
     // from regs
-    input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,        // 通用寄存器1输入数据
-    input wire[`REG_DATA_WIDTH-1:0] reg2_rdata_i,        // 通用寄存器2输入数据
+    input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,  // 通用寄存器1输入数据
+    input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,  // 通用寄存器2输入数据
 
     // from csr reg
-    input wire[`REG_DATA_WIDTH-1:0] csr_rdata_i,         // CSR寄存器输入数据
+    input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,  // CSR寄存器输入数据
 
     // // from ex
     // input wire ex_jump_flag_i,               // 跳转标志
@@ -39,53 +39,54 @@ module id(
 
 
     // to regs
-    output wire[`REG_ADDR_WIDTH-1:0] reg1_raddr_o,    // 读通用寄存器1地址
-    output wire[`REG_ADDR_WIDTH-1:0] reg2_raddr_o,    // 读通用寄存器2地址
+    output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,  // 读通用寄存器1地址
+    output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
 
 
     // to csr reg
-    output wire[`BUS_ADDR_WIDTH-1:0] csr_raddr_o,     // 读CSR寄存器地址
+    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
 
     // to ex
-    output wire[31:0] dec_imm_o,                        // 立即数
+    output wire [                31:0] dec_imm_o,       // 立即数
     //output reg[`BUS_ADDR_WIDTH-1:0] op1_o,
     //output reg[`BUS_ADDR_WIDTH-1:0] op2_o,
     // output wire[`BUS_ADDR_WIDTH-1:0] op1_jump_o,
     // output wire[`BUS_ADDR_WIDTH-1:0] op2_jump_o,
-    output wire[`DECINFO_WIDTH-1:0] dec_info_bus_o,     // 译码信息  [18:0] 
-    output wire[`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
-    output wire[`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
-    output wire[`REG_DATA_WIDTH-1:0] reg1_rdata_o,        // 通用寄存器1数据
-    output wire[`REG_DATA_WIDTH-1:0] reg2_rdata_o,        // 通用寄存器2数据
-    output wire reg_we_o,                     // 写通用寄存器标志
-    output wire[`REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
-    output wire csr_we_o,                     // 写CSR寄存器标志
-    output wire[`REG_DATA_WIDTH-1:0] csr_rdata_o,         // CSR寄存器数据
-    output wire[`BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,          // 指令内容
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,     // 指令地址
+    output wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_o,    // 通用寄存器1数据
+    output wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_o,    // 通用寄存器2数据
+    output wire                        reg_we_o,        // 写通用寄存器标志
+    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
+    output wire                        csr_we_o,        // 写CSR寄存器标志
+    output wire [ `REG_DATA_WIDTH-1:0] csr_rdata_o,     // CSR寄存器数据
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
 
-    );
+);
 
-    assign inst_o = inst_i;
-    assign inst_addr_o = inst_addr_i;
+    assign inst_o       = inst_i;
+    assign inst_addr_o  = inst_addr_i;
     assign reg1_rdata_o = reg1_rdata_i;
     assign reg2_rdata_o = reg2_rdata_i;
 
-    wire[31:0] inst = inst_i;
+    wire [31:0] inst = inst_i;
     //取出指令域
-    wire[6:0] opcode = inst_i[6:0];
-    wire[2:0] funct3 = inst_i[14:12];
-    wire[6:0] funct7 = inst_i[31:25];
-    wire[4:0] rd = inst_i[11:7];
-    wire[4:0] rs1 = inst_i[19:15];
-    wire[4:0] rs2 = inst_i[24:20];
+    wire [6:0] opcode = inst_i[6:0];
+    wire [2:0] funct3 = inst_i[14:12];
+    wire [6:0] funct7 = inst_i[31:25];
+    wire [4:0] rd = inst_i[11:7];
+    wire [4:0] rs1 = inst_i[19:15];
+    wire [4:0] rs2 = inst_i[24:20];
     // 指令中的立即数，拓展为32位
-    wire[31:0] inst_u_type_imm = {inst[31:12], 12'b0};
-    wire[31:0] inst_j_type_imm = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
-    wire[31:0] inst_b_type_imm = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
-    wire[31:0] inst_s_type_imm = {{20{inst[31]}}, inst[31:25], inst[11:7]};
-    wire[31:0] inst_i_type_imm = {{20{inst[31]}}, inst[31:20]};
-    wire[31:0] inst_csr_type_imm = {27'h0, inst[19:15]};
-    wire[31:0] inst_shift_type_imm = {27'h0, inst[24:20]};
+    wire [31:0] inst_u_type_imm = {inst[31:12], 12'b0};
+    wire [31:0] inst_j_type_imm = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
+    wire [31:0] inst_jr_type_imm = {{20{inst[31]}}, inst[31:20]};
+    wire [31:0] inst_b_type_imm = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
+    wire [31:0] inst_s_type_imm = {{20{inst[31]}}, inst[31:25], inst[11:7]};
+    wire [31:0] inst_i_type_imm = {{20{inst[31]}}, inst[31:20]};
+    wire [31:0] inst_csr_type_imm = {27'h0, inst[19:15]};
+    wire [31:0] inst_shift_type_imm = {27'h0, inst[24:20]};
 
     // 指令opcode域的取值
     wire opcode_0110111 = (opcode == 7'b0110111);
@@ -178,6 +179,7 @@ module id(
     // 立即数控制信号
     wire inst_sel_u_imm = inst_lui | inst_auipc;
     wire inst_sel_j_imm = inst_jal;
+    wire inst_sel_jr_imm = inst_jalr;
     wire inst_sel_b_imm = inst_type_branch;
     wire inst_sel_s_imm = inst_type_store;
     wire inst_sel_i_imm = inst_addi | inst_slti | inst_sltiu | inst_xori | inst_ori | inst_andi | inst_type_load | inst_jalr;
@@ -187,6 +189,7 @@ module id(
     // 立即数选择
     assign dec_imm_o = ({32{inst_sel_u_imm}} & inst_u_type_imm) |
                        ({32{inst_sel_j_imm}} & inst_j_type_imm) |
+                       ({32{inst_sel_jr_imm}} & inst_jr_type_imm) |
                        ({32{inst_sel_b_imm}} & inst_b_type_imm) |
                        ({32{inst_sel_s_imm}} & inst_s_type_imm) |
                        ({32{inst_sel_i_imm}} & inst_i_type_imm) |
@@ -202,72 +205,72 @@ module id(
     wire inst_type_div = inst_div | inst_divu | inst_rem | inst_remu;
 
     // 与不同模块相关的指令信息：
-    wire[`DECINFO_ALU_BUS_WIDTH-1:0] dec_alu_info_bus;
-    assign dec_alu_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_ALU;
-    assign dec_alu_info_bus[`DECINFO_ALU_LUI] = inst_lui;
-    assign dec_alu_info_bus[`DECINFO_ALU_AUIPC] = inst_auipc;
-    assign dec_alu_info_bus[`DECINFO_ALU_ADD] = inst_add | inst_addi;
-    assign dec_alu_info_bus[`DECINFO_ALU_SUB] = inst_sub;
-    assign dec_alu_info_bus[`DECINFO_ALU_SLL] = inst_sll | inst_slli;
-    assign dec_alu_info_bus[`DECINFO_ALU_SLT] = inst_slt | inst_slti;
-    assign dec_alu_info_bus[`DECINFO_ALU_SLTU] = inst_sltu | inst_sltiu;
-    assign dec_alu_info_bus[`DECINFO_ALU_XOR] = inst_xor | inst_xori;
-    assign dec_alu_info_bus[`DECINFO_ALU_SRL] = inst_srl | inst_srli;
-    assign dec_alu_info_bus[`DECINFO_ALU_SRA] = inst_sra | inst_srai;
-    assign dec_alu_info_bus[`DECINFO_ALU_OR] = inst_or | inst_ori;
-    assign dec_alu_info_bus[`DECINFO_ALU_AND] = inst_and | inst_andi;
+    wire [`DECINFO_ALU_BUS_WIDTH-1:0] dec_alu_info_bus;
+    assign dec_alu_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_ALU;
+    assign dec_alu_info_bus[`DECINFO_ALU_LUI]    = inst_lui;
+    assign dec_alu_info_bus[`DECINFO_ALU_AUIPC]  = inst_auipc;
+    assign dec_alu_info_bus[`DECINFO_ALU_ADD]    = inst_add | inst_addi;
+    assign dec_alu_info_bus[`DECINFO_ALU_SUB]    = inst_sub;
+    assign dec_alu_info_bus[`DECINFO_ALU_SLL]    = inst_sll | inst_slli;
+    assign dec_alu_info_bus[`DECINFO_ALU_SLT]    = inst_slt | inst_slti;
+    assign dec_alu_info_bus[`DECINFO_ALU_SLTU]   = inst_sltu | inst_sltiu;
+    assign dec_alu_info_bus[`DECINFO_ALU_XOR]    = (inst_xor | inst_xori);
+    assign dec_alu_info_bus[`DECINFO_ALU_SRL]    = inst_srl | inst_srli;
+    assign dec_alu_info_bus[`DECINFO_ALU_SRA]    = inst_sra | inst_srai;
+    assign dec_alu_info_bus[`DECINFO_ALU_OR]     = inst_or | inst_ori;
+    assign dec_alu_info_bus[`DECINFO_ALU_AND]    = inst_and | inst_andi;
     assign dec_alu_info_bus[`DECINFO_ALU_OP2IMM] = opcode_0010011 | inst_lui | inst_auipc;
-    assign dec_alu_info_bus[`DECINFO_ALU_OP1PC] = inst_auipc;
+    assign dec_alu_info_bus[`DECINFO_ALU_OP1PC]  = inst_auipc;
 
-    wire[`DECINFO_BJP_BUS_WIDTH-1:0] dec_bjp_info_bus;
-    assign dec_bjp_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_BJP;
-    assign dec_bjp_info_bus[`DECINFO_BJP_JUMP] = inst_jal | inst_jalr;
-    assign dec_bjp_info_bus[`DECINFO_BJP_BEQ] = inst_beq;
-    assign dec_bjp_info_bus[`DECINFO_BJP_BNE] = inst_bne;
-    assign dec_bjp_info_bus[`DECINFO_BJP_BLT] = inst_blt;
-    assign dec_bjp_info_bus[`DECINFO_BJP_BGE] = inst_bge;
-    assign dec_bjp_info_bus[`DECINFO_BJP_BLTU] = inst_bltu;
-    assign dec_bjp_info_bus[`DECINFO_BJP_BGEU] = inst_bgeu;
+    wire [`DECINFO_BJP_BUS_WIDTH-1:0] dec_bjp_info_bus;
+    assign dec_bjp_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_BJP;
+    assign dec_bjp_info_bus[`DECINFO_BJP_JUMP]   = inst_jal | inst_jalr;
+    assign dec_bjp_info_bus[`DECINFO_BJP_BEQ]    = inst_beq;
+    assign dec_bjp_info_bus[`DECINFO_BJP_BNE]    = inst_bne;
+    assign dec_bjp_info_bus[`DECINFO_BJP_BLT]    = inst_blt;
+    assign dec_bjp_info_bus[`DECINFO_BJP_BGE]    = inst_bge;
+    assign dec_bjp_info_bus[`DECINFO_BJP_BLTU]   = inst_bltu;
+    assign dec_bjp_info_bus[`DECINFO_BJP_BGEU]   = inst_bgeu;
     assign dec_bjp_info_bus[`DECINFO_BJP_OP1RS1] = inst_jalr;
 
-    wire[`DECINFO_MULDIV_BUS_WIDTH-1:0] dec_muldiv_info_bus;
-    assign dec_muldiv_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_MULDIV;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_MUL] = inst_mul;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_MULH] = inst_mulh;
+    wire [`DECINFO_MULDIV_BUS_WIDTH-1:0] dec_muldiv_info_bus;
+    assign dec_muldiv_info_bus[`DECINFO_GRP_BUS]       = `DECINFO_GRP_MULDIV;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_MUL]    = inst_mul;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_MULH]   = inst_mulh;
     assign dec_muldiv_info_bus[`DECINFO_MULDIV_MULHSU] = inst_mulhsu;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_MULHU] = inst_mulhu;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_DIV] = inst_div;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_DIVU] = inst_divu;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_REM] = inst_rem;
-    assign dec_muldiv_info_bus[`DECINFO_MULDIV_REMU] = inst_remu;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_MULHU]  = inst_mulhu;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_DIV]    = inst_div;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_DIVU]   = inst_divu;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_REM]    = inst_rem;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_REMU]   = inst_remu;
 
-    wire[`DECINFO_CSR_BUS_WIDTH-1:0] dec_csr_info_bus;
-    assign dec_csr_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_CSR;
-    assign dec_csr_info_bus[`DECINFO_CSR_CSRRW] = inst_csrrw | inst_csrrwi;
-    assign dec_csr_info_bus[`DECINFO_CSR_CSRRS] = inst_csrrs | inst_csrrsi;
-    assign dec_csr_info_bus[`DECINFO_CSR_CSRRC] = inst_csrrc | inst_csrrci;
-    assign dec_csr_info_bus[`DECINFO_CSR_RS1IMM] = inst_csrrwi | inst_csrrsi | inst_csrrci;
+    wire [`DECINFO_CSR_BUS_WIDTH-1:0] dec_csr_info_bus;
+    assign dec_csr_info_bus[`DECINFO_GRP_BUS]     = `DECINFO_GRP_CSR;
+    assign dec_csr_info_bus[`DECINFO_CSR_CSRRW]   = inst_csrrw | inst_csrrwi;
+    assign dec_csr_info_bus[`DECINFO_CSR_CSRRS]   = inst_csrrs | inst_csrrsi;
+    assign dec_csr_info_bus[`DECINFO_CSR_CSRRC]   = inst_csrrc | inst_csrrci;
+    assign dec_csr_info_bus[`DECINFO_CSR_RS1IMM]  = inst_csrrwi | inst_csrrsi | inst_csrrci;
     assign dec_csr_info_bus[`DECINFO_CSR_CSRADDR] = inst[31:20];
 
-    wire[`DECINFO_MEM_BUS_WIDTH-1:0] dec_mem_info_bus;
+    wire [`DECINFO_MEM_BUS_WIDTH-1:0] dec_mem_info_bus;
     assign dec_mem_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_MEM;
-    assign dec_mem_info_bus[`DECINFO_MEM_LB] = inst_lb;
-    assign dec_mem_info_bus[`DECINFO_MEM_LH] = inst_lh;
-    assign dec_mem_info_bus[`DECINFO_MEM_LW] = inst_lw;
+    assign dec_mem_info_bus[`DECINFO_MEM_LB]  = inst_lb;
+    assign dec_mem_info_bus[`DECINFO_MEM_LH]  = inst_lh;
+    assign dec_mem_info_bus[`DECINFO_MEM_LW]  = inst_lw;
     assign dec_mem_info_bus[`DECINFO_MEM_LBU] = inst_lbu;
     assign dec_mem_info_bus[`DECINFO_MEM_LHU] = inst_lhu;
-    assign dec_mem_info_bus[`DECINFO_MEM_SB] = inst_sb;
-    assign dec_mem_info_bus[`DECINFO_MEM_SH] = inst_sh;
-    assign dec_mem_info_bus[`DECINFO_MEM_SW] = inst_sw;
+    assign dec_mem_info_bus[`DECINFO_MEM_SB]  = inst_sb;
+    assign dec_mem_info_bus[`DECINFO_MEM_SH]  = inst_sh;
+    assign dec_mem_info_bus[`DECINFO_MEM_SW]  = inst_sw;
 
-    wire[`DECINFO_SYS_BUS_WIDTH-1:0] dec_sys_info_bus;
-    assign dec_sys_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_SYS;
-    assign dec_sys_info_bus[`DECINFO_SYS_ECALL] = inst_ecall;
+    wire [`DECINFO_SYS_BUS_WIDTH-1:0] dec_sys_info_bus;
+    assign dec_sys_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_SYS;
+    assign dec_sys_info_bus[`DECINFO_SYS_ECALL]  = inst_ecall;
     assign dec_sys_info_bus[`DECINFO_SYS_EBREAK] = inst_ebreak;
-    assign dec_sys_info_bus[`DECINFO_SYS_NOP] = inst_nop;
-    assign dec_sys_info_bus[`DECINFO_SYS_MRET] = inst_mret;
-    assign dec_sys_info_bus[`DECINFO_SYS_DRET] = inst_dret;
-    assign dec_sys_info_bus[`DECINFO_SYS_FENCE] = inst_fence | inst_fence_i;
+    assign dec_sys_info_bus[`DECINFO_SYS_NOP]    = inst_nop;
+    assign dec_sys_info_bus[`DECINFO_SYS_MRET]   = inst_mret;
+    assign dec_sys_info_bus[`DECINFO_SYS_DRET]   = inst_dret;
+    assign dec_sys_info_bus[`DECINFO_SYS_FENCE]  = inst_fence | inst_fence_i;
 
     //具体操作码
     wire op_alu = inst_lui | inst_auipc | opcode_0010011 | (opcode_0110011 & (~inst_type_muldiv));
@@ -299,25 +302,25 @@ module id(
                       (~inst_fence_i) &
                       (~inst_mret);
 
-    assign reg1_raddr_o = access_rs1? rs1: 5'h0;
+    assign reg1_raddr_o = access_rs1 ? rs1 : 5'h0;
     // 是否需要访问rs2寄存器
     wire access_rs2 = opcode_0110011 | inst_type_store | inst_type_branch;
 
-    assign reg2_raddr_o = access_rs2? rs2: 5'h0;
+    assign reg2_raddr_o = access_rs2 ? rs2 : 5'h0;
 
     // 是否需要访问rd寄存器
     wire access_rd = inst_lui | inst_auipc | inst_jal | inst_jalr | inst_type_load | opcode_0010011 | opcode_0110011 | op_csr;
 
-    assign reg_waddr_o = access_rd? rd: 5'h0;
-    assign reg_we_o = access_rd;
+    assign reg_waddr_o = access_rd ? rd : 5'h0;
+    assign reg_we_o    = access_rd;
     assign csr_rdata_o = csr_rdata_i;
 
     assign csr_waddr_o = insr_type_cstr ? {20'h0, inst_i[31:20]} : `ZeroWord;
-    assign csr_we_o = inst_csrrw | inst_csrrs | inst_csrrc;
+    assign csr_we_o    = inst_csrrw | inst_csrrs | inst_csrrc;
     assign csr_raddr_o = csr_we_o ? inst[31:20] : `ZeroWord;
 
     // // //之前代码
-    
+
     // wire[6:0] opcode = inst_i[6:0];
     // wire[2:0] funct3 = inst_i[14:12];
     // wire[6:0] funct7 = inst_i[31:25];

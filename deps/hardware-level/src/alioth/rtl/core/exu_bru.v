@@ -72,8 +72,7 @@ module exu_bru (
                 jump_addr_o = op1_jump_add_op2_jump_res;
             end else if (bjp_op_jalr_i) begin  // JALR指令
                 jump_flag_o = `JumpEnable;
-                // JALR指令需要把结果的最低位设为0
-                jump_addr_o = {op1_jump_add_op2_jump_res[31:1], 1'b0};
+                jump_addr_o = op1_jump_add_op2_jump_res;
             end else if (bjp_op_beq_i) begin  // BEQ指令
                 jump_flag_o = op1_eq_op2 ? `JumpEnable : `JumpDisable;
                 jump_addr_o = op1_eq_op2 ? op1_jump_add_op2_jump_res : `ZeroWord;

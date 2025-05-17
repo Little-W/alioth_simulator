@@ -26,7 +26,7 @@ module exu_mul (
     input wire [`REG_DATA_WIDTH-1:0] multiplicand_i,  // 被乘数
     input wire [`REG_DATA_WIDTH-1:0] multiplier_i,    // 乘数
     input wire                       start_i,         // 开始信号，与除法器一致，运算期间需保持有效
-    input wire [                2:0] op_i,            // 具体是哪一条指令
+    input wire [                3:0] op_i,            // 操作类型
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 运算结束后需要写的寄存器
 
     // to ex
@@ -44,7 +44,7 @@ module exu_mul (
     // 内部寄存器
     reg [1:0] current_state, next_state;
     reg [4:0] count;  // 迭代计数器，32位需要16次迭代
-    reg [2:0] op_r;
+    reg [3:0] op_r;
     reg [`REG_DATA_WIDTH-1:0] multiplicand_r;
     reg [`REG_DATA_WIDTH-1:0] multiplier_r;
     reg [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
@@ -71,14 +71,6 @@ module exu_mul (
     // 如果乘数最高位是 1，则误多算了 -2^32*multiplicand，所以加回 multiplicand
     wire [`REG_DATA_WIDTH-1:0] add_mcand;
     assign add_mcand = multiplier_r[`REG_DATA_WIDTH-1] ? multiplicand_r : {`REG_DATA_WIDTH{1'b0}};
-
-    // 符号处理相关变量
-    wire is_signed_op1;
-    wire is_signed_op2;
-
-    // 根据指令类型确定是否进行符号处理
-    assign is_signed_op1 = (op_i == `INST_MULH || op_i == `INST_MULHSU);
-    assign is_signed_op2 = (op_i == `INST_MULH);
 
     // 状态转换逻辑
     always @(*) begin
@@ -107,7 +99,7 @@ module exu_mul (
             busy_o                              <= `False;
             result_o                            <= `ZeroWord;
             count                               <= 5'd0;
-            op_r                                <= 3'h0;
+            op_r                                <= 4'h0;
             multiplicand_r                      <= `ZeroWord;
             multiplier_r                        <= `ZeroWord;
             reg_waddr_o                         <= `ZeroWord;
@@ -164,15 +156,15 @@ module exu_mul (
                 OUTPUT: begin
                     // 根据指令类型选择输出结果
                     case (op_r)
-                        `INST_MUL: result_o <= p_reg[`REG_DATA_WIDTH:1];  // 取低32位
-                        `INST_MULH: begin
+                        4'b0001: result_o <= p_reg[`REG_DATA_WIDTH:1];  // MUL - 取低32位
+                        4'b0010: begin  // MULH - 有符号*有符号=有符号
                             result_o <= p_reg[2*`REG_DATA_WIDTH:(`REG_DATA_WIDTH+1)];
                         end
-                        `INST_MULHSU: begin
+                        4'b0100: begin  // MULHSU - 有符号*无符号=有符号
                             result_o <= mult_tmp_high + add_mcand;
                         end
-                        `INST_MULHU:
-                            result_o <= mult_tmp_high + add_mul + add_mcand;  // 无符号*无符号=无符号
+                        4'b1000:  // MULHU - 无符号*无符号=无符号
+                            result_o <= mult_tmp_high + add_mul + add_mcand;
                         default: result_o <= p_reg[`REG_DATA_WIDTH:1];
                     endcase
 
