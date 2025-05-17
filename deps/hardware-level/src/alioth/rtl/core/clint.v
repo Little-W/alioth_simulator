@@ -36,7 +36,7 @@ module clint(
     input wire div_started_i,
 
     // from ctrl
-    input wire[`Hold_Flag_Bus] hold_flag_i,
+    input wire[`Hold_Flag_Bus] hold_flag_i, //保留
 
     // from csr_reg
     input wire[`REG_DATA_WIDTH-1:0] data_i,
@@ -44,7 +44,7 @@ module clint(
     input wire[`REG_DATA_WIDTH-1:0] csr_mepc,
     input wire[`REG_DATA_WIDTH-1:0] csr_mstatus,
 
-    input wire global_int_en_i,
+    input wire global_int_en_i,  // 全局中断使能标志，可能不影响ecall和ebreak的执行,暂时保留
 
     // to ctrl
     output wire hold_flag_o,
@@ -56,9 +56,8 @@ module clint(
     output reg[`REG_DATA_WIDTH-1:0] data_o,
 
     // to ex
-    output reg[`INST_ADDR_WIDTH-1:0] int_addr_o,
-    output reg int_assert_o
-
+    output reg[`INST_ADDR_WIDTH-1:0] int_addr_o, //ecall和ebreak的返回地址
+    output reg int_assert_o //ecall和ebreak的中断信号
     );
 
 

@@ -20,8 +20,9 @@
 module cpu_top(
 
     input wire clk,
-    input wire rst,
+    input wire rst
 
+    /*
     input wire[`REG_ADDR_WIDTH-1:0] jtag_reg_addr_i,   // jtag模块读、写寄存器的地址
     input wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_i,   // jtag模块写寄存器数据
     input wire jtag_reg_we_i,                // jtag模块写寄存器标志
@@ -29,6 +30,7 @@ module cpu_top(
 
     input wire jtag_halt_flag_i,               // jtag暂停标志
     input wire jtag_reset_flag_i               // jtag复位PC标志
+    */
 
     );
 
@@ -125,7 +127,7 @@ module cpu_top(
     pc_reg u_pc_reg(
         .clk(clk),
         .rst(rst),
-        .jtag_reset_flag_i(jtag_reset_flag_i),
+        //.jtag_reset_flag_i(jtag_reset_flag_i),
         .pc_o(pc_pc_o),
         .hold_flag_i(ctrl_hold_flag_o),
         .jump_flag_i(ctrl_jump_flag_o),
@@ -142,8 +144,8 @@ module cpu_top(
         .hold_flag_o(ctrl_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
         .jump_flag_o(ctrl_jump_flag_o),
-        .jump_addr_o(ctrl_jump_addr_o),
-        .jtag_halt_flag_i(jtag_halt_flag_i)
+        .jump_addr_o(ctrl_jump_addr_o)
+        //.jtag_halt_flag_i(jtag_halt_flag_i)
     );
 
     // regs模块例化
@@ -156,11 +158,13 @@ module cpu_top(
         .raddr1_i(id_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
         .raddr2_i(id_reg2_raddr_o),
-        .rdata2_o(regs_rdata2_o),
+        .rdata2_o(regs_rdata2_o)
+        /*
         .jtag_we_i(jtag_reg_we_i),
         .jtag_addr_i(jtag_reg_addr_i),
         .jtag_data_i(jtag_reg_data_i),
         .jtag_data_o(jtag_reg_data_o)
+        */
     );
 
     // csr_reg模块例化

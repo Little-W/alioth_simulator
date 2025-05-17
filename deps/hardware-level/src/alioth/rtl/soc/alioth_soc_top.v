@@ -23,28 +23,33 @@ module alioth_soc_top(
     input wire rst,
 
     output reg over,         // 测试是否完成信号
-    output reg succ,         // 测试是否成功信号
+    output reg succ         // 测试是否成功信号
 
-    output wire halted_ind,  // jtag是否已经halt住CPU信号
+    //output wire halted_ind,  // jtag是否已经halt住CPU信号
 
+    /*
     input wire uart_debug_pin, // 串口下载使能引脚
 
     output wire uart_tx_pin, // UART发送引脚
     input wire uart_rx_pin,  // UART接收引脚
     inout wire[1:0] gpio,    // GPIO引脚
-
+    */
+    /*
     input wire jtag_TCK,     // JTAG TCK引脚
     input wire jtag_TMS,     // JTAG TMS引脚
     input wire jtag_TDI,     // JTAG TDI引脚
-    output wire jtag_TDO,    // JTAG TDO引脚
-
+    output wire jtag_TDO    // JTAG TDO引脚
+    */
+    /*
     input wire spi_miso,     // SPI MISO引脚
     output wire spi_mosi,    // SPI MOSI引脚
     output wire spi_ss,      // SPI SS引脚
     output wire spi_clk      // SPI CLK引脚
+    */
 
     );
 
+    /*
     // jtag接口
     wire jtag_halt_req_o;
     wire jtag_reset_req_o;
@@ -52,9 +57,10 @@ module alioth_soc_top(
     wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_o;
     wire jtag_reg_we_o;
     wire[`REG_DATA_WIDTH-1:0] jtag_reg_data_i;
+    */
 
     // halted指示
-    assign halted_ind = ~jtag_halt_req_o;
+    //assign halted_ind = ~jtag_halt_req_o;
 
     always @ (posedge clk) begin
         if (rst == `RstEnable) begin
@@ -69,13 +75,15 @@ module alioth_soc_top(
     // alioth处理器核模块例化
     cpu_top u_cpu_top(
         .clk(clk),
-        .rst(rst),
+        .rst(rst)
+        /*
         .jtag_reg_addr_i(jtag_reg_addr_o),
         .jtag_reg_data_i(jtag_reg_data_o),
         .jtag_reg_we_i(jtag_reg_we_o),
         .jtag_reg_data_o(jtag_reg_data_i),
         .jtag_halt_flag_i(jtag_halt_req_o),
         .jtag_reset_flag_i(jtag_reset_req_o)
+        */
     );
 
     /*
@@ -90,6 +98,7 @@ module alioth_soc_top(
     );
     */
 
+    /*
     // jtag模块例化
     jtag_top #(
         .DMI_ADDR_BITS(6),
@@ -114,5 +123,5 @@ module alioth_soc_top(
         .halt_req_o(jtag_halt_req_o),
         .reset_req_o(jtag_reset_req_o)
     );
-
+    */
 endmodule
