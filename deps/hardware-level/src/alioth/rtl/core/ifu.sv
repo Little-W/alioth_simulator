@@ -20,7 +20,7 @@
 module ifu (
 
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // 来自控制模块
     input wire                        jump_flag_i,  // 跳转标志
@@ -41,7 +41,7 @@ module ifu (
     // 实例化PC寄存器模块
     ifu_pc_nxt u_ifu_pc_nxt (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .jump_flag_i(jump_flag_i),
         .jump_addr_i(jump_addr_i),
         .hold_flag_i(hold_flag_i),
@@ -51,7 +51,7 @@ module ifu (
     // 实例化IF/ID模块
     ifu_ifetch u_ifu_ifetch (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .inst_i     (inst_i),
         .inst_addr_i(pc_o),
         .hold_flag_i(hold_flag_i),

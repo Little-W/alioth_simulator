@@ -20,7 +20,7 @@
 module csr_reg (
 
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // form ex
     input wire                       we_i,     // ex模块写寄存器标志
@@ -64,7 +64,7 @@ module csr_reg (
     // cycle counter
     // 复位撤销后就一直计数
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             cycle <= {`ZeroWord, `ZeroWord};
         end else begin
             cycle <= cycle + 1'b1;
@@ -74,7 +74,7 @@ module csr_reg (
     // write reg
     // 写寄存器操作
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             mtvec    <= `ZeroWord;
             mcause   <= `ZeroWord;
             mepc     <= `ZeroWord;

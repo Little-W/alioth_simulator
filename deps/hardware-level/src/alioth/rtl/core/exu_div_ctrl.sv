@@ -18,7 +18,7 @@
 
 // 除法控制单元 - 处理除法指令的控制和结果写回
 module exu_div_ctrl (
-    input wire rst,
+    input wire rst_n,
 
     // 指令和操作数输入
     input wire [`INST_DATA_WIDTH-1:0] inst_i,

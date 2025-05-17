@@ -20,7 +20,7 @@
 // 纯组合逻辑电路
 module id (
 
-    input wire rst,
+    input wire rst_n,
 
     // from if_id
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
@@ -33,11 +33,6 @@ module id (
     // from csr reg
     input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,  // CSR寄存器输入数据
 
-    // // from ex
-    // input wire ex_jump_flag_i,               // 跳转标志
-
-
-
     // to regs
     output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,  // 读通用寄存器1地址
     output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
@@ -48,10 +43,6 @@ module id (
 
     // to ex
     output wire [                31:0] dec_imm_o,       // 立即数
-    //output reg[`BUS_ADDR_WIDTH-1:0] op1_o,
-    //output reg[`BUS_ADDR_WIDTH-1:0] op2_o,
-    // output wire[`BUS_ADDR_WIDTH-1:0] op1_jump_o,
-    // output wire[`BUS_ADDR_WIDTH-1:0] op2_jump_o,
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
     output wire [`INST_DATA_WIDTH-1:0] inst_o,          // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,     // 指令地址
@@ -176,15 +167,31 @@ module id (
     wire inst_mret = (inst == `INST_MRET);
     wire inst_dret = (inst == `INST_DRET);
 
-    // 立即数控制信号
+    // 将指令分类 - 提前计算常用指令类型分组，避免重复判断
+    wire inst_type_load = opcode_0000011;
+    wire inst_type_store = opcode_0100011;
+    wire inst_type_branch = opcode_1100011;
+    wire insr_type_cstr = opcode_1110011;
+
+    // 优化乘除法类型指令判断，避免重复逻辑
+    wire inst_type_mul = inst_mul | inst_mulh | inst_mulhsu | inst_mulhu;
+    wire inst_type_div = inst_div | inst_divu | inst_rem | inst_remu;
+    wire inst_type_muldiv = inst_type_mul | inst_type_div;
+
+    // 立即数指令分组
+    wire inst_i_type = inst_addi | inst_slti | inst_sltiu | inst_xori | inst_ori | inst_andi | inst_type_load | inst_jalr;
+    wire inst_shift_i_type = inst_slli | inst_srli | inst_srai;
+    wire inst_csr_i_type = inst_csrrwi | inst_csrrsi | inst_csrrci;
+
+    // 立即数控制信号优化
     wire inst_sel_u_imm = inst_lui | inst_auipc;
     wire inst_sel_j_imm = inst_jal;
     wire inst_sel_jr_imm = inst_jalr;
     wire inst_sel_b_imm = inst_type_branch;
     wire inst_sel_s_imm = inst_type_store;
-    wire inst_sel_i_imm = inst_addi | inst_slti | inst_sltiu | inst_xori | inst_ori | inst_andi | inst_type_load | inst_jalr;
-    wire inst_sel_csr_imm = inst_csrrwi | inst_csrrsi | inst_csrrci;
-    wire inst_sel_shift_imm = inst_slli | inst_srli | inst_srai;
+    wire inst_sel_i_imm = inst_i_type;
+    wire inst_sel_csr_imm = inst_csr_i_type;
+    wire inst_sel_shift_imm = inst_shift_i_type;
 
     // 立即数选择
     assign dec_imm_o = ({32{inst_sel_u_imm}} & inst_u_type_imm) |
@@ -196,15 +203,6 @@ module id (
                        ({32{inst_sel_csr_imm}} & inst_csr_type_imm) |
                        ({32{inst_sel_shift_imm}} & inst_shift_type_imm);
 
-    // 将指令分类
-    wire inst_type_load = opcode_0000011;
-    wire inst_type_store = opcode_0100011;
-    wire inst_type_branch = opcode_1100011;
-    wire insr_type_cstr = opcode_1110011;
-    wire inst_type_muldiv = inst_mul | inst_mulh | inst_mulhsu | inst_mulhu | inst_div | inst_divu | inst_rem | inst_remu;
-    wire inst_type_div = inst_div | inst_divu | inst_rem | inst_remu;
-
-    // 与不同模块相关的指令信息：
     wire [`DECINFO_ALU_BUS_WIDTH-1:0] dec_alu_info_bus;
     assign dec_alu_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_ALU;
     assign dec_alu_info_bus[`DECINFO_ALU_LUI]    = inst_lui;
@@ -244,6 +242,9 @@ module id (
     assign dec_muldiv_info_bus[`DECINFO_MULDIV_REM]    = inst_rem;
     assign dec_muldiv_info_bus[`DECINFO_MULDIV_REMU]   = inst_remu;
 
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_OP_MUL] = inst_type_mul;
+    assign dec_muldiv_info_bus[`DECINFO_MULDIV_OP_DIV] = inst_type_div;
+
     wire [`DECINFO_CSR_BUS_WIDTH-1:0] dec_csr_info_bus;
     assign dec_csr_info_bus[`DECINFO_GRP_BUS]     = `DECINFO_GRP_CSR;
     assign dec_csr_info_bus[`DECINFO_CSR_CSRRW]   = inst_csrrw | inst_csrrwi;
@@ -253,15 +254,18 @@ module id (
     assign dec_csr_info_bus[`DECINFO_CSR_CSRADDR] = inst[31:20];
 
     wire [`DECINFO_MEM_BUS_WIDTH-1:0] dec_mem_info_bus;
-    assign dec_mem_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_MEM;
-    assign dec_mem_info_bus[`DECINFO_MEM_LB]  = inst_lb;
-    assign dec_mem_info_bus[`DECINFO_MEM_LH]  = inst_lh;
-    assign dec_mem_info_bus[`DECINFO_MEM_LW]  = inst_lw;
-    assign dec_mem_info_bus[`DECINFO_MEM_LBU] = inst_lbu;
-    assign dec_mem_info_bus[`DECINFO_MEM_LHU] = inst_lhu;
-    assign dec_mem_info_bus[`DECINFO_MEM_SB]  = inst_sb;
-    assign dec_mem_info_bus[`DECINFO_MEM_SH]  = inst_sh;
-    assign dec_mem_info_bus[`DECINFO_MEM_SW]  = inst_sw;
+    assign dec_mem_info_bus[`DECINFO_GRP_BUS]      = `DECINFO_GRP_MEM;
+    assign dec_mem_info_bus[`DECINFO_MEM_LB]       = inst_lb;
+    assign dec_mem_info_bus[`DECINFO_MEM_LH]       = inst_lh;
+    assign dec_mem_info_bus[`DECINFO_MEM_LW]       = inst_lw;
+    assign dec_mem_info_bus[`DECINFO_MEM_LBU]      = inst_lbu;
+    assign dec_mem_info_bus[`DECINFO_MEM_LHU]      = inst_lhu;
+    assign dec_mem_info_bus[`DECINFO_MEM_SB]       = inst_sb;
+    assign dec_mem_info_bus[`DECINFO_MEM_SH]       = inst_sh;
+    assign dec_mem_info_bus[`DECINFO_MEM_SW]       = inst_sw;
+    // 直接使用之前定义的类型信号
+    assign dec_mem_info_bus[`DECINFO_MEM_OP_LOAD]  = inst_type_load;
+    assign dec_mem_info_bus[`DECINFO_MEM_OP_STORE] = inst_type_store;
 
     wire [`DECINFO_SYS_BUS_WIDTH-1:0] dec_sys_info_bus;
     assign dec_sys_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_SYS;
@@ -272,11 +276,11 @@ module id (
     assign dec_sys_info_bus[`DECINFO_SYS_DRET]   = inst_dret;
     assign dec_sys_info_bus[`DECINFO_SYS_FENCE]  = inst_fence | inst_fence_i;
 
-    //具体操作码
+    // 操作码逻辑优化
     wire op_alu = inst_lui | inst_auipc | opcode_0010011 | (opcode_0110011 & (~inst_type_muldiv));
     wire op_bjp = inst_jal | inst_jalr | inst_type_branch;
     wire op_muldiv = inst_type_muldiv;
-    wire op_csr = inst_csrrw | inst_csrrwi | inst_csrrs | inst_csrrsi | inst_csrrc | inst_csrrci;
+    wire op_csr = insr_type_cstr & (funct3_001 | funct3_010 | funct3_011 | funct3_101 | funct3_110 | funct3_111);
     wire op_sys = inst_ebreak | inst_ecall | inst_nop | inst_mret | inst_fence | inst_fence_i | inst_dret;
     wire op_mem = inst_type_load | inst_type_store;
 
@@ -288,19 +292,10 @@ module id (
                             ({`DECINFO_WIDTH{op_sys}} & {{`DECINFO_WIDTH-`DECINFO_SYS_BUS_WIDTH{1'b0}}, dec_sys_info_bus});
 
 
-    // 是否需要访问rs1寄存器
-    wire access_rs1 = (~inst_lui) &
-                      (~inst_auipc) &
-                      (~inst_jal) &
-                      (~inst_ecall) &
-                      (~inst_ebreak) &
-                      (~inst_csrrwi) &
-                      (~inst_csrrsi) &
-                      (~inst_csrrci) &
-                      (~inst_nop) &
-                      (~inst_fence) &
-                      (~inst_fence_i) &
-                      (~inst_mret);
+    // 是否需要访问rs1寄存器 - 优化为使用指令类型判断
+    wire access_rs1 = (~inst_lui) & (~inst_auipc) & (~inst_jal) & 
+                      (~inst_ecall) & (~inst_ebreak) & (~inst_csr_i_type) & 
+                      (~inst_nop) & (~inst_fence) & (~inst_fence_i) & (~inst_mret);
 
     assign reg1_raddr_o = access_rs1 ? rs1 : 5'h0;
     // 是否需要访问rs2寄存器

@@ -20,7 +20,7 @@
 module regs (
 
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // from ex
     input wire                       we_i,     // 写寄存器标志
@@ -45,7 +45,7 @@ module regs (
 
     // 写寄存器
     always @(posedge clk) begin
-        if (rst == `RstDisable) begin
+        if (rst_n == `RstDisable) begin
             // 优先ex模块写操作
             if ((we_i == `WriteEnable) && (waddr_i != `ZeroReg)) begin
                 regs[waddr_i] <= wdata_i;

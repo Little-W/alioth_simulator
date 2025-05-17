@@ -22,7 +22,7 @@
 module exu_div (
 
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // from ex
     input wire [`REG_DATA_WIDTH-1:0] dividend_i,  // 被除数
@@ -72,7 +72,7 @@ module exu_div (
 
     // 状态机实现
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             state         <= STATE_IDLE;
             ready_o       <= `DivResultNotReady;
             result_o      <= `ZeroWord;

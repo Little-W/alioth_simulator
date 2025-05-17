@@ -19,7 +19,7 @@
 // 内存管理模块，包含ITCM和DTCM
 module mems (
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // PC访问接口
     input  wire [`INST_ADDR_WIDTH-1:0] pc_i,   // PC地址
@@ -104,7 +104,7 @@ module mems (
         .INIT_FILE (`ITCM_INIT_FILE)    // 使用宏定义指定初始化文件
     ) u_itcm (
         .clk      (clk),
-        .rst      (rst),
+        .rst_n    (rst_n),
         .we_i     (itcm_we),
         .we_mask_i(itcm_wmask),
         .addr_i   (itcm_addr),
@@ -119,7 +119,7 @@ module mems (
         .INIT_MEM  (0)                  // DTCM默认不初始化
     ) u_dtcm (
         .clk      (clk),
-        .rst      (rst),
+        .rst_n    (rst_n),
         .we_i     (dtcm_we),
         .we_mask_i(dtcm_wmask),
         .addr_i   (dtcm_addr),

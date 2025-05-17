@@ -18,7 +18,7 @@
 
 
 module exu_bru (
-    input wire        rst,
+    input wire        rst_n,
     input wire        req_bjp_i,
     input wire [31:0] bjp_op1_i,
     input wire [31:0] bjp_op2_i,

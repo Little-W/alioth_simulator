@@ -20,7 +20,7 @@
 // 使用Booth算法实现32位整数乘法
 module exu_mul (
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // from ex
     input wire [`REG_DATA_WIDTH-1:0] multiplicand_i,  // 被乘数
@@ -88,14 +88,14 @@ module exu_mul (
 
     // 状态寄存器更新
     always @(posedge clk) begin
-        if (rst == `RstEnable) current_state <= IDLE;
+        if (rst_n == `RstEnable) current_state <= IDLE;
         else if (!start_i) current_state <= IDLE;
         else current_state <= next_state;
     end
 
     // 操作执行
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             ready_o                             <= 1'b0;
             busy_o                              <= `False;
             result_o                            <= `ZeroWord;

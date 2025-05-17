@@ -20,7 +20,7 @@
 module cpu_top (
 
     input wire clk,
-    input wire rst
+    input wire rst_n
 
 );
 
@@ -114,7 +114,7 @@ module cpu_top (
     // IFU模块例化
     ifu u_ifu (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .jump_flag_i(ctrl_jump_flag_o),
         .jump_addr_i(ctrl_jump_addr_o),
         .hold_flag_i(ctrl_hold_flag_o),
@@ -126,11 +126,11 @@ module cpu_top (
 
     // ctrl模块例化
     ctrl u_ctrl (
-        .rst              (rst),
+        .rst_n            (rst_n),
         .jump_flag_i      (exu_jump_flag_o),
         .jump_addr_i      (exu_jump_addr_o),
         .hold_flag_ex_i   (exu_hold_flag_o),
-        .hold_flag_rib_i  (hold_flag_i),
+        .hold_flag_mems_i (hold_flag_i),
         .hold_flag_o      (ctrl_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
         .jump_flag_o      (ctrl_jump_flag_o),
@@ -140,7 +140,7 @@ module cpu_top (
     // regs模块例化
     regs u_regs (
         .clk     (clk),
-        .rst     (rst),
+        .rst_n   (rst_n),
         .we_i    (exu_reg_we_o),
         .waddr_i (exu_reg_waddr_o),
         .wdata_i (exu_reg_wdata_o),
@@ -153,7 +153,7 @@ module cpu_top (
     // csr_reg模块例化
     csr_reg u_csr_reg (
         .clk              (clk),
-        .rst              (rst),
+        .rst_n            (rst_n),
         .we_i             (exu_csr_we_o),
         .raddr_i          (id_csr_raddr_o),
         .waddr_i          (exu_csr_waddr_o),
@@ -172,7 +172,7 @@ module cpu_top (
 
     // id模块例化
     id u_id (
-        .rst         (rst),
+        .rst_n       (rst_n),
         .inst_i      (if_inst_o),
         .inst_addr_i (if_inst_addr_o),
         .reg1_rdata_i(regs_rdata1_o),
@@ -200,7 +200,7 @@ module cpu_top (
     // id_ex模块例化
     id_ex u_id_ex (
         .clk           (clk),
-        .rst           (rst),
+        .rst_n         (rst_n),
         .inst_i        (id_inst_o),
         .inst_addr_i   (id_inst_addr_o),
         .reg_we_i      (id_reg_we_o),
@@ -228,7 +228,7 @@ module cpu_top (
     );  // exu模块例化
     exu_top u_exu (
         .clk           (clk),
-        .rst           (rst),
+        .rst_n         (rst_n),
         .inst_i        (ie_inst_o),
         .inst_addr_i   (ie_inst_addr_o),
         .reg_we_i      (ie_reg_we_o),
@@ -264,7 +264,7 @@ module cpu_top (
     // clint模块例化
     clint u_clint (
         .clk            (clk),
-        .rst            (rst),
+        .rst_n          (rst_n),
         .inst_i         (id_inst_o),
         .inst_addr_i    (id_inst_addr_o),
         .jump_flag_i    (exu_jump_flag_o),
@@ -288,7 +288,7 @@ module cpu_top (
     // mems模块例化
     mems u_mems (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         // PC接口
         .pc_i       (pc_pc_o),
         .inst_o     (inst_data_i),

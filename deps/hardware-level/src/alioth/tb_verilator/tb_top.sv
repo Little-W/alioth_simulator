@@ -25,9 +25,6 @@ module tb_top (
     output tdo_o
 );
 
-    // 复位信号反相
-    wire              rst = rst_n;
-
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_regs.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
@@ -223,7 +220,7 @@ module tb_top (
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
         .clk(clk),
-        .rst(rst)
+        .rst_n(rst_n)
     );
 
     // 添加可选的寄存器调试输出功能

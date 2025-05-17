@@ -20,7 +20,7 @@
 module exu_dispatch (
 
     input wire                        clk,
-    input wire                        rst,
+    input wire                        rst_n,
     input wire [`INST_DATA_WIDTH-1:0] inst_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
@@ -73,6 +73,8 @@ module exu_dispatch (
     output wire        muldiv_op_divu_o,
     output wire        muldiv_op_rem_o,
     output wire        muldiv_op_remu_o,
+    output wire        muldiv_op_mul_all_o,
+    output wire        muldiv_op_div_all_o,
 
     // dispatch to CSR
     output wire        req_csr_o,
@@ -95,6 +97,8 @@ module exu_dispatch (
     output wire        mem_op_sb_o,
     output wire        mem_op_sh_o,
     output wire        mem_op_sw_o,
+    output wire        mem_op_load_o,
+    output wire        mem_op_store_o,
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -142,18 +146,21 @@ module exu_dispatch (
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
     wire [`DECINFO_WIDTH-1:0] muldiv_info = {`DECINFO_WIDTH{op_muldiv}} & dec_info_bus_i;
     // MULDIV op1
-    assign muldiv_op1_o       = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
+    assign muldiv_op1_o        = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
     // MULDIV op2
-    assign muldiv_op2_o       = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
-    assign muldiv_op_mul_o    = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
-    assign muldiv_op_mulh_o   = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
-    assign muldiv_op_mulhu_o  = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
-    assign muldiv_op_mulhsu_o = muldiv_info[`DECINFO_MULDIV_MULHSU];  // MULHSU指令
-    assign muldiv_op_div_o    = muldiv_info[`DECINFO_MULDIV_DIV];  // DIV指令
-    assign muldiv_op_divu_o   = muldiv_info[`DECINFO_MULDIV_DIVU];  // DIVU指令
-    assign muldiv_op_rem_o    = muldiv_info[`DECINFO_MULDIV_REM];  // REM指令
-    assign muldiv_op_remu_o   = muldiv_info[`DECINFO_MULDIV_REMU];  // REMU指令
-    assign req_muldiv_o       = op_muldiv;
+    assign muldiv_op2_o        = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
+    assign muldiv_op_mul_o     = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
+    assign muldiv_op_mulh_o    = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
+    assign muldiv_op_mulhu_o   = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
+    assign muldiv_op_mulhsu_o  = muldiv_info[`DECINFO_MULDIV_MULHSU];  // MULHSU指令
+    assign muldiv_op_div_o     = muldiv_info[`DECINFO_MULDIV_DIV];  // DIV指令
+    assign muldiv_op_divu_o    = muldiv_info[`DECINFO_MULDIV_DIVU];  // DIVU指令
+    assign muldiv_op_rem_o     = muldiv_info[`DECINFO_MULDIV_REM];  // REM指令
+    assign muldiv_op_remu_o    = muldiv_info[`DECINFO_MULDIV_REMU];  // REMU指令
+    // 总的乘法和除法操作信号
+    assign muldiv_op_mul_all_o = muldiv_info[`DECINFO_MULDIV_OP_MUL];  // 所有乘法指令
+    assign muldiv_op_div_all_o = muldiv_info[`DECINFO_MULDIV_OP_DIV];  // 所有除法指令
+    assign req_muldiv_o        = op_muldiv;
 
     // Bru info
 
@@ -204,6 +211,9 @@ module exu_dispatch (
     assign mem_op_sb_o    = mem_info[`DECINFO_MEM_SB];  // SB指令：存储一个字节
     assign mem_op_sh_o    = mem_info[`DECINFO_MEM_SH];  // SH指令：存储一个半字
     assign mem_op_sw_o    = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
+    // 新增总的load和store信号
+    assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
+    assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];  // 所有存储指令
     assign mem_op1_o      = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
     assign mem_op2_o      = op_mem ? dec_imm_i : 32'h0;  // 偏移量 (立即数)
     assign mem_rs2_data_o = op_mem ? rs2_rdata_i : 32'h0;  // 存储指令的数据 (rs2)

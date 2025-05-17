@@ -20,7 +20,7 @@
 module id_ex (
 
     input wire                        clk,
-    input wire                        rst,
+    input wire                        rst_n,
     // 输入
     input wire [                31:0] inst_i,          // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,     // 指令地址
@@ -52,9 +52,9 @@ module id_ex (
     wire                        hold_en = (hold_flag_i >= `Hold_Id);
 
     wire [`INST_DATA_WIDTH-1:0] inst;
-    gen_pipe_dff #(32) inst_ff (
+    gnrl_pipe_dff #(32) inst_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `INST_NOP,
         inst_i,
@@ -63,9 +63,9 @@ module id_ex (
     assign inst_o = inst;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    gen_pipe_dff #(32) inst_addr_ff (
+    gnrl_pipe_dff #(32) inst_addr_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         inst_addr_i,
@@ -74,9 +74,9 @@ module id_ex (
     assign inst_addr_o = inst_addr;
 
     wire reg_we;
-    gen_pipe_dff #(1) reg_we_ff (
+    gnrl_pipe_dff #(1) reg_we_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `WriteDisable,
         reg_we_i,
@@ -85,9 +85,9 @@ module id_ex (
     assign reg_we_o = reg_we;
 
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
-    gen_pipe_dff #(5) reg_waddr_ff (
+    gnrl_pipe_dff #(5) reg_waddr_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroReg,
         reg_waddr_i,
@@ -96,9 +96,9 @@ module id_ex (
     assign reg_waddr_o = reg_waddr;
 
     wire [`REG_DATA_WIDTH-1:0] reg1_rdata;
-    gen_pipe_dff #(32) reg1_rdata_ff (
+    gnrl_pipe_dff #(32) reg1_rdata_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         reg1_rdata_i,
@@ -107,9 +107,9 @@ module id_ex (
     assign reg1_rdata_o = reg1_rdata;
 
     wire [`REG_DATA_WIDTH-1:0] reg2_rdata;
-    gen_pipe_dff #(32) reg2_rdata_ff (
+    gnrl_pipe_dff #(32) reg2_rdata_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         reg2_rdata_i,
@@ -118,9 +118,9 @@ module id_ex (
     assign reg2_rdata_o = reg2_rdata;
 
     wire csr_we;
-    gen_pipe_dff #(1) csr_we_ff (
+    gnrl_pipe_dff #(1) csr_we_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `WriteDisable,
         csr_we_i,
@@ -129,9 +129,9 @@ module id_ex (
     assign csr_we_o = csr_we;
 
     wire [`BUS_ADDR_WIDTH-1:0] csr_waddr;
-    gen_pipe_dff #(32) csr_waddr_ff (
+    gnrl_pipe_dff #(32) csr_waddr_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         csr_waddr_i,
@@ -140,9 +140,9 @@ module id_ex (
     assign csr_waddr_o = csr_waddr;
 
     wire [`REG_DATA_WIDTH-1:0] csr_rdata;
-    gen_pipe_dff #(32) csr_rdata_ff (
+    gnrl_pipe_dff #(32) csr_rdata_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         csr_rdata_i,
@@ -152,9 +152,9 @@ module id_ex (
 
     // 新增译码信息总线传递
     wire [`DECINFO_WIDTH-1:0] dec_info_bus;
-    gen_pipe_dff #(`DECINFO_WIDTH) dec_info_bus_ff (
+    gnrl_pipe_dff #(`DECINFO_WIDTH) dec_info_bus_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         dec_info_bus_i,
@@ -164,9 +164,9 @@ module id_ex (
 
     // 新增立即数传递
     wire [31:0] dec_imm;
-    gen_pipe_dff #(32) dec_imm_ff (
+    gnrl_pipe_dff #(32) dec_imm_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         dec_imm_i,

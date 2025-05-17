@@ -19,7 +19,7 @@
 // 执行单元顶层模块
 module exu_top (
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // from id_ex
     input wire [`INST_DATA_WIDTH-1:0] inst_i,
@@ -33,10 +33,6 @@ module exu_top (
     input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,
     input wire                        int_assert_i,
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
-    // input wire[`BUS_ADDR_WIDTH-1:0] op1_i,
-    // input wire[`BUS_ADDR_WIDTH-1:0] op2_i,
-    // input wire[`BUS_ADDR_WIDTH-1:0] op1_jump_i,
-    // input wire[`BUS_ADDR_WIDTH-1:0] op2_jump_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     // from mem
@@ -165,6 +161,8 @@ module exu_top (
     wire                        muldiv_op_divu_o;
     wire                        muldiv_op_rem_o;
     wire                        muldiv_op_remu_o;
+    wire                        muldiv_op_mul_all_o;  // 新增：总乘法操作标志
+    wire                        muldiv_op_div_all_o;  // 新增：总除法操作标志
     // dispatch to CSR
     wire                        req_csr_o;
     wire [                31:0] csr_op1_o;
@@ -185,6 +183,8 @@ module exu_top (
     wire                        mem_op_sb_o;
     wire                        mem_op_sh_o;
     wire                        mem_op_sw_o;
+    wire                        mem_op_load_o;  // 新增：总load操作标志
+    wire                        mem_op_store_o;  // 新增：总store操作标志
     // dispatch to SYS
     wire                        sys_op_nop_o;
     wire                        sys_op_mret_o;
@@ -195,89 +195,93 @@ module exu_top (
 
     exu_dispatch u_exu_dispatch (
         // input
-        .clk               (clk),
-        .rst               (rst),
-        .inst_i            (inst_i),
-        .dec_info_bus_i    (dec_info_bus_i),
-        .dec_imm_i         (dec_imm_i),
-        .dec_pc_i          (inst_addr_i),
-        .rs1_rdata_i       (reg1_rdata_i),
-        .rs2_rdata_i       (reg2_rdata_i),
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .inst_i             (inst_i),
+        .dec_info_bus_i     (dec_info_bus_i),
+        .dec_imm_i          (dec_imm_i),
+        .dec_pc_i           (inst_addr_i),
+        .rs1_rdata_i        (reg1_rdata_i),
+        .rs2_rdata_i        (reg2_rdata_i),
         // dispatch to ALU
-        .alu_op1_o         (alu_op1_o),
-        .alu_op2_o         (alu_op2_o),
-        .req_alu_o         (req_alu_o),
-        .alu_op_lui_o      (alu_op_lui_o),
-        .alu_op_auipc_o    (alu_op_auipc_o),
-        .alu_op_add_o      (alu_op_add_o),
-        .alu_op_sub_o      (alu_op_sub_o),
-        .alu_op_sll_o      (alu_op_sll_o),
-        .alu_op_slt_o      (alu_op_slt_o),
-        .alu_op_sltu_o     (alu_op_sltu_o),
-        .alu_op_xor_o      (alu_op_xor_o),
-        .alu_op_srl_o      (alu_op_srl_o),
-        .alu_op_sra_o      (alu_op_sra_o),
-        .alu_op_or_o       (alu_op_or_o),
-        .alu_op_and_o      (alu_op_and_o),
+        .alu_op1_o          (alu_op1_o),
+        .alu_op2_o          (alu_op2_o),
+        .req_alu_o          (req_alu_o),
+        .alu_op_lui_o       (alu_op_lui_o),
+        .alu_op_auipc_o     (alu_op_auipc_o),
+        .alu_op_add_o       (alu_op_add_o),
+        .alu_op_sub_o       (alu_op_sub_o),
+        .alu_op_sll_o       (alu_op_sll_o),
+        .alu_op_slt_o       (alu_op_slt_o),
+        .alu_op_sltu_o      (alu_op_sltu_o),
+        .alu_op_xor_o       (alu_op_xor_o),
+        .alu_op_srl_o       (alu_op_srl_o),
+        .alu_op_sra_o       (alu_op_sra_o),
+        .alu_op_or_o        (alu_op_or_o),
+        .alu_op_and_o       (alu_op_and_o),
         // dispatch to BJP
-        .bjp_op1_o         (bjp_op1_o),
-        .bjp_op2_o         (bjp_op2_o),
-        .bjp_jump_op1_o    (bjp_jump_op1_o),
-        .bjp_jump_op2_o    (bjp_jump_op2_o),
-        .req_bjp_o         (req_bjp_o),
-        .bjp_op_jump_o     (bjp_op_jump_o),
-        .bjp_op_beq_o      (bjp_op_beq_o),
-        .bjp_op_bne_o      (bjp_op_bne_o),
-        .bjp_op_blt_o      (bjp_op_blt_o),
-        .bjp_op_bltu_o     (bjp_op_bltu_o),
-        .bjp_op_bge_o      (bjp_op_bge_o),
-        .bjp_op_bgeu_o     (bjp_op_bgeu_o),
-        .bjp_op_jalr_o     (bjp_op_jalr_o),
+        .bjp_op1_o          (bjp_op1_o),
+        .bjp_op2_o          (bjp_op2_o),
+        .bjp_jump_op1_o     (bjp_jump_op1_o),
+        .bjp_jump_op2_o     (bjp_jump_op2_o),
+        .req_bjp_o          (req_bjp_o),
+        .bjp_op_jump_o      (bjp_op_jump_o),
+        .bjp_op_beq_o       (bjp_op_beq_o),
+        .bjp_op_bne_o       (bjp_op_bne_o),
+        .bjp_op_blt_o       (bjp_op_blt_o),
+        .bjp_op_bltu_o      (bjp_op_bltu_o),
+        .bjp_op_bge_o       (bjp_op_bge_o),
+        .bjp_op_bgeu_o      (bjp_op_bgeu_o),
+        .bjp_op_jalr_o      (bjp_op_jalr_o),
         // dispatch to MULDIV
-        .req_muldiv_o      (req_muldiv_o),
-        .muldiv_op1_o      (muldiv_op1_o),
-        .muldiv_op2_o      (muldiv_op2_o),
-        .muldiv_op_mul_o   (muldiv_op_mul_o),
-        .muldiv_op_mulh_o  (muldiv_op_mulh_o),
-        .muldiv_op_mulhsu_o(muldiv_op_mulhsu_o),
-        .muldiv_op_mulhu_o (muldiv_op_mulhu_o),
-        .muldiv_op_div_o   (muldiv_op_div_o),
-        .muldiv_op_divu_o  (muldiv_op_divu_o),
-        .muldiv_op_rem_o   (muldiv_op_rem_o),
-        .muldiv_op_remu_o  (muldiv_op_remu_o),
+        .req_muldiv_o       (req_muldiv_o),
+        .muldiv_op1_o       (muldiv_op1_o),
+        .muldiv_op2_o       (muldiv_op2_o),
+        .muldiv_op_mul_o    (muldiv_op_mul_o),
+        .muldiv_op_mulh_o   (muldiv_op_mulh_o),
+        .muldiv_op_mulhsu_o (muldiv_op_mulhsu_o),
+        .muldiv_op_mulhu_o  (muldiv_op_mulhu_o),
+        .muldiv_op_div_o    (muldiv_op_div_o),
+        .muldiv_op_divu_o   (muldiv_op_divu_o),
+        .muldiv_op_rem_o    (muldiv_op_rem_o),
+        .muldiv_op_remu_o   (muldiv_op_remu_o),
+        .muldiv_op_mul_all_o(muldiv_op_mul_all_o),  // 新增连接
+        .muldiv_op_div_all_o(muldiv_op_div_all_o),  // 新增连接
         // dispatch to CSR
-        .req_csr_o         (req_csr_o),
-        .csr_op1_o         (csr_op1_o),
-        .csr_addr_o        (csr_addr_o),
-        .csr_csrrw_o       (csr_csrrw_o),
-        .csr_csrrs_o       (csr_csrrs_o),
-        .csr_csrrc_o       (csr_csrrc_o),
+        .req_csr_o          (req_csr_o),
+        .csr_op1_o          (csr_op1_o),
+        .csr_addr_o         (csr_addr_o),
+        .csr_csrrw_o        (csr_csrrw_o),
+        .csr_csrrs_o        (csr_csrrs_o),
+        .csr_csrrc_o        (csr_csrrc_o),
         // dispatch to MEM
-        .req_mem_o         (req_mem_o),
-        .mem_op1_o         (mem_op1_o),
-        .mem_op2_o         (mem_op2_o),
-        .mem_rs2_data_o    (mem_rs2_data_o),
-        .mem_op_lb_o       (mem_op_lb_o),
-        .mem_op_lh_o       (mem_op_lh_o),
-        .mem_op_lw_o       (mem_op_lw_o),
-        .mem_op_lbu_o      (mem_op_lbu_o),
-        .mem_op_lhu_o      (mem_op_lhu_o),
-        .mem_op_sb_o       (mem_op_sb_o),
-        .mem_op_sh_o       (mem_op_sh_o),
-        .mem_op_sw_o       (mem_op_sw_o),
+        .req_mem_o          (req_mem_o),
+        .mem_op1_o          (mem_op1_o),
+        .mem_op2_o          (mem_op2_o),
+        .mem_rs2_data_o     (mem_rs2_data_o),
+        .mem_op_lb_o        (mem_op_lb_o),
+        .mem_op_lh_o        (mem_op_lh_o),
+        .mem_op_lw_o        (mem_op_lw_o),
+        .mem_op_lbu_o       (mem_op_lbu_o),
+        .mem_op_lhu_o       (mem_op_lhu_o),
+        .mem_op_sb_o        (mem_op_sb_o),
+        .mem_op_sh_o        (mem_op_sh_o),
+        .mem_op_sw_o        (mem_op_sw_o),
+        .mem_op_load_o      (mem_op_load_o),        // 新增连接
+        .mem_op_store_o     (mem_op_store_o),       // 新增连接
         // dispatch to SYS
-        .sys_op_nop_o      (sys_op_nop_o),
-        .sys_op_mret_o     (sys_op_mret_o),
-        .sys_op_ecall_o    (sys_op_ecall_o),
-        .sys_op_ebreak_o   (sys_op_ebreak_o),
-        .sys_op_fence_o    (sys_op_fence_o),
-        .sys_op_dret_o     (sys_op_dret_o)
+        .sys_op_nop_o       (sys_op_nop_o),
+        .sys_op_mret_o      (sys_op_mret_o),
+        .sys_op_ecall_o     (sys_op_ecall_o),
+        .sys_op_ebreak_o    (sys_op_ebreak_o),
+        .sys_op_fence_o     (sys_op_fence_o),
+        .sys_op_dret_o      (sys_op_dret_o)
     );
 
     // 除法器模块例化
     exu_div u_div (
         .clk        (clk),
-        .rst        (rst),
+        .rst_n      (rst_n),
         .dividend_i (div_dividend),
         .divisor_i  (div_divisor),
         .start_i    ((int_assert_i == `INT_ASSERT) ? `DivStop : div_start),
@@ -292,7 +296,7 @@ module exu_top (
     // 乘法器模块例化
     exu_mul u_mul (
         .clk           (clk),
-        .rst           (rst),
+        .rst_n         (rst_n),
         .multiplicand_i(mul_multiplicand),
         .multiplier_i  (mul_multiplier),
         .start_i       ((int_assert_i == `INT_ASSERT) ? 1'b0 : mul_start),
@@ -305,8 +309,8 @@ module exu_top (
     );
 
     // 地址生成单元模块例化
-    agu u_agu (
-        .rst           (rst),
+    exu_agu_lsu u_agu (
+        .rst_n         (rst_n),
         .req_mem_i     (req_mem_o),
         .mem_op1_i     (mem_op1_o),
         .mem_op2_i     (mem_op2_o),
@@ -319,6 +323,8 @@ module exu_top (
         .mem_op_sb_i   (mem_op_sb_o),
         .mem_op_sh_i   (mem_op_sh_o),
         .mem_op_sw_i   (mem_op_sw_o),
+        .mem_op_load_i (mem_op_load_o),   // 新增连接
+        .mem_op_store_i(mem_op_store_o),  // 新增连接
         .rd_addr_i     (reg_waddr_i),
         .mem_rdata_i   (mem_rdata_i),
         .int_assert_i  (int_assert_i),
@@ -334,7 +340,7 @@ module exu_top (
     );
     // 算术逻辑单元模块例化
     exu_alu u_alu (
-        .rst           (rst),
+        .rst_n         (rst_n),
         .req_alu_i     (req_alu_o),
         .alu_op1_i     (alu_op1_o),
         .alu_op2_i     (alu_op2_o),
@@ -360,7 +366,7 @@ module exu_top (
 
     // 分支单元模块例化
     exu_bru u_bru (
-        .rst               (rst),
+        .rst_n             (rst_n),
         .req_bjp_i         (req_bjp_o),
         .bjp_op1_i         (bjp_op1_o),
         .bjp_op2_i         (bjp_op2_o),
@@ -384,7 +390,7 @@ module exu_top (
 
     // CSR处理单元模块例化    
     exu_csr_unit u_csr_unit (
-        .rst(rst),
+        .rst_n(rst_n),
 
         .req_csr_i   (req_csr_o),
         .csr_op1_i   (csr_op1_o),
@@ -401,7 +407,7 @@ module exu_top (
 
     // 乘除法控制逻辑
     exu_muldiv_ctrl u_muldiv_ctrl (
-        .rst         (rst),
+        .rst_n       (rst_n),
         .reg_waddr_i (reg_waddr_i),
         .reg1_rdata_i(reg1_rdata_i),
         .reg2_rdata_i(reg2_rdata_i),
@@ -409,15 +415,17 @@ module exu_top (
         .op2_jump_i  (bjp_jump_op2_o),
 
         // 连接dispatch模块的译码信号
-        .req_muldiv_i      (req_muldiv_o),
-        .muldiv_op_mul_i   (muldiv_op_mul_o),
-        .muldiv_op_mulh_i  (muldiv_op_mulh_o),
-        .muldiv_op_mulhsu_i(muldiv_op_mulhsu_o),
-        .muldiv_op_mulhu_i (muldiv_op_mulhu_o),
-        .muldiv_op_div_i   (muldiv_op_div_o),
-        .muldiv_op_divu_i  (muldiv_op_divu_o),
-        .muldiv_op_rem_i   (muldiv_op_rem_o),
-        .muldiv_op_remu_i  (muldiv_op_remu_o),
+        .req_muldiv_i       (req_muldiv_o),
+        .muldiv_op_mul_i    (muldiv_op_mul_o),
+        .muldiv_op_mulh_i   (muldiv_op_mulh_o),
+        .muldiv_op_mulhsu_i (muldiv_op_mulhsu_o),
+        .muldiv_op_mulhu_i  (muldiv_op_mulhu_o),
+        .muldiv_op_div_i    (muldiv_op_div_o),
+        .muldiv_op_divu_i   (muldiv_op_divu_o),
+        .muldiv_op_rem_i    (muldiv_op_rem_o),
+        .muldiv_op_remu_i   (muldiv_op_remu_o),
+        .muldiv_op_mul_all_i(muldiv_op_mul_all_o),  // 新增连接
+        .muldiv_op_div_all_i(muldiv_op_div_all_o),  // 新增连接
 
         .div_ready_i    (div_ready),
         .div_result_i   (div_result),

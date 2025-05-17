@@ -20,7 +20,7 @@
 
 
 module exu_csr_unit (
-    input wire rst,
+    input wire rst_n,
 
     // 指令和操作数输入
     input wire                       req_csr_i,

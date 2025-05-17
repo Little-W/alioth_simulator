@@ -20,15 +20,15 @@
 // 发出跳转、暂停流水线信号
 module ctrl (
 
-    input wire rst,
+    input wire rst_n,
 
     // from ex
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
     input wire                        hold_flag_ex_i,
 
-    // from rib
-    input wire hold_flag_rib_i,
+    // from mems arbiter
+    input wire hold_flag_mems_i,
 
     // from clint
     input wire hold_flag_clint_i,
@@ -51,7 +51,7 @@ module ctrl (
         if (jump_flag_i == `JumpEnable || hold_flag_ex_i == `HoldEnable || hold_flag_clint_i == `HoldEnable) begin
             // 暂停整条流水线
             hold_flag_o = `Hold_Id;
-        end else if (hold_flag_rib_i == `HoldEnable) begin
+        end else if (hold_flag_mems_i == `HoldEnable) begin
             // 暂停PC，即取指地址不变
             hold_flag_o = `Hold_Pc;
         end else begin

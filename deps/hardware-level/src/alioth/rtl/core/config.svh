@@ -12,14 +12,14 @@
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
 `define ITCM_INIT_FILE "/media/5/Projects/RISC-V/tinyriscv/tools/prog.mem" // ITCM初始化文件路径
 
-// 总线宽度定义 - 规范化命名
+// 总线宽度定义
 `define BUS_DATA_WIDTH 32
 `define BUS_ADDR_WIDTH 32
 
 `define INST_DATA_WIDTH 32
 `define INST_ADDR_WIDTH 32
 
-// common regs
+// 寄存器配置
 `define REG_ADDR_WIDTH 5
 `define REG_DATA_WIDTH 32
 `define DOUBLE_REG_WIDTH 64

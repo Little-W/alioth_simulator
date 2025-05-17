@@ -18,7 +18,7 @@
 
 // 乘除法控制单元 - 处理乘除法指令的控制和结果写回
 module exu_muldiv_ctrl (
-    input wire rst,
+    input wire rst_n,
 
     // 指令和操作数输入
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -37,6 +37,8 @@ module exu_muldiv_ctrl (
     input wire muldiv_op_divu_i,
     input wire muldiv_op_rem_i,
     input wire muldiv_op_remu_i,
+    input wire muldiv_op_mul_all_i,  // 新增：总乘法操作标志
+    input wire muldiv_op_div_all_i,  // 新增：总除法操作标志
 
     // 除法器接口
     input wire                       div_ready_i,
@@ -85,11 +87,9 @@ module exu_muldiv_ctrl (
     wire [3:0] mul_op_sel;
     assign mul_op_sel = {muldiv_op_mulhu_i, muldiv_op_mulhsu_i, muldiv_op_mulh_i, muldiv_op_mul_i};
 
-    // 判断是否为乘法指令
-    wire is_mul_op = muldiv_op_mul_i | muldiv_op_mulh_i | muldiv_op_mulhsu_i | muldiv_op_mulhu_i;
-
-    // 判断是否为除法指令
-    wire is_div_op = muldiv_op_div_i | muldiv_op_divu_i | muldiv_op_rem_i | muldiv_op_remu_i;
+    // 直接使用输入的总乘法和总除法信号
+    wire is_mul_op = muldiv_op_mul_all_i;
+    wire is_div_op = muldiv_op_div_all_i;
 
     // 乘除法控制逻辑
     always @(*) begin

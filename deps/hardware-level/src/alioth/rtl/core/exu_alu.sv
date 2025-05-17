@@ -18,7 +18,7 @@
 
 // 算术逻辑单元
 module exu_alu (
-    input wire rst,
+    input wire rst_n,
 
     // ALU
     input wire        req_alu_i,

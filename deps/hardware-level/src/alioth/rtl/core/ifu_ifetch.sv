@@ -20,7 +20,7 @@
 module ifu_ifetch (
 
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
@@ -35,9 +35,9 @@ module ifu_ifetch (
     wire hold_en = (hold_flag_i >= `Hold_If);
 
     wire [`INST_DATA_WIDTH-1:0] inst;
-    gen_pipe_dff #(32) inst_ff (
+    gnrl_pipe_dff #(32) inst_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `INST_NOP,
         inst_i,
@@ -46,9 +46,9 @@ module ifu_ifetch (
     assign inst_o = inst;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    gen_pipe_dff #(32) inst_addr_ff (
+    gnrl_pipe_dff #(32) inst_addr_ff (
         clk,
-        rst,
+        rst_n,
         hold_en,
         `ZeroWord,
         inst_addr_i,

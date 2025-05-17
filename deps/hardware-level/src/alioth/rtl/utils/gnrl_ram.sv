@@ -24,7 +24,7 @@ module gnrl_ram #(
     parameter INIT_FILE = "/media/5/Projects/RISC-V/tinyriscv/tools/prog.mem"  // 初始化文件路径
 ) (
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     input wire                  we_i,       // write enable
     input wire [           3:0] we_mask_i,  // 字节写入掩码 (byte write enable)
@@ -41,7 +41,7 @@ module gnrl_ram #(
     localparam DEPTH = (1 << (ADDR_WIDTH - ADDR_OFFSET));
 
     // 使用计算出的深度定义存储器
-    reg [DATA_WIDTH-1:0] mem_r[0:DEPTH-1];
+    (* ram_style = "block" *) reg [DATA_WIDTH-1:0] mem_r[0:DEPTH-1];
 
     initial begin
         if (INIT_MEM) begin
@@ -64,7 +64,7 @@ module gnrl_ram #(
     end
 
     always @(*) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             data_o = {DATA_WIDTH{1'b0}};
         end else begin
             data_o = mem_r[word_addr];

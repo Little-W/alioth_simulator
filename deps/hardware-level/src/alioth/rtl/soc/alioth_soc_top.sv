@@ -20,12 +20,12 @@
 module alioth_soc_top(
 
     input wire clk,
-    input wire rst
+    input wire rst_n
     );
 
     // alioth处理器核模块例化
     cpu_top u_cpu_top(
         .clk(clk),
-        .rst(rst)
+        .rst_n(rst_n)
     );
 endmodule

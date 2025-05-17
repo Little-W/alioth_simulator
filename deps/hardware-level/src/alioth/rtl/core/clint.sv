@@ -20,7 +20,7 @@
 module clint (
 
     input wire clk,
-    input wire rst,
+    input wire rst_n,
 
     // from id
     input wire [`INST_DATA_WIDTH-1:0] inst_i,
@@ -81,7 +81,7 @@ module clint (
 
     // interrupt handling logic
     always @(*) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             int_state = S_INT_IDLE;
         end else begin
             if (inst_i == `INST_ECALL || inst_i == `INST_EBREAK) begin
@@ -101,7 +101,7 @@ module clint (
 
     // CSR write state machine
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             csr_state <= S_CSR_IDLE;
             cause     <= `ZeroWord;
             inst_addr <= `ZeroWord;
@@ -153,7 +153,7 @@ module clint (
 
     // write to CSR registers
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             we_o    <= `WriteDisable;
             waddr_o <= `ZeroWord;
             data_o  <= `ZeroWord;
@@ -194,7 +194,7 @@ module clint (
 
     // send interrupt signal to ex module
     always @(posedge clk) begin
-        if (rst == `RstEnable) begin
+        if (rst_n == `RstEnable) begin
             int_assert_o <= `INT_DEASSERT;
             int_addr_o   <= `ZeroWord;
         end else begin
