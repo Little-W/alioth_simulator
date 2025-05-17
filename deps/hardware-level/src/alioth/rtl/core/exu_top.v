@@ -474,19 +474,17 @@ module exu_top(
     //     .jump_flag_o(bru_jump_flag),
     //     .jump_addr_o(bru_jump_addr)
     // );
-      // CSR处理单元模块例化
-
-     exu_csr_unit u_csr_unit(
+      // CSR处理单元模块例化    
+       exu_csr_unit u_csr_unit(
         .rst(rst),
-        .inst_i(inst_i),
-        .reg1_rdata_i(reg1_rdata_i),
-        .csr_rdata_i(csr_rdata_i),
+
         .req_csr_i(req_csr_o),
         .csr_op1_i(csr_op1_o),
         .csr_addr_i(csr_addr_o),
         .csr_csrrw_i(csr_csrrw_o),
         .csr_csrrs_i(csr_csrrs_o),
         .csr_csrrc_i(csr_csrrc_o),
+        .csr_rdata_i(csr_rdata_i),
         .int_assert_i(int_assert_i),
         
         .csr_wdata_o(csr_unit_wdata),

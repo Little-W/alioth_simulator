@@ -23,16 +23,13 @@ module exu_csr_unit(
     input wire rst,
     
     // 指令和操作数输入
-    input wire[`INST_DATA_WIDTH-1:0] inst_i,
-    input wire[`REG_DATA_WIDTH-1:0] reg1_rdata_i,
-    input wire[`REG_DATA_WIDTH-1:0] csr_rdata_i,
     input wire req_csr_i,
     input wire [31:0] csr_op1_i,
     input wire [31:0] csr_addr_i,
     input wire csr_csrrw_i,
     input wire csr_csrrs_i,
     input wire csr_csrrc_i,
-
+    input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,
     
     // 中断信号
     input wire int_assert_i,
@@ -42,9 +39,7 @@ module exu_csr_unit(
     
     // 寄存器写回数据
     output reg[`REG_DATA_WIDTH-1:0] reg_wdata_o
-);
-
-    // CSR处理单元逻辑
+);    // CSR处理单元逻辑
     always @(*) begin
         // 默认值
         csr_wdata_o = `ZeroWord;
