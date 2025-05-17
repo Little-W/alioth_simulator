@@ -39,6 +39,7 @@ module agu (
     output reg [`BUS_ADDR_WIDTH-1:0] mem_waddr_o,
     output reg                       mem_we_o,
     output reg                       mem_req_o,
+    output reg [3:0]                 mem_wmask_o,  // 字节写入掩码，4位分别对应4个字节
 
     // 寄存器写回接口
     output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
@@ -70,6 +71,7 @@ module agu (
         mem_waddr_o = `ZeroWord;
         mem_we_o    = `WriteDisable;
         mem_req_o   = `RIB_NREQ;
+        mem_wmask_o = 4'b0000;  // 默认所有字节不写入
         reg_wdata_o = `ZeroWord;
         reg_we_o    = `WriteDisable;
         reg_waddr_o = `ZeroWord;
@@ -130,28 +132,45 @@ module agu (
                     mem_req_o   = `RIB_REQ;
                     mem_we_o    = `WriteEnable;
                     mem_waddr_o = op1_i + op2_i;
-                    mem_raddr_o = op1_i + op2_i;
 
                     case (funct3)
                         `INST_SB: begin
+                            // 针对不同字节位置，设置对应的掩码和数据
                             case (mem_waddr_index)
-                                2'b00:   mem_wdata_o = {mem_rdata_i[31:8], reg2_rdata_i[7:0]};
-                                2'b01:   mem_wdata_o = {mem_rdata_i[31:16], reg2_rdata_i[7:0], mem_rdata_i[7:0]};
-                                2'b10:   mem_wdata_o = {mem_rdata_i[31:24], reg2_rdata_i[7:0], mem_rdata_i[15:0]};
-                                default: mem_wdata_o = {reg2_rdata_i[7:0], mem_rdata_i[23:0]};
+                                2'b00: begin
+                                    mem_wmask_o = 4'b0001;  // 只写最低字节
+                                    mem_wdata_o = {24'b0, reg2_rdata_i[7:0]};
+                                end
+                                2'b01: begin
+                                    mem_wmask_o = 4'b0010;  // 只写次低字节
+                                    mem_wdata_o = {16'b0, reg2_rdata_i[7:0], 8'b0};
+                                end
+                                2'b10: begin
+                                    mem_wmask_o = 4'b0100;  // 只写次高字节
+                                    mem_wdata_o = {8'b0, reg2_rdata_i[7:0], 16'b0};
+                                end
+                                default: begin
+                                    mem_wmask_o = 4'b1000;  // 只写最高字节
+                                    mem_wdata_o = {reg2_rdata_i[7:0], 24'b0};
+                                end
                             endcase
                         end
                         `INST_SH: begin
+                            // 针对半字写入，设置对应的掩码和数据
                             if (mem_waddr_index == 2'b00) begin
-                                mem_wdata_o = {mem_rdata_i[31:16], reg2_rdata_i[15:0]};
+                                mem_wmask_o = 4'b0011;  // 写入低两个字节
+                                mem_wdata_o = {16'b0, reg2_rdata_i[15:0]};
                             end else begin
-                                mem_wdata_o = {reg2_rdata_i[15:0], mem_rdata_i[15:0]};
+                                mem_wmask_o = 4'b1100;  // 写入高两个字节
+                                mem_wdata_o = {reg2_rdata_i[15:0], 16'b0};
                             end
                         end
                         `INST_SW: begin
+                            mem_wmask_o = 4'b1111;  // 写入所有四个字节
                             mem_wdata_o = reg2_rdata_i;
                         end
                         default: begin
+                            mem_wmask_o = 4'b0000;  // 默认不写入
                             mem_wdata_o = `ZeroWord;
                         end
                     endcase

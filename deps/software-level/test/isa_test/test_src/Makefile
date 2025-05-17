@@ -39,6 +39,10 @@ default: compile_test_src
 %.dump: % 
 	$(OBJDUMP) --disassemble-all $(OUT_DIR)/$< > $(OUT_DIR)/$@
 	$(OBJCOPY) -O verilog $(OUT_DIR)/$<   $(OUT_DIR)/$<.verilog
+	$(OBJCOPY) -O binary $(OUT_DIR)/$<   $(OUT_DIR)/$<.bin
+
+%.bin: %
+	$(OBJCOPY) -O binary $(OUT_DIR)/$< $(OUT_DIR)/$@
 
 define compile_template
 
@@ -69,11 +73,11 @@ endif
 tests_verilog = $(addsuffix .verilog, $(tests))
 tests_dump = $(addsuffix .dump, $(tests))
 tests_hex = $(addsuffix .hex, $(tests))
-
+tests_bin = $(addsuffix .bin, $(tests))
 
 
 $(OUT_DIR):
 	mkdir -p $(OUT_DIR)
 
-compile_test_src: $(OUT_DIR) $(tests_dump)
+compile_test_src: $(OUT_DIR) $(tests_dump) $(tests_bin)
 

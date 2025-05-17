@@ -47,6 +47,7 @@ module exu(
     output wire[`BUS_ADDR_WIDTH-1:0] mem_waddr_o,
     output wire mem_we_o,
     output wire mem_req_o,
+    output wire[3:0] mem_wmask_o,
 
     // to regs
     output wire[`REG_DATA_WIDTH-1:0] reg_wdata_o,
@@ -159,6 +160,7 @@ module exu(
         .mem_waddr_o(mem_waddr_o),
         .mem_we_o(mem_we_o),
         .mem_req_o(mem_req_o),
+        .mem_wmask_o(mem_wmask_o),
         .reg_wdata_o(agu_reg_wdata),
         .reg_we_o(agu_reg_we),
         .reg_waddr_o(agu_reg_waddr)

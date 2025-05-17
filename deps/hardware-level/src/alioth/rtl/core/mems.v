@@ -31,6 +31,7 @@ module mems (
     output wire [`BUS_DATA_WIDTH-1:0] ex_data_o,  // EX读出数据
     input  wire                       ex_we_i,    // EX写使能
     input  wire                       ex_req_i,   // EX访问请求
+    input  wire [3:0]                 ex_wmask_i, // EX字节写入掩码
 
     // 暂停信号
     output wire hold_flag_o  // 暂停流水线信号
@@ -50,6 +51,7 @@ module mems (
     wire [`INST_DATA_WIDTH-1:0] itcm_data_out;
     wire                        itcm_ce;
     wire                        itcm_we;
+    wire [3:0]                  itcm_wmask;
     wire [`INST_DATA_WIDTH-1:0] itcm_data_in;
 
     // DTCM接口
@@ -57,6 +59,7 @@ module mems (
     wire [`INST_DATA_WIDTH-1:0] dtcm_data_out;
     wire                        dtcm_ce;
     wire                        dtcm_we;
+    wire [3:0]                  dtcm_wmask;
     wire [`INST_DATA_WIDTH-1:0] dtcm_data_in;
 
     // 地址译码 - 确定EX访问的是ITCM还是DTCM
@@ -74,12 +77,14 @@ module mems (
     assign itcm_addr        = itcm_grant_to_ex ? (ex_addr_i - `ITCM_BASE_ADDR) : (pc_i - `ITCM_BASE_ADDR);
     assign itcm_ce          = itcm_grant_to_ex ? 1'b1 : pc_itcm_req;
     assign itcm_we          = itcm_grant_to_ex ? ex_we_i : 1'b0;
+    assign itcm_wmask       = itcm_grant_to_ex ? ex_wmask_i : 4'b0000;
     assign itcm_data_in     = ex_data_i;
 
     // 设置DTCM地址和控制信号
     assign dtcm_addr        = ex_addr_i - `DTCM_BASE_ADDR;
     assign dtcm_ce          = ex_access_dtcm;
     assign dtcm_we          = ex_access_dtcm & ex_we_i;
+    assign dtcm_wmask       = ex_access_dtcm ? ex_wmask_i : 4'b0000;
     assign dtcm_data_in     = ex_data_i;
 
     // 选择正确的数据返回给EX
@@ -91,27 +96,32 @@ module mems (
     // 设置暂停信号
     assign hold_flag_o     = itcm_grant_to_ex;  // 当EX使用ITCM时，暂停流水线
 
-    // ITCM模块例化 - 使用参数化
+    // ITCM模块例化 - 使用参数化和宏定义控制初始化
     gnrl_ram #(
         .ADDR_WIDTH(`ITCM_ADDR_WIDTH),
-        .DATA_WIDTH(`BUS_DATA_WIDTH)
+        .DATA_WIDTH(`BUS_DATA_WIDTH),
+        .INIT_MEM(`INIT_ITCM),           // 使用宏定义控制是否初始化
+        .INIT_FILE(`ITCM_INIT_FILE)      // 使用宏定义指定初始化文件
     ) u_itcm (
         .clk   (clk),
         .rst   (rst),
         .we_i  (itcm_we),
+        .we_mask_i(itcm_wmask),
         .addr_i(itcm_addr),
         .data_i(itcm_data_in),
         .data_o(itcm_data_out)
     );
 
-    // DTCM模块例化 - 使用参数化
+    // DTCM模块例化 - 使用参数化，默认不初始化
     gnrl_ram #(
         .ADDR_WIDTH(`DTCM_ADDR_WIDTH),
-        .DATA_WIDTH(`BUS_DATA_WIDTH)
+        .DATA_WIDTH(`BUS_DATA_WIDTH),
+        .INIT_MEM(0)                     // DTCM默认不初始化
     ) u_dtcm (
         .clk   (clk),
         .rst   (rst),
         .we_i  (dtcm_we),
+        .we_mask_i(dtcm_wmask),
         .addr_i(dtcm_addr),
         .data_i(dtcm_data_in),
         .data_o(dtcm_data_out)

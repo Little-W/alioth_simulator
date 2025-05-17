@@ -81,6 +81,7 @@ module cpu_top(
     wire[`BUS_ADDR_WIDTH-1:0] exu_mem_waddr_o;
     wire exu_mem_we_o;
     wire exu_mem_req_o;
+    wire[3:0] exu_mem_wmask_o;
     wire[`REG_DATA_WIDTH-1:0] exu_reg_wdata_o;
     wire exu_reg_we_o;
     wire[`REG_ADDR_WIDTH-1:0] exu_reg_waddr_o;
@@ -278,6 +279,7 @@ module cpu_top(
         .mem_waddr_o(exu_mem_waddr_o),
         .mem_we_o(exu_mem_we_o),
         .mem_req_o(exu_mem_req_o),
+        .mem_wmask_o(exu_mem_wmask_o),
         .reg_wdata_o(exu_reg_wdata_o),
         .reg_we_o(exu_reg_we_o),
         .reg_waddr_o(exu_reg_waddr_o),
@@ -333,6 +335,7 @@ module cpu_top(
         .ex_data_o(exu_mem_data_i),
         .ex_we_i(exu_mem_we_o),
         .ex_req_i(exu_mem_req_o),
+        .ex_wmask_i(exu_mem_wmask_o),
         // 暂停信号
         .hold_flag_o(hold_flag_i)
     );
