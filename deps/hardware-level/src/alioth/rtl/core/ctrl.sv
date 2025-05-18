@@ -32,7 +32,7 @@ module ctrl (
 
     // from clint
     input wire hold_flag_clint_i,
-    
+
     // from HDU - 新增
     input wire hold_flag_hdu_i,
 
@@ -52,10 +52,10 @@ module ctrl (
         hold_flag_o = `Hold_None;
         // 按优先级处理不同模块的请求
         if (jump_flag_i == `JumpEnable || hold_flag_ex_i == `HoldEnable || 
-            hold_flag_clint_i == `HoldEnable || hold_flag_hdu_i == `HoldEnable) begin  // 新增HDU暂停条件
+            hold_flag_clint_i == `HoldEnable) begin  // 新增HDU暂停条件
             // 暂停整条流水线
             hold_flag_o = `Hold_Id;
-        end else if (hold_flag_mems_i == `HoldEnable) begin
+        end else if (hold_flag_mems_i == `HoldEnable || hold_flag_hdu_i == `HoldEnable) begin
             // 暂停PC，即取指地址不变
             hold_flag_o = `Hold_Pc;
         end else begin

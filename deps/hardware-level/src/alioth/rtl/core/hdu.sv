@@ -44,21 +44,25 @@ module hdu (
     output wire hold_flag  // 暂停信号
 );
 
-    // 将FIFO深度改为3
-    localparam FIFO_DEPTH = 3;
+    // 将FIFO深度改为4
+    localparam FIFO_DEPTH = 4;
 
     // 简化FIFO结构，只保留必要信息
     reg  [4:0] rd_fifo                      [FIFO_DEPTH-1:0];  // 目标寄存器FIFO
     reg        valid_fifo                   [FIFO_DEPTH-1:0];  // 有效标志FIFO
 
-    reg  [1:0] fifo_head;  // FIFO头指针
-    reg  [1:0] fifo_tail;  // FIFO尾指针
+    reg  [$clog2(FIFO_DEPTH)-1:0] fifo_head;  // FIFO头指针
+    reg  [$clog2(FIFO_DEPTH)-1:0] fifo_tail;  // FIFO尾指针
     wire       fifo_empty;  // FIFO空标志
     wire       fifo_full;  // FIFO满标志
 
-    // FIFO状态逻辑
-    assign fifo_empty = (fifo_head == fifo_tail) && !valid_fifo[fifo_head];
-    assign fifo_full  = (fifo_head == fifo_tail) && valid_fifo[fifo_head];
+    // FIFO状态逻辑 - 使用更可靠的方法判断空和满
+    wire [$clog2(FIFO_DEPTH):0] fifo_count;  // 需要多一位来表示FIFO满的情况
+    reg  [$clog2(FIFO_DEPTH):0] count;       // FIFO中元素计数
+
+    assign fifo_count = count;
+    assign fifo_empty = (fifo_count == 0);
+    assign fifo_full  = (fifo_count == FIFO_DEPTH);
 
     // FIFO操作控制信号 - 只存储需要写回寄存器的指令
     wire    push_en = inst_valid && reg_we && (rd != 5'h0) && !fifo_full;
@@ -71,11 +75,7 @@ module hdu (
     always @(*) begin
         data_hazard = 1'b0;
 
-        // 如果写回已准备好，取消暂停
-        if (wb_prepared) begin
-            data_hazard = 1'b0;
-        end  // 否则检测RAW冲突
-        else if (inst_valid) begin
+        if (inst_valid) begin
             // 仅检查RAW冲突 (Read-After-Write)
             for (i = 0; i < FIFO_DEPTH; i = i + 1) begin
                 if (valid_fifo[i]) begin
@@ -99,24 +99,33 @@ module hdu (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // 复位所有FIFO和指针
-            fifo_head <= 2'b0;
-            fifo_tail <= 2'b0;
+            fifo_head <= {$clog2(FIFO_DEPTH){1'b0}};
+            fifo_tail <= {$clog2(FIFO_DEPTH){1'b0}};
+            count <= 0;
             for (i = 0; i < FIFO_DEPTH; i = i + 1) begin
                 rd_fifo[i]    <= 5'b0;
                 valid_fifo[i] <= 1'b0;
             end
         end else begin
+            // 根据push和pop操作更新计数器
+            case ({push_en, pop_en})
+                2'b10: count <= count + 1'b1;  // 只有push
+                2'b01: count <= count - 1'b1;  // 只有pop
+                2'b11: count <= count;        // push和pop同时发生，计数不变
+                default: count <= count;      // 无操作
+            endcase
+
             // 推入新指令 - 只有需要写寄存器的指令才入队
             if (push_en) begin
                 rd_fifo[fifo_tail]    <= rd;
                 valid_fifo[fifo_tail] <= 1'b1;
-                fifo_tail             <= fifo_tail + 1'b1;
+                fifo_tail             <= (fifo_tail == FIFO_DEPTH-1) ? 0 : fifo_tail + 1'b1;
             end
 
             // 弹出完成的指令
             if (pop_en) begin
                 valid_fifo[fifo_head] <= 1'b0;
-                fifo_head             <= fifo_head + 1'b1;
+                fifo_head             <= (fifo_head == FIFO_DEPTH-1) ? 0 : fifo_head + 1'b1;
             end
         end
     end

@@ -49,7 +49,7 @@ module id_ex (
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
 );
 
-    wire                        hold_en = (hold_flag_i >= `Hold_Id);
+    wire hold_en = (hold_flag_i >= `Hold_Id);
 
     wire [`INST_DATA_WIDTH-1:0] inst;
     gnrl_pipe_dff #(32) inst_ff (
