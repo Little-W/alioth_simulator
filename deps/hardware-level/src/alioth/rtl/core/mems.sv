@@ -40,11 +40,14 @@ module mems (
     // 地址译码信号
     wire                        ex_access_itcm;
     wire                        ex_access_dtcm;
+    wire                        ex_access_itcm_ff;  // 打一拍后的信号
+    wire                        ex_access_dtcm_ff;  // 打一拍后的信号
 
     // ITCM仲裁信号
     wire                        pc_itcm_req;
     wire                        ex_itcm_req;
     wire                        itcm_grant_to_ex;
+    wire                        itcm_grant_to_ex_ff;  // 打一拍后的信号
 
     // ITCM接口
     wire [`ITCM_ADDR_WIDTH-1:0] itcm_addr;
@@ -66,12 +69,41 @@ module mems (
     assign ex_access_itcm   = (ex_addr_i >= `ITCM_BASE_ADDR && ex_addr_i < (`ITCM_BASE_ADDR + `ITCM_SIZE)) && ex_req_i;
     assign ex_access_dtcm   = (ex_addr_i >= `DTCM_BASE_ADDR && ex_addr_i < (`DTCM_BASE_ADDR + `DTCM_SIZE)) && ex_req_i;
 
+    // 为访问类型信号打一拍
+    gnrl_dff #(
+        .DW(1)
+    ) u_ex_access_itcm_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (ex_access_itcm),
+        .qout (ex_access_itcm_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_ex_access_dtcm_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (ex_access_dtcm),
+        .qout (ex_access_dtcm_ff)
+    );
+
     // ITCM仲裁 - PC和EX都可能访问ITCM
     assign pc_itcm_req      = 1'b1;  // PC总是请求ITCM
     assign ex_itcm_req      = ex_access_itcm;
 
     // 优先考虑EX对ITCM的访问请求
     assign itcm_grant_to_ex = ex_itcm_req;
+
+    // 为itcm_grant_to_ex信号打一拍
+    gnrl_dff #(
+        .DW(1)
+    ) u_itcm_grant_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (itcm_grant_to_ex),
+        .qout (itcm_grant_to_ex_ff)
+    );
 
     // 根据仲裁结果设置ITCM地址和控制信号
     assign itcm_addr        = itcm_grant_to_ex ? (ex_addr_i - `ITCM_BASE_ADDR) : (pc_i - `ITCM_BASE_ADDR);
@@ -87,14 +119,14 @@ module mems (
     assign dtcm_wmask       = ex_access_dtcm ? ex_wmask_i : 4'b0000;
     assign dtcm_data_in     = ex_data_i;
 
-    // 选择正确的数据返回给EX
-    assign ex_data_o        = ex_access_itcm ? itcm_data_out : ex_access_dtcm ? dtcm_data_out : 32'h0;
+    // 选择正确的数据返回给EX - 使用打一拍后的信号
+    assign ex_data_o        = ex_access_itcm_ff ? itcm_data_out : ex_access_dtcm_ff ? dtcm_data_out : 32'h0;
 
-    // 选择正确的指令返回给IF
-    assign inst_o           = itcm_grant_to_ex ? 32'h00000013 : itcm_data_out;  // 如果EX使用ITCM，返回NOP指令
+    // 选择正确的指令返回给IF - 使用打一拍后的信号
+    assign inst_o           = itcm_grant_to_ex_ff ? 32'h00000013 : itcm_data_out;  // 如果EX使用ITCM，返回NOP指令
 
-    // 设置暂停信号
-    assign hold_flag_o      = itcm_grant_to_ex;  // 当EX使用ITCM时，暂停流水线
+    // 设置暂停信号 - 这里不打拍，保持原样以便立即暂停流水线
+    assign hold_flag_o      = itcm_grant_to_ex;
 
     // ITCM模块例化 - 使用参数化和宏定义控制初始化
     gnrl_ram #(

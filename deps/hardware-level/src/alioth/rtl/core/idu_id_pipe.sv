@@ -17,7 +17,7 @@
 `include "defines.svh"
 
 // 将译码结果向执行模块传递
-module id_ex (
+module idu_id_pipe (
 
     input wire                        clk,
     input wire                        rst_n,
@@ -26,8 +26,8 @@ module id_ex (
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,     // 指令地址
     input wire                        reg_we_i,        // 写通用寄存器标志
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 写通用寄存器地址
-    input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,    // 通用寄存器1读数据
-    input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,    // 通用寄存器2读数据
+    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,    // 读通用寄存器1地址
+    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,    // 读通用寄存器2地址
     input wire                        csr_we_i,        // 写CSR寄存器标志
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,     // 写CSR寄存器地址
     input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,     // CSR寄存器读数据
@@ -40,8 +40,8 @@ module id_ex (
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
     output wire                        reg_we_o,       // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写通用寄存器地址
-    output wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_o,   // 通用寄存器1读数据
-    output wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_o,   // 通用寄存器2读数据
+    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读通用寄存器1地址
+    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读通用寄存器2地址
     output wire                        csr_we_o,       // 写CSR寄存器标志
     output wire [ `REG_DATA_WIDTH-1:0] csr_rdata_o,    // CSR寄存器读数据
     output wire [                31:0] dec_imm_o,      // 立即数
@@ -95,27 +95,28 @@ module id_ex (
     );
     assign reg_waddr_o = reg_waddr;
 
-    wire [`REG_DATA_WIDTH-1:0] reg1_rdata;
-    gnrl_pipe_dff #(32) reg1_rdata_ff (
+    // 传递寄存器地址而非数据
+    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr;
+    gnrl_pipe_dff #(5) reg1_raddr_ff (
         clk,
         rst_n,
         hold_en,
-        `ZeroWord,
-        reg1_rdata_i,
-        reg1_rdata
+        `ZeroReg,
+        reg1_raddr_i,
+        reg1_raddr
     );
-    assign reg1_rdata_o = reg1_rdata;
+    assign reg1_raddr_o = reg1_raddr;
 
-    wire [`REG_DATA_WIDTH-1:0] reg2_rdata;
-    gnrl_pipe_dff #(32) reg2_rdata_ff (
+    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr;
+    gnrl_pipe_dff #(5) reg2_raddr_ff (
         clk,
         rst_n,
         hold_en,
-        `ZeroWord,
-        reg2_rdata_i,
-        reg2_rdata
+        `ZeroReg,
+        reg2_raddr_i,
+        reg2_raddr
     );
-    assign reg2_rdata_o = reg2_rdata;
+    assign reg2_raddr_o = reg2_raddr;
 
     wire csr_we;
     gnrl_pipe_dff #(1) csr_we_ff (
@@ -150,7 +151,7 @@ module id_ex (
     );
     assign csr_rdata_o = csr_rdata;
 
-    // 新增译码信息总线传递
+    // 译码信息总线传递
     wire [`DECINFO_WIDTH-1:0] dec_info_bus;
     gnrl_pipe_dff #(`DECINFO_WIDTH) dec_info_bus_ff (
         clk,
@@ -162,7 +163,7 @@ module id_ex (
     );
     assign dec_info_bus_o = dec_info_bus;
 
-    // 新增立即数传递
+    // 立即数传递
     wire [31:0] dec_imm;
     gnrl_pipe_dff #(32) dec_imm_ff (
         clk,

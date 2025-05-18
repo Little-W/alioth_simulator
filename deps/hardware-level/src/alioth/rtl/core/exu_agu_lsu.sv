@@ -17,8 +17,8 @@
 `include "defines.svh"
 
 // 地址生成单元 - 处理内存访问和相关寄存器操作
-// 纯组合逻辑实现
 module exu_agu_lsu (
+    input wire clk,  // 新增时钟输入
     input wire rst_n,
 
     input wire        req_mem_i,
@@ -33,8 +33,8 @@ module exu_agu_lsu (
     input wire        mem_op_sb_i,
     input wire        mem_op_sh_i,
     input wire        mem_op_sw_i,
-    input wire        mem_op_load_i,   // 总load操作标志
-    input wire        mem_op_store_i,  // 总store操作标志
+    input wire        mem_op_load_i,   // 新增：总load操作标志
+    input wire        mem_op_store_i,  // 新增：总store操作标志
     input wire [ 4:0] rd_addr_i,
 
     // 内存数据输入
@@ -61,14 +61,125 @@ module exu_agu_lsu (
     wire [31:0] mem_addr;
     wire        valid_op;  // 有效操作信号（无中断且有内存请求）
 
+    // 打一拍后的信号
+    wire        valid_op_ff;
+    wire        mem_op_lb_ff;
+    wire        mem_op_lh_ff;
+    wire        mem_op_lw_ff;
+    wire        mem_op_lbu_ff;
+    wire        mem_op_lhu_ff;
+    wire [4:0]  rd_addr_ff;
+    // 新增：存储mem_op1_i和mem_op2_i打一拍后的信号
+    wire [31:0] mem_op1_ff;
+    wire [31:0] mem_op2_ff;
+    wire [31:0] mem_addr_ff;
+    wire [ 1:0] mem_addr_index_ff;
+
     // 直接使用输入的load和store信号，不需要在内部重新计算
     wire        is_load_op = mem_op_load_i;
     wire        is_store_op = mem_op_store_i;
+    wire        is_load_op_ff;
 
     // 并行计算基本信号
     assign mem_addr       = mem_op1_i + mem_op2_i;
     assign mem_addr_index = mem_addr[1:0];
     assign valid_op       = req_mem_i & (int_assert_i != `INT_ASSERT);
+
+    // 将关键信号打一拍
+    gnrl_dff #(
+        .DW(1)
+    ) u_valid_op_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (valid_op),
+        .qout (valid_op_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_is_load_op_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (is_load_op),
+        .qout (is_load_op_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_mem_op_lb_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op_lb_i),
+        .qout (mem_op_lb_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_mem_op_lh_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op_lh_i),
+        .qout (mem_op_lh_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_mem_op_lw_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op_lw_i),
+        .qout (mem_op_lw_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_mem_op_lbu_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op_lbu_i),
+        .qout (mem_op_lbu_ff)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) u_mem_op_lhu_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op_lhu_i),
+        .qout (mem_op_lhu_ff)
+    );
+
+    gnrl_dff #(
+        .DW(5)
+    ) u_rd_addr_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (rd_addr_i),
+        .qout (rd_addr_ff)
+    );
+
+    // 新增：将mem_op1_i和mem_op2_i打一拍
+    gnrl_dff #(
+        .DW(32)
+    ) u_mem_op1_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op1_i),
+        .qout (mem_op1_ff)
+    );
+
+    gnrl_dff #(
+        .DW(32)
+    ) u_mem_op2_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mem_op2_i),
+        .qout (mem_op2_ff)
+    );
+
+    // 计算打一拍后的地址及索引
+    assign mem_addr_ff = mem_op1_ff + mem_op2_ff;
+    assign mem_addr_index_ff = mem_addr_ff[1:0];
 
     // 使用并行选择逻辑生成内存请求信号
     assign mem_req_o      = (valid_op & (is_load_op | is_store_op)) ? 1'b1 : 1'b0;
@@ -80,9 +191,9 @@ module exu_agu_lsu (
     // 并行选择逻辑生成写使能信号
     assign mem_we_o       = (valid_op & is_store_op) ? `WriteEnable : `WriteDisable;
 
-    // 并行选择逻辑生成寄存器写回控制信号
-    assign reg_we_o       = (valid_op & is_load_op) ? `WriteEnable : `WriteDisable;
-    assign reg_waddr_o    = rd_addr_i;
+    // 并行选择逻辑生成寄存器写回控制 - 使用打一拍后的信号
+    assign reg_we_o       = (valid_op_ff & is_load_op_ff) ? `WriteEnable : `WriteDisable;
+    assign reg_waddr_o    = (valid_op_ff & is_load_op_ff) ? rd_addr_ff : `ZeroWord;
 
     // 字节加载数据 - 使用并行选择逻辑
     wire [31:0] lb_data, lh_data, lw_data, lbu_data, lhu_data;
@@ -110,31 +221,29 @@ module exu_agu_lsu (
     assign lhu_low = {16'h0, mem_rdata_i[15:0]};
     assign lhu_high = {16'h0, mem_rdata_i[31:16]};
 
-    // 使用并行选择逻辑选择正确的字节/半字/字
-    assign lb_data = ({32{mem_addr_index == 2'b00}} & lb_byte0) |
-                     ({32{mem_addr_index == 2'b01}} & lb_byte1) |
-                     ({32{mem_addr_index == 2'b10}} & lb_byte2) |
-                     ({32{mem_addr_index == 2'b11}} & lb_byte3);
+    // 使用并行选择逻辑选择正确的字节/半字/字 - 使用打一拍后的地址索引
+    assign lb_data = ({32{mem_addr_index_ff == 2'b00}} & lb_byte0) |
+                     ({32{mem_addr_index_ff == 2'b01}} & lb_byte1) |
+                     ({32{mem_addr_index_ff == 2'b10}} & lb_byte2) |
+                     ({32{mem_addr_index_ff == 2'b11}} & lb_byte3);
 
-    assign lbu_data = ({32{mem_addr_index == 2'b00}} & lbu_byte0) |
-                      ({32{mem_addr_index == 2'b01}} & lbu_byte1) |
-                      ({32{mem_addr_index == 2'b10}} & lbu_byte2) |
-                      ({32{mem_addr_index == 2'b11}} & lbu_byte3);
+    assign lbu_data = ({32{mem_addr_index_ff == 2'b00}} & lbu_byte0) |
+                      ({32{mem_addr_index_ff == 2'b01}} & lbu_byte1) |
+                      ({32{mem_addr_index_ff == 2'b10}} & lbu_byte2) |
+                      ({32{mem_addr_index_ff == 2'b11}} & lbu_byte3);
 
-    assign lh_data = ({32{mem_addr_index[1] == 1'b0}} & lh_low) | 
-                     ({32{mem_addr_index[1] == 1'b1}} & lh_high);
+    assign lh_data = ({32{mem_addr_index_ff[1] == 1'b0}} & lh_low) | ({32{mem_addr_index_ff[1] == 1'b1}} & lh_high);
 
-    assign lhu_data = ({32{mem_addr_index[1] == 1'b0}} & lhu_low) | 
-                      ({32{mem_addr_index[1] == 1'b1}} & lhu_high);
+    assign lhu_data = ({32{mem_addr_index_ff[1] == 1'b0}} & lhu_low) | ({32{mem_addr_index_ff[1] == 1'b1}} & lhu_high);
 
     assign lw_data = mem_rdata_i;
 
-    // 并行选择最终的寄存器写回数据
-    assign reg_wdata_o = ({32{mem_op_lb_i}} & lb_data) |
-                        ({32{mem_op_lbu_i}} & lbu_data) |
-                        ({32{mem_op_lh_i}} & lh_data) |
-                        ({32{mem_op_lhu_i}} & lhu_data) |
-                        ({32{mem_op_lw_i}} & lw_data);
+    // 并行选择最终的寄存器写回数据 - 使用打一拍后的信号
+    assign reg_wdata_o = ({32{valid_op_ff & mem_op_lb_ff}} & lb_data) |
+                         ({32{valid_op_ff & mem_op_lbu_ff}} & lbu_data) |
+                         ({32{valid_op_ff & mem_op_lh_ff}} & lh_data) |
+                         ({32{valid_op_ff & mem_op_lhu_ff}} & lhu_data) |
+                         ({32{valid_op_ff & mem_op_lw_ff}} & lw_data);
 
     // 存储操作的掩码和数据 - 使用并行选择逻辑
     // 字节存储掩码和数据

@@ -32,7 +32,8 @@ module ifu_ifetch (
 
 );
 
-    wire hold_en = (hold_flag_i >= `Hold_Pc) ? 1'b1 : 1'b0;
+    wire hold_en = (hold_flag_i >= `Hold_If);
+    wire hold_en_r;
     gnrl_dff #(1) hold_en_ff (
         .clk(clk),
         .rst_n(rst_n),

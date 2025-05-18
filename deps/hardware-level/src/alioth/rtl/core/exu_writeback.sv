@@ -47,10 +47,7 @@ module exu_writeback (
     // 寄存器写回接口
     output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
     output reg                       reg_we_o,
-    output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
-    
-    // 写回完成信号 - 用于HDU
-    output reg                       wb_done_o
+    output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o
 );
 
     // 选择优先级：AGU > MULDIV > ALU > CSR
@@ -60,37 +57,31 @@ module exu_writeback (
             reg_wdata_o = `ZeroWord;
             reg_we_o = `WriteDisable;
             reg_waddr_o = `ZeroReg;
-            wb_done_o = 1'b0;
         end else if (agu_reg_we_i) begin
             // AGU写回（load指令）
             reg_wdata_o = agu_reg_wdata_i;
             reg_we_o = agu_reg_we_i;
             reg_waddr_o = agu_reg_waddr_i;
-            wb_done_o = 1'b1;
         end else if (muldiv_reg_we_i) begin
             // 乘除法结果写回
             reg_wdata_o = muldiv_reg_wdata_i;
             reg_we_o = muldiv_reg_we_i;
             reg_waddr_o = muldiv_reg_waddr_i;
-            wb_done_o = 1'b1;
         end else if (alu_reg_we_i) begin
             // ALU结果写回
             reg_wdata_o = alu_reg_wdata_i;
             reg_we_o = alu_reg_we_i;
             reg_waddr_o = alu_reg_waddr_i;
-            wb_done_o = 1'b1;
         end else if (csr_reg_we_i) begin
             // CSR结果写回
             reg_wdata_o = csr_reg_wdata_i;
             reg_we_o = csr_reg_we_i;
             reg_waddr_o = csr_reg_waddr_i;
-            wb_done_o = 1'b1;
         end else begin
             // 默认情况
             reg_wdata_o = `ZeroWord;
             reg_we_o = `WriteDisable;
             reg_waddr_o = `ZeroReg;
-            wb_done_o = 1'b0;
         end
     end
 
