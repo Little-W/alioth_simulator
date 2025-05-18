@@ -50,14 +50,25 @@ module tb_top (
     reg pc_write_to_host_flag;
     reg [31:0] last_pc;  // 添加一个寄存器来存储上一次的PC值
 
+    // 添加指令计数和IPC计算相关变量
+    reg [31:0] instruction_count;
+    wire valid_instruction = (pc != last_pc);  // PC变化时认为执行了一条指令
+    real ipc;
+
     // 周期计数器 - 保持同步实现
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            cycle_count <= 32'b0;
-            last_pc     <= 32'b0;  // 初始化上一次的PC值
+            cycle_count       <= 32'b0;
+            last_pc           <= 32'b0;  // 初始化上一次的PC值
+            instruction_count <= 32'b0;  // 重置指令计数
         end else begin
             cycle_count <= cycle_count + 1'b1;
             last_pc     <= pc;  // 在时钟边缘更新上一次的PC值，用于检测变化
+
+            // 基于PC变化进行指令计数
+            if (valid_instruction) begin
+                instruction_count <= instruction_count + 1'b1;
+            end
         end
     end
 
@@ -126,6 +137,9 @@ module tb_top (
     // 对pc_write_to_host_cnt的变化进行监控
     always @(pc_write_to_host_cnt) begin
         if (pc_write_to_host_cnt == 32'd8) begin
+            // 计算IPC
+            ipc = (instruction_count > 0 && cycle_count > 0) ? (instruction_count * 1.0) / cycle_count : 0.0;
+
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             $display("~~~~~~~~~~~~~ Test Result Summary ~~~~~~~~~~~~~~~~~~~~~~");
@@ -137,6 +151,8 @@ module tb_top (
             $display("~");
             $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", cycle_count);
             $display("~~~~~The test ending reached at cycle: %d ~~~~~~~~~~~~~", pc_write_to_host_cycle);
+            $display("~~~~~~~~~~Total instructions executed: %d ~~~~~~~~~~~~~", instruction_count);
+            $display("~~~~~~~~~~~~~~~~~~ IPC value: %.4f ~~~~~~~~~~~~~~~~~~", ipc);
             $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
@@ -163,6 +179,8 @@ module tb_top (
                 $display("fail testnum = %2d", x3);
                 for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
             end
+            // 输出性能指标，方便脚本提取
+            $display("PERF_METRIC: CYCLES=%d INSTS=%d IPC=%.4f", cycle_count, instruction_count, ipc);
             $finish;
         end
     end
@@ -219,7 +237,7 @@ module tb_top (
 
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
-        .clk(clk),
+        .clk  (clk),
         .rst_n(rst_n)
     );
 
