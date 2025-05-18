@@ -180,7 +180,7 @@ module tb_top (
                 for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
             end
             // 输出性能指标，方便脚本提取
-            $display("PERF_METRIC: CYCLES=%d INSTS=%d IPC=%.4f", cycle_count, instruction_count, ipc);
+            $display("PERF_METRIC: CYCLES=%-d INSTS=%-d IPC=%.4f", cycle_count, instruction_count, ipc);
             $finish;
         end
     end

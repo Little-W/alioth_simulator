@@ -261,7 +261,7 @@ module cpu_top (
         .div_started_o(exu_div_started_o)
     );
 
-    // 新增：wbu模块例化
+    // wbu模块例化
     wbu u_wbu (
         .clk  (clk),
         .rst_n(rst_n),

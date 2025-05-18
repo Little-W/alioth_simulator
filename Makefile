@@ -123,6 +123,7 @@ test_all: alioth compile_test_src
 		echo "****************************************" ;	\
 		echo -e "\n" ;	\
 	else	\
+		mkdir -p ${BUILD_DIR}/test_out ; \
 		$(foreach tst,$(SELF_TESTS), make test DUMPWAVE=0 SIM_ROOT_DIR=${SIM_ROOT_DIR} TEST_PROGRAM=${tst} SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR};)\
 		rm -rf ${BUILD_DIR}/regress.res; \
 		find ${BUILD_DIR}/test_out/ -name "rv${XLEN}*.log" -exec ${SIM_ROOT_DIR}/deps/tools/find_test_fail.sh {} \; ;	\

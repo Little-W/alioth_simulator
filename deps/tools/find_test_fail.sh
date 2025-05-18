@@ -26,8 +26,8 @@ else
     res=`expr $test_fails + 0`
     if [ $res -ne 0 ];
     	then 
-    	    echo -e "${RED}FAIL${NC} $test_name | ${BLUE}Cycles:${NC} $cycles ${BLUE}Insts:${NC} $insts ${BLUE}IPC:${NC} $ipc | $1";
+    	    echo -e "${RED}FAIL${NC} $test_name | ${BLUE}Cycles:${NC} $cycles ${BLUE}Insts:${NC} $insts ${BLUE}IPC:${NC} $ipc | $(basename $1)";
         else 
-            echo -e "${GREEN}PASS${NC} $test_name | ${BLUE}Cycles:${NC} $cycles ${BLUE}Insts:${NC} $insts ${BLUE}IPC:${NC} $ipc | $1";
+            echo -e "${GREEN}PASS${NC} $test_name | ${BLUE}Cycles:${NC} $cycles ${BLUE}Insts:${NC} $insts ${BLUE}IPC:${NC} $ipc | $(basename $1)";
     fi
 fi

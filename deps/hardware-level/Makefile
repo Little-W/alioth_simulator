@@ -144,8 +144,8 @@ ifeq ($(TRUE_SIM_TOOL),iverilog)
 CPU_EXEC_DIR := ${BUILD_DIR}/alioth_exec_iverilog
 SIM_EXEC      := ${IVERILOG_DIR}/vvp ${CPU_EXEC_DIR}/vvp.exec -lxt2
 SIM_TOOL_EXEC := ${IVERILOG_DIR}/iverilog
-SIM_CMD := ${SIM_EXEC} +DUMPWAVE=${DUMPWAVE} +TESTCASE=${PROGRAM} +SIM_TOOL=${TRUE_SIM_TOOL} 2>&1 | tee ${SIM_OUT_DIR}.log
-TEST_CMD := ${SIM_EXEC} +DUMPWAVE=${DUMPWAVE} +TESTCASE=${TEST_PROGRAM} +SIM_TOOL=${TRUE_SIM_TOOL} 2>&1 | tee ${TEST_NAME}.log
+SIM_CMD := ${SIM_EXEC} +dumpwave=${DUMPWAVE} +itcm_init=${PROGRAM} ${TEST_PLUSARGS} 2>&1 | tee ${SIM_OUT_DIR}/run.log
+TEST_CMD := mkdir -p ${TEST_RUNDIR} && cd ${TEST_RUNDIR} && ${SIM_EXEC} +dumpwave=${DUMPWAVE} +itcm_init=${TEST_PROGRAM} ${TEST_PLUSARGS} 2>&1 | tee ${TEST_NAME}.log
 EXEC_POST_PROC := @cp -f ${BUILD_DIR}/vvp.exec ${CPU_EXEC_DIR}
 
 ifeq ($(wildcard $(IVERILOG_DIR)),)
