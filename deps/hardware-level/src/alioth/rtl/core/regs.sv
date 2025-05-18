@@ -31,13 +31,13 @@ module regs (
     input wire [`REG_ADDR_WIDTH-1:0] raddr1_i,  // 读寄存器1地址
 
     // to id
-    output reg [`REG_DATA_WIDTH-1:0] rdata1_o,  // 读寄存器1数据
+    output wire [`REG_DATA_WIDTH-1:0] rdata1_o,  // 读寄存器1数据
 
     // from id
     input wire [`REG_ADDR_WIDTH-1:0] raddr2_i,  // 读寄存器2地址
 
     // to id
-    output reg [`REG_DATA_WIDTH-1:0] rdata2_o  // 读寄存器2数据
+    output wire [`REG_DATA_WIDTH-1:0] rdata2_o  // 读寄存器2数据
 
 );
 
@@ -54,27 +54,19 @@ module regs (
     end
 
     // 读寄存器1
-    always @(*) begin
-        if (raddr1_i == `ZeroReg) begin
-            rdata1_o = `ZeroWord;
-            // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
-        end else if (raddr1_i == waddr_i && we_i == `WriteEnable) begin
-            rdata1_o = wdata_i;
-        end else begin
-            rdata1_o = regs[raddr1_i];
-        end
-    end
+    // 如果读地址为零寄存器，则返回零
+    // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
+    // 否则返回寄存器值
+    assign rdata1_o = (raddr1_i == `ZeroReg) ? `ZeroWord :
+                      ((raddr1_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
+                      regs[raddr1_i];
 
     // 读寄存器2
-    always @(*) begin
-        if (raddr2_i == `ZeroReg) begin
-            rdata2_o = `ZeroWord;
-            // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
-        end else if (raddr2_i == waddr_i && we_i == `WriteEnable) begin
-            rdata2_o = wdata_i;
-        end else begin
-            rdata2_o = regs[raddr2_i];
-        end
-    end
+    // 如果读地址为零寄存器，则返回零
+    // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
+    // 否则返回寄存器值
+    assign rdata2_o = (raddr2_i == `ZeroReg) ? `ZeroWord :
+                      ((raddr2_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
+                      regs[raddr2_i];
 
 endmodule

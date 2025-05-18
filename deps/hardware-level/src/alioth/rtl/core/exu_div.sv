@@ -57,7 +57,7 @@ module exu_div (
     reg [`REG_DATA_WIDTH-1:0] minuend;
     reg invert_result;
 
-    // 从op_i解析具体操作类型 (op_i现在是从控制模块传来的)
+    // 从op_i解析具体操作类型
     wire op_div = op_r[0];
     wire op_divu = op_r[1];
     wire op_rem = op_r[2];

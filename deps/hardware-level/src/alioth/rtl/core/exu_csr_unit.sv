@@ -51,17 +51,10 @@ module exu_csr_unit (
         end else if (req_csr_i) begin
             reg_wdata_o = csr_rdata_i;  // 所有CSR指令都将CSR的值读出来放入目标寄存器
 
-            // 基于dispatch传来的信号确定CSR写入值
-            if (csr_csrrw_i) begin
-                // CSRRW: 将rs1的值写入CSR
-                csr_wdata_o = csr_op1_i;
-            end else if (csr_csrrs_i) begin
-                // CSRRS: 将rs1的值与CSR的值按位或，结果写入CSR
-                csr_wdata_o = csr_op1_i | csr_rdata_i;
-            end else if (csr_csrrc_i) begin
-                // CSRRC: 将CSR的值与rs1的值按位与非，结果写入CSR
-                csr_wdata_o = csr_rdata_i & (~csr_op1_i);
-            end
+            // 使用并行选择逻辑实现CSR写入值的计算
+            csr_wdata_o = ({`REG_DATA_WIDTH{csr_csrrw_i}} & csr_op1_i) |
+                          ({`REG_DATA_WIDTH{csr_csrrs_i}} & (csr_op1_i | csr_rdata_i)) |
+                          ({`REG_DATA_WIDTH{csr_csrrc_i}} & (csr_rdata_i & (~csr_op1_i)));
         end
     end
 

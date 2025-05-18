@@ -37,23 +37,40 @@ module csr_reg (
     output wire global_int_en_o,  // 全局中断使能标志
 
     // to clint
-    output reg  [`REG_DATA_WIDTH-1:0] clint_data_o,      // clint模块读寄存器数据
+    output wire [`REG_DATA_WIDTH-1:0] clint_data_o,      // clint模块读寄存器数据
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mtvec,   // mtvec
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mepc,    // mepc
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mstatus, // mstatus
 
     // to ex
-    output reg [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
+    output wire [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
 
 );
 
-    reg [`DOUBLE_REG_WIDTH-1:0] cycle;
-    reg [  `REG_DATA_WIDTH-1:0] mtvec;
-    reg [  `REG_DATA_WIDTH-1:0] mcause;
-    reg [  `REG_DATA_WIDTH-1:0] mepc;
-    reg [  `REG_DATA_WIDTH-1:0] mie;
-    reg [  `REG_DATA_WIDTH-1:0] mstatus;
-    reg [  `REG_DATA_WIDTH-1:0] mscratch;
+    wire [`DOUBLE_REG_WIDTH-1:0] cycle;
+    wire [  `REG_DATA_WIDTH-1:0] mtvec;
+    wire [  `REG_DATA_WIDTH-1:0] mcause;
+    wire [  `REG_DATA_WIDTH-1:0] mepc;
+    wire [  `REG_DATA_WIDTH-1:0] mie;
+    wire [  `REG_DATA_WIDTH-1:0] mstatus;
+    wire [  `REG_DATA_WIDTH-1:0] mscratch;
+
+    // 内部寄存器的值更新信号
+    wire [  `REG_DATA_WIDTH-1:0] mtvec_next;
+    wire [  `REG_DATA_WIDTH-1:0] mcause_next;
+    wire [  `REG_DATA_WIDTH-1:0] mepc_next;
+    wire [  `REG_DATA_WIDTH-1:0] mie_next;
+    wire [  `REG_DATA_WIDTH-1:0] mstatus_next;
+    wire [  `REG_DATA_WIDTH-1:0] mscratch_next;
+    wire [`DOUBLE_REG_WIDTH-1:0] cycle_next;
+
+    // 寄存器写使能信号
+    wire                         mtvec_we;
+    wire                         mcause_we;
+    wire                         mepc_we;
+    wire                         mie_we;
+    wire                         mstatus_we;
+    wire                         mscratch_we;
 
     assign global_int_en_o   = (mstatus[3] == 1'b1) ? `True : `False;
 
@@ -63,153 +80,126 @@ module csr_reg (
 
     // cycle counter
     // 复位撤销后就一直计数
-    always @(posedge clk) begin
-        if (rst_n == `RstEnable) begin
-            cycle <= {`ZeroWord, `ZeroWord};
-        end else begin
-            cycle <= cycle + 1'b1;
-        end
-    end
+    assign cycle_next        = cycle + 1'b1;
 
-    // write reg
-    // 写寄存器操作
-    always @(posedge clk) begin
-        if (rst_n == `RstEnable) begin
-            mtvec    <= `ZeroWord;
-            mcause   <= `ZeroWord;
-            mepc     <= `ZeroWord;
-            mie      <= `ZeroWord;
-            mstatus  <= `ZeroWord;
-            mscratch <= `ZeroWord;
-        end else begin
-            // 优先响应ex模块的写操作
-            if (we_i == `WriteEnable) begin
-                case (waddr_i[11:0])
-                    `CSR_MTVEC: begin
-                        mtvec <= data_i;
-                    end
-                    `CSR_MCAUSE: begin
-                        mcause <= data_i;
-                    end
-                    `CSR_MEPC: begin
-                        mepc <= data_i;
-                    end
-                    `CSR_MIE: begin
-                        mie <= data_i;
-                    end
-                    `CSR_MSTATUS: begin
-                        mstatus <= data_i;
-                    end
-                    `CSR_MSCRATCH: begin
-                        mscratch <= data_i;
-                    end
-                    default: begin
+    gnrl_dff #(
+        .DW(`DOUBLE_REG_WIDTH)
+    ) cycle_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (cycle_next),
+        .qout (cycle)
+    );
 
-                    end
-                endcase
-                // clint模块写操作
-            end else if (clint_we_i == `WriteEnable) begin
-                case (clint_waddr_i[11:0])
-                    `CSR_MTVEC: begin
-                        mtvec <= clint_data_i;
-                    end
-                    `CSR_MCAUSE: begin
-                        mcause <= clint_data_i;
-                    end
-                    `CSR_MEPC: begin
-                        mepc <= clint_data_i;
-                    end
-                    `CSR_MIE: begin
-                        mie <= clint_data_i;
-                    end
-                    `CSR_MSTATUS: begin
-                        mstatus <= clint_data_i;
-                    end
-                    `CSR_MSCRATCH: begin
-                        mscratch <= clint_data_i;
-                    end
-                    default: begin
+    // 计算寄存器写使能信号和下一个值
+    // 优先响应ex模块的写操作，其次是clint模块
+    assign mtvec_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MTVEC) || 
+                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MTVEC);
+    assign mtvec_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MTVEC) ? data_i : clint_data_i;
 
-                    end
-                endcase
-            end
-        end
-    end
+    assign mcause_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCAUSE) || 
+                       (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCAUSE);
+    assign mcause_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCAUSE) ? data_i : clint_data_i;
 
-    // read reg
+    assign mepc_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MEPC) || 
+                     (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MEPC);
+    assign mepc_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MEPC) ? data_i : clint_data_i;
+
+    assign mie_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MIE) || 
+                    (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MIE);
+    assign mie_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MIE) ? data_i : clint_data_i;
+
+    assign mstatus_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MSTATUS) || 
+                        (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MSTATUS);
+    assign mstatus_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MSTATUS) ? data_i : clint_data_i;
+
+    assign mscratch_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MSCRATCH) || 
+                         (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MSCRATCH);
+    assign mscratch_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MSCRATCH) ? data_i : clint_data_i;
+
+    // 使用带使能信号的D触发器实现CSR寄存器
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) mtvec_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mtvec_we),
+        .dnxt (mtvec_next),
+        .qout (mtvec)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) mcause_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mcause_we),
+        .dnxt (mcause_next),
+        .qout (mcause)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) mepc_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mepc_we),
+        .dnxt (mepc_next),
+        .qout (mepc)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) mie_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mie_we),
+        .dnxt (mie_next),
+        .qout (mie)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) mstatus_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mstatus_we),
+        .dnxt (mstatus_next),
+        .qout (mstatus)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) mscratch_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mscratch_we),
+        .dnxt (mscratch_next),
+        .qout (mscratch)
+    );
+
     // ex模块读CSR寄存器
-    always @(*) begin
-        if ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) begin
-            data_o = data_i;
-        end else begin
-            case (raddr_i[11:0])
-                `CSR_CYCLE: begin
-                    data_o = cycle[31:0];
-                end
-                `CSR_CYCLEH: begin
-                    data_o = cycle[63:32];
-                end
-                `CSR_MTVEC: begin
-                    data_o = mtvec;
-                end
-                `CSR_MCAUSE: begin
-                    data_o = mcause;
-                end
-                `CSR_MEPC: begin
-                    data_o = mepc;
-                end
-                `CSR_MIE: begin
-                    data_o = mie;
-                end
-                `CSR_MSTATUS: begin
-                    data_o = mstatus;
-                end
-                `CSR_MSCRATCH: begin
-                    data_o = mscratch;
-                end
-                default: begin
-                    data_o = `ZeroWord;
-                end
-            endcase
-        end
-    end
+    assign data_o = ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) ? data_i :
+                   (raddr_i[11:0] == `CSR_CYCLE) ? cycle[31:0] :
+                   (raddr_i[11:0] == `CSR_CYCLEH) ? cycle[63:32] :
+                   (raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
+                   (raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
+                   (raddr_i[11:0] == `CSR_MEPC) ? mepc :
+                   (raddr_i[11:0] == `CSR_MIE) ? mie :
+                   (raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
+                   (raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
+                   `ZeroWord;
 
-    // read reg
     // clint模块读CSR寄存器
-    always @(*) begin
-        if ((clint_waddr_i[11:0] == clint_raddr_i[11:0]) && (clint_we_i == `WriteEnable)) begin
-            clint_data_o = clint_data_i;
-        end else begin
-            case (clint_raddr_i[11:0])
-                `CSR_CYCLE: begin
-                    clint_data_o = cycle[31:0];
-                end
-                `CSR_CYCLEH: begin
-                    clint_data_o = cycle[63:32];
-                end
-                `CSR_MTVEC: begin
-                    clint_data_o = mtvec;
-                end
-                `CSR_MCAUSE: begin
-                    clint_data_o = mcause;
-                end
-                `CSR_MEPC: begin
-                    clint_data_o = mepc;
-                end
-                `CSR_MIE: begin
-                    clint_data_o = mie;
-                end
-                `CSR_MSTATUS: begin
-                    clint_data_o = mstatus;
-                end
-                `CSR_MSCRATCH: begin
-                    clint_data_o = mscratch;
-                end
-                default: begin
-                    clint_data_o = `ZeroWord;
-                end
-            endcase
-        end
-    end
+    assign clint_data_o = ((clint_waddr_i[11:0] == clint_raddr_i[11:0]) && (clint_we_i == `WriteEnable)) ? clint_data_i :
+                         (clint_raddr_i[11:0] == `CSR_CYCLE) ? cycle[31:0] :
+                         (clint_raddr_i[11:0] == `CSR_CYCLEH) ? cycle[63:32] :
+                         (clint_raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
+                         (clint_raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
+                         (clint_raddr_i[11:0] == `CSR_MEPC) ? mepc :
+                         (clint_raddr_i[11:0] == `CSR_MIE) ? mie :
+                         (clint_raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
+                         (clint_raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
+                         `ZeroWord;
 
 endmodule

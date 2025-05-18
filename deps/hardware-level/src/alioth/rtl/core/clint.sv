@@ -58,163 +58,184 @@ module clint (
 
 
     // interrupt state machine
-    localparam S_INT_IDLE = 4'b0001;
-    localparam S_INT_SYNC_ASSERT = 4'b0010;
-    localparam S_INT_ASYNC_ASSERT = 4'b0100;
-    localparam S_INT_MRET = 4'b1000;
+    localparam S_INT_IDLE = 4'b0001;  // 空闲状态
+    localparam S_INT_SYNC_ASSERT = 4'b0010;  // 同步中断断言状态
+    localparam S_INT_ASYNC_ASSERT = 4'b0100;  // 异步中断断言状态 
+    localparam S_INT_MRET = 4'b1000;  // 中断返回状态
 
     // CSR write state machine
-    localparam S_CSR_IDLE = 5'b00001;
-    localparam S_CSR_MSTATUS = 5'b00010;
-    localparam S_CSR_MEPC = 5'b00100;
-    localparam S_CSR_MSTATUS_MRET = 5'b01000;
-    localparam S_CSR_MCAUSE = 5'b10000;
+    localparam S_CSR_IDLE = 5'b00001;  // CSR写入空闲状态
+    localparam S_CSR_MSTATUS = 5'b00010;  // 写入mstatus寄存器状态
+    localparam S_CSR_MEPC = 5'b00100;  // 写入mepc寄存器状态
+    localparam S_CSR_MSTATUS_MRET = 5'b01000;  // 中断返回时写入mstatus寄存器状态
+    localparam S_CSR_MCAUSE = 5'b10000;  // 写入mcause寄存器状态
 
-    reg [                 3:0] int_state;
-    reg [                 4:0] csr_state;
-    reg [`INST_ADDR_WIDTH-1:0] inst_addr;
-    reg [                31:0] cause;
+    // 状态机和相关信号声明
+    wire [                 3:0] int_state;  // 中断状态机当前状态
+    wire [                 4:0] csr_state;  // CSR写状态机当前状态
+    wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 保存的指令地址
+    wire [                31:0] cause;  // 中断原因代码
 
+    // 下一个状态信号声明
+    wire [                 4:0] next_csr_state;  // CSR写状态机下一状态
+    wire [`INST_ADDR_WIDTH-1:0] next_inst_addr;  // 下一个保存的指令地址
+    wire [                31:0] next_cause;  // 下一个中断原因代码
 
+    // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时暂停流水线
     assign hold_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE)) ? `HoldEnable : `HoldDisable;
 
+    // 中断处理逻辑 - 使用assign替代always @(*)，避免优先级选择电路的问题
+    assign int_state = (rst_n == `RstEnable) ? S_INT_IDLE :
+                      ((inst_i == `INST_ECALL || inst_i == `INST_EBREAK) && div_started_i == `DivStop) ? S_INT_SYNC_ASSERT :
+                      (inst_i == `INST_MRET) ? S_INT_MRET :
+                      S_INT_IDLE;
 
-    // interrupt handling logic
-    always @(*) begin
-        if (rst_n == `RstEnable) begin
-            int_state = S_INT_IDLE;
-        end else begin
-            if (inst_i == `INST_ECALL || inst_i == `INST_EBREAK) begin
-                // synchronous interrupt
-                if (div_started_i == `DivStop) begin
-                    int_state = S_INT_SYNC_ASSERT;
-                end else begin
-                    int_state = S_INT_IDLE;
-                end
-            end else if (inst_i == `INST_MRET) begin
-                int_state = S_INT_MRET;
-            end else begin
-                int_state = S_INT_IDLE;
-            end
-        end
-    end
+    // CSR写状态机的组合逻辑部分 - 计算下一个CSR写状态
+    assign next_csr_state = 
+        (rst_n == `RstEnable) ? S_CSR_IDLE :
+        (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) ? S_CSR_MEPC :       // 发生同步中断，先保存PC
+        (csr_state == S_CSR_IDLE && int_state == S_INT_MRET) ? S_CSR_MSTATUS_MRET :  // 中断返回，恢复mstatus
+        (csr_state == S_CSR_MEPC) ? S_CSR_MSTATUS :  // 保存PC后，修改mstatus
+        (csr_state == S_CSR_MSTATUS) ? S_CSR_MCAUSE :  // 修改mstatus后，写入中断原因
+        (csr_state == S_CSR_MCAUSE || csr_state == S_CSR_MSTATUS_MRET) ? S_CSR_IDLE :    // 完成中断处理，返回空闲状态
+        S_CSR_IDLE;
 
-    // CSR write state machine
-    always @(posedge clk) begin
-        if (rst_n == `RstEnable) begin
-            csr_state <= S_CSR_IDLE;
-            cause     <= `ZeroWord;
-            inst_addr <= `ZeroWord;
-        end else begin
-            case (csr_state)
-                S_CSR_IDLE: begin
-                    // synchronous interrupt
-                    if (int_state == S_INT_SYNC_ASSERT) begin
-                        csr_state <= S_CSR_MEPC;
-                        // if jump occurred, set inst_addr to jump address - 4
-                        if (jump_flag_i == `JumpEnable) begin
-                            inst_addr <= jump_addr_i - 4'h4;
-                        end else begin
-                            inst_addr <= inst_addr_i;
-                        end
-                        case (inst_i)
-                            `INST_ECALL: begin
-                                cause <= 32'd11;
-                            end
-                            `INST_EBREAK: begin
-                                cause <= 32'd3;
-                            end
-                            default: begin
-                                cause <= 32'd10;
-                            end
-                        endcase
-                    end else if (int_state == S_INT_MRET) begin
-                        csr_state <= S_CSR_MSTATUS_MRET;
-                    end
-                end
-                S_CSR_MEPC: begin
-                    csr_state <= S_CSR_MSTATUS;
-                end
-                S_CSR_MSTATUS: begin
-                    csr_state <= S_CSR_MCAUSE;
-                end
-                S_CSR_MCAUSE: begin
-                    csr_state <= S_CSR_IDLE;
-                end
-                S_CSR_MSTATUS_MRET: begin
-                    csr_state <= S_CSR_IDLE;
-                end
-                default: begin
-                    csr_state <= S_CSR_IDLE;
-                end
-            endcase
-        end
-    end
+    // 下一个中断原因cause值的逻辑
+    assign next_cause = 
+        (rst_n == `RstEnable) ? `ZeroWord :
+        (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) ? 
+            (inst_i == `INST_ECALL) ? 32'd11 :    // 环境调用异常
+        (inst_i == `INST_EBREAK) ? 32'd3 :  // 断点异常
+        32'd10 :  // 其他异常默认值
+        cause;
 
-    // write to CSR registers
-    always @(posedge clk) begin
-        if (rst_n == `RstEnable) begin
-            we_o    <= `WriteDisable;
-            waddr_o <= `ZeroWord;
-            data_o  <= `ZeroWord;
-        end else begin
-            case (csr_state)
-                // write to mepc register
-                S_CSR_MEPC: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MEPC};
-                    data_o  <= inst_addr;
-                end
-                // write to mcause register
-                S_CSR_MCAUSE: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MCAUSE};
-                    data_o  <= cause;
-                end
-                // disable global interrupt
-                S_CSR_MSTATUS: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
-                end
-                // interrupt return
-                S_CSR_MSTATUS_MRET: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]};
-                end
-                default: begin
-                    we_o    <= `WriteDisable;
-                    waddr_o <= `ZeroWord;
-                    data_o  <= `ZeroWord;
-                end
-            endcase
-        end
-    end
+    // 下一个保存的指令地址inst_addr值的逻辑
+    assign next_inst_addr = 
+        (rst_n == `RstEnable) ? `ZeroWord :
+        (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) ? 
+            (jump_flag_i == `JumpEnable) ? jump_addr_i - 4'h4 : inst_addr_i :  // 如果跳转发生，保存跳转目标地址-4
+        inst_addr;
 
-    // send interrupt signal to ex module
-    always @(posedge clk) begin
-        if (rst_n == `RstEnable) begin
-            int_assert_o <= `INT_DEASSERT;
-            int_addr_o   <= `ZeroWord;
-        end else begin
-            case (csr_state)
-                // assert interrupt signal
-                S_CSR_MCAUSE: begin
-                    int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mtvec;
-                end
-                // assert interrupt return signal
-                S_CSR_MSTATUS_MRET: begin
-                    int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mepc;
-                end
-                default: begin
-                    int_assert_o <= `INT_DEASSERT;
-                    int_addr_o   <= `ZeroWord;
-                end
-            endcase
-        end
-    end
+    gnrl_dff #(
+        .DW(5)
+    ) csr_state_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_csr_state),
+        .qout (csr_state)
+    );
+
+    gnrl_dff #(
+        .DW(32)
+    ) cause_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_cause),
+        .qout (cause)
+    );
+
+    gnrl_dff #(
+        .DW(`INST_ADDR_WIDTH)
+    ) inst_addr_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_inst_addr),
+        .qout (inst_addr)
+    );
+
+    // 写入CSR寄存器的组合逻辑 - 计算下一个写使能信号
+    wire                       next_we_o;  // 下一个写使能信号
+    wire [`BUS_ADDR_WIDTH-1:0] next_waddr_o;  // 下一个写地址
+    wire [`REG_DATA_WIDTH-1:0] next_data_o;  // 下一个写数据
+
+    // 计算写使能信号 - 当需要写入任何CSR寄存器时置为WriteEnable
+    assign next_we_o = (rst_n == `RstEnable) ? `WriteDisable :
+                      (csr_state == S_CSR_MEPC || csr_state == S_CSR_MCAUSE || 
+                       csr_state == S_CSR_MSTATUS || csr_state == S_CSR_MSTATUS_MRET) ? `WriteEnable :
+                      `WriteDisable;
+
+    // 计算写地址 - 基于当前状态选择要写入的CSR寄存器地址
+    assign next_waddr_o = (rst_n == `RstEnable) ? `ZeroWord :
+                         (csr_state == S_CSR_MEPC) ? {20'h0, `CSR_MEPC} :            // 写入mepc寄存器
+        (csr_state == S_CSR_MCAUSE) ? {20'h0, `CSR_MCAUSE} :  // 写入mcause寄存器
+        (csr_state == S_CSR_MSTATUS || csr_state == S_CSR_MSTATUS_MRET) ? {20'h0, `CSR_MSTATUS} : // 写入mstatus寄存器
+        `ZeroWord;
+
+    // 计算写数据 - 基于当前状态确定要写入CSR寄存器的数据
+    assign next_data_o = (rst_n == `RstEnable) ? `ZeroWord :
+                        (csr_state == S_CSR_MEPC) ? inst_addr :                     // 保存当前指令地址到mepc
+        (csr_state == S_CSR_MCAUSE) ? cause :  // 写入中断原因到mcause
+        (csr_state == S_CSR_MSTATUS) ? {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]} :      // 中断发生时修改mstatus，关闭全局中断
+        (csr_state == S_CSR_MSTATUS_MRET) ? {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]} : // 中断返回时恢复mstatus
+        `ZeroWord;
+
+    // 发送中断信号到ex模块的组合逻辑
+    wire                        next_int_assert_o;  // 下一个中断断言信号
+    wire [`INST_ADDR_WIDTH-1:0] next_int_addr_o;  // 下一个中断地址
+
+    // 计算中断断言信号 - 在完成CSR写入或中断返回时断言
+    assign next_int_assert_o = (rst_n == `RstEnable) ? `INT_DEASSERT :
+                              (csr_state == S_CSR_MCAUSE || csr_state == S_CSR_MSTATUS_MRET) ? `INT_ASSERT :
+                              `INT_DEASSERT;
+
+    // 计算中断地址 - 中断处理或中断返回的目标地址
+    assign next_int_addr_o = (rst_n == `RstEnable) ? `ZeroWord :
+                            (csr_state == S_CSR_MCAUSE) ? csr_mtvec :      // 中断发生时跳转到mtvec
+        (csr_state == S_CSR_MSTATUS_MRET) ? csr_mepc :  // 中断返回时跳转到mepc
+        `ZeroWord;
+
+    gnrl_dff #(
+        .DW(1)
+    ) we_o_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_we_o),
+        .qout (we_o)
+    );
+
+    gnrl_dff #(
+        .DW(`BUS_ADDR_WIDTH)
+    ) waddr_o_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_waddr_o),
+        .qout (waddr_o)
+    );
+
+    gnrl_dff #(
+        .DW(`REG_DATA_WIDTH)
+    ) data_o_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_data_o),
+        .qout (data_o)
+    );
+
+    gnrl_dff #(
+        .DW(1)
+    ) int_assert_o_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_int_assert_o),
+        .qout (int_assert_o)
+    );
+
+    gnrl_dff #(
+        .DW(`INST_ADDR_WIDTH)
+    ) int_addr_o_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (next_int_addr_o),
+        .qout (int_addr_o)
+    );
+
+    gnrl_dff #(
+        .DW(`BUS_ADDR_WIDTH)
+    ) raddr_o_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (`ZeroWord),
+        .qout (raddr_o)
+    );
 
 endmodule

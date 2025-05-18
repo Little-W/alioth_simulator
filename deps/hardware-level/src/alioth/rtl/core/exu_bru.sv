@@ -40,8 +40,8 @@ module exu_bru (
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
 
     // 跳转输出
-    output reg                        jump_flag_o,
-    output reg [`INST_ADDR_WIDTH-1:0] jump_addr_o
+    output wire                       jump_flag_o,
+    output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o
 );
     // 内部信号
     wire        op1_eq_op2;
@@ -57,49 +57,27 @@ module exu_bru (
     // 计算跳转地址
     assign op1_jump_add_op2_jump_res = bjp_jump_op1_i + bjp_jump_op2_i;
 
-    // 分支单元逻辑
-    always @(*) begin
-        // 默认值
-        jump_flag_o = `JumpDisable;
-        jump_addr_o = `ZeroWord;
+    // 各种跳转条件信号
+    wire int_jump        = (int_assert_i == `INT_ASSERT);
+    wire jal_jump        = req_bjp_i & bjp_op_jump_i;
+    wire jalr_jump       = req_bjp_i & bjp_op_jalr_i;
+    wire beq_jump        = req_bjp_i & bjp_op_beq_i & op1_eq_op2;
+    wire bne_jump        = req_bjp_i & bjp_op_bne_i & ~op1_eq_op2;
+    wire blt_jump        = req_bjp_i & bjp_op_blt_i & ~op1_ge_op2_signed;
+    wire bge_jump        = req_bjp_i & bjp_op_bge_i & op1_ge_op2_signed;
+    wire bltu_jump       = req_bjp_i & bjp_op_bltu_i & ~op1_ge_op2_unsigned;
+    wire bgeu_jump       = req_bjp_i & bjp_op_bgeu_i & op1_ge_op2_unsigned;
+    wire fence_jump      = sys_op_fence_i | muldiv_jump_flag_i;
 
-        // 中断处理
-        if (int_assert_i == `INT_ASSERT) begin
-            jump_flag_o = `JumpEnable;
-            jump_addr_o = int_addr_i;
-        end else if (req_bjp_i) begin
-            if (bjp_op_jump_i) begin  // JAL指令
-                jump_flag_o = `JumpEnable;
-                jump_addr_o = op1_jump_add_op2_jump_res;
-            end else if (bjp_op_jalr_i) begin  // JALR指令
-                jump_flag_o = `JumpEnable;
-                jump_addr_o = op1_jump_add_op2_jump_res;
-            end else if (bjp_op_beq_i) begin  // BEQ指令
-                jump_flag_o = op1_eq_op2 ? `JumpEnable : `JumpDisable;
-                jump_addr_o = op1_eq_op2 ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else if (bjp_op_bne_i) begin  // BNE指令
-                jump_flag_o = ~op1_eq_op2 ? `JumpEnable : `JumpDisable;
-                jump_addr_o = ~op1_eq_op2 ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else if (bjp_op_blt_i) begin  // BLT指令
-                jump_flag_o = ~op1_ge_op2_signed ? `JumpEnable : `JumpDisable;
-                jump_addr_o = ~op1_ge_op2_signed ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else if (bjp_op_bge_i) begin  // BGE指令
-                jump_flag_o = op1_ge_op2_signed ? `JumpEnable : `JumpDisable;
-                jump_addr_o = op1_ge_op2_signed ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else if (bjp_op_bltu_i) begin  // BLTU指令
-                jump_flag_o = ~op1_ge_op2_unsigned ? `JumpEnable : `JumpDisable;
-                jump_addr_o = ~op1_ge_op2_unsigned ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else if (bjp_op_bgeu_i) begin  // BGEU指令
-                jump_flag_o = op1_ge_op2_unsigned ? `JumpEnable : `JumpDisable;
-                jump_addr_o = op1_ge_op2_unsigned ? op1_jump_add_op2_jump_res : `ZeroWord;
-            end else begin
-                jump_flag_o = `JumpDisable;
-                jump_addr_o = `ZeroWord;
-            end
-        end else if (sys_op_fence_i | muldiv_jump_flag_i) begin  // FENCE指令
-            jump_flag_o = `JumpEnable;
-            jump_addr_o = op1_jump_add_op2_jump_res;
-        end
-    end
+    // 使用并行选择逻辑确定是否跳转
+    assign jump_flag_o = int_jump | jal_jump | jalr_jump | beq_jump | 
+                         bne_jump | blt_jump | bge_jump | bltu_jump | 
+                         bgeu_jump | fence_jump;
+
+    // 使用并行选择逻辑确定跳转地址
+    assign jump_addr_o = ({`INST_ADDR_WIDTH{int_jump}} & int_addr_i) |
+                         ({`INST_ADDR_WIDTH{jal_jump | jalr_jump | beq_jump | bne_jump | 
+                                           blt_jump | bge_jump | bltu_jump | bgeu_jump | 
+                                           fence_jump}} & op1_jump_add_op2_jump_res);
 
 endmodule

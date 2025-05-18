@@ -88,57 +88,38 @@ module exu_alu (
     wire [31:0] slt_res = (op2_ge_op1_signed) ? 32'h1 : 32'h0;
     wire [31:0] sltu_res = (op2_ge_op1_unsigned) ? 32'h1 : 32'h0;
 
-    reg  [31:0] alu_res;
-    always @(*) begin
-        if (int_assert_i == `INT_ASSERT) begin
-            alu_res = 32'h0;
-        end else begin
-            alu_res = 32'h0;
-            if (req_alu_i) begin
-                case (1'b1)  //优先级判断
-                    op_xor: alu_res = xor_res;
-                    op_or: alu_res = or_res;
-                    op_and: alu_res = and_res;
-                    op_add: alu_res = add_sub_res;
-                    op_sub: alu_res = add_sub_res;
-                    op_sll: alu_res = sll_res;
-                    op_srl: alu_res = srl_res;
-                    op_sra: alu_res = sra_res;
-                    op_slt: alu_res = slt_res;
-                    op_sltu: alu_res = sltu_res;
-                    op_lui: alu_res = add_sub_res;
-                    op_auipc: alu_res = add_sub_res;
-                endcase
-            end else if (op_jump) begin
-                // 处理跳转指令
-                alu_res = add_sub_res;
-            end
-        end
-    end
+    // 使用assign语句和三元运算符替代always块，避免x不定态传播问题
+    // 优先级判断
+    wire [31:0] alu_res = 
+        (int_assert_i == `INT_ASSERT) ? 32'h0 :
+        (!req_alu_i && !op_jump) ? 32'h0 :
+        (op_jump) ? add_sub_res :  // 处理跳转指令
+        (op_xor) ? xor_res :
+        (op_or) ? or_res :
+        (op_and) ? and_res :
+        (op_add) ? add_sub_res :
+        (op_sub) ? add_sub_res :
+        (op_sll) ? sll_res :
+        (op_srl) ? srl_res :
+        (op_sra) ? sra_res :
+        (op_slt) ? slt_res :
+        (op_sltu) ? sltu_res :
+        (op_lui) ? add_sub_res :
+        (op_auipc) ? add_sub_res :
+        32'h0;
 
     assign result_o = alu_res;
     wire [4:0] rd = alu_rd_i;
-    // 写使能逻辑
-    reg        alu_reg_we;
-    always @(*) begin
-        if (int_assert_i == `INT_ASSERT) begin
-            alu_reg_we = `WriteDisable;
-        end else begin
-            // 所有算术逻辑操作都需要写回寄存器
-            alu_reg_we = (req_alu_i | op_jump) ? `WriteEnable : `WriteDisable;
-        end
-    end
+
+    // 所有算术逻辑操作都需要写回寄存器
+    wire alu_reg_we = (int_assert_i == `INT_ASSERT) ? `WriteDisable :
+                      (req_alu_i | op_jump) ? `WriteEnable : `WriteDisable;
 
     assign reg_we_o = alu_reg_we;
-    // 目标寄存器地址逻辑
-    reg [4:0] alu_reg_waddr;
-    always @(*) begin
-        if (int_assert_i == `INT_ASSERT) begin
-            alu_reg_waddr = 5'b0;
-        end else begin
-            alu_reg_waddr = rd;
-        end
-    end
+    
+    // 目标寄存器地址逻辑，使用assign语句替代always块
+    wire [4:0] alu_reg_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : rd;
+    
     assign reg_waddr_o = alu_reg_waddr;
     assign {op_add, op_sub, op_sll, op_slt, op_sltu, op_xor, op_srl, op_sra, op_or, op_and, op_lui, op_auipc, op_jump} = {
         alu_op_add_i,

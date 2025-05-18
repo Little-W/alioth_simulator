@@ -33,30 +33,19 @@ module ctrl (
     // from clint
     input wire hold_flag_clint_i,
 
-    output reg [`Hold_Flag_Bus] hold_flag_o,
+    output wire [`Hold_Flag_Bus] hold_flag_o,
 
     // to pc_reg
-    output reg                        jump_flag_o,
-    output reg [`INST_ADDR_WIDTH-1:0] jump_addr_o
+    output wire                        jump_flag_o,
+    output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o
 
 );
 
+    assign jump_addr_o = jump_addr_i;
+    assign jump_flag_o = jump_flag_i;
 
-    always @(*) begin
-        jump_addr_o = jump_addr_i;
-        jump_flag_o = jump_flag_i;
-        // 默认不暂停
-        hold_flag_o = `Hold_None;
-        // 按优先级处理不同模块的请求
-        if (jump_flag_i == `JumpEnable || hold_flag_ex_i == `HoldEnable || hold_flag_clint_i == `HoldEnable) begin
-            // 暂停整条流水线
-            hold_flag_o = `Hold_Id;
-        end else if (hold_flag_mems_i == `HoldEnable) begin
-            // 暂停PC，即取指地址不变
-            hold_flag_o = `Hold_Pc;
-        end else begin
-            hold_flag_o = `Hold_None;
-        end
-    end
+    assign hold_flag_o = (jump_flag_i == `JumpEnable || hold_flag_ex_i == `HoldEnable || hold_flag_clint_i == `HoldEnable) ? `Hold_Id :
+                         (hold_flag_mems_i == `HoldEnable) ? `Hold_Pc :
+                         `Hold_None;
 
 endmodule
