@@ -19,7 +19,7 @@
 // 译码模块
 // 纯组合逻辑电路
 module id (
-
+    input wire clk,                              // 时钟信号，用于HDU
     input wire rst_n,
 
     // from if_id
@@ -33,10 +33,19 @@ module id (
     // from csr reg
     input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,  // CSR寄存器输入数据
 
+    // from ctrl
+    input wire [`Hold_Flag_Bus] hold_flag_i,      // 暂停信号，用于HDU
+    
+    // from writeback
+    input wire wb_done_i,                         // 写回完成信号，用于HDU
+    
+    // 从EXU获取当前执行阶段信息（用于数据前推）
+    input wire                       ex_reg_we_i,     // 执行阶段写使能，用于HDU
+    input wire [`REG_ADDR_WIDTH-1:0] ex_reg_waddr_i,  // 执行阶段写地址，用于HDU
+    
     // to regs
     output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,  // 读通用寄存器1地址
     output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
-
 
     // to csr reg
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
@@ -52,8 +61,10 @@ module id (
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
     output wire                        csr_we_o,        // 写CSR寄存器标志
     output wire [ `REG_DATA_WIDTH-1:0] csr_rdata_o,     // CSR寄存器数据
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
-
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,     // 写CSR寄存器地址
+    
+    // to ctrl
+    output wire                        hdu_hold_flag_o  // 数据冲突暂停信号
 );
 
     assign inst_o       = inst_i;
@@ -313,5 +324,26 @@ module id (
     assign csr_waddr_o = insr_type_cstr ? {20'h0, inst_i[31:20]} : `ZeroWord;
     assign csr_we_o    = inst_csrrw | inst_csrrs | inst_csrrc;
     assign csr_raddr_o = csr_we_o ? inst[31:20] : `ZeroWord;
+
+    // 指令有效信号
+    wire inst_valid = (hold_flag_i == `Hold_None);
+    
+    // 实例化独立的HDU模块
+    hdu u_hdu (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .inst_valid   (inst_valid),
+        .rs1          (rs1),
+        .rs2          (rs2),
+        .rd           (rd),
+        .reg_we       (reg_we_o),
+        .access_rs1   (access_rs1),
+        .access_rs2   (access_rs2),
+        .ex_reg_we    (ex_reg_we_i),
+        .ex_reg_waddr (ex_reg_waddr_i),
+        .wb_done      (wb_done_i),
+        .wb_prepared  (wb_done_i),              // 新增：暂时设为0，可根据实际需求连接
+        .hold_flag    (hdu_hold_flag_o)
+    );
 
 endmodule

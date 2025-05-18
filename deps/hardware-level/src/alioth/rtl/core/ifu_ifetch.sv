@@ -32,18 +32,25 @@ module ifu_ifetch (
 
 );
 
-    wire hold_en = (hold_flag_i >= `Hold_If);
-
-    wire [`INST_DATA_WIDTH-1:0] inst;
-    gnrl_pipe_dff #(32) inst_ff (
-        clk,
-        rst_n,
-        hold_en,
-        `INST_NOP,
-        inst_i,
-        inst
+    wire hold_en = (hold_flag_i >= `Hold_Pc) ? 1'b1 : 1'b0;
+    gnrl_dff #(1) hold_en_ff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(hold_en),
+        .qout(hold_en_r)
     );
-    assign inst_o = inst;
+
+    // wire [`INST_DATA_WIDTH-1:0] inst;
+    // gnrl_pipe_dff #(32) inst_ff (
+    //     clk,
+    //     rst_n,
+    //     hold_en,
+    //     `INST_NOP,
+    //     inst_i,
+    //     inst
+    // );
+
+    assign inst_o = hold_en_r ? `INST_NOP : inst_i;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
     gnrl_pipe_dff #(32) inst_addr_ff (

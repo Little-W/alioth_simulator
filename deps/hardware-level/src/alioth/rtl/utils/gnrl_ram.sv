@@ -53,6 +53,7 @@ module gnrl_ram #(
     wire [ADDR_WIDTH-ADDR_OFFSET-1:0] word_addr;
     assign word_addr = addr_i[ADDR_WIDTH-1:ADDR_OFFSET];
 
+    // 写入逻辑
     always @(posedge clk) begin
         if (we_i == `WriteEnable) begin
             // 根据掩码对每个字节单独处理
@@ -63,11 +64,12 @@ module gnrl_ram #(
         end
     end
 
-    always @(*) begin
+    // 同步读取逻辑
+    always @(posedge clk) begin
         if (rst_n == `RstEnable) begin
-            data_o = {DATA_WIDTH{1'b0}};
+            data_o <= {DATA_WIDTH{1'b0}};
         end else begin
-            data_o = mem_r[word_addr];
+            data_o <= mem_r[word_addr];
         end
     end
 

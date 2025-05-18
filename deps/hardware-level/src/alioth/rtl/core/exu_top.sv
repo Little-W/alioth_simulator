@@ -60,9 +60,12 @@ module exu_top (
     output wire                        hold_flag_o,
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
+    
     // to clint
-    output wire                        div_started_o
-
+    output wire                        div_started_o,
+    
+    // to IDU HDU - 新增写回完成信号
+    output wire                        wb_done_o
 );
 
     // 内部连线定义
@@ -193,6 +196,24 @@ module exu_top (
     wire                        sys_op_fence_o;
     wire                        sys_op_dret_o;
 
+    // 新增：用于结果延迟一个周期的信号
+    wire [`REG_DATA_WIDTH-1:0] alu_result_delay;
+    wire                       alu_reg_we_delay;
+    wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr_delay;
+    
+    wire [`REG_DATA_WIDTH-1:0] muldiv_wdata_delay;
+    wire                       muldiv_we_delay;
+    wire [`REG_ADDR_WIDTH-1:0] muldiv_waddr_delay;
+    
+    wire [`REG_DATA_WIDTH-1:0] csr_unit_reg_wdata_delay;
+    wire                       csr_we_delay;
+    wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_delay;
+
+    // 新增：用于AGU结果延迟一个周期的信号
+    wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_delay;
+    wire                       agu_reg_we_delay;
+    wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr_delay;
+
     exu_dispatch u_exu_dispatch (
         // input
         .clk                (clk),
@@ -308,9 +329,9 @@ module exu_top (
         .reg_waddr_o   (mul_reg_waddr)
     );
 
-    // 地址生成单元模块例化
+    // 地址生成单元模块例化 - 移除时钟信号，纯组合逻辑实现
     exu_agu_lsu u_agu (
-        .rst_n         (rst_n),
+        .rst_n        (rst_n),
         .req_mem_i     (req_mem_o),
         .mem_op1_i     (mem_op1_o),
         .mem_op2_i     (mem_op2_o),
@@ -338,6 +359,29 @@ module exu_top (
         .reg_we_o      (agu_reg_we),
         .reg_waddr_o   (agu_reg_waddr)
     );
+
+    // 新增：使用D触发器延迟AGU控制信号一个周期
+    gnrl_dff #(.DW(`REG_DATA_WIDTH)) u_agu_wdata_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(agu_reg_wdata),
+        .qout(agu_reg_wdata_delay)
+    );
+    
+    gnrl_dff #(.DW(1)) u_agu_we_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(agu_reg_we),
+        .qout(agu_reg_we_delay)
+    );
+    
+    gnrl_dff #(.DW(`REG_ADDR_WIDTH)) u_agu_waddr_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(agu_reg_waddr),
+        .qout(agu_reg_waddr_delay)
+    );
+
     // 算术逻辑单元模块例化
     exu_alu u_alu (
         .rst_n         (rst_n),
@@ -453,26 +497,116 @@ module exu_top (
         .reg_we_o          (muldiv_we),
         .reg_waddr_o       (muldiv_waddr)
     );
+
+    // 新增：使用D触发器延迟ALU结果一个周期
+    gnrl_dff #(.DW(`REG_DATA_WIDTH)) u_alu_result_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(alu_result),
+        .qout(alu_result_delay)
+    );
+    
+    gnrl_dff #(.DW(1)) u_alu_we_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(alu_reg_we),
+        .qout(alu_reg_we_delay)
+    );
+    
+    gnrl_dff #(.DW(`REG_ADDR_WIDTH)) u_alu_waddr_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(alu_reg_waddr),
+        .qout(alu_reg_waddr_delay)
+    );
+    
+    // 新增：使用D触发器延迟MULDIV结果一个周期
+    gnrl_dff #(.DW(`REG_DATA_WIDTH)) u_muldiv_data_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(muldiv_wdata),
+        .qout(muldiv_wdata_delay)
+    );
+    
+    gnrl_dff #(.DW(1)) u_muldiv_we_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(muldiv_we),
+        .qout(muldiv_we_delay)
+    );
+    
+    gnrl_dff #(.DW(`REG_ADDR_WIDTH)) u_muldiv_waddr_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(muldiv_waddr),
+        .qout(muldiv_waddr_delay)
+    );
+    
+    // 新增：使用D触发器延迟CSR结果一个周期
+    gnrl_dff #(.DW(`REG_DATA_WIDTH)) u_csr_data_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(csr_unit_reg_wdata),
+        .qout(csr_unit_reg_wdata_delay)
+    );
+    
+    gnrl_dff #(.DW(1)) u_csr_we_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(csr_we_i && inst_i[6:0] == `INST_CSR),
+        .qout(csr_we_delay)
+    );
+    
+    gnrl_dff #(.DW(`REG_ADDR_WIDTH)) u_csr_waddr_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(reg_waddr_i),
+        .qout(csr_reg_waddr_delay)
+    );
+    
+    // 新增：实例化写回模块
+    exu_writeback u_exu_writeback (
+        .clk(clk),
+        .rst_n(rst_n),
+        
+        // 来自AGU模块的load数据 - 更新为延迟后的信号
+        .agu_reg_wdata_i(agu_reg_wdata_delay),
+        .agu_reg_we_i(agu_reg_we_delay),
+        .agu_reg_waddr_i(agu_reg_waddr_delay),
+        
+        // 来自ALU模块的数据（经过D触发器延迟后）
+        .alu_reg_wdata_i(alu_result_delay),
+        .alu_reg_we_i(alu_reg_we_delay),
+        .alu_reg_waddr_i(alu_reg_waddr_delay),
+        
+        // 来自MULDIV模块的数据（经过D触发器延迟后）
+        .muldiv_reg_wdata_i(muldiv_wdata_delay),
+        .muldiv_reg_we_i(muldiv_we_delay),
+        .muldiv_reg_waddr_i(muldiv_waddr_delay),
+        
+        // 来自CSR模块的数据（经过D触发器延迟后）
+        .csr_reg_wdata_i(csr_unit_reg_wdata_delay),
+        .csr_reg_we_i(csr_we_delay),
+        .csr_reg_waddr_i(csr_reg_waddr_delay),
+        
+        // 中断信号
+        .int_assert_i(int_assert_i),
+        
+        // 寄存器写回接口
+        .reg_wdata_o(reg_wdata_o),
+        .reg_we_o(reg_we_o),
+        .reg_waddr_o(reg_waddr_o),
+        
+        // 写回完成信号 - 用于HDU
+        .wb_done_o(wb_done_o)
+    );
+
     // 输出选择逻辑
     assign hold_flag_o = muldiv_hold_flag;  // 使用muldiv控制模块的hold信号
     assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
     assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
-    // 寄存器写数据选择
-    assign reg_we_o = (int_assert_i == `INT_ASSERT)? `WriteDisable: 
-                      (muldiv_we || alu_reg_we || agu_reg_we ||
-                      (csr_we_i && inst_i[6:0] == `INST_CSR));
 
-    assign reg_wdata_o = muldiv_we ? muldiv_wdata : 
-                         agu_reg_we ? agu_reg_wdata :
-                         (csr_we_i && inst_i[6:0] == `INST_CSR) ? csr_unit_reg_wdata :
-                         alu_result;
-
-    assign reg_waddr_o = muldiv_we ? muldiv_waddr : 
-                         agu_reg_we ? agu_reg_waddr :
-                         alu_reg_we ? alu_reg_waddr :
-                         reg_waddr_i;
-
-    // CSR写数据选择直接使用输入端口信号
+    // CSR写数据选择
     assign csr_we_o = (int_assert_i == `INT_ASSERT) ? `WriteDisable : (csr_we_i && inst_i[6:0] == `INST_CSR);
     assign csr_waddr_o = csr_waddr_i;
     assign csr_wdata_o = csr_unit_wdata;

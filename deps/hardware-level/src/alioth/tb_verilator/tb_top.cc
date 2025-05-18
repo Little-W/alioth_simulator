@@ -56,8 +56,12 @@ int main(int argc, char **argv) {
         soc->clk = !soc->clk;
         soc->eval();
         if (trace_en)
+        {
             tfp->dump(tick);
-        tick++;
+            tick++;
+            tfp->dump(tick); // 第二次时间尺度更新
+            tick++;
+        }
     }
 
     soc->rst_n = 1;
@@ -68,8 +72,12 @@ int main(int argc, char **argv) {
         soc->clk = !soc->clk;
         soc->eval();
         if (trace_en)
+        {
             tfp->dump(tick);
-        tick++;
+            tick++;
+            tfp->dump(tick); // 第二次时间尺度更新
+            tick++;
+        }
     }
 
     while (!Verilated::gotFinish())
@@ -80,8 +88,12 @@ int main(int argc, char **argv) {
         jtag->doJTAG(tick, &soc->tms_i, &soc->tdi_i, &soc->tck_i, soc->tdo_o);
 #endif
         if (trace_en)
+        {
             tfp->dump(tick);
-        tick++;
+            tick++;
+            tfp->dump(tick); // 第二次时间尺度更新
+            tick++;
+        }
     }
 
     if (trace_en)

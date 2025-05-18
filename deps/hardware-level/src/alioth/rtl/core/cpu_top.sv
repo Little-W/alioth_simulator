@@ -30,32 +30,24 @@ module cpu_top (
     // if_id模块输出信号
     wire [`INST_DATA_WIDTH-1:0] if_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
-    wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;  // id模块输出信号
-    wire [ `REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
-    wire [ `REG_ADDR_WIDTH-1:0] id_reg2_raddr_o;
-    wire [`INST_DATA_WIDTH-1:0] id_inst_o;
-    wire [`INST_ADDR_WIDTH-1:0] id_inst_addr_o;
-    wire [ `REG_DATA_WIDTH-1:0] id_reg1_rdata_o;
-    wire [ `REG_DATA_WIDTH-1:0] id_reg2_rdata_o;
-    wire                        id_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] id_reg_waddr_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
-    wire                        id_csr_we_o;
-    wire [ `REG_DATA_WIDTH-1:0] id_csr_rdata_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_waddr_o;
-    wire [                31:0] id_dec_imm_o;
-    wire [  `DECINFO_WIDTH-1:0] id_dec_info_bus_o;  // id_ex模块输出信号
-    wire [`INST_DATA_WIDTH-1:0] ie_inst_o;
-    wire [`INST_ADDR_WIDTH-1:0] ie_inst_addr_o;
-    wire                        ie_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] ie_reg_waddr_o;
-    wire [ `REG_DATA_WIDTH-1:0] ie_reg1_rdata_o;
-    wire [ `REG_DATA_WIDTH-1:0] ie_reg2_rdata_o;
-    wire                        ie_csr_we_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] ie_csr_waddr_o;
-    wire [ `REG_DATA_WIDTH-1:0] ie_csr_rdata_o;
-    wire [                31:0] ie_dec_imm_o;
-    wire [  `DECINFO_WIDTH-1:0] ie_dec_info_bus_o;
+    wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;  
+
+    // idu模块输出信号
+    wire [ `REG_ADDR_WIDTH-1:0] idu_reg1_raddr_o;
+    wire [ `REG_ADDR_WIDTH-1:0] idu_reg2_raddr_o;
+    wire [ `BUS_ADDR_WIDTH-1:0] idu_csr_raddr_o;
+    wire [`INST_DATA_WIDTH-1:0] idu_inst_o;
+    wire [`INST_ADDR_WIDTH-1:0] idu_inst_addr_o;
+    wire                        idu_reg_we_o;
+    wire [ `REG_ADDR_WIDTH-1:0] idu_reg_waddr_o;
+    wire [ `REG_DATA_WIDTH-1:0] idu_reg1_rdata_o;
+    wire [ `REG_DATA_WIDTH-1:0] idu_reg2_rdata_o;
+    wire                        idu_csr_we_o;
+    wire [ `BUS_ADDR_WIDTH-1:0] idu_csr_waddr_o;
+    wire [ `REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
+    wire [                31:0] idu_dec_imm_o;
+    wire [  `DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
+    wire                        idu_hdu_hold_flag_o; // 新增HDU相关信号
 
     // exu模块输出信号
     wire [ `BUS_DATA_WIDTH-1:0] exu_mem_wdata_o;
@@ -74,11 +66,11 @@ module cpu_top (
     wire                        exu_csr_we_o;
     wire [ `BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
     wire                        exu_div_started_o;
-    // 添加系统指令状态信号
     wire                        exu_inst_ecall_o;
     wire                        exu_inst_ebreak_o;
     wire                        exu_inst_mret_o;
     wire                        exu_inst_dret_o;
+    wire                        exu_wb_done_o; // 新增写回完成信号
 
     // regs模块输出信号
     wire [ `REG_DATA_WIDTH-1:0] regs_rdata1_o;
@@ -124,7 +116,7 @@ module cpu_top (
         .inst_addr_o(if_inst_addr_o)
     );
 
-    // ctrl模块例化
+    // ctrl模块例化 - 更新接口加入HDU暂停信号
     ctrl u_ctrl (
         .rst_n            (rst_n),
         .jump_flag_i      (exu_jump_flag_o),
@@ -133,6 +125,7 @@ module cpu_top (
         .hold_flag_mems_i (hold_flag_i),
         .hold_flag_o      (ctrl_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
+        .hold_flag_hdu_i  (idu_hdu_hold_flag_o), // 新增：HDU暂停信号输入
         .jump_flag_o      (ctrl_jump_flag_o),
         .jump_addr_o      (ctrl_jump_addr_o)
     );
@@ -144,9 +137,9 @@ module cpu_top (
         .we_i    (exu_reg_we_o),
         .waddr_i (exu_reg_waddr_o),
         .wdata_i (exu_reg_wdata_o),
-        .raddr1_i(id_reg1_raddr_o),
+        .raddr1_i(idu_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
-        .raddr2_i(id_reg2_raddr_o),
+        .raddr2_i(idu_reg2_raddr_o),
         .rdata2_o(regs_rdata2_o)
     );
 
@@ -155,7 +148,7 @@ module cpu_top (
         .clk              (clk),
         .rst_n            (rst_n),
         .we_i             (exu_csr_we_o),
-        .raddr_i          (id_csr_raddr_o),
+        .raddr_i          (idu_csr_raddr_o),
         .waddr_i          (exu_csr_waddr_o),
         .data_i           (exu_csr_wdata_o),
         .data_o           (csr_data_o),
@@ -170,76 +163,51 @@ module cpu_top (
         .clint_csr_mstatus(csr_clint_csr_mstatus)
     );
 
-    // id模块例化
-    id u_id (
+    // idu模块例化 - 更新接口
+    idu u_idu (
+        .clk         (clk),
         .rst_n       (rst_n),
         .inst_i      (if_inst_o),
         .inst_addr_i (if_inst_addr_o),
         .reg1_rdata_i(regs_rdata1_o),
         .reg2_rdata_i(regs_rdata2_o),
         .csr_rdata_i (csr_data_o),
-
-        .reg1_raddr_o(id_reg1_raddr_o),
-        .reg2_raddr_o(id_reg2_raddr_o),
-        .csr_raddr_o (id_csr_raddr_o),
-
-        .inst_o      (id_inst_o),
-        .inst_addr_o (id_inst_addr_o),
-        .reg1_rdata_o(id_reg1_rdata_o),
-        .reg2_rdata_o(id_reg2_rdata_o),
-        .reg_we_o    (id_reg_we_o),
-        .reg_waddr_o (id_reg_waddr_o),
-        .csr_we_o    (id_csr_we_o),
-        .csr_rdata_o (id_csr_rdata_o),
-        .csr_waddr_o (id_csr_waddr_o),
-
-        .dec_imm_o     (id_dec_imm_o),
-        .dec_info_bus_o(id_dec_info_bus_o)
+        .hold_flag_i (ctrl_hold_flag_o),
+        .wb_done_i   (exu_wb_done_o),       // 新增：连接写回完成信号
+        .ex_reg_we_i (exu_reg_we_o),        // 新增：连接执行阶段写使能
+        .ex_reg_waddr_i(exu_reg_waddr_o),   // 新增：连接执行阶段写地址
+        .reg1_raddr_o(idu_reg1_raddr_o),
+        .reg2_raddr_o(idu_reg2_raddr_o),
+        .csr_raddr_o (idu_csr_raddr_o),
+        .inst_o      (idu_inst_o),
+        .inst_addr_o (idu_inst_addr_o),
+        .reg_we_o    (idu_reg_we_o),
+        .reg_waddr_o (idu_reg_waddr_o),
+        .reg1_rdata_o(idu_reg1_rdata_o),
+        .reg2_rdata_o(idu_reg2_rdata_o),
+        .csr_we_o    (idu_csr_we_o),
+        .csr_waddr_o (idu_csr_waddr_o),
+        .csr_rdata_o (idu_csr_rdata_o),
+        .dec_imm_o     (idu_dec_imm_o),
+        .dec_info_bus_o(idu_dec_info_bus_o),
+        .hdu_hold_flag_o(idu_hdu_hold_flag_o)  // 新增：HDU暂停信号输出
     );
 
-    // id_ex模块例化
-    id_ex u_id_ex (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .inst_i        (id_inst_o),
-        .inst_addr_i   (id_inst_addr_o),
-        .reg_we_i      (id_reg_we_o),
-        .reg_waddr_i   (id_reg_waddr_o),
-        .reg1_rdata_i  (id_reg1_rdata_o),
-        .reg2_rdata_i  (id_reg2_rdata_o),
-        .csr_we_i      (id_csr_we_o),
-        .csr_waddr_i   (id_csr_waddr_o),
-        .csr_rdata_i   (id_csr_rdata_o),
-        .dec_info_bus_i(id_dec_info_bus_o),
-        .dec_imm_i     (id_dec_imm_o),
-        .hold_flag_i   (ctrl_hold_flag_o),
-
-        .inst_o        (ie_inst_o),
-        .inst_addr_o   (ie_inst_addr_o),
-        .reg_we_o      (ie_reg_we_o),
-        .reg_waddr_o   (ie_reg_waddr_o),
-        .reg1_rdata_o  (ie_reg1_rdata_o),
-        .reg2_rdata_o  (ie_reg2_rdata_o),
-        .csr_we_o      (ie_csr_we_o),
-        .csr_waddr_o   (ie_csr_waddr_o),
-        .csr_rdata_o   (ie_csr_rdata_o),
-        .dec_info_bus_o(ie_dec_info_bus_o),
-        .dec_imm_o     (ie_dec_imm_o)
-    );  // exu模块例化
+    // exu模块例化 - 更新接口
     exu_top u_exu (
         .clk           (clk),
         .rst_n         (rst_n),
-        .inst_i        (ie_inst_o),
-        .inst_addr_i   (ie_inst_addr_o),
-        .reg_we_i      (ie_reg_we_o),
-        .reg_waddr_i   (ie_reg_waddr_o),
-        .reg1_rdata_i  (ie_reg1_rdata_o),
-        .reg2_rdata_i  (ie_reg2_rdata_o),
-        .csr_we_i      (ie_csr_we_o),
-        .csr_waddr_i   (ie_csr_waddr_o),
-        .csr_rdata_i   (ie_csr_rdata_o),
-        .dec_info_bus_i(ie_dec_info_bus_o),   // 添加译码信息总线
-        .dec_imm_i     (ie_dec_imm_o),        // 添加立即数
+        .inst_i        (idu_inst_o),
+        .inst_addr_i   (idu_inst_addr_o),
+        .reg_we_i      (idu_reg_we_o),
+        .reg_waddr_i   (idu_reg_waddr_o),
+        .reg1_rdata_i  (idu_reg1_rdata_o),
+        .reg2_rdata_i  (idu_reg2_rdata_o),
+        .csr_we_i      (idu_csr_we_o),
+        .csr_waddr_i   (idu_csr_waddr_o),
+        .csr_rdata_i   (idu_csr_rdata_o),
+        .dec_info_bus_i(idu_dec_info_bus_o),
+        .dec_imm_i     (idu_dec_imm_o),
         .mem_rdata_i   (exu_mem_data_i),
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
@@ -258,15 +226,16 @@ module cpu_top (
         .csr_wdata_o   (exu_csr_wdata_o),
         .csr_we_o      (exu_csr_we_o),
         .csr_waddr_o   (exu_csr_waddr_o),
-        .div_started_o (exu_div_started_o)
+        .div_started_o (exu_div_started_o),
+        .wb_done_o     (exu_wb_done_o)      // 新增：写回完成信号输出
     );
 
-    // clint模块例化
+    // clint模块例化 - 修改连接到idu的信号
     clint u_clint (
         .clk            (clk),
         .rst_n          (rst_n),
-        .inst_i         (id_inst_o),
-        .inst_addr_i    (id_inst_addr_o),
+        .inst_i         (idu_inst_o),
+        .inst_addr_i    (idu_inst_addr_o),
         .jump_flag_i    (exu_jump_flag_o),
         .jump_addr_i    (exu_jump_addr_o),
         .hold_flag_i    (ctrl_hold_flag_o),
