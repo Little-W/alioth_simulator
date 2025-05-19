@@ -4,6 +4,8 @@
 
 这是一个用于测试和验证代号为Alioth的RISC-V处理器的仿真项目。本项目提供了完整的编译、仿真和测试环境，可用于验证处理器功能和性能。
 
+**CPU源代码位置**: 本项目的RISC-V CPU（Alioth）源代码存储在 `deps/hardware-level/src/alioth/` 目录中。
+
 ## 功能特性
 
 - RISC-V Alioth处理器的Verilator仿真
@@ -28,7 +30,7 @@
 ├── c_src/                  # C源代码及汇编代码目录
 ├── deps/                   # 依赖项目目录
     ├── hardware-level/     # 硬件级模拟器相关
-    ├── hardware/           # 硬件模拟相关文件
+    │   └── src/alioth/     # CPU源代码存储位置
     ├── software-level/     # 软件级工具链和测试
     └── tools/              # 辅助脚本和工具
 ```
@@ -40,6 +42,7 @@
 - 必须使用Linux操作系统
 - 推荐使用Ubuntu 22.04等较新的Linux发行版
 - 不支持Windows或macOS系统
+- 系统需具备基础C++编译套件（如GCC、G++）
 
 ## 命令指南
 
