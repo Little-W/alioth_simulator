@@ -97,7 +97,7 @@ module exu_mul (
     always @(posedge clk) begin
         if (rst_n == `RstEnable) begin
             ready_o                             <= 1'b0;
-            busy_o                              <= `False;
+            busy_o                              <= 1'b0;
             result_o                            <= `ZeroWord;
             count                               <= 5'd0;
             op_r                                <= 4'h0;
@@ -125,10 +125,10 @@ module exu_mul (
                         p_reg          <= {{`REG_DATA_WIDTH + 1{1'b0}}, multiplier_i, 1'b0};
 
                         count          <= 5'd0;
-                        busy_o         <= `True;
+                        busy_o         <= 1'b1;
                         ready_o        <= 1'b0;
                     end else begin
-                        busy_o  <= `False;
+                        busy_o  <= 1'b0;
                         ready_o <= 1'b0;
                     end
                 end
@@ -177,7 +177,7 @@ module exu_mul (
                     endcase
 
                     ready_o <= 1'b1;
-                    busy_o  <= `False;
+                    busy_o  <= 1'b0;
                 end
             endcase
         end

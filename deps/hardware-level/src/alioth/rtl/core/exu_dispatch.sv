@@ -183,7 +183,7 @@ module exu_dispatch (
     assign bjp_op_bge_o   = bjp_info[`DECINFO_BJP_BGE];  // BGE指令
     assign bjp_op_bgeu_o  = bjp_info[`DECINFO_BJP_BGEU];  // BGEU指令
     assign req_bjp_o      = op_bjp;
-    assign bjp_op_jalr_o  = bjp_op1_rs1;  // JALR指令标志    
+    assign bjp_op_jalr_o  = bjp_op1_rs1;  // JALR指令标志
 
     // CSR info
 

@@ -72,7 +72,7 @@ module csr_reg (
     wire                         mstatus_we;
     wire                         mscratch_we;
 
-    assign global_int_en_o   = (mstatus[3] == 1'b1) ? `True : `False;
+    assign global_int_en_o   = (mstatus[3] == 1'b1) ? 1'b1 : 1'b0;
 
     assign clint_csr_mtvec   = mtvec;
     assign clint_csr_mepc    = mepc;

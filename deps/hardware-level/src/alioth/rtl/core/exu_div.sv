@@ -84,7 +84,7 @@ module exu_div (
             divisor_r     <= `ZeroWord;
             minuend       <= `ZeroWord;
             invert_result <= 1'b0;
-            busy_o        <= `False;
+            busy_o        <= 1'b0;
             count         <= `ZeroWord;
         end else begin
             case (state)
@@ -95,7 +95,7 @@ module exu_div (
                         divisor_r   <= divisor_i;
                         reg_waddr_o <= reg_waddr_i;
                         state       <= STATE_START;
-                        busy_o      <= `True;
+                        busy_o      <= 1'b1;
                     end else begin
                         op_r        <= 3'h0;
                         reg_waddr_o <= `ZeroWord;
@@ -103,7 +103,7 @@ module exu_div (
                         divisor_r   <= `ZeroWord;
                         ready_o     <= `DivResultNotReady;
                         result_o    <= `ZeroWord;
-                        busy_o      <= `False;
+                        busy_o      <= 1'b0;
                     end
                 end
 
@@ -118,10 +118,10 @@ module exu_div (
                             end
                             ready_o <= `DivResultReady;
                             state   <= STATE_IDLE;
-                            busy_o  <= `False;
+                            busy_o  <= 1'b0;
                             // 除数不为0
                         end else begin
-                            busy_o     <= `True;
+                            busy_o     <= 1'b1;
                             count      <= 32'h40000000;
                             state      <= STATE_CALC;
                             div_result <= `ZeroWord;
@@ -156,7 +156,7 @@ module exu_div (
                         state    <= STATE_IDLE;
                         result_o <= `ZeroWord;
                         ready_o  <= `DivResultNotReady;
-                        busy_o   <= `False;
+                        busy_o   <= 1'b0;
                     end
                 end
 
@@ -179,7 +179,7 @@ module exu_div (
                         state    <= STATE_IDLE;
                         result_o <= `ZeroWord;
                         ready_o  <= `DivResultNotReady;
-                        busy_o   <= `False;
+                        busy_o   <= 1'b0;
                     end
                 end
 
@@ -187,7 +187,7 @@ module exu_div (
                     if (start_i == `DivStart) begin
                         ready_o <= `DivResultReady;
                         state   <= STATE_IDLE;
-                        busy_o  <= `False;
+                        busy_o  <= 1'b0;
                         if (op_div | op_divu) begin
                             if (invert_result) begin
                                 result_o <= (-div_result);
@@ -205,7 +205,7 @@ module exu_div (
                         state    <= STATE_IDLE;
                         result_o <= `ZeroWord;
                         ready_o  <= `DivResultNotReady;
-                        busy_o   <= `False;
+                        busy_o   <= 1'b0;
                     end
                 end
 

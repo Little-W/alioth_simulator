@@ -90,7 +90,7 @@ module exu_alu (
 
     // 使用assign语句和三元运算符替代always块，避免x不定态传播问题
     // 优先级判断
-    wire [31:0] alu_res = 
+    wire [31:0] alu_res =
         (int_assert_i == `INT_ASSERT) ? 32'h0 :
         (!req_alu_i && !op_jump) ? 32'h0 :
         (op_jump) ? add_sub_res :  // 处理跳转指令
@@ -116,10 +116,10 @@ module exu_alu (
                       (req_alu_i | op_jump) ? `WriteEnable : `WriteDisable;
 
     assign reg_we_o = alu_reg_we;
-    
+
     // 目标寄存器地址逻辑，使用assign语句替代always块
     wire [4:0] alu_reg_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : rd;
-    
+
     assign reg_waddr_o = alu_reg_waddr;
     assign {op_add, op_sub, op_sll, op_slt, op_sltu, op_xor, op_srl, op_sra, op_or, op_and, op_lui, op_auipc, op_jump} = {
         alu_op_add_i,

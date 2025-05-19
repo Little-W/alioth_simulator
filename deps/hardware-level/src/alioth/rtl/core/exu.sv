@@ -137,8 +137,6 @@ module exu (
     wire                        bjp_cmp_res;
 
     // dispatch to ALU 
-
-    // wire [ 4:0] rd_addr_o;
     wire [                31:0] alu_op1_o;
     wire [                31:0] alu_op2_o;
     wire                        req_alu_o;
@@ -409,7 +407,7 @@ module exu (
         .jump_addr_o       (bru_jump_addr)
     );
 
-    // CSR处理单元模块例化    
+    // CSR处理单元模块例化
     exu_csr_unit u_csr_unit (
         .rst_n(rst_n),
 

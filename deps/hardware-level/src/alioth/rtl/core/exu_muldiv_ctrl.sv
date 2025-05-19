@@ -103,41 +103,41 @@ module exu_muldiv_ctrl (
     assign mul_reg_waddr_o    = reg_waddr_i;  // 乘法结果写回地址
 
     // 除法启动控制逻辑 - 条件定义
-    wire div_int_cond = int_assert_i == `INT_ASSERT;
-    wire div_op_busy_cond = is_div_op && div_busy_i == `True;
-    wire div_op_ready_cond = is_div_op && div_ready_i == `DivResultReady;
-    wire div_op_start_cond = is_div_op && !div_busy_i && div_ready_i != `DivResultReady;
-    wire div_busy_cond = !is_div_op && div_busy_i == `True;
+    wire div_int_cond = int_assert_i;
+    wire div_op_busy_cond = is_div_op && div_busy_i;
+    wire div_op_ready_cond = is_div_op && div_ready_i;
+    wire div_op_start_cond = is_div_op && !div_busy_i && !div_ready_i;
+    wire div_busy_cond = !is_div_op && div_busy_i;
 
     // 除法启动控制逻辑
     assign div_start_o = (div_op_busy_cond) | (div_op_start_cond) | (div_busy_cond);
 
     // 乘法启动控制逻辑
-    wire mul_int_cond = int_assert_i == `INT_ASSERT;
-    wire mul_op_busy_cond = is_mul_op && mul_busy_i == `True;
-    wire mul_op_ready_cond = is_mul_op && mul_ready_i == `MulResultReady;
-    wire mul_op_start_cond = is_mul_op && !mul_busy_i && mul_ready_i != `MulResultReady;
-    wire mul_busy_cond = !is_mul_op && mul_busy_i == `True;
+    wire mul_int_cond = int_assert_i;
+    wire mul_op_busy_cond = is_mul_op && mul_busy_i;
+    wire mul_op_ready_cond = is_mul_op && mul_ready_i;
+    wire mul_op_start_cond = is_mul_op && !mul_busy_i && !mul_ready_i;
+    wire mul_busy_cond = !is_mul_op && mul_busy_i;
 
     // 乘法启动控制逻辑
     assign mul_start_o = (mul_op_busy_cond) | (mul_op_start_cond) | (mul_busy_cond);
 
     // 条件信号定义 - 用于流水线保持逻辑
-    wire hold_mul_cond = is_mul_op && (mul_busy_i == `True || mul_ready_i != `MulResultReady);
-    wire hold_div_cond = is_div_op && (div_busy_i == `True || div_ready_i != `DivResultReady);
-    wire hold_busy_cond = div_busy_i == `True || mul_busy_i == `True;
+    wire hold_mul_cond = is_mul_op && (mul_busy_i || !mul_ready_i);
+    wire hold_div_cond = is_div_op && (div_busy_i || !div_ready_i);
+    wire hold_busy_cond = div_busy_i || mul_busy_i;
 
     // 流水线保持控制逻辑
     assign muldiv_hold_flag_o = hold_mul_cond | hold_div_cond | hold_busy_cond;
 
     // 条件信号定义
     wire is_mul_req = is_mul_op;
-    wire mul_not_busy = mul_busy_i != `True;
-    wire mul_not_ready = mul_ready_i != `MulResultReady;
+    wire mul_not_busy = !mul_busy_i;
+    wire mul_not_ready = !mul_ready_i;
 
     wire is_div_req = is_div_op;
-    wire div_not_busy = div_busy_i != `True;
-    wire div_not_ready = div_ready_i != `DivResultReady;
+    wire div_not_busy = !div_busy_i;
+    wire div_not_ready = !div_ready_i;
 
     // 跳转条件
     wire jump_mul_cond = is_mul_req & mul_not_busy & mul_not_ready;
@@ -147,10 +147,10 @@ module exu_muldiv_ctrl (
     assign muldiv_jump_flag_o = jump_mul_cond | jump_div_cond;
 
     // 选择信号定义
-    wire sel_mul = is_mul_op && (mul_ready_i == `MulResultReady);
-    wire sel_div = is_div_op && (div_ready_i == `DivResultReady);
-    wire sel_div_other = (div_ready_i == `DivResultReady) && !is_div_op;
-    wire sel_mul_other = (mul_ready_i == `MulResultReady) && !is_mul_op;
+    wire sel_mul = is_mul_op && mul_ready_i;
+    wire sel_div = is_div_op && div_ready_i;
+    wire sel_div_other = div_ready_i && !is_div_op;
+    wire sel_mul_other = mul_ready_i && !is_mul_op;
 
     // 结果写回数据选择逻辑
     assign reg_wdata_o = 
