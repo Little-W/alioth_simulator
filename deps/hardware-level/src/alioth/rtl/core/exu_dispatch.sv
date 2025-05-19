@@ -27,8 +27,6 @@
 
 module exu_dispatch (
 
-    input wire                        clk,
-    input wire                        rst_n,
     input wire [`INST_DATA_WIDTH-1:0] inst_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,

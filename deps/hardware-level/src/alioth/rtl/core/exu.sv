@@ -220,8 +220,6 @@ module exu (
 
     exu_dispatch u_exu_dispatch (
         // input
-        .clk                (clk),
-        .rst_n              (rst_n),
         .inst_i             (inst_i),
         .dec_info_bus_i     (dec_info_bus_i),
         .dec_imm_i          (dec_imm_i),
