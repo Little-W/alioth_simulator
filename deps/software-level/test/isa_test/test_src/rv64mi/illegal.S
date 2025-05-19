@@ -21,8 +21,6 @@ bad2:
   .word 0
   j fail
 
-  # Bob: Since we dont support S mode, so we dont care the following portion, just directly jump to pass
-  j pass
   # Skip the rest of the test if S-mode is not present.
   li t0, MSTATUS_MPP
   csrc mstatus, t0
@@ -61,32 +59,35 @@ msip:
 1:
   # Make sure WFI doesn't trap when TW=0.
   wfi
-bad3:
-  .word 0
-  j fail
 
-bad4:
-  # Make sure WFI does trap when TW=1.
-  wfi
-  j fail
+  # Check if paging is supported (Set SUM & MXR and read it back)
+  and t0, t0, zero
+  li t0, (SSTATUS_SUM | SSTATUS_MXR)
+  csrc sstatus, t0
+  and t1, t1, zero
+  li t1, (SSTATUS_SUM | SSTATUS_MXR) 
+  csrs sstatus, t1
+  csrr t2, sstatus
+  and t2, t2, t0
+  beqz t2, bare_s_1
+  csrc sstatus, t0
 
-  # Make sure SFENCE.VMA and sptbr don't trap when TVM=0.
-  # Bob: comment sfence sincce the gcc does not recoginize it, and we dont support S mode, so we dont care this portion
-  #sfence.vma
-  csrr t0, sptbr
+  # Make sure SFENCE.VMA and satp don't trap when TVM=0.
+  sfence.vma
+  csrr t0, satp
 bad5:
   .word 0
   j fail
 
 bad6:
-  # Make sure SFENCE.VMA and sptbr do trap when TVM=1.
-  # Bob: comment sfence sincce the gcc does not recoginize it, and we dont support S mode, so we dont care this portion
-  #sfence.vma
+  # Make sure SFENCE.VMA and satp do trap when TVM=1.
+  sfence.vma
   j fail
 bad7:
-  csrr t0, sptbr
+  csrr t0, satp
   j fail
 
+test_tsr:
   # Make sure SRET doesn't trap when TSR=0.
   la t0, bad8
   csrw sepc, t0
@@ -106,10 +107,30 @@ bad9:
   sret
 1:
   j fail
+  j skip_bare_s
 
+bare_s_1:
+  # Make sure SFENCE.VMA trap when TVM=0.
+  sfence.vma
+  j fail
+
+bare_s_2:
+  # Set TVM=1. TVM should stay 0 and SFENCE.VMA should still trap 
+  sfence.vma
+  j fail
+
+  # And access to satp should not trap
+  csrr t0, satp
+bare_s_3:
+  .word 0
+  j fail
+  j test_tsr
+
+skip_bare_s:
   TEST_PASSFAIL
 
   .align 8
+  .global mtvec_handler
 mtvec_handler:
   j synchronous_exception
   j msip
@@ -133,12 +154,20 @@ synchronous_exception:
   csrr t0, mcause
   bne t0, t1, fail
   csrr t0, mepc
+
+  # Make sure mtval contains either 0 or the instruction word.
+  csrr t2, mtval
+  beqz t2, 1f
+  lhu t1, 0(t0)
+  xor t2, t2, t1
+  lhu t1, 2(t0)
+  slli t1, t1, 16
+  xor t2, t2, t1
+  bnez t2, fail
+1:
+
   la t1, bad2
   beq t0, t1, 2f
-  la t1, bad3
-  beq t0, t1, 3f
-  la t1, bad4
-  beq t0, t1, 4f
   la t1, bad5
   beq t0, t1, 5f
   la t1, bad6
@@ -149,19 +178,19 @@ synchronous_exception:
   beq t0, t1, 8f
   la t1, bad9
   beq t0, t1, 9f
+  la t1, bare_s_1
+  beq t0, t1, 5f
+  la t1, bare_s_2
+  beq t0, t1, 7f
+  la t1, bare_s_3
+  beq t0, t1, 7f
   j fail
 2:
-4:
 6:
 7:
   addi t0, t0, 8
   csrw mepc, t0
   mret
-
-3:
-  li t1, MSTATUS_TW
-  csrs mstatus, t1
-  j 2b
 
 5:
   li t1, MSTATUS_TVM
