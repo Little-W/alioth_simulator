@@ -12,9 +12,11 @@ OUT_DIR = $(BUILD_DIR)/test_compiled
 include $(src_dir)/rv64ui/Makefrag
 include $(src_dir)/rv64um/Makefrag
 include $(src_dir)/rv64mi/Makefrag
+include $(src_dir)/rv64si/Makefrag
 include $(src_dir)/rv32ui/Makefrag
 include $(src_dir)/rv32um/Makefrag
 include $(src_dir)/rv32mi/Makefrag
+include $(src_dir)/rv32si/Makefrag
 
 RISCV_GCC_FLAGS ?= -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
 
