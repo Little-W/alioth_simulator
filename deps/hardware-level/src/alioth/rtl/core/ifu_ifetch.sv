@@ -52,7 +52,7 @@ module ifu_ifetch (
     assign inst_o = flush_en_r ? `INST_NOP : inst_i;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    // 选择指令地址：如果暂停则选择ZeroWord，否则选择输入地址
+    // 选择指令地址：如果需要冲刷流水线则选择ZeroWord，否则选择输入地址
     wire [`INST_ADDR_WIDTH-1:0] addr_selected = flush_en ? `ZeroWord : inst_addr_i;
 
     gnrl_dff #(`INST_ADDR_WIDTH) inst_addr_ff (
