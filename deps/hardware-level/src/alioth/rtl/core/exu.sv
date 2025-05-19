@@ -26,8 +26,6 @@ module exu (
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
     input wire                        reg_we_i,
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
-    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,
-    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,
     input wire                        csr_we_i,
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,
@@ -79,7 +77,12 @@ module exu (
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
     // to clint
-    output wire div_started_o
+    output wire div_started_o,
+
+    // 添加系统操作信号输出到顶层
+    output wire exu_op_ecall_o,
+    output wire exu_op_ebreak_o,
+    output wire exu_op_mret_o
 );
 
     // 内部连线定义
@@ -501,5 +504,10 @@ module exu (
 
     // 将除法开始信号输出给clint
     assign div_started_o      = div_start | mul_start;
+
+    // 将SYS操作信号连接到输出
+    assign exu_op_ecall_o     = sys_op_ecall_o;
+    assign exu_op_ebreak_o    = sys_op_ebreak_o;
+    assign exu_op_mret_o      = sys_op_mret_o;
 
 endmodule

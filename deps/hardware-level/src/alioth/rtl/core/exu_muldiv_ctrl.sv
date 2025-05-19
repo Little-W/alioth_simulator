@@ -37,8 +37,8 @@ module exu_muldiv_ctrl (
     input wire muldiv_op_divu_i,
     input wire muldiv_op_rem_i,
     input wire muldiv_op_remu_i,
-    input wire muldiv_op_mul_all_i,  // 新增：总乘法操作标志
-    input wire muldiv_op_div_all_i,  // 新增：总除法操作标志
+    input wire muldiv_op_mul_all_i,
+    input wire muldiv_op_div_all_i,
 
     // 除法器接口
     input wire                       div_ready_i,
@@ -92,62 +92,81 @@ module exu_muldiv_ctrl (
     wire is_div_op = muldiv_op_div_all_i;
 
     // 默认值设置
-    assign div_dividend_o = reg1_rdata_i;        // 被除数为第一个寄存器的值
-    assign div_divisor_o = reg2_rdata_i;         // 除数为第二个寄存器的值
-    assign div_op_o = div_op_sel;                // 除法操作类型
-    assign div_reg_waddr_o = reg_waddr_i;        // 除法结果写回地址
+    assign div_dividend_o     = reg1_rdata_i;  // 被除数为第一个寄存器的值
+    assign div_divisor_o      = reg2_rdata_i;  // 除数为第二个寄存器的值
+    assign div_op_o           = div_op_sel;  // 除法操作类型
+    assign div_reg_waddr_o    = reg_waddr_i;  // 除法结果写回地址
 
-    assign mul_multiplicand_o = reg1_rdata_i;    // 被乘数为第一个寄存器的值
-    assign mul_multiplier_o = reg2_rdata_i;      // 乘数为第二个寄存器的值
-    assign mul_op_o = mul_op_sel;                // 乘法操作类型
-    assign mul_reg_waddr_o = reg_waddr_i;        // 乘法结果写回地址
+    assign mul_multiplicand_o = reg1_rdata_i;  // 被乘数为第一个寄存器的值
+    assign mul_multiplier_o   = reg2_rdata_i;  // 乘数为第二个寄存器的值
+    assign mul_op_o           = mul_op_sel;  // 乘法操作类型
+    assign mul_reg_waddr_o    = reg_waddr_i;  // 乘法结果写回地址
 
-    // 除法启动控制逻辑（优先级选择）
-    // 响应中断时不进行除法操作，如果请求除法且是除法指令，根据除法器状态决定操作
-    assign div_start_o = (int_assert_i == `INT_ASSERT) ? `DivStop : 
-                         (req_muldiv_i && is_div_op) ? 
-                            ((div_busy_i == `True) ? `DivStart :        // 已经开始除法运算
-                             (div_ready_i == `DivResultReady) ? `DivStop : `DivStart) :  // 除法运算结果已准备好或开始新运算
-                         (div_busy_i == `True) ? `DivStart : `DivStop;  // 除法器在忙，继续保持
+    // 除法启动控制逻辑 - 条件定义
+    wire div_int_cond = int_assert_i == `INT_ASSERT;
+    wire div_op_busy_cond = is_div_op && div_busy_i == `True;
+    wire div_op_ready_cond = is_div_op && div_ready_i == `DivResultReady;
+    wire div_op_start_cond = is_div_op && !div_busy_i && div_ready_i != `DivResultReady;
+    wire div_busy_cond = !is_div_op && div_busy_i == `True;
 
-    // 乘法启动控制逻辑（优先级选择）
-    // 响应中断时不进行乘法操作，如果请求乘法且是乘法指令，根据乘法器状态决定操作
-    assign mul_start_o = (int_assert_i == `INT_ASSERT) ? 1'b0 : 
-                         (req_muldiv_i && is_mul_op) ? 
-                            ((mul_busy_i == 1'b1) ? 1'b1 :              // 已经开始乘法运算
-                             (mul_ready_i == 1'b1) ? 1'b0 : 1'b1) :     // 乘法运算结果已准备好或开始新运算
-                         (mul_busy_i == 1'b1) ? 1'b1 : 1'b0;            // 乘法器在忙，继续保持
+    // 除法启动控制逻辑
+    assign div_start_o = (div_op_busy_cond) | (div_op_start_cond) | (div_busy_cond);
+
+    // 乘法启动控制逻辑
+    wire mul_int_cond = int_assert_i == `INT_ASSERT;
+    wire mul_op_busy_cond = is_mul_op && mul_busy_i == `True;
+    wire mul_op_ready_cond = is_mul_op && mul_ready_i == `MulResultReady;
+    wire mul_op_start_cond = is_mul_op && !mul_busy_i && mul_ready_i != `MulResultReady;
+    wire mul_busy_cond = !is_mul_op && mul_busy_i == `True;
+
+    // 乘法启动控制逻辑
+    assign mul_start_o = (mul_op_busy_cond) | (mul_op_start_cond) | (mul_busy_cond);
+
+    // 条件信号定义 - 用于流水线保持逻辑
+    wire hold_mul_cond = is_mul_op && (mul_busy_i == `True || mul_ready_i != `MulResultReady);
+    wire hold_div_cond = is_div_op && (div_busy_i == `True || div_ready_i != `DivResultReady);
+    wire hold_busy_cond = div_busy_i == `True || mul_busy_i == `True;
 
     // 流水线保持控制逻辑
-    // 如果乘除法器在工作或需要启动新操作，则保持流水线
-    assign muldiv_hold_flag_o = (req_muldiv_i && is_mul_op && (mul_busy_i == 1'b1 || mul_ready_i != 1'b1)) ? `HoldEnable :
-                               (req_muldiv_i && is_div_op && (div_busy_i == `True || div_ready_i != `DivResultReady)) ? `HoldEnable :
-                               (div_busy_i == `True || mul_busy_i == 1'b1) ? `HoldEnable : `HoldDisable;
+    assign muldiv_hold_flag_o = hold_mul_cond | hold_div_cond | hold_busy_cond;
+
+    // 条件信号定义
+    wire is_mul_req = is_mul_op;
+    wire mul_not_busy = mul_busy_i != `True;
+    wire mul_not_ready = mul_ready_i != `MulResultReady;
+
+    wire is_div_req = is_div_op;
+    wire div_not_busy = div_busy_i != `True;
+    wire div_not_ready = div_ready_i != `DivResultReady;
+
+    // 跳转条件
+    wire jump_mul_cond = is_mul_req & mul_not_busy & mul_not_ready;
+    wire jump_div_cond = is_div_req & div_not_busy & div_not_ready;
 
     // 跳转控制逻辑
-    // 开始新乘除法运算时需要进行跳转
-    assign muldiv_jump_flag_o = (req_muldiv_i && is_mul_op && mul_busy_i != 1'b1 && mul_ready_i != 1'b1) ? `JumpEnable :
-                               (req_muldiv_i && is_div_op && div_busy_i != `True && div_ready_i != `DivResultReady) ? `JumpEnable : 
-                               `JumpDisable;
+    assign muldiv_jump_flag_o = jump_mul_cond | jump_div_cond;
+
+    // 选择信号定义
+    wire sel_mul = is_mul_op && (mul_ready_i == `MulResultReady);
+    wire sel_div = is_div_op && (div_ready_i == `DivResultReady);
+    wire sel_div_other = (div_ready_i == `DivResultReady) && !is_div_op;
+    wire sel_mul_other = (mul_ready_i == `MulResultReady) && !is_mul_op;
 
     // 结果写回数据选择逻辑
-    // 根据乘除法指令类型和结果就绪状态选择写回数据
-    assign reg_wdata_o = (req_muldiv_i && is_mul_op && mul_ready_i == 1'b1) ? mul_result_i :
-                         (req_muldiv_i && is_div_op && div_ready_i == `DivResultReady) ? div_result_i :
-                         (!req_muldiv_i && div_ready_i == `DivResultReady) ? div_result_i :
-                         (!req_muldiv_i && mul_ready_i == 1'b1) ? mul_result_i : `ZeroWord;
+    assign reg_wdata_o = 
+        ({`REG_DATA_WIDTH{sel_mul}} & mul_result_i) |
+        ({`REG_DATA_WIDTH{sel_div}} & div_result_i) |
+        ({`REG_DATA_WIDTH{sel_div_other}} & div_result_i) |
+        ({`REG_DATA_WIDTH{sel_mul_other}} & mul_result_i);
 
     // 结果写回地址选择逻辑
-    assign reg_waddr_o = (req_muldiv_i && is_mul_op && mul_ready_i == 1'b1) ? mul_reg_waddr_i :
-                         (req_muldiv_i && is_div_op && div_ready_i == `DivResultReady) ? div_reg_waddr_i :
-                         (!req_muldiv_i && div_ready_i == `DivResultReady) ? div_reg_waddr_i :
-                         (!req_muldiv_i && mul_ready_i == 1'b1) ? mul_reg_waddr_i : `ZeroWord;
+    assign reg_waddr_o = 
+        ({`REG_ADDR_WIDTH{sel_mul}} & mul_reg_waddr_i) |
+        ({`REG_ADDR_WIDTH{sel_div}} & div_reg_waddr_i) |
+        ({`REG_ADDR_WIDTH{sel_div_other}} & div_reg_waddr_i) |
+        ({`REG_ADDR_WIDTH{sel_mul_other}} & mul_reg_waddr_i);
 
     // 结果写回使能控制逻辑
-    // 乘除法结果准备好时开启写回
-    assign reg_we_o = (req_muldiv_i && is_mul_op && mul_ready_i == 1'b1) ? `WriteEnable :
-                      (req_muldiv_i && is_div_op && div_ready_i == `DivResultReady) ? `WriteEnable :
-                      (!req_muldiv_i && (div_ready_i == `DivResultReady || mul_ready_i == 1'b1)) ? `WriteEnable : 
-                      `WriteDisable;
+    assign reg_we_o = sel_mul | sel_div | sel_div_other | sel_mul_other;
 
 endmodule

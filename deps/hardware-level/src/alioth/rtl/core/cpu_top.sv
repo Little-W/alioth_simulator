@@ -64,11 +64,11 @@ module cpu_top (
     wire                        exu_csr_we_o;
     wire [ `BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
     wire                        exu_div_started_o;
-    // 添加系统指令状态信号
-    wire                        exu_inst_ecall_o;
-    wire                        exu_inst_ebreak_o;
-    wire                        exu_inst_mret_o;
-    wire                        exu_inst_dret_o;
+
+    // 新增系统操作信号 - 修改变量名称以匹配 EXU 模块的输出端口
+    wire                        exu_ecall_o;
+    wire                        exu_ebreak_o;
+    wire                        exu_mret_o;
 
     // EXU到WBU的数据通路信号
     wire [ `REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
@@ -105,7 +105,7 @@ module cpu_top (
     wire [ `REG_DATA_WIDTH-1:0] csr_clint_csr_mstatus;
 
     // ctrl模块输出信号
-    wire [      `Hold_Flag_Bus] ctrl_hold_flag_o;
+    wire [ `HOLD_BUS_WIDTH-1:0] ctrl_hold_flag_o;
     wire                        ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -197,8 +197,8 @@ module cpu_top (
         .inst_addr_o   (idu_inst_addr_o),
         .reg_we_o      (idu_reg_we_o),
         .reg_waddr_o   (idu_reg_waddr_o),
-        .reg1_raddr_o  (idu_reg1_raddr_o),   // 使用修改后的端口名称
-        .reg2_raddr_o  (idu_reg2_raddr_o),   // 使用修改后的端口名称
+        .reg1_raddr_o  (idu_reg1_raddr_o),
+        .reg2_raddr_o  (idu_reg2_raddr_o),
         .csr_we_o      (idu_csr_we_o),
         .csr_rdata_o   (idu_csr_rdata_o),
         .csr_waddr_o   (idu_csr_waddr_o),
@@ -214,8 +214,6 @@ module cpu_top (
         .inst_addr_i   (idu_inst_addr_o),
         .reg_we_i      (idu_reg_we_o),
         .reg_waddr_i   (idu_reg_waddr_o),
-        .reg1_raddr_i  (idu_reg1_raddr_o),
-        .reg2_raddr_i  (idu_reg2_raddr_o),
         .csr_we_i      (idu_csr_we_o),
         .csr_waddr_i   (idu_csr_waddr_o),
         .csr_rdata_i   (idu_csr_rdata_o),
@@ -258,7 +256,12 @@ module cpu_top (
         .hold_flag_o  (exu_hold_flag_o),
         .jump_flag_o  (exu_jump_flag_o),
         .jump_addr_o  (exu_jump_addr_o),
-        .div_started_o(exu_div_started_o)
+        .div_started_o(exu_div_started_o),
+
+        // 新增系统操作信号输出 - 修改连接到重命名的端口
+        .exu_op_ecall_o (exu_ecall_o),
+        .exu_op_ebreak_o(exu_ebreak_o),
+        .exu_op_mret_o  (exu_mret_o)
     );
 
     // wbu模块例化
@@ -291,14 +294,19 @@ module cpu_top (
 
     // clint模块例化
     clint u_clint (
-        .clk            (clk),
-        .rst_n          (rst_n),
-        .inst_i         (idu_inst_o),
-        .inst_addr_i    (idu_inst_addr_o),
-        .jump_flag_i    (exu_jump_flag_o),
-        .jump_addr_i    (exu_jump_addr_o),
-        .hold_flag_i    (ctrl_hold_flag_o),
-        .div_started_i  (exu_div_started_o),
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .inst_addr_i  (idu_inst_addr_o),
+        .jump_flag_i  (exu_jump_flag_o),
+        .jump_addr_i  (exu_jump_addr_o),
+        .hold_flag_i  (ctrl_hold_flag_o),
+        .div_started_i(exu_div_started_o),
+
+        // 连接系统操作信号
+        .sys_op_ecall_i (exu_ecall_o),
+        .sys_op_ebreak_i(exu_ebreak_o),
+        .sys_op_mret_i  (exu_mret_o),
+
         .data_i         (csr_clint_data_o),
         .csr_mtvec      (csr_clint_csr_mtvec),
         .csr_mepc       (csr_clint_csr_mepc),

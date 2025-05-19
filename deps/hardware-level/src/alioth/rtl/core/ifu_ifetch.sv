@@ -25,7 +25,7 @@ module ifu_ifetch (
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
 
-    input wire [`Hold_Flag_Bus] hold_flag_i,  // 流水线暂停标志
+    input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址

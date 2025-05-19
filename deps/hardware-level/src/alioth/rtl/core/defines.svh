@@ -43,13 +43,19 @@
 `define INT_ASSERT 1'b1
 `define INT_DEASSERT 1'b0
 
+// 乘法器相关宏定义
+`define MulResultNotReady 1'b0
+`define MulResultReady 1'b1
+`define MulStart 1'b1
+`define MulStop 1'b0
+
 `define INT_BUS 7:0
 `define INT_NONE 8'h0
 `define INT_RET 8'hff
 `define INT_TIMER0 8'b00000001
 `define INT_TIMER0_ENTRY_ADDR 32'h4
 
-`define Hold_Flag_Bus 2:0
+`define HOLD_BUS_WIDTH 3
 `define Hold_None 3'b000
 `define Hold_Pc 3'b001
 `define Hold_If 3'b010

@@ -25,7 +25,7 @@ module ifu (
     // 来自控制模块
     input wire                        jump_flag_i,  // 跳转标志
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
-    input wire [      `Hold_Flag_Bus] hold_flag_i,  // 流水线暂停标志
+    input wire [   `HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
     // 从ROM读取的指令
     input wire [`INST_DATA_WIDTH-1:0] inst_i,  // 指令内容

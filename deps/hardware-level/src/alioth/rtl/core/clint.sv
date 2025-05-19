@@ -23,16 +23,20 @@ module clint (
     input wire rst_n,
 
     // from id
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
 
     // from ex
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
     input wire                        div_started_i,
+    
+    // 添加系统操作输入端口
+    input wire                        sys_op_ecall_i,
+    input wire                        sys_op_ebreak_i,
+    input wire                        sys_op_mret_i,
 
     // from ctrl
-    input wire [`Hold_Flag_Bus] hold_flag_i,
+    input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,
 
     // from csr_reg
     input wire [`REG_DATA_WIDTH-1:0] data_i,
@@ -84,37 +88,42 @@ module clint (
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时暂停流水线
     assign hold_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE)) ? `HoldEnable : `HoldDisable;
 
-    // 中断处理逻辑 - 使用assign替代always @(*)，避免优先级选择电路的问题
-    assign int_state = (rst_n == `RstEnable) ? S_INT_IDLE :
-                      ((inst_i == `INST_ECALL || inst_i == `INST_EBREAK) && div_started_i == `DivStop) ? S_INT_SYNC_ASSERT :
-                      (inst_i == `INST_MRET) ? S_INT_MRET :
-                      S_INT_IDLE;
+    // 中断处理逻辑
+    assign int_state = 
+        ({4{rst_n == `RstEnable}} & S_INT_IDLE) |
+        ({4{((sys_op_ecall_i || sys_op_ebreak_i) && div_started_i == `DivStop)}} & S_INT_SYNC_ASSERT) |
+        ({4{sys_op_mret_i}} & S_INT_MRET) |
+        ({4{!(rst_n == `RstEnable || ((sys_op_ecall_i || sys_op_ebreak_i) && div_started_i == `DivStop) || sys_op_mret_i)}} & S_INT_IDLE);
 
-    // CSR写状态机的组合逻辑部分 - 计算下一个CSR写状态
+    // CSR写状态机的并行选择逻辑
     assign next_csr_state = 
-        (rst_n == `RstEnable) ? S_CSR_IDLE :
-        (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) ? S_CSR_MEPC :       // 发生同步中断，先保存PC
-        (csr_state == S_CSR_IDLE && int_state == S_INT_MRET) ? S_CSR_MSTATUS_MRET :  // 中断返回，恢复mstatus
-        (csr_state == S_CSR_MEPC) ? S_CSR_MSTATUS :  // 保存PC后，修改mstatus
-        (csr_state == S_CSR_MSTATUS) ? S_CSR_MCAUSE :  // 修改mstatus后，写入中断原因
-        (csr_state == S_CSR_MCAUSE || csr_state == S_CSR_MSTATUS_MRET) ? S_CSR_IDLE :    // 完成中断处理，返回空闲状态
-        S_CSR_IDLE;
+        ({5{rst_n == `RstEnable}} & S_CSR_IDLE) |
+        ({5{csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT}} & S_CSR_MEPC) |
+        ({5{csr_state == S_CSR_IDLE && int_state == S_INT_MRET}} & S_CSR_MSTATUS_MRET) |
+        ({5{csr_state == S_CSR_MEPC}} & S_CSR_MSTATUS) |
+        ({5{csr_state == S_CSR_MSTATUS}} & S_CSR_MCAUSE) |
+        ({5{csr_state == S_CSR_MCAUSE || csr_state == S_CSR_MSTATUS_MRET}} & S_CSR_IDLE) |
+        ({5{!(rst_n == `RstEnable || 
+             (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) || 
+             (csr_state == S_CSR_IDLE && int_state == S_INT_MRET) || 
+             csr_state == S_CSR_MEPC || 
+             csr_state == S_CSR_MSTATUS || 
+             (csr_state == S_CSR_MCAUSE || csr_state == S_CSR_MSTATUS_MRET))}} & S_CSR_IDLE);
 
-    // 下一个中断原因cause值的逻辑
+    // 下一个中断原因cause值的并行选择逻辑
     assign next_cause = 
-        (rst_n == `RstEnable) ? `ZeroWord :
-        (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) ? 
-            (inst_i == `INST_ECALL) ? 32'd11 :    // 环境调用异常
-        (inst_i == `INST_EBREAK) ? 32'd3 :  // 断点异常
-        32'd10 :  // 其他异常默认值
-        cause;
+        ({32{rst_n == `RstEnable}} & `ZeroWord) |
+        ({32{csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT && sys_op_ecall_i}} & 32'd11) |
+        ({32{csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT && sys_op_ebreak_i}} & 32'd3) |
+        ({32{csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT && !sys_op_ecall_i && !sys_op_ebreak_i}} & 32'd10) |
+        ({32{!(rst_n == `RstEnable || (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT))}} & cause);
 
-    // 下一个保存的指令地址inst_addr值的逻辑
+    // 下一个保存的指令地址inst_addr值的并行选择逻辑
     assign next_inst_addr = 
-        (rst_n == `RstEnable) ? `ZeroWord :
-        (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) ? 
-            (jump_flag_i == `JumpEnable) ? jump_addr_i - 4'h4 : inst_addr_i :  // 如果跳转发生，保存跳转目标地址-4
-        inst_addr;
+        ({`INST_ADDR_WIDTH{rst_n == `RstEnable}} & `ZeroWord) |
+        ({`INST_ADDR_WIDTH{csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT && jump_flag_i == `JumpEnable}} & (jump_addr_i - 4'h4)) |
+        ({`INST_ADDR_WIDTH{csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT && jump_flag_i != `JumpEnable}} & inst_addr_i) |
+        ({`INST_ADDR_WIDTH{!(rst_n == `RstEnable || (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT))}} & inst_addr);
 
     gnrl_dff #(
         .DW(5)

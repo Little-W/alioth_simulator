@@ -24,7 +24,7 @@ module ifu_pc_nxt (
 
     input wire                        jump_flag_i,  // 跳转标志
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
-    input wire [      `Hold_Flag_Bus] hold_flag_i,  // 流水线暂停标志
+    input wire [ `HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
     output wire [`INST_ADDR_WIDTH-1:0] pc_o  // PC指针
 
@@ -34,19 +34,19 @@ module ifu_pc_nxt (
     wire [`INST_ADDR_WIDTH-1:0] pc_nxt;
 
     // 根据控制信号计算下一个PC值
-    assign pc_nxt = (rst_n == `RstEnable)         ? `CpuResetAddr :  // 复位
-                    (jump_flag_i == `JumpEnable)  ? jump_addr_i   :  // 跳转
-                    (hold_flag_i >= `Hold_Pc)     ? pc_o          :  // 暂停
-                                                    pc_o + 4'h4;     // 地址加4
+    assign pc_nxt = (rst_n == `RstEnable) ? `CpuResetAddr :  // 复位
+        (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
+        (hold_flag_i >= `Hold_Pc) ? pc_o :  // 暂停
+        pc_o + 4'h4;  // 地址加4
 
     // 使用gnrl_dff模块实现PC寄存器
     gnrl_dff #(
         .DW(`INST_ADDR_WIDTH)
     ) pc_dff (
-        .clk(clk),
+        .clk  (clk),
         .rst_n(rst_n),
-        .dnxt(pc_nxt),
-        .qout(pc_o)
+        .dnxt (pc_nxt),
+        .qout (pc_o)
     );
 
 endmodule

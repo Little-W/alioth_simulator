@@ -33,7 +33,7 @@ module ctrl (
     // from clint
     input wire hold_flag_clint_i,
 
-    output wire [`Hold_Flag_Bus] hold_flag_o,
+    output wire [`HOLD_BUS_WIDTH-1:0] hold_flag_o,
 
     // to pc_reg
     output wire                        jump_flag_o,

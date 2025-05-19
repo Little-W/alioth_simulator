@@ -30,7 +30,7 @@ module idu (
     input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,  // CSR寄存器输入数据
 
     // from ctrl
-    input wire [`Hold_Flag_Bus] hold_flag_i,  // 流水线暂停标志
+    input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
     // to csr reg
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
@@ -64,7 +64,7 @@ module idu (
 
     // 实例化id模块
     idu_decode u_idu_decode (
-        .rst_n       (rst_n),
+        .rst_n(rst_n),
 
         // from if_id
         .inst_i     (inst_i),
