@@ -18,7 +18,7 @@
 
 // 地址生成单元 - 处理内存访问和相关寄存器操作
 module exu_agu_lsu (
-    input wire clk,  // 新增时钟输入
+    input wire clk,  // 时钟输入
     input wire rst_n,
 
     input wire        req_mem_i,
@@ -33,8 +33,8 @@ module exu_agu_lsu (
     input wire        mem_op_sb_i,
     input wire        mem_op_sh_i,
     input wire        mem_op_sw_i,
-    input wire        mem_op_load_i,   // 新增：总load操作标志
-    input wire        mem_op_store_i,  // 新增：总store操作标志
+    input wire        mem_op_load_i,
+    input wire        mem_op_store_i,
     input wire [ 4:0] rd_addr_i,
 
     // 内存数据输入
@@ -69,7 +69,7 @@ module exu_agu_lsu (
     wire        mem_op_lbu_ff;
     wire        mem_op_lhu_ff;
     wire [4:0]  rd_addr_ff;
-    // 新增：存储mem_op1_i和mem_op2_i打一拍后的信号
+    // 存储mem_op1_i和mem_op2_i打一拍后的信号
     wire [31:0] mem_op1_ff;
     wire [31:0] mem_op2_ff;
     wire [31:0] mem_addr_ff;
@@ -158,7 +158,7 @@ module exu_agu_lsu (
         .qout (rd_addr_ff)
     );
 
-    // 新增：将mem_op1_i和mem_op2_i打一拍
+    // ：将mem_op1_i和mem_op2_i打一拍
     gnrl_dff #(
         .DW(32)
     ) u_mem_op1_dff (

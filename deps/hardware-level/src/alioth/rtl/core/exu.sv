@@ -37,7 +37,7 @@ module exu (
     // from mem
     input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
 
-    // from regs - 新增从寄存器读取数据的输入端口
+    // from regs - 从寄存器读取数据的输入端口
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
 
@@ -178,8 +178,8 @@ module exu (
     wire                        muldiv_op_divu_o;
     wire                        muldiv_op_rem_o;
     wire                        muldiv_op_remu_o;
-    wire                        muldiv_op_mul_all_o;  // 新增：总乘法操作标志
-    wire                        muldiv_op_div_all_o;  // 新增：总除法操作标志
+    wire                        muldiv_op_mul_all_o;
+    wire                        muldiv_op_div_all_o;
     // dispatch to CSR
     wire                        req_csr_o;
     wire [                31:0] csr_op1_o;
@@ -200,8 +200,8 @@ module exu (
     wire                        mem_op_sb_o;
     wire                        mem_op_sh_o;
     wire                        mem_op_sw_o;
-    wire                        mem_op_load_o;  // 新增：总load操作标志
-    wire                        mem_op_store_o;  // 新增：总store操作标志
+    wire                        mem_op_load_o;
+    wire                        mem_op_store_o;
     // dispatch to SYS
     wire                        sys_op_nop_o;
     wire                        sys_op_mret_o;
@@ -218,8 +218,8 @@ module exu (
         .dec_info_bus_i     (dec_info_bus_i),
         .dec_imm_i          (dec_imm_i),
         .dec_pc_i           (inst_addr_i),
-        .rs1_rdata_i        (reg1_rdata_i),         // 使用直接从寄存器读取的数据
-        .rs2_rdata_i        (reg2_rdata_i),         // 使用直接从寄存器读取的数据
+        .rs1_rdata_i        (reg1_rdata_i),
+        .rs2_rdata_i        (reg2_rdata_i),
         // dispatch to ALU
         .alu_op1_o          (alu_op1_o),
         .alu_op2_o          (alu_op2_o),
@@ -262,8 +262,8 @@ module exu (
         .muldiv_op_divu_o   (muldiv_op_divu_o),
         .muldiv_op_rem_o    (muldiv_op_rem_o),
         .muldiv_op_remu_o   (muldiv_op_remu_o),
-        .muldiv_op_mul_all_o(muldiv_op_mul_all_o),  // 新增连接
-        .muldiv_op_div_all_o(muldiv_op_div_all_o),  // 新增连接
+        .muldiv_op_mul_all_o(muldiv_op_mul_all_o),
+        .muldiv_op_div_all_o(muldiv_op_div_all_o),
         // dispatch to CSR
         .req_csr_o          (req_csr_o),
         .csr_op1_o          (csr_op1_o),
@@ -284,8 +284,8 @@ module exu (
         .mem_op_sb_o        (mem_op_sb_o),
         .mem_op_sh_o        (mem_op_sh_o),
         .mem_op_sw_o        (mem_op_sw_o),
-        .mem_op_load_o      (mem_op_load_o),        // 新增连接
-        .mem_op_store_o     (mem_op_store_o),       // 新增连接
+        .mem_op_load_o      (mem_op_load_o),
+        .mem_op_store_o     (mem_op_store_o),
         // dispatch to SYS
         .sys_op_nop_o       (sys_op_nop_o),
         .sys_op_mret_o      (sys_op_mret_o),
@@ -341,8 +341,8 @@ module exu (
         .mem_op_sb_i   (mem_op_sb_o),
         .mem_op_sh_i   (mem_op_sh_o),
         .mem_op_sw_i   (mem_op_sw_o),
-        .mem_op_load_i (mem_op_load_o),   // 新增连接
-        .mem_op_store_i(mem_op_store_o),  // 新增连接
+        .mem_op_load_i (mem_op_load_o),
+        .mem_op_store_i(mem_op_store_o),
         .rd_addr_i     (reg_waddr_i),
         .mem_rdata_i   (mem_rdata_i),
         .int_assert_i  (int_assert_i),
@@ -428,8 +428,8 @@ module exu (
     exu_muldiv_ctrl u_muldiv_ctrl (
         .rst_n       (rst_n),
         .reg_waddr_i (reg_waddr_i),
-        .reg1_rdata_i(reg1_rdata_i),    // 使用直接从寄存器读取的数据
-        .reg2_rdata_i(reg2_rdata_i),    // 使用直接从寄存器读取的数据
+        .reg1_rdata_i(reg1_rdata_i),
+        .reg2_rdata_i(reg2_rdata_i),
         .op1_jump_i  (bjp_jump_op1_o),
         .op2_jump_i  (bjp_jump_op2_o),
 
@@ -443,8 +443,8 @@ module exu (
         .muldiv_op_divu_i   (muldiv_op_divu_o),
         .muldiv_op_rem_i    (muldiv_op_rem_o),
         .muldiv_op_remu_i   (muldiv_op_remu_o),
-        .muldiv_op_mul_all_i(muldiv_op_mul_all_o),  // 新增连接
-        .muldiv_op_div_all_i(muldiv_op_div_all_o),  // 新增连接
+        .muldiv_op_mul_all_i(muldiv_op_mul_all_o),
+        .muldiv_op_div_all_i(muldiv_op_div_all_o),
 
         .div_ready_i    (div_ready),
         .div_result_i   (div_result),

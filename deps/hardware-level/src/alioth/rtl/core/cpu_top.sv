@@ -65,7 +65,7 @@ module cpu_top (
     wire [ `BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
     wire                        exu_div_started_o;
 
-    // 新增系统操作信号 - 修改变量名称以匹配 EXU 模块的输出端口
+    // 系统操作信号
     wire                        exu_ecall_o;
     wire                        exu_ebreak_o;
     wire                        exu_mret_o;
@@ -87,7 +87,7 @@ module cpu_top (
     wire                        exu_agu_reg_we_o;
     wire [ `REG_ADDR_WIDTH-1:0] exu_agu_reg_waddr_o;
 
-    // 新增: WBU输出信号
+    // wbu输出信号
     wire [ `REG_DATA_WIDTH-1:0] wbu_reg_wdata_o;
     wire                        wbu_reg_we_o;
     wire [ `REG_ADDR_WIDTH-1:0] wbu_reg_waddr_o;
@@ -149,13 +149,13 @@ module cpu_top (
         .jump_addr_o      (ctrl_jump_addr_o)
     );
 
-    // regs模块例化 - 修改连接使用wbu的输出
+    // regs模块例化
     regs u_regs (
         .clk     (clk),
         .rst_n   (rst_n),
-        .we_i    (wbu_reg_we_o),      // 使用WBU的输出
-        .waddr_i (wbu_reg_waddr_o),   // 使用WBU的输出
-        .wdata_i (wbu_reg_wdata_o),   // 使用WBU的输出
+        .we_i    (wbu_reg_we_o),
+        .waddr_i (wbu_reg_waddr_o),
+        .wdata_i (wbu_reg_wdata_o),
         .raddr1_i(idu_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
         .raddr2_i(idu_reg2_raddr_o),
@@ -258,7 +258,7 @@ module cpu_top (
         .jump_addr_o  (exu_jump_addr_o),
         .div_started_o(exu_div_started_o),
 
-        // 新增系统操作信号输出 - 修改连接到重命名的端口
+        // 系统操作信号输出
         .exu_op_ecall_o (exu_ecall_o),
         .exu_op_ebreak_o(exu_ebreak_o),
         .exu_op_mret_o  (exu_mret_o)

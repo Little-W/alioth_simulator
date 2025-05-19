@@ -211,7 +211,6 @@ module exu_dispatch (
     assign mem_op_sb_o    = mem_info[`DECINFO_MEM_SB];  // SB指令：存储一个字节
     assign mem_op_sh_o    = mem_info[`DECINFO_MEM_SH];  // SH指令：存储一个半字
     assign mem_op_sw_o    = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
-    // 新增总的load和store信号
     assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
     assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];  // 所有存储指令
     assign mem_op1_o      = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
