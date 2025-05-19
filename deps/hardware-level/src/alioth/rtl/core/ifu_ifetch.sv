@@ -40,20 +40,20 @@ module ifu_ifetch (
 
 );
 
-    wire hold_en = (hold_flag_i >= `Hold_If);
-    wire hold_en_r;
-    gnrl_dff #(1) hold_en_ff (
+    wire flush_en = (hold_flag_i >= `Hold_If);
+    wire flush_en_r;
+    gnrl_dff #(1) flush_en_ff (
         .clk  (clk),
         .rst_n(rst_n),
-        .dnxt (hold_en),
-        .qout (hold_en_r)
+        .dnxt (flush_en),
+        .qout (flush_en_r)
     );
 
-    assign inst_o = hold_en_r ? `INST_NOP : inst_i;
+    assign inst_o = flush_en_r ? `INST_NOP : inst_i;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
     // 选择指令地址：如果暂停则选择ZeroWord，否则选择输入地址
-    wire [`INST_ADDR_WIDTH-1:0] addr_selected = hold_en ? `ZeroWord : inst_addr_i;
+    wire [`INST_ADDR_WIDTH-1:0] addr_selected = flush_en ? `ZeroWord : inst_addr_i;
 
     gnrl_dff #(`INST_ADDR_WIDTH) inst_addr_ff (
         .clk  (clk),
