@@ -149,47 +149,35 @@ module wbu (
 
     // 选择优先级：AGU(LSU) > MULDIV > ALU > CSR
     // 注意AGU/LSU数据已经在LSU内部延迟，所以直接使用
-    reg [`REG_DATA_WIDTH-1:0] reg_wdata_r;
-    reg                       reg_we_r;
-    reg [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
+    wire                       reg_we_r;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
-    always @(*) begin
-        if (int_assert_i == `INT_ASSERT) begin
-            // 中断情况下，禁止写回
-            reg_wdata_r = `ZeroWord;
-            reg_we_r    = `WriteDisable;
-            reg_waddr_r = `ZeroReg;
-        end else if (agu_reg_we_i) begin
-            // AGU写回（load指令）
-            reg_wdata_r = agu_reg_wdata_i;
-            reg_we_r    = agu_reg_we_i;
-            reg_waddr_r = agu_reg_waddr_i;
-        end else if (muldiv_we_delay) begin
-            // 乘除法结果写回
-            reg_wdata_r = muldiv_wdata_delay;
-            reg_we_r    = muldiv_we_delay;
-            reg_waddr_r = muldiv_waddr_delay;
-        end else if (alu_reg_we_delay) begin
-            // ALU结果写回
-            reg_wdata_r = alu_result_delay;
-            reg_we_r    = alu_reg_we_delay;
-            reg_waddr_r = alu_reg_waddr_delay;
-        end else if (csr_reg_we_delay) begin
-            // CSR结果写回
-            reg_wdata_r = csr_reg_wdata_delay;
-            reg_we_r    = csr_reg_we_delay;
-            reg_waddr_r = csr_reg_waddr_delay;
-        end else begin
-            // 默认情况
-            reg_wdata_r = `ZeroWord;
-            reg_we_r    = `WriteDisable;
-            reg_waddr_r = `ZeroReg;
-        end
-    end
+    // 使用assign语句实现优先级选择逻辑，避免X不定态传播
+    assign reg_wdata_r = (int_assert_i == `INT_ASSERT) ? `ZeroWord :
+                         agu_reg_we_i ? agu_reg_wdata_i :
+                         muldiv_we_delay ? muldiv_wdata_delay :
+                         alu_reg_we_delay ? alu_result_delay :
+                         csr_reg_we_delay ? csr_reg_wdata_delay :
+                         `ZeroWord;
+
+    assign reg_we_r = (int_assert_i == `INT_ASSERT) ? `WriteDisable :
+                      agu_reg_we_i ? agu_reg_we_i :
+                      muldiv_we_delay ? muldiv_we_delay :
+                      alu_reg_we_delay ? alu_reg_we_delay :
+                      csr_reg_we_delay ? csr_reg_we_delay :
+                      `WriteDisable;
+
+    assign reg_waddr_r = (int_assert_i == `INT_ASSERT) ? `ZeroReg :
+                         agu_reg_we_i ? agu_reg_waddr_i :
+                         muldiv_we_delay ? muldiv_waddr_delay :
+                         alu_reg_we_delay ? alu_reg_waddr_delay :
+                         csr_reg_we_delay ? csr_reg_waddr_delay :
+                         `ZeroReg;
 
     // 输出赋值
     assign reg_wdata_o = reg_wdata_r;
-    assign reg_we_o    = reg_we_r;
+    assign reg_we_o = reg_we_r;
     assign reg_waddr_o = reg_waddr_r;
 
 endmodule

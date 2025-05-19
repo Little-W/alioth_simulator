@@ -41,17 +41,34 @@ module regs (
 
 );
 
-    reg [`REG_DATA_WIDTH-1:0] regs[0:`REG_NUM - 1];
+    wire [`REG_DATA_WIDTH-1:0] regs[0:`REG_NUM - 1];
+    wire [`REG_NUM-1:0] reg_we;  // 每个寄存器的写使能信号
 
-    // 写寄存器
-    always @(posedge clk) begin
-        if (rst_n == `RstDisable) begin
-            // 优先ex模块写操作
-            if ((we_i == `WriteEnable) && (waddr_i != `ZeroReg)) begin
-                regs[waddr_i] <= wdata_i;
-            end
+    // 为每个寄存器生成写使能信号
+    // 零寄存器(x0)永远不能被写入
+    assign reg_we[0] = 1'b0;  
+
+    // 为其他寄存器生成写使能信号
+    genvar i;
+    generate
+        for (i = 1; i < `REG_NUM; i = i + 1) begin : gen_reg_we
+            assign reg_we[i] = (we_i == `WriteEnable) && (waddr_i == i) && (rst_n == `RstDisable);
         end
-    end
+    endgenerate
+
+    generate
+        for (i = 0; i < `REG_NUM; i = i + 1) begin : gen_regs
+            gnrl_dfflr #(
+                .DW(`REG_DATA_WIDTH)
+            ) reg_dfflr (
+                .clk(clk),
+                .rst_n(rst_n),
+                .lden(reg_we[i]),
+                .dnxt(wdata_i),
+                .qout(regs[i])
+            );
+        end
+    endgenerate
 
     // 读寄存器1
     // 如果读地址为零寄存器，则返回零
