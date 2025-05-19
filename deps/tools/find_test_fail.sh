@@ -11,7 +11,6 @@ if [ $ok -ne "1" ];
 then 
     echo -e "${YELLOW}NOT_FINISHED${NC} $1"
 else
-    #test_fails=`grep 'TEST_FAIL : *[0-9]*' $1  | sed 's/.*TEST_FAIL : *\([0-9]*\).*/\1/g'`
     test_fails=`grep "TEST_FAIL" $1 | wc -l`
     
     # 提取性能指标
@@ -20,14 +19,16 @@ else
     insts=`echo $perf_line | grep -o "INSTS=[0-9]*" | cut -d= -f2`
     ipc=`echo $perf_line | grep -o "IPC=[0-9.]*" | cut -d= -f2`
     
-    # 提取测试名称
-    test_name=`grep -A1 "TESTCASE:" $1 | tail -n1 | tr -d '\r\n'`
+    # 提取测试名称并只保留有效部分（去除cycle_count信息）
+    test_name=`grep -A1 "TESTCASE:" $1 | tail -n1 | sed 's/~~~~~~~~~~~~~~Total cycle_count value:.*~//' | tr -d '\r\n'`
     
     res=`expr $test_fails + 0`
     if [ $res -ne 0 ];
     	then 
-    	    echo -e "${RED}FAIL${NC} $test_name | ${BLUE}Cycles:${NC} $cycles ${BLUE}Insts:${NC} $insts ${BLUE}IPC:${NC} $ipc | $(basename $1)";
+    	    printf "${RED}FAIL${NC} %-4s | ${BLUE}Cycles:${NC} %-6s ${BLUE}Insts:${NC} %-6s ${BLUE}IPC:${NC} %-6s | %s\n" \
+               "$test_name" "$cycles" "$insts" "$ipc" "$(basename $1)"
         else 
-            echo -e "${GREEN}PASS${NC} $test_name | ${BLUE}Cycles:${NC} $cycles ${BLUE}Insts:${NC} $insts ${BLUE}IPC:${NC} $ipc | $(basename $1)";
+            printf "${GREEN}PASS${NC} %-4s | ${BLUE}Cycles:${NC} %-6s ${BLUE}Insts:${NC} %-6s ${BLUE}IPC:${NC} %-6s | %s\n" \
+               "$test_name" "$cycles" "$insts" "$ipc" "$(basename $1)"
     fi
 fi
