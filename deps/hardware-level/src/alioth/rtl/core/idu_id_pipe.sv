@@ -51,126 +51,115 @@ module idu_id_pipe (
 
     wire                        hold_en = (hold_flag_i >= `Hold_Id);
 
+    wire [`INST_DATA_WIDTH-1:0] inst_dnxt = hold_en ? `INST_NOP : inst_i;
     wire [`INST_DATA_WIDTH-1:0] inst;
-    gnrl_pipe_dff #(32) inst_ff (
+    gnrl_dff #(32) inst_ff (
         clk,
         rst_n,
-        hold_en,
-        `INST_NOP,
-        inst_i,
+        inst_dnxt,
         inst
     );
     assign inst_o = inst;
 
+    wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = hold_en ? `ZeroWord : inst_addr_i;
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    gnrl_pipe_dff #(32) inst_addr_ff (
+    gnrl_dff #(32) inst_addr_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroWord,
-        inst_addr_i,
+        inst_addr_dnxt,
         inst_addr
     );
     assign inst_addr_o = inst_addr;
 
+    wire reg_we_dnxt = hold_en ? `WriteDisable : reg_we_i;
     wire reg_we;
-    gnrl_pipe_dff #(1) reg_we_ff (
+    gnrl_dff #(1) reg_we_ff (
         clk,
         rst_n,
-        hold_en,
-        `WriteDisable,
-        reg_we_i,
+        reg_we_dnxt,
         reg_we
     );
     assign reg_we_o = reg_we;
 
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = hold_en ? `ZeroReg : reg_waddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
-    gnrl_pipe_dff #(5) reg_waddr_ff (
+    gnrl_dff #(5) reg_waddr_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroReg,
-        reg_waddr_i,
+        reg_waddr_dnxt,
         reg_waddr
     );
     assign reg_waddr_o = reg_waddr;
 
     // 传递寄存器地址而非数据
+    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_dnxt = hold_en ? `ZeroReg : reg1_raddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg1_raddr;
-    gnrl_pipe_dff #(5) reg1_raddr_ff (
+    gnrl_dff #(5) reg1_raddr_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroReg,
-        reg1_raddr_i,
+        reg1_raddr_dnxt,
         reg1_raddr
     );
     assign reg1_raddr_o = reg1_raddr;
 
+    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_dnxt = hold_en ? `ZeroReg : reg2_raddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg2_raddr;
-    gnrl_pipe_dff #(5) reg2_raddr_ff (
+    gnrl_dff #(5) reg2_raddr_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroReg,
-        reg2_raddr_i,
+        reg2_raddr_dnxt,
         reg2_raddr
     );
     assign reg2_raddr_o = reg2_raddr;
 
+    wire csr_we_dnxt = hold_en ? `WriteDisable : csr_we_i;
     wire csr_we;
-    gnrl_pipe_dff #(1) csr_we_ff (
+    gnrl_dff #(1) csr_we_ff (
         clk,
         rst_n,
-        hold_en,
-        `WriteDisable,
-        csr_we_i,
+        csr_we_dnxt,
         csr_we
     );
     assign csr_we_o = csr_we;
 
+    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_dnxt = hold_en ? `ZeroWord : csr_waddr_i;
     wire [`BUS_ADDR_WIDTH-1:0] csr_waddr;
-    gnrl_pipe_dff #(32) csr_waddr_ff (
+    gnrl_dff #(32) csr_waddr_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroWord,
-        csr_waddr_i,
+        csr_waddr_dnxt,
         csr_waddr
     );
     assign csr_waddr_o = csr_waddr;
 
+    wire [`REG_DATA_WIDTH-1:0] csr_rdata_dnxt = hold_en ? `ZeroWord : csr_rdata_i;
     wire [`REG_DATA_WIDTH-1:0] csr_rdata;
-    gnrl_pipe_dff #(32) csr_rdata_ff (
+    gnrl_dff #(32) csr_rdata_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroWord,
-        csr_rdata_i,
+        csr_rdata_dnxt,
         csr_rdata
     );
     assign csr_rdata_o = csr_rdata;
 
     // 译码信息总线传递
+    wire [`DECINFO_WIDTH-1:0] dec_info_bus_dnxt = hold_en ? `ZeroWord : dec_info_bus_i;
     wire [`DECINFO_WIDTH-1:0] dec_info_bus;
-    gnrl_pipe_dff #(`DECINFO_WIDTH) dec_info_bus_ff (
+    gnrl_dff #(`DECINFO_WIDTH) dec_info_bus_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroWord,
-        dec_info_bus_i,
+        dec_info_bus_dnxt,
         dec_info_bus
     );
     assign dec_info_bus_o = dec_info_bus;
 
     // 立即数传递
+    wire [31:0] dec_imm_dnxt = hold_en ? `ZeroWord : dec_imm_i;
     wire [31:0] dec_imm;
-    gnrl_pipe_dff #(32) dec_imm_ff (
+    gnrl_dff #(32) dec_imm_ff (
         clk,
         rst_n,
-        hold_en,
-        `ZeroWord,
-        dec_imm_i,
+        dec_imm_dnxt,
         dec_imm
     );
     assign dec_imm_o = dec_imm;

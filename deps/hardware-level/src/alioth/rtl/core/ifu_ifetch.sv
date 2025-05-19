@@ -35,32 +35,23 @@ module ifu_ifetch (
     wire hold_en = (hold_flag_i >= `Hold_If);
     wire hold_en_r;
     gnrl_dff #(1) hold_en_ff (
-        .clk(clk),
+        .clk  (clk),
         .rst_n(rst_n),
-        .dnxt(hold_en),
-        .qout(hold_en_r)
+        .dnxt (hold_en),
+        .qout (hold_en_r)
     );
-
-    // wire [`INST_DATA_WIDTH-1:0] inst;
-    // gnrl_pipe_dff #(32) inst_ff (
-    //     clk,
-    //     rst_n,
-    //     hold_en,
-    //     `INST_NOP,
-    //     inst_i,
-    //     inst
-    // );
 
     assign inst_o = hold_en_r ? `INST_NOP : inst_i;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    gnrl_pipe_dff #(32) inst_addr_ff (
-        clk,
-        rst_n,
-        hold_en,
-        `ZeroWord,
-        inst_addr_i,
-        inst_addr
+    // 选择指令地址：如果暂停则选择ZeroWord，否则选择输入地址
+    wire [`INST_ADDR_WIDTH-1:0] addr_selected = hold_en ? `ZeroWord : inst_addr_i;
+
+    gnrl_dff #(`INST_ADDR_WIDTH) inst_addr_ff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (addr_selected),
+        .qout (inst_addr)
     );
     assign inst_addr_o = inst_addr;
 

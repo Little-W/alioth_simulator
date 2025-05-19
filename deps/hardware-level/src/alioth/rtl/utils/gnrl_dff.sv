@@ -14,36 +14,6 @@
  limitations under the License.                                          
  */
 
-// 带默认值和控制信号的流水线触发器
-module gnrl_pipe_dff #(
-    parameter DW = 32
-) (
-
-    input wire clk,
-    input wire rst_n,
-    input wire hold_en,  // 暂停使能信号
-
-    input  wire [DW-1:0] def_val,  // 默认值
-    input  wire [DW-1:0] din,      // 输入数据
-    output wire [DW-1:0] qout      // 输出数据
-
-);
-
-    reg [DW-1:0] qout_r;
-
-    always @(posedge clk) begin : PIPE_DFF
-        if (!rst_n) begin
-            qout_r <= def_val;  // 复位时输出默认值
-        end else if (hold_en) begin
-            qout_r <= def_val;  // 暂停时输出默认值
-        end else begin
-            qout_r <= din;      // 正常情况下输出输入数据
-        end
-    end
-
-    assign qout = qout_r;
-endmodule
-
 // 带使能信号的D触发器
 module gnrl_dfflr #(
     parameter DW = 32
