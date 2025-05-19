@@ -39,7 +39,12 @@ test: alioth compile_test_src
 		echo "****************************************" ;	\
 		echo ;	\
 	else	\
-		make test SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR} ;	\
+		if [ ! -z "$(TESTCASE)" ] ; then \
+			TEST_PROGRAM_PATH=${BUILD_DIR}/test_compiled/$(TESTCASE); \
+			make test SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} SIM_TOOL=${SIM_TOOL} TEST_PROGRAM=$$TEST_PROGRAM_PATH -C ${BUILD_DIR} ;	\
+		else \
+			make test SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR} ;	\
+		fi; \
 		if [ -e "${BUILD_DIR}/dump.vcd" ] ; then \
 			if command -v gtkwave > /dev/null 2>&1; then \
 				gtkwave ${BUILD_DIR}/dump.vcd & \
