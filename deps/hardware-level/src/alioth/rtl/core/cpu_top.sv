@@ -71,7 +71,7 @@ module cpu_top (
     wire [ `REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
     wire                        exu_csr_we_o;
     wire [ `BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
-    wire                        exu_div_started_o;
+    wire                        exu_muldiv_started_o;
 
     // 系统操作信号
     wire                        exu_ecall_o;
@@ -264,7 +264,7 @@ module cpu_top (
         .hold_flag_o  (exu_hold_flag_o),
         .jump_flag_o  (exu_jump_flag_o),
         .jump_addr_o  (exu_jump_addr_o),
-        .div_started_o(exu_div_started_o),
+        .muldiv_started_o(exu_muldiv_started_o),
 
         // 系统操作信号输出
         .exu_op_ecall_o (exu_ecall_o),
@@ -308,7 +308,7 @@ module cpu_top (
         .jump_flag_i  (exu_jump_flag_o),
         .jump_addr_i  (exu_jump_addr_o),
         .hold_flag_i  (ctrl_hold_flag_o),
-        .div_started_i(exu_div_started_o),
+        .muldiv_started_i(exu_muldiv_started_o),
 
         // 连接系统操作信号
         .sys_op_ecall_i (exu_ecall_o),

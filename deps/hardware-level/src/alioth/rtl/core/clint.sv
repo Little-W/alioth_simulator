@@ -36,7 +36,7 @@ module clint (
     // from ex
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
-    input wire                        div_started_i,
+    input wire                        muldiv_started_i,
     
     // 添加系统操作输入端口
     input wire                        sys_op_ecall_i,
@@ -99,9 +99,9 @@ module clint (
     // 中断处理逻辑
     assign int_state = 
         ({4{rst_n == `RstEnable}} & S_INT_IDLE) |
-        ({4{((sys_op_ecall_i || sys_op_ebreak_i) && div_started_i == `DivStop)}} & S_INT_SYNC_ASSERT) |
+        ({4{((sys_op_ecall_i || sys_op_ebreak_i) && muldiv_started_i == `DivStop)}} & S_INT_SYNC_ASSERT) |
         ({4{sys_op_mret_i}} & S_INT_MRET) |
-        ({4{!(rst_n == `RstEnable || ((sys_op_ecall_i || sys_op_ebreak_i) && div_started_i == `DivStop) || sys_op_mret_i)}} & S_INT_IDLE);
+        ({4{!(rst_n == `RstEnable || ((sys_op_ecall_i || sys_op_ebreak_i) && muldiv_started_i == `DivStop) || sys_op_mret_i)}} & S_INT_IDLE);
 
     // CSR写状态机的并行选择逻辑
     assign next_csr_state = 

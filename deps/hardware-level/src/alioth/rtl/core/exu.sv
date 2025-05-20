@@ -85,7 +85,7 @@ module exu (
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
     // to clint
-    output wire div_started_o,
+    output wire muldiv_started_o,
 
     // 添加系统操作信号输出到顶层
     output wire exu_op_ecall_o,
@@ -506,8 +506,8 @@ module exu (
     assign csr_waddr_o        = csr_waddr_i;
     assign csr_wdata_o        = csr_unit_wdata;
 
-    // 将除法开始信号输出给clint
-    assign div_started_o      = div_start | mul_start;
+    // 将乘除法开始信号输出给clint
+    assign muldiv_started_o   = div_start | mul_start;
 
     // 将SYS操作信号连接到输出
     assign exu_op_ecall_o     = sys_op_ecall_o;
