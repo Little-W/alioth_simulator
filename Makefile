@@ -5,11 +5,17 @@ DUMMY_TEST_PROGRAM     := ${BUILD_DIR}/dummy_test/dummy_test
 CORE_NAME = $(shell echo $(CORE) | tr a-z A-Z)
 core_name = $(shell echo $(CORE) | tr A-Z a-z)
 
+# 定义各类测试集合
+UM_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32um-p*.dump))
+UA_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32ua-p*.dump))
+UI_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}ui-p*.dump))
+MI_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}mi-p*.dump))
+
 # SELF_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}uc-p*.dump))
-SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32um-p*.dump))
-SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32ua-p*.dump))
-SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}ui-p*.dump))
-SELF_TESTS += $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}mi-p*.dump))
+SELF_TESTS += $(UM_TESTS)
+SELF_TESTS += $(UA_TESTS)
+SELF_TESTS += $(UI_TESTS)
+SELF_TESTS += $(MI_TESTS)
 
 # 添加ASM编译目录设置
 ASM_BUILD_DIR := ${BUILD_DIR}/asm_compiled
@@ -120,18 +126,49 @@ run: alioth
 	fi
 
 test_all: alioth compile_test_src
-	@if [ ! -e ${BUILD_DIR}/test_compiled ] ; \
-	then	\
-		echo -e "\n" ;	\
-		echo "****************************************" ;	\
-		echo '    do "make compile_test_src" first';	\
-		echo "****************************************" ;	\
-		echo -e "\n" ;	\
-	else	\
+	@if [ ! -e ${BUILD_DIR}/test_compiled ] ; then \
+		echo -e "\n" ; \
+		echo "****************************************" ; \
+		echo '    do "make compile_test_src" first' ; \
+		echo "****************************************" ; \
+		echo -e "\n" ; \
+	else \
+		echo "清理之前的测试日志..." ; \
+		rm -rf ${BUILD_DIR}/test_out ; \
 		mkdir -p ${BUILD_DIR}/test_out ; \
-		$(foreach tst,$(SELF_TESTS), make test DUMPWAVE=0 SIM_ROOT_DIR=${SIM_ROOT_DIR} TEST_PROGRAM=${tst} SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR};)\
-		rm -rf ${BUILD_DIR}/regress.res; \
-		find ${BUILD_DIR}/test_out/ -name "rv${XLEN}*.log" -exec ${SIM_ROOT_DIR}/deps/tools/find_test_fail.sh {} \; ;	\
+		echo "TESTCASE值是: '$(TESTCASE)'" ; \
+		TESTCASE_VALUE="$(TESTCASE)" ; \
+		if [ -n "$$TESTCASE_VALUE" ] ; then \
+			TESTS_TO_RUN="" ; \
+			if echo ",$$TESTCASE_VALUE," | grep -E "um" > /dev/null; then \
+				echo "包含um测试" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $(UM_TESTS)" ; \
+			fi ; \
+			if echo ",$$TESTCASE_VALUE," | grep -E "ua" > /dev/null; then \
+				echo "包含ua测试" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $(UA_TESTS)" ; \
+			fi ; \
+			if echo ",$$TESTCASE_VALUE," | grep -E "ui" > /dev/null; then \
+				echo "包含ui测试" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $(UI_TESTS)" ; \
+			fi ; \
+			if echo ",$$TESTCASE_VALUE," | grep -E "mi" > /dev/null; then \
+				echo "包含mi测试" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $(MI_TESTS)" ; \
+			fi ; \
+			echo "Running selected test categories: $$TESTCASE_VALUE" ; \
+			echo "测试集合: $$TESTS_TO_RUN" ; \
+			for tst in $$TESTS_TO_RUN; do \
+				make test DUMPWAVE=0 SIM_ROOT_DIR=${SIM_ROOT_DIR} TEST_PROGRAM=$$tst SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR} ; \
+			done ; \
+		else \
+			echo "运行所有测试" ; \
+			for tst in $(SELF_TESTS); do \
+				make test DUMPWAVE=0 SIM_ROOT_DIR=${SIM_ROOT_DIR} TEST_PROGRAM=$$tst SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR} ; \
+			done ; \
+		fi ; \
+		rm -rf ${BUILD_DIR}/regress.res ; \
+		find ${BUILD_DIR}/test_out/ -name "rv${XLEN}*.log" -exec ${SIM_ROOT_DIR}/deps/tools/find_test_fail.sh {} \; ; \
 	fi
 
 debug_env:
