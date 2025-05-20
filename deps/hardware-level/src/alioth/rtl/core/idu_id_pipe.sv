@@ -38,7 +38,7 @@ module idu_id_pipe (
     input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,    // 读通用寄存器2地址
     input wire                        csr_we_i,        // 写CSR寄存器标志
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,     // 写CSR寄存器地址
-    input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,     // CSR寄存器读数据
+    input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
 
@@ -51,9 +51,9 @@ module idu_id_pipe (
     output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读通用寄存器1地址
     output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读通用寄存器2地址
     output wire                        csr_we_o,       // 写CSR寄存器标志
-    output wire [ `REG_DATA_WIDTH-1:0] csr_rdata_o,    // CSR寄存器读数据
-    output wire [                31:0] dec_imm_o,      // 立即数
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
+    output wire [                31:0] dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
 );
 
@@ -140,15 +140,16 @@ module idu_id_pipe (
     );
     assign csr_waddr_o = csr_waddr;
 
-    wire [`REG_DATA_WIDTH-1:0] csr_rdata_dnxt = flush_en ? `ZeroWord : csr_rdata_i;
-    wire [`REG_DATA_WIDTH-1:0] csr_rdata;
-    gnrl_dff #(32) csr_rdata_ff (
+    // 传递CSR读地址
+    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = flush_en ? `ZeroWord : csr_raddr_i;
+    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr;
+    gnrl_dff #(32) csr_raddr_ff (
         clk,
         rst_n,
-        csr_rdata_dnxt,
-        csr_rdata
+        csr_raddr_dnxt,
+        csr_raddr
     );
-    assign csr_rdata_o = csr_rdata;
+    assign csr_raddr_o = csr_raddr;
 
     // 译码信息总线传递
     wire [`DECINFO_WIDTH-1:0] dec_info_bus_dnxt = flush_en ? `ZeroWord : dec_info_bus_i;

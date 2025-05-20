@@ -73,6 +73,9 @@ module cpu_top (
     wire [ `BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
     wire                        exu_muldiv_started_o;
 
+    // 添加CSR寄存器写数据信号
+    wire [ `REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
+
     // 系统操作信号
     wire                        exu_ecall_o;
     wire                        exu_ebreak_o;
@@ -87,10 +90,6 @@ module cpu_top (
     wire                        exu_muldiv_reg_we_o;
     wire [ `REG_ADDR_WIDTH-1:0] exu_muldiv_reg_waddr_o;
 
-    wire [ `REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
-    wire                        exu_csr_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
-
     wire [ `REG_DATA_WIDTH-1:0] exu_agu_reg_wdata_o;
     wire                        exu_agu_reg_we_o;
     wire [ `REG_ADDR_WIDTH-1:0] exu_agu_reg_waddr_o;
@@ -99,6 +98,11 @@ module cpu_top (
     wire [ `REG_DATA_WIDTH-1:0] wbu_reg_wdata_o;
     wire                        wbu_reg_we_o;
     wire [ `REG_ADDR_WIDTH-1:0] wbu_reg_waddr_o;
+
+    // WBU CSR输出信号
+    wire [ `REG_DATA_WIDTH-1:0] wbu_csr_wdata_o;
+    wire                        wbu_csr_we_o;
+    wire [ `BUS_ADDR_WIDTH-1:0] wbu_csr_waddr_o;
 
     // regs模块输出信号
     wire [ `REG_DATA_WIDTH-1:0] regs_rdata1_o;
@@ -174,10 +178,10 @@ module cpu_top (
     csr_reg u_csr_reg (
         .clk              (clk),
         .rst_n            (rst_n),
-        .we_i             (exu_csr_we_o),
+        .we_i             (wbu_csr_we_o),
         .raddr_i          (id_csr_raddr_o),
-        .waddr_i          (exu_csr_waddr_o),
-        .data_i           (exu_csr_wdata_o),
+        .waddr_i          (wbu_csr_waddr_o),
+        .data_i           (wbu_csr_wdata_o),
         .data_o           (csr_data_o),
         .global_int_en_o  (csr_global_int_en_o),
         .clint_we_i       (clint_we_o),
@@ -192,15 +196,12 @@ module cpu_top (
 
     // idu模块例化 - 已集成id和id_ex功能
     idu u_idu (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .inst_i     (if_inst_o),
-        .inst_addr_i(if_inst_addr_o),
-        .csr_rdata_i(csr_data_o),
-        .hold_flag_i(ctrl_hold_flag_o),
-
-        .csr_raddr_o(id_csr_raddr_o),
-
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .inst_i        (if_inst_o),
+        .inst_addr_i   (if_inst_addr_o),
+        .hold_flag_i   (ctrl_hold_flag_o),
+        .csr_raddr_o   (id_csr_raddr_o),
         .inst_o        (idu_inst_o),
         .inst_addr_o   (idu_inst_addr_o),
         .reg_we_o      (idu_reg_we_o),
@@ -208,7 +209,6 @@ module cpu_top (
         .reg1_raddr_o  (idu_reg1_raddr_o),
         .reg2_raddr_o  (idu_reg2_raddr_o),
         .csr_we_o      (idu_csr_we_o),
-        .csr_rdata_o   (idu_csr_rdata_o),
         .csr_waddr_o   (idu_csr_waddr_o),
         .dec_imm_o     (idu_dec_imm_o),
         .dec_info_bus_o(idu_dec_info_bus_o)
@@ -224,7 +224,7 @@ module cpu_top (
         .reg_waddr_i   (idu_reg_waddr_o),
         .csr_we_i      (idu_csr_we_o),
         .csr_waddr_i   (idu_csr_waddr_o),
-        .csr_rdata_i   (idu_csr_rdata_o),
+        .csr_rdata_i   (csr_data_o),
         .dec_info_bus_i(idu_dec_info_bus_o),
         .dec_imm_i     (idu_dec_imm_o),
         .mem_rdata_i   (exu_mem_data_i),
@@ -250,20 +250,20 @@ module cpu_top (
         .muldiv_reg_we_o   (exu_muldiv_reg_we_o),
         .muldiv_reg_waddr_o(exu_muldiv_reg_waddr_o),
 
-        .csr_reg_wdata_o(exu_csr_reg_wdata_o),
-        .csr_reg_we_o   (exu_csr_reg_we_o),
-        .csr_reg_waddr_o(exu_csr_reg_waddr_o),
-
         .agu_reg_wdata_o(exu_agu_reg_wdata_o),
         .agu_reg_we_o   (exu_agu_reg_we_o),
         .agu_reg_waddr_o(exu_agu_reg_waddr_o),
 
-        .csr_wdata_o  (exu_csr_wdata_o),
-        .csr_we_o     (exu_csr_we_o),
-        .csr_waddr_o  (exu_csr_waddr_o),
-        .hold_flag_o  (exu_hold_flag_o),
-        .jump_flag_o  (exu_jump_flag_o),
-        .jump_addr_o  (exu_jump_addr_o),
+        // 连接CSR寄存器写数据信号
+        .csr_reg_wdata_o(exu_csr_reg_wdata_o),
+
+        .csr_wdata_o(exu_csr_wdata_o),
+        .csr_we_o   (exu_csr_we_o),
+        .csr_waddr_o(exu_csr_waddr_o),
+
+        .hold_flag_o     (exu_hold_flag_o),
+        .jump_flag_o     (exu_jump_flag_o),
+        .jump_addr_o     (exu_jump_addr_o),
         .muldiv_started_o(exu_muldiv_started_o),
 
         // 系统操作信号输出
@@ -285,29 +285,38 @@ module cpu_top (
         .muldiv_reg_we_i   (exu_muldiv_reg_we_o),
         .muldiv_reg_waddr_i(exu_muldiv_reg_waddr_o),
 
+        .csr_wdata_i(exu_csr_wdata_o),
+        .csr_we_i   (exu_csr_we_o),
+        .csr_waddr_i(exu_csr_waddr_o),
+
+        // CSR对通用寄存器的写数据输入
         .csr_reg_wdata_i(exu_csr_reg_wdata_o),
-        .csr_reg_we_i   (exu_csr_reg_we_o),
-        .csr_reg_waddr_i(exu_csr_reg_waddr_o),
 
         .agu_reg_wdata_i(exu_agu_reg_wdata_o),
         .agu_reg_we_i   (exu_agu_reg_we_o),
         .agu_reg_waddr_i(exu_agu_reg_waddr_o),
 
+        .idu_reg_waddr_i(idu_reg_waddr_o),
+
         .int_assert_i(clint_int_assert_o),
 
         .reg_wdata_o(wbu_reg_wdata_o),
         .reg_we_o   (wbu_reg_we_o),
-        .reg_waddr_o(wbu_reg_waddr_o)
+        .reg_waddr_o(wbu_reg_waddr_o),
+
+        .csr_wdata_o(wbu_csr_wdata_o),
+        .csr_we_o   (wbu_csr_we_o),
+        .csr_waddr_o(wbu_csr_waddr_o)
     );
 
     // clint模块例化
     clint u_clint (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .inst_addr_i  (idu_inst_addr_o),
-        .jump_flag_i  (exu_jump_flag_o),
-        .jump_addr_i  (exu_jump_addr_o),
-        .hold_flag_i  (ctrl_hold_flag_o),
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .inst_addr_i     (idu_inst_addr_o),
+        .jump_flag_i     (exu_jump_flag_o),
+        .jump_addr_i     (exu_jump_addr_o),
+        .hold_flag_i     (ctrl_hold_flag_o),
         .muldiv_started_i(exu_muldiv_started_o),
 
         // 连接系统操作信号

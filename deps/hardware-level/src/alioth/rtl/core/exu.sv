@@ -66,13 +66,12 @@ module exu (
     output wire                       muldiv_reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_o,
 
-    output wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
-    output wire                       csr_reg_we_o,
-    output wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_o,
-
     output wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_o,
     output wire                       agu_reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr_o,
+
+    // 增加CSR寄存器写数据输出端口
+    output wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
 
     // to csr reg
     output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
@@ -488,13 +487,12 @@ module exu (
     assign muldiv_reg_we_o    = muldiv_we;
     assign muldiv_reg_waddr_o = muldiv_waddr;
 
-    assign csr_reg_wdata_o    = csr_unit_reg_wdata;
-    assign csr_reg_we_o       = csr_we_i && inst_i[6:0] == `INST_CSR;
-    assign csr_reg_waddr_o    = reg_waddr_i;
-
     assign agu_reg_wdata_o    = agu_reg_wdata;
     assign agu_reg_we_o       = agu_reg_we;
     assign agu_reg_waddr_o    = agu_reg_waddr;
+
+    // 连接CSR寄存器写数据输出
+    assign csr_reg_wdata_o    = csr_unit_reg_wdata;
 
     // 输出选择逻辑
     assign hold_flag_o        = muldiv_hold_flag;  // 使用muldiv控制模块的hold信号
@@ -502,7 +500,7 @@ module exu (
     assign jump_addr_o        = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
 
     // CSR写数据选择
-    assign csr_we_o           = (int_assert_i == `INT_ASSERT) ? `WriteDisable : (csr_we_i && inst_i[6:0] == `INST_CSR);
+    assign csr_we_o           = csr_we_i;
     assign csr_waddr_o        = csr_waddr_i;
     assign csr_wdata_o        = csr_unit_wdata;
 

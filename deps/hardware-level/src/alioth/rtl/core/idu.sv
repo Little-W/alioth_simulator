@@ -34,9 +34,6 @@ module idu (
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
 
-    // from csr reg
-    input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,  // CSR寄存器输入数据
-
     // from ctrl
     input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
@@ -52,7 +49,6 @@ module idu (
     output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读通用寄存器2地址(传给EX)
     output wire                        csr_we_o,       // 写CSR寄存器标志
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
-    output wire [ `REG_DATA_WIDTH-1:0] csr_rdata_o,    // CSR寄存器数据
     output wire [                31:0] dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
 );
@@ -66,7 +62,7 @@ module idu (
     wire [ `REG_ADDR_WIDTH-1:0] id_reg2_raddr;
     wire                        id_csr_we;
     wire [ `BUS_ADDR_WIDTH-1:0] id_csr_waddr;
-    wire [ `REG_DATA_WIDTH-1:0] id_csr_rdata;
+    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_raddr;  // CSR读地址
     wire [                31:0] id_dec_imm;
     wire [  `DECINFO_WIDTH-1:0] id_dec_info_bus;
 
@@ -78,15 +74,12 @@ module idu (
         .inst_i     (inst_i),
         .inst_addr_i(inst_addr_i),
 
-        // from csr reg
-        .csr_rdata_i(csr_rdata_i),
-
         // to regs
         .reg1_raddr_o(id_reg1_raddr),
         .reg2_raddr_o(id_reg2_raddr),
 
         // to csr reg
-        .csr_raddr_o(csr_raddr_o),
+        .csr_raddr_o(id_csr_raddr),
 
         // to id_ex
         .dec_imm_o     (id_dec_imm),
@@ -96,7 +89,6 @@ module idu (
         .reg_we_o      (id_reg_we),
         .reg_waddr_o   (id_reg_waddr),
         .csr_we_o      (id_csr_we),
-        .csr_rdata_o   (id_csr_rdata),
         .csr_waddr_o   (id_csr_waddr)
     );
 
@@ -114,7 +106,7 @@ module idu (
         .reg2_raddr_i  (id_reg2_raddr),
         .csr_we_i      (id_csr_we),
         .csr_waddr_i   (id_csr_waddr),
-        .csr_rdata_i   (id_csr_rdata),
+        .csr_raddr_i   (id_csr_raddr),  // 传递CSR读地址
         .dec_info_bus_i(id_dec_info_bus),
         .dec_imm_i     (id_dec_imm),
 
@@ -129,8 +121,8 @@ module idu (
         .reg1_raddr_o  (reg1_raddr_o),
         .reg2_raddr_o  (reg2_raddr_o),
         .csr_we_o      (csr_we_o),
-        .csr_rdata_o   (csr_rdata_o),
         .csr_waddr_o   (csr_waddr_o),
+        .csr_raddr_o   (csr_raddr_o),  // 输出CSR读地址到顶层
         .dec_imm_o     (dec_imm_o),
         .dec_info_bus_o(dec_info_bus_o)
     );

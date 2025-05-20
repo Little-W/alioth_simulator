@@ -34,9 +34,6 @@ module idu_decode (
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
 
-    // from csr reg
-    input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,  // CSR寄存器输入数据
-
     // to regs
     output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,  // 读通用寄存器1地址
     output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
@@ -52,7 +49,6 @@ module idu_decode (
     output wire                        reg_we_o,        // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
     output wire                        csr_we_o,        // 写CSR寄存器标志
-    output wire [ `REG_DATA_WIDTH-1:0] csr_rdata_o,     // CSR寄存器数据
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
 
 );
@@ -307,7 +303,6 @@ module idu_decode (
 
     assign reg_waddr_o = access_rd ? rd : 5'h0;
     assign reg_we_o    = access_rd;
-    assign csr_rdata_o = csr_rdata_i;
 
     assign csr_waddr_o = insr_type_cstr ? {20'h0, inst_i[31:20]} : `ZeroWord;
     assign csr_we_o    = inst_csrrw | inst_csrrs | inst_csrrc;
