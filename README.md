@@ -51,7 +51,7 @@
 | 命令 | 说明 |
 |------|------|
 | `make alioth` | 编译Alioth处理器的Verilator仿真模型 |
-| `make test_all` | **一键编译CPU仿真模型并执行所有指令集测试** |
+| `make test_all TESTCASE=xxx` | **一键编译CPU仿真模型并执行所有指令集测试，可选参数TESTCASE指定测试类型(支持um,ui,mi)** |
 | `make clean` | 清理所有构建产物 |
 
 ### 代码编译指令
@@ -66,7 +66,7 @@
 | 命令 | 说明 |
 |------|------|
 | `make run PROGRAM_NAME=xxx` | 运行指定程序(需先用`make asm`编译) |
-| `make test` | 编译并运行单个测试用例 |
+| `make test TESTCASE=xxx` | 编译并运行测试用例，可选参数TESTCASE指定特定的RISC-V指令测试程序 |
 
 ## 使用教程
 
@@ -92,7 +92,19 @@ make run
 ```bash
 # 运行所有指令集测试
 make test_all
+
+# 只运行整数乘除法(um)和基本整数(ui)指令集测试
+make test_all TESTCASE=um,ui
+
+# 运行特定的测试程序
+make test TESTCASE=rv32um-p-div
 ```
+
+#### 测试集分类说明
+
+- `ui`: 基本整数指令测试 (如add, sub, and, or等)
+- `um`: 整数乘除法指令测试 (如mul, div, rem等)
+- `mi`: 机器模式指令测试 (如csr访问等)
 
 ## 环境兼容性
 
