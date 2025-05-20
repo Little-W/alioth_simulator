@@ -138,23 +138,29 @@ test_all: alioth compile_test_src
 		mkdir -p ${BUILD_DIR}/test_out ; \
 		echo "TESTCASE值是: '$(TESTCASE)'" ; \
 		TESTCASE_VALUE="$(TESTCASE)" ; \
+		# 编译后重新定义各类测试集合 \
+		UM_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv32um-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
+		UA_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv32ua-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
+		UI_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv${XLEN}ui-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
+		MI_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv${XLEN}mi-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
+		SELF_TESTS="$$UM_TESTS $$UA_TESTS $$UI_TESTS $$MI_TESTS" ; \
 		if [ -n "$$TESTCASE_VALUE" ] ; then \
 			TESTS_TO_RUN="" ; \
 			if echo ",$$TESTCASE_VALUE," | grep -E "um" > /dev/null; then \
 				echo "包含um测试" ; \
-				TESTS_TO_RUN="$$TESTS_TO_RUN $(UM_TESTS)" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $$UM_TESTS" ; \
 			fi ; \
 			if echo ",$$TESTCASE_VALUE," | grep -E "ua" > /dev/null; then \
 				echo "包含ua测试" ; \
-				TESTS_TO_RUN="$$TESTS_TO_RUN $(UA_TESTS)" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $$UA_TESTS" ; \
 			fi ; \
 			if echo ",$$TESTCASE_VALUE," | grep -E "ui" > /dev/null; then \
 				echo "包含ui测试" ; \
-				TESTS_TO_RUN="$$TESTS_TO_RUN $(UI_TESTS)" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $$UI_TESTS" ; \
 			fi ; \
 			if echo ",$$TESTCASE_VALUE," | grep -E "mi" > /dev/null; then \
 				echo "包含mi测试" ; \
-				TESTS_TO_RUN="$$TESTS_TO_RUN $(MI_TESTS)" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $$MI_TESTS" ; \
 			fi ; \
 			echo "Running selected test categories: $$TESTCASE_VALUE" ; \
 			echo "测试集合: $$TESTS_TO_RUN" ; \
@@ -163,7 +169,7 @@ test_all: alioth compile_test_src
 			done ; \
 		else \
 			echo "运行所有测试" ; \
-			for tst in $(SELF_TESTS); do \
+			for tst in $$SELF_TESTS; do \
 				make test DUMPWAVE=0 SIM_ROOT_DIR=${SIM_ROOT_DIR} TEST_PROGRAM=$$tst SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR} ; \
 			done ; \
 		fi ; \
