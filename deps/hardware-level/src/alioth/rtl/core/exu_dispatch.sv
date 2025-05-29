@@ -38,19 +38,7 @@ module exu_dispatch (
     output wire        req_alu_o,
     output wire [31:0] alu_op1_o,
     output wire [31:0] alu_op2_o,
-    output wire        alu_op_lui_o,
-    output wire        alu_op_auipc_o,
-    output wire        alu_op_add_o,
-    output wire        alu_op_sub_o,
-    output wire        alu_op_sll_o,
-    output wire        alu_op_slt_o,
-    output wire        alu_op_sltu_o,
-    output wire        alu_op_xor_o,
-    output wire        alu_op_srl_o,
-    output wire        alu_op_sra_o,
-    output wire        alu_op_or_o,
-    output wire        alu_op_and_o,
-    // output wire [ 4:0] rd_addr_o,       // 目标寄存器地址
+    output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
 
     // dispatch to Bru
     output wire        req_bjp_o,
@@ -133,18 +121,35 @@ module exu_dispatch (
     wire [31:0] alu_op2 = alu_op2_imm ? dec_imm_i : rs2_rdata_i;
     assign alu_op2_o      = bjp_op_jump_o ? 32'h4 : op_alu ? alu_op2 : 32'h0;
 
-    assign alu_op_lui_o   = alu_info[`DECINFO_ALU_LUI];  // LUI指令
-    assign alu_op_auipc_o = alu_info[`DECINFO_ALU_AUIPC];  // AUIPC指令
-    assign alu_op_add_o   = alu_info[`DECINFO_ALU_ADD];  // ADD/ADDI指令
-    assign alu_op_sub_o   = alu_info[`DECINFO_ALU_SUB];  // SUB指令
-    assign alu_op_sll_o   = alu_info[`DECINFO_ALU_SLL];  // SLL/SLLI指令
-    assign alu_op_slt_o   = alu_info[`DECINFO_ALU_SLT];  // SLT/SLTI指令
-    assign alu_op_sltu_o  = alu_info[`DECINFO_ALU_SLTU];  // SLTU/SLTIU指令
-    assign alu_op_xor_o   = alu_info[`DECINFO_ALU_XOR];  // XOR/XORI指令
-    assign alu_op_srl_o   = alu_info[`DECINFO_ALU_SRL];  // SRL/SRLI指令
-    assign alu_op_sra_o   = alu_info[`DECINFO_ALU_SRA];  // SRA/SRAI指令
-    assign alu_op_or_o    = alu_info[`DECINFO_ALU_OR];  // OR/ORI指令
-    assign alu_op_and_o   = alu_info[`DECINFO_ALU_AND];  // AND/ANDI指令
+    assign alu_op_info_o = {
+        bjp_op_jump_o,       // ALU_OP_JUMP
+        alu_info[`DECINFO_ALU_AUIPC],  // ALU_OP_AUIPC
+        alu_info[`DECINFO_ALU_LUI],    // ALU_OP_LUI
+        alu_info[`DECINFO_ALU_AND],    // ALU_OP_AND
+        alu_info[`DECINFO_ALU_OR],     // ALU_OP_OR
+        alu_info[`DECINFO_ALU_SRA],    // ALU_OP_SRA
+        alu_info[`DECINFO_ALU_SRL],    // ALU_OP_SRL
+        alu_info[`DECINFO_ALU_XOR],    // ALU_OP_XOR
+        alu_info[`DECINFO_ALU_SLTU],   // ALU_OP_SLTU
+        alu_info[`DECINFO_ALU_SLT],    // ALU_OP_SLT
+        alu_info[`DECINFO_ALU_SLL],    // ALU_OP_SLL
+        alu_info[`DECINFO_ALU_SUB],    // ALU_OP_SUB
+        alu_info[`DECINFO_ALU_ADD]     // ALU_OP_ADD
+    };
+    
+    // 这些单独的输出在转换阶段可以暂时保留，方便渐进式迁移
+    assign alu_op_lui_o   = alu_info[`DECINFO_ALU_LUI];
+    assign alu_op_auipc_o = alu_info[`DECINFO_ALU_AUIPC];
+    assign alu_op_add_o   = alu_info[`DECINFO_ALU_ADD];
+    assign alu_op_sub_o   = alu_info[`DECINFO_ALU_SUB];
+    assign alu_op_sll_o   = alu_info[`DECINFO_ALU_SLL];
+    assign alu_op_slt_o   = alu_info[`DECINFO_ALU_SLT];
+    assign alu_op_sltu_o  = alu_info[`DECINFO_ALU_SLTU];
+    assign alu_op_xor_o   = alu_info[`DECINFO_ALU_XOR];
+    assign alu_op_srl_o   = alu_info[`DECINFO_ALU_SRL];
+    assign alu_op_sra_o   = alu_info[`DECINFO_ALU_SRA];
+    assign alu_op_or_o    = alu_info[`DECINFO_ALU_OR];
+    assign alu_op_and_o   = alu_info[`DECINFO_ALU_AND];
     assign req_alu_o      = op_alu;
     // assign rd_addr_o      = inst_i[11:7];  // ALU指令的目标寄存器地址
 

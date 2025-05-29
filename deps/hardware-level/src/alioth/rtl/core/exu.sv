@@ -143,22 +143,12 @@ module exu (
     wire [                31:0] bjp_res;
     wire                        bjp_cmp_res;
 
-    // dispatch to ALU 
+    // dispatch to ALU
     wire [                31:0] alu_op1_o;
     wire [                31:0] alu_op2_o;
     wire                        req_alu_o;
-    wire                        alu_op_lui_o;
-    wire                        alu_op_auipc_o;
-    wire                        alu_op_add_o;
-    wire                        alu_op_sub_o;
-    wire                        alu_op_sll_o;
-    wire                        alu_op_slt_o;
-    wire                        alu_op_sltu_o;
-    wire                        alu_op_xor_o;
-    wire                        alu_op_srl_o;
-    wire                        alu_op_sra_o;
-    wire                        alu_op_or_o;
-    wire                        alu_op_and_o;
+    wire [   `ALU_OP_WIDTH-1:0] alu_op_info_o;
+
     // dispatch to BJP
     wire [                31:0] bjp_op1_o;
     wire [                31:0] bjp_op2_o;
@@ -229,18 +219,7 @@ module exu (
         .alu_op1_o          (alu_op1_o),
         .alu_op2_o          (alu_op2_o),
         .req_alu_o          (req_alu_o),
-        .alu_op_lui_o       (alu_op_lui_o),
-        .alu_op_auipc_o     (alu_op_auipc_o),
-        .alu_op_add_o       (alu_op_add_o),
-        .alu_op_sub_o       (alu_op_sub_o),
-        .alu_op_sll_o       (alu_op_sll_o),
-        .alu_op_slt_o       (alu_op_slt_o),
-        .alu_op_sltu_o      (alu_op_sltu_o),
-        .alu_op_xor_o       (alu_op_xor_o),
-        .alu_op_srl_o       (alu_op_srl_o),
-        .alu_op_sra_o       (alu_op_sra_o),
-        .alu_op_or_o        (alu_op_or_o),
-        .alu_op_and_o       (alu_op_and_o),
+        .alu_op_info_o      (alu_op_info_o),
         // dispatch to BJP
         .bjp_op1_o          (bjp_op1_o),
         .bjp_op2_o          (bjp_op2_o),
@@ -364,28 +343,16 @@ module exu (
 
     // 算术逻辑单元模块例化
     exu_alu u_alu (
-        .rst_n         (rst_n),
-        .req_alu_i     (req_alu_o),
-        .alu_op1_i     (alu_op1_o),
-        .alu_op2_i     (alu_op2_o),
-        .alu_op_lui_i  (alu_op_lui_o),
-        .alu_op_auipc_i(alu_op_auipc_o),
-        .alu_op_add_i  (alu_op_add_o),
-        .alu_op_sub_i  (alu_op_sub_o),
-        .alu_op_sll_i  (alu_op_sll_o),
-        .alu_op_slt_i  (alu_op_slt_o),
-        .alu_op_sltu_i (alu_op_sltu_o),
-        .alu_op_xor_i  (alu_op_xor_o),
-        .alu_op_srl_i  (alu_op_srl_o),
-        .alu_op_sra_i  (alu_op_sra_o),
-        .alu_op_or_i   (alu_op_or_o),
-        .alu_op_and_i  (alu_op_and_o),
-        .alu_op_jump_i (bjp_op_jump_o),
-        .alu_rd_i      (reg_waddr_i),
-        .int_assert_i  (int_assert_i),
-        .result_o      (alu_result),
-        .reg_we_o      (alu_reg_we),
-        .reg_waddr_o   (alu_reg_waddr)
+        .rst_n        (rst_n),
+        .req_alu_i    (req_alu_o),
+        .alu_op1_i    (alu_op1_o),
+        .alu_op2_i    (alu_op2_o),
+        .alu_op_info_i(alu_op_info_o),
+        .alu_rd_i     (reg_waddr_i),
+        .int_assert_i (int_assert_i),
+        .result_o     (alu_result),
+        .reg_we_o     (alu_reg_we),
+        .reg_waddr_o  (alu_reg_waddr)
     );
 
     // 分支单元模块例化
