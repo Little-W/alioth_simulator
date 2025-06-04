@@ -24,37 +24,47 @@
 
 `include "defines.svh"
 
-// 写回单元 - 负责寄存器写回逻辑和延迟
+// 写回单元 - 负责寄存器写回逻辑和仲裁优先级
 module wbu (
     input wire clk,
     input wire rst_n,
 
     // 来自EXU的ALU数据
-    input wire [`REG_DATA_WIDTH-1:0] alu_reg_wdata_i,
-    input wire                       alu_reg_we_i,
-    input wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr_i,
+    input  wire [`REG_DATA_WIDTH-1:0] alu_reg_wdata_i,
+    input  wire                       alu_reg_we_i,
+    input  wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr_i,
+    output wire                       alu_ready_o,      // ALU握手信号
 
     // 来自EXU的MULDIV数据
     input wire [`REG_DATA_WIDTH-1:0] muldiv_reg_wdata_i,
-    input wire                       muldiv_reg_we_i,
+    input wire muldiv_reg_we_i,
     input wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_i,
+    input wire [1:0] muldiv_inst_id_i,  // 乘除法指令ID
+    output wire muldiv_ready_o,  // MULDIV握手信号
 
     // 来自EXU的CSR数据
-    input wire [`REG_DATA_WIDTH-1:0] csr_wdata_i,
-    input wire                       csr_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input  wire [`REG_DATA_WIDTH-1:0] csr_wdata_i,
+    input  wire                       csr_we_i,
+    input  wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    output wire                       csr_ready_o,  // CSR握手信号
 
-    // 添加CSR寄存器写数据输入
+    // CSR寄存器写数据输入
     input wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_i,
 
     // 来自EXU的AGU/LSU数据
     input wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
     input wire                       agu_reg_we_i,
     input wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr_i,
+    input wire [                1:0] agu_inst_id_i,    // LSU指令ID
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
+
     // 中断信号
-    input wire                       int_assert_i,
+    input wire int_assert_i,
+
+    // 长指令完成信号（对接hazard_detection）
+    output wire       commit_valid_o,  // 指令完成有效信号
+    output wire [1:0] commit_id_o,     // 完成指令ID
 
     // 寄存器写回接口
     output wire [`REG_DATA_WIDTH-1:0] reg_wdata_o,
@@ -67,168 +77,56 @@ module wbu (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o
 );
 
-    // 延迟信号声明
-    wire [`REG_DATA_WIDTH-1:0] alu_result_delay;
-    wire                       alu_reg_we_delay;
-    wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr_delay;
+    // 确定各单元活动状态
+    wire agu_active = agu_reg_we_i;
+    wire muldiv_active = muldiv_reg_we_i;
+    wire csr_active = csr_we_i;
+    wire alu_active = alu_reg_we_i;
 
-    wire [`REG_DATA_WIDTH-1:0] muldiv_wdata_delay;
-    wire                       muldiv_we_delay;
-    wire [`REG_ADDR_WIDTH-1:0] muldiv_waddr_delay;
+    // 根据优先级判断冲突：LSU > MULDIV > CSR > ALU
+    wire muldiv_conflict = agu_active && muldiv_active;  // MULDIV与AGU冲突
+    wire csr_conflict = (agu_active || muldiv_active) && csr_active;  // CSR与更高优先级冲突
+    wire alu_conflict = (agu_active || muldiv_active || csr_active) && alu_active;  // ALU与更高优先级冲突
 
-    wire [`REG_DATA_WIDTH-1:0] csr_wdata_delay;
-    wire                       csr_we_delay;
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_delay;
+    // 各单元ready信号，当无冲突或者是最高优先级时为1
+    assign muldiv_ready_o = !muldiv_conflict;
+    assign csr_ready_o    = !csr_conflict;
+    assign alu_ready_o    = !alu_conflict;
 
-    // 使用D触发器延迟CSR寄存器数据一个周期 
-    wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_delay;
+    // 最终生效的写信号，按优先级选择
+    wire reg_we_effective = (int_assert_i != `INT_ASSERT) &&
+                            (agu_active || 
+                            (muldiv_active && !muldiv_conflict) || 
+                            (csr_active && !csr_conflict) || 
+                            (alu_active && !alu_conflict));
 
-    wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_delay;
-
-    // 中断信号延迟
-    wire int_assert_delay;
-
-    // 使用D触发器延迟ALU结果一个周期
-    gnrl_dff #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_alu_result_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (alu_reg_wdata_i),
-        .qout (alu_result_delay)
-    );
-
-    gnrl_dff #(
-        .DW(1)
-    ) u_alu_we_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (alu_reg_we_i),
-        .qout (alu_reg_we_delay)
-    );
-
-    gnrl_dff #(
-        .DW(`REG_ADDR_WIDTH)
-    ) u_alu_waddr_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (alu_reg_waddr_i),
-        .qout (alu_reg_waddr_delay)
-    );
-
-    // 使用D触发器延迟MULDIV结果一个周期
-    gnrl_dff #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_muldiv_data_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (muldiv_reg_wdata_i),
-        .qout (muldiv_wdata_delay)
-    );
-
-    gnrl_dff #(
-        .DW(1)
-    ) u_muldiv_we_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (muldiv_reg_we_i),
-        .qout (muldiv_we_delay)
-    );
-
-    gnrl_dff #(
-        .DW(`REG_ADDR_WIDTH)
-    ) u_muldiv_waddr_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (muldiv_reg_waddr_i),
-        .qout (muldiv_waddr_delay)
-    );
-
-    // 使用D触发器延迟CSR结果一个周期
-    gnrl_dff #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_csr_data_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (csr_wdata_i),
-        .qout (csr_wdata_delay)
-    );
-
-    gnrl_dff #(
-        .DW(1)
-    ) u_csr_we_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (csr_we_i),
-        .qout (csr_we_delay)
-    );
-
-    gnrl_dff #(
-        .DW(`BUS_ADDR_WIDTH)
-    ) u_csr_waddr_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (csr_waddr_i),
-        .qout (csr_waddr_delay)
-    );
-
-    gnrl_dff #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_csr_rdata_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (csr_reg_wdata_i),
-        .qout (csr_reg_wdata_delay)
-    );
-
-    gnrl_dff #(
-        .DW(`REG_ADDR_WIDTH)
-    ) u_idu_waddr_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (idu_reg_waddr_i),
-        .qout (idu_reg_waddr_delay)
-    );
-
-    // 添加中断信号延迟触发器
-    gnrl_dff #(
-        .DW(1)
-    ) u_int_assert_dff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (int_assert_i),
-        .qout (int_assert_delay)
-    );
-
-    // 选择优先级：MULDIV > AGU(LSU) > CSR > ALU
-    // 注意AGU/LSU数据已经在LSU内部延迟，所以直接使用
+    // 写数据多路选择器，按优先级选择
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
-    wire                       reg_we_r;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
-    // 使用assign语句实现优先级选择逻辑，避免X不定态传播
-    assign reg_wdata_r = muldiv_we_delay ? muldiv_wdata_delay :
-                         agu_reg_we_i ? agu_reg_wdata_i :
-                         csr_we_delay ? csr_reg_wdata_delay :
-                         alu_result_delay;
+    // 按照优先级选择最终写入的数据和地址
+    assign reg_wdata_r = agu_active ? agu_reg_wdata_i :
+                         (muldiv_active && !muldiv_conflict) ? muldiv_reg_wdata_i :
+                         (csr_active && !csr_conflict) ? csr_reg_wdata_i :
+                         alu_reg_wdata_i;
 
-    assign reg_we_r = (int_assert_delay == `INT_ASSERT) ? `WriteDisable :
-                      (muldiv_we_delay || agu_reg_we_i || csr_we_delay || alu_reg_we_delay);
+    assign reg_waddr_r = agu_active ? agu_reg_waddr_i :
+                         (muldiv_active && !muldiv_conflict) ? muldiv_reg_waddr_i :
+                         (alu_active && !alu_conflict) ? alu_reg_waddr_i :
+                         idu_reg_waddr_i;
 
-    assign reg_waddr_r = (int_assert_delay == `INT_ASSERT) ? `ZeroReg :
-                         muldiv_we_delay ? muldiv_waddr_delay :
-                         agu_reg_we_i ? agu_reg_waddr_i :
-                         alu_reg_we_delay ? alu_reg_waddr_delay :
-                         idu_reg_waddr_delay;
-
-    // 输出赋值
+    // 输出到寄存器文件的信号
+    assign reg_we_o = reg_we_effective;
     assign reg_wdata_o = reg_wdata_r;
-    assign reg_we_o = reg_we_r;
     assign reg_waddr_o = reg_waddr_r;
 
-    // CSR输出赋值
-    assign csr_we_o = (int_assert_delay == `INT_ASSERT) ? `WriteDisable : csr_we_delay;
-    assign csr_wdata_o = csr_wdata_delay;
-    assign csr_waddr_o = csr_waddr_delay;
+    // CSR写回信号
+    assign csr_we_o = (int_assert_i != `INT_ASSERT) && csr_active && !csr_conflict;
+    assign csr_wdata_o = csr_wdata_i;
+    assign csr_waddr_o = csr_waddr_i;
+
+    // 长指令完成信号（对接hazard_detection）
+    assign commit_valid_o = (muldiv_active || agu_active) && (int_assert_i != `INT_ASSERT);
+    assign commit_id_o = agu_active ? agu_inst_id_i : muldiv_inst_id_i;
 
 endmodule

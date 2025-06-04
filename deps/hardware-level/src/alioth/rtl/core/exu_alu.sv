@@ -26,14 +26,19 @@
 
 // 算术逻辑单元 - 采用复用设计
 module exu_alu (
+    input wire clk,   // 添加时钟信号
     input wire rst_n,
 
     // ALU
-    input wire        req_alu_i,
+    input wire req_alu_i,
     input wire [31:0] alu_op1_i,
     input wire [31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,  // 统一的ALU操作信息信号
-    input wire [ 4:0] alu_rd_i,
+    input wire [4:0] alu_rd_i,
+
+    // 握手信号和控制
+    input  wire wb_ready_i,  // 写回单元准备好接收ALU结果
+    output wire alu_hold_o,   // ALU暂停信号
 
     // 中断信号
     input wire int_assert_i,
@@ -49,32 +54,32 @@ module exu_alu (
     wire [31:0] mux_op2 = alu_op2_i;
 
     // ALU运算类型选择(包括R与I类型)
-    wire        op_add   = alu_op_info_i[`ALU_OP_ADD];
-    wire        op_sub   = alu_op_info_i[`ALU_OP_SUB];
-    wire        op_sll   = alu_op_info_i[`ALU_OP_SLL];
-    wire        op_slt   = alu_op_info_i[`ALU_OP_SLT];
-    wire        op_sltu  = alu_op_info_i[`ALU_OP_SLTU];
-    wire        op_xor   = alu_op_info_i[`ALU_OP_XOR];
-    wire        op_srl   = alu_op_info_i[`ALU_OP_SRL];
-    wire        op_sra   = alu_op_info_i[`ALU_OP_SRA];
-    wire        op_or    = alu_op_info_i[`ALU_OP_OR];
-    wire        op_and   = alu_op_info_i[`ALU_OP_AND];
-    wire        op_lui   = alu_op_info_i[`ALU_OP_LUI];
+    wire        op_add = alu_op_info_i[`ALU_OP_ADD];
+    wire        op_sub = alu_op_info_i[`ALU_OP_SUB];
+    wire        op_sll = alu_op_info_i[`ALU_OP_SLL];
+    wire        op_slt = alu_op_info_i[`ALU_OP_SLT];
+    wire        op_sltu = alu_op_info_i[`ALU_OP_SLTU];
+    wire        op_xor = alu_op_info_i[`ALU_OP_XOR];
+    wire        op_srl = alu_op_info_i[`ALU_OP_SRL];
+    wire        op_sra = alu_op_info_i[`ALU_OP_SRA];
+    wire        op_or = alu_op_info_i[`ALU_OP_OR];
+    wire        op_and = alu_op_info_i[`ALU_OP_AND];
+    wire        op_lui = alu_op_info_i[`ALU_OP_LUI];
     wire        op_auipc = alu_op_info_i[`ALU_OP_AUIPC];
-    wire        op_jump  = alu_op_info_i[`ALU_OP_JUMP];
+    wire        op_jump = alu_op_info_i[`ALU_OP_JUMP];
 
     // 指令分类信号 - 便于复用运算器
     wire        op_addsub = op_add | op_sub;  // 加减法操作
-    wire        op_shift = op_sll | op_srl | op_sra; // 移位操作
-    wire        op_logic = op_xor | op_or | op_and; // 逻辑操作
-    wire        op_compare = op_slt | op_sltu; // 比较操作
-    wire        op_mvop2 = op_lui; // 直接使用操作数2
+    wire        op_shift = op_sll | op_srl | op_sra;  // 移位操作
+    wire        op_logic = op_xor | op_or | op_and;  // 逻辑操作
+    wire        op_compare = op_slt | op_sltu;  // 比较操作
+    wire        op_mvop2 = op_lui;  // 直接使用操作数2
 
     //////////////////////////////////////////////////////////////
     // 1. 实现移位器 - 统一实现左移，右移通过输入翻转实现
     //////////////////////////////////////////////////////////////
     wire [31:0] shifter_in1;
-    wire [4:0] shifter_in2;
+    wire [ 4:0] shifter_in2;
     wire [31:0] shifter_res;
 
     // 为右移操作翻转输入位
@@ -122,7 +127,7 @@ module exu_alu (
     wire [31:0] adder_in1;
     wire [31:0] adder_in2;
     wire        adder_cin;
-    wire [32:0] adder_res; // 33位，包含进位信息
+    wire [32:0] adder_res;  // 33位，包含进位信息
 
     // 标识无符号操作
     wire op_unsigned = op_sltu;
@@ -143,7 +148,7 @@ module exu_alu (
     // 3. 实现逻辑运算单元 - XOR, OR, AND
     //////////////////////////////////////////////////////////////
     wire [31:0] xor_res = {32{op_xor}} & (mux_op1 ^ mux_op2);
-    wire [31:0] or_res  = {32{op_or}}  & (mux_op1 | mux_op2);
+    wire [31:0] or_res = {32{op_or}} & (mux_op1 | mux_op2);
     wire [31:0] and_res = {32{op_and}} & (mux_op1 & mux_op2);
 
     //////////////////////////////////////////////////////////////
@@ -194,18 +199,60 @@ module exu_alu (
         ({32{op_sltu}} & sltu_res) |
         ({32{op_lui}} & lui_res);
 
-    assign result_o = alu_res;
-    wire [4:0] rd = alu_rd_i;
-
     // 所有算术逻辑操作都需要写回寄存器
-    wire alu_reg_we = (int_assert_i == `INT_ASSERT) ? `WriteDisable :
+    wire alu_r_we = (int_assert_i == `INT_ASSERT) ? `WriteDisable :
                       (req_alu_i | op_jump) ? `WriteEnable : `WriteDisable;
 
-    assign reg_we_o = alu_reg_we;
-
     // 目标寄存器地址逻辑
-    wire [4:0] alu_reg_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : rd;
+    wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : alu_rd_i;
 
-    assign reg_waddr_o = alu_reg_waddr;
+    // 握手信号控制逻辑
+    wire update_output = wb_ready_i; // 仅在有效结果且ready时更新输出
+
+    // 握手失败时输出hold信号
+    assign alu_hold_o = reg_we_r & ~wb_ready_i;
+
+    // 使用gnrl_dfflr实例化输出级寄存器
+    wire [`REG_DATA_WIDTH-1:0] result_r;
+    wire                       reg_we_r;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+
+    // 结果寄存器
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) u_result_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (update_output),
+        .dnxt (alu_res),
+        .qout (result_r)
+    );
+
+    // 写使能寄存器
+    gnrl_dfflr #(
+        .DW(1)
+    ) u_r_we_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (update_output),
+        .dnxt (alu_r_we),
+        .qout (reg_we_r)
+    );
+
+    // 写地址寄存器
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) u_r_waddr_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (update_output),
+        .dnxt (alu_r_waddr),
+        .qout (reg_waddr_r)
+    );
+
+    // 输出信号赋值
+    assign result_o    = result_r;
+    assign reg_we_o    = reg_we_r;
+    assign reg_waddr_o = reg_waddr_r;
 
 endmodule

@@ -24,43 +24,65 @@
 
 `include "defines.svh"
 
-// 将指令向译码模块传递
+// PC寄存器模块
 module ifu_ifetch (
 
     input wire clk,
     input wire rst_n,
 
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
+    input wire jump_flag_i,  // 跳转标志
+    input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
+    input wire hold_pc_i,  // PC暂停信号
+    input wire axi_arready_i,  // AXI读地址通道准备好信号
 
-    input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
+    // ifu_pipe 所需的输入
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
+    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,   // 指令地址
+    input wire                        flush_flag_i,  // 流水线冲刷标志
+    input wire                        inst_valid_i,  // 指令有效信号
+    input wire                        hold_if_i,     // IF阶段保持信号
 
+    output wire [`INST_ADDR_WIDTH-1:0] pc_o,  // PC指针
+
+    // ifu_pipe 的输出
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址
 
 );
 
-    wire flush_en = (hold_flag_i >= `Hold_If);
-    wire flush_en_r;
-    gnrl_dff #(1) flush_en_ff (
+    // 下一个PC值
+    wire [`INST_ADDR_WIDTH-1:0] pc_nxt;
+
+    // 计算实际的PC暂停信号：原有暂停信号或AXI未就绪
+    wire                        hold_pc_actual = hold_pc_i || !axi_arready_i;
+
+    // 根据控制信号计算下一个PC值
+    assign pc_nxt = (!rst_n) ? `CpuResetAddr :  // 复位
+        (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
+        (hold_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
+        pc_o + 4'h4;  // 地址加4
+
+    // 使用gnrl_dff模块实现PC寄存器
+    gnrl_dff #(
+        .DW(`INST_ADDR_WIDTH)
+    ) pc_dff (
         .clk  (clk),
         .rst_n(rst_n),
-        .dnxt (flush_en),
-        .qout (flush_en_r)
+        .dnxt (pc_nxt),
+        .qout (pc_o)
     );
 
-    assign inst_o = flush_en_r ? `INST_NOP : inst_i;
-
-    wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    // 选择指令地址：如果需要冲刷流水线则选择ZeroWord，否则选择输入地址
-    wire [`INST_ADDR_WIDTH-1:0] addr_selected = flush_en ? `ZeroWord : inst_addr_i;
-
-    gnrl_dff #(`INST_ADDR_WIDTH) inst_addr_ff (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .dnxt (addr_selected),
-        .qout (inst_addr)
+    // 实例化ifu_pipe模块
+    ifu_pipe u_ifu_pipe (
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .inst_i      (inst_i),
+        .inst_addr_i (inst_addr_i),
+        .flush_flag_i(flush_flag_i),
+        .inst_valid_i(inst_valid_i),
+        .hold_i      (hold_if_i),
+        .inst_o      (inst_o),
+        .inst_addr_o (inst_addr_o)
     );
-    assign inst_addr_o = inst_addr;
 
 endmodule

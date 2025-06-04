@@ -33,6 +33,7 @@ module exu_dispatch (
     input wire [                31:0] dec_pc_i,
     input wire [                31:0] rs1_rdata_i,
     input wire [                31:0] rs2_rdata_i,
+    input wire [                 1:0] inst_id_i,    // 长指令ID输入
 
     // dispatch to ALU
     output wire        req_alu_o,
@@ -69,6 +70,7 @@ module exu_dispatch (
     output wire        muldiv_op_remu_o,
     output wire        muldiv_op_mul_all_o,
     output wire        muldiv_op_div_all_o,
+    output wire [ 1:0] muldiv_inst_id_o, // MULDIV长指令ID输出
 
     // dispatch to CSR
     output wire        req_csr_o,
@@ -93,6 +95,7 @@ module exu_dispatch (
     output wire        mem_op_sw_o,
     output wire        mem_op_load_o,
     output wire        mem_op_store_o,
+    output wire [ 1:0] mem_inst_id_o,    // MEM长指令ID输出
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -105,6 +108,10 @@ module exu_dispatch (
 );
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
+
+    // 长指令ID传递 - 仅传递给乘除法和访存模块
+    assign muldiv_inst_id_o = inst_id_i; // 乘除法指令ID
+    assign mem_inst_id_o = inst_id_i;    // 访存指令ID
 
     // ALU info
 
@@ -136,20 +143,7 @@ module exu_dispatch (
         alu_info[`DECINFO_ALU_SUB],    // ALU_OP_SUB
         alu_info[`DECINFO_ALU_ADD]     // ALU_OP_ADD
     };
-    
-    // 这些单独的输出在转换阶段可以暂时保留，方便渐进式迁移
-    assign alu_op_lui_o   = alu_info[`DECINFO_ALU_LUI];
-    assign alu_op_auipc_o = alu_info[`DECINFO_ALU_AUIPC];
-    assign alu_op_add_o   = alu_info[`DECINFO_ALU_ADD];
-    assign alu_op_sub_o   = alu_info[`DECINFO_ALU_SUB];
-    assign alu_op_sll_o   = alu_info[`DECINFO_ALU_SLL];
-    assign alu_op_slt_o   = alu_info[`DECINFO_ALU_SLT];
-    assign alu_op_sltu_o  = alu_info[`DECINFO_ALU_SLTU];
-    assign alu_op_xor_o   = alu_info[`DECINFO_ALU_XOR];
-    assign alu_op_srl_o   = alu_info[`DECINFO_ALU_SRL];
-    assign alu_op_sra_o   = alu_info[`DECINFO_ALU_SRA];
-    assign alu_op_or_o    = alu_info[`DECINFO_ALU_OR];
-    assign alu_op_and_o   = alu_info[`DECINFO_ALU_AND];
+
     assign req_alu_o      = op_alu;
     // assign rd_addr_o      = inst_i[11:7];  // ALU指令的目标寄存器地址
 

@@ -35,13 +35,11 @@ module exu_mul (
     input wire [`REG_DATA_WIDTH-1:0] multiplier_i,    // 乘数
     input wire                       start_i,         // 开始信号，与除法器一致，运算期间需保持有效
     input wire [                3:0] op_i,            // 操作类型
-    input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 运算结束后需要写的寄存器
 
     // to ex
     output reg [`REG_DATA_WIDTH-1:0] result_o,    // 乘法结果
-    output reg                       ready_o,     // 运算结束信号
     output reg                       busy_o,      // 正在运算信号
-    output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o  // 运算结束后需要写的寄存器
+    output reg                       valid_o      // 输出有效信号
 );
 
     // 状态定义
@@ -57,7 +55,6 @@ module exu_mul (
     reg  [                  3:0] op_r;
     reg  [  `REG_DATA_WIDTH-1:0] multiplicand_r;
     reg  [  `REG_DATA_WIDTH-1:0] multiplier_r;
-    reg  [  `REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
     // booth算法相关寄存器
     reg  [2*`REG_DATA_WIDTH+2:0] add1;  // +1倍被乘数
@@ -65,6 +62,7 @@ module exu_mul (
     reg  [2*`REG_DATA_WIDTH+2:0] add_x2;  // +2倍被乘数
     reg  [2*`REG_DATA_WIDTH+2:0] sub_x2;  // -2倍被乘数
     reg  [2*`REG_DATA_WIDTH+2:0] p_reg;  // 部分积
+    reg  [2*`REG_DATA_WIDTH+2:0] temp_result; // Booth算法临时结果
 
     // 把高 32 位先拿出来
     wire [  `REG_DATA_WIDTH-1:0] mult_tmp_high;
@@ -96,34 +94,31 @@ module exu_mul (
 
     // 状态寄存器更新
     always @(posedge clk) begin
-        if (rst_n == `RstEnable) current_state <= IDLE;
+        if (!rst_n) current_state <= IDLE;
         else if (!start_i) current_state <= IDLE;
         else current_state <= next_state;
     end
 
     // 操作执行
     always @(posedge clk) begin
-        if (rst_n == `RstEnable) begin
-            ready_o                             <= 1'b0;
+        if (!rst_n) begin
             busy_o                              <= 1'b0;
             result_o                            <= `ZeroWord;
+            valid_o                             <= 1'b0;
             count                               <= 5'd0;
             op_r                                <= 4'h0;
             multiplicand_r                      <= `ZeroWord;
             multiplier_r                        <= `ZeroWord;
-            reg_waddr_o                         <= `ZeroWord;
-            reg_waddr_r                         <= `ZeroWord;
             {add1, sub1, add_x2, sub_x2, p_reg} <= 0;
         end else begin
             case (current_state)
                 IDLE: begin
+                    valid_o            <= 1'b0;
                     if (start_i) begin
                         // 保存操作数和指令类型
                         multiplicand_r <= multiplicand_i;
                         multiplier_r   <= multiplier_i;
                         op_r           <= op_i;
-                        reg_waddr_r    <= reg_waddr_i;
-                        reg_waddr_o    <= reg_waddr_i;
 
                         // 初始化Booth Radix-4乘法器相关寄存器
                         add1           <= {{2{multiplicand_i[31]}}, multiplicand_i, {`REG_DATA_WIDTH + 1{1'b0}}};
@@ -134,16 +129,13 @@ module exu_mul (
 
                         count          <= 5'd0;
                         busy_o         <= 1'b1;
-                        ready_o        <= 1'b0;
                     end else begin
-                        busy_o  <= 1'b0;
-                        ready_o <= 1'b0;
+                        busy_o         <= 1'b0;
                     end
                 end
 
                 CALC: begin
-
-                    reg [2*`REG_DATA_WIDTH+2:0] temp_result;
+                    valid_o <= 1'b0;
 
                     // Radix-4 Booth算法核心计算 - 根据乘数的低3位决定操作
                     case (p_reg[2:0])
@@ -183,8 +175,7 @@ module exu_mul (
                             result_o <= mult_tmp_low;
                         end
                     endcase
-
-                    ready_o <= 1'b1;
+                    valid_o <= 1'b1;
                     busy_o  <= 1'b0;
                 end
             endcase

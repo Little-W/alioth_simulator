@@ -12,7 +12,7 @@
 // ToHost程序地址,用于监控测试是否结束
 `define PC_WRITE_TOHOST 32'h00000040
 
-`define ITCM alioth_soc_top_0.u_cpu_top.u_mems.u_itcm
+`define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 
 module tb_top (
     input clk,
@@ -28,7 +28,7 @@ module tb_top (
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_regs.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.pc_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
 
     integer           r;
     reg     [8*300:1] testcase;

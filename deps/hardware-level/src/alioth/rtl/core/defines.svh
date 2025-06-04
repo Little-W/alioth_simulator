@@ -26,8 +26,6 @@
 
 `define CpuResetAddr 32'h0
 
-`define RstEnable 1'b0
-`define RstDisable 1'b1
 `define ZeroWord 32'h0
 `define ZeroReg 5'h0
 `define WriteEnable 1'b1
@@ -40,8 +38,6 @@
 `define JumpDisable 1'b0
 `define DivResultNotReady 1'b0
 `define DivResultReady 1'b1
-`define DivStart 1'b1
-`define DivStop 1'b0
 `define HoldEnable 1'b1
 `define HoldDisable 1'b0
 `define Stop 1'b1
@@ -63,9 +59,9 @@
 
 `define HOLD_BUS_WIDTH 3
 `define Hold_None 3'b000
-`define Hold_Pc 3'b001
-`define Hold_If 3'b010
-`define Hold_Id 3'b011
+`define Hold_Flush 3'b011
+`define Hold_If 3'b01
+`define Hold_Id 3'b010
 
 // I type inst
 `define INST_TYPE_I 7'b0010011

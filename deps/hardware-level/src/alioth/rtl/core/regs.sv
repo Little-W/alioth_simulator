@@ -54,13 +54,13 @@ module regs (
 
     // 为每个寄存器生成写使能信号
     // 零寄存器(x0)永远不能被写入
-    assign reg_we[0] = 1'b0;  
+    assign reg_we[0] = 1'b0;
 
     // 为其他寄存器生成写使能信号
     genvar i;
     generate
         for (i = 1; i < `REG_NUM; i = i + 1) begin : gen_reg_we
-            assign reg_we[i] = (we_i == `WriteEnable) && (waddr_i == i) && (rst_n == `RstDisable);
+            assign reg_we[i] = (we_i == `WriteEnable) && (waddr_i == i) && rst_n;
         end
     endgenerate
 

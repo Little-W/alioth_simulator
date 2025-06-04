@@ -41,6 +41,7 @@ module idu_id_pipe (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
+    input wire [                 1:0] long_inst_id_i,  // 长指令ID输入
 
     input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
@@ -54,16 +55,20 @@ module idu_id_pipe (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
+    output wire [                 1:0] long_inst_id_o  // 长指令ID输出
 );
 
-    wire                        flush_en = (hold_flag_i >= `Hold_Id);
+    wire                        flush_en = (hold_flag_i >= `Hold_Flush);
+    wire                        hold_en = (hold_flag_i >= `Hold_Id);
+    wire                        reg_update_en = ~hold_en;
 
     wire [`INST_DATA_WIDTH-1:0] inst_dnxt = flush_en ? `INST_NOP : inst_i;
     wire [`INST_DATA_WIDTH-1:0] inst;
-    gnrl_dff #(32) inst_ff (
+    gnrl_dfflr #(32) inst_ff (
         clk,
         rst_n,
+        reg_update_en,
         inst_dnxt,
         inst
     );
@@ -71,9 +76,10 @@ module idu_id_pipe (
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
-    gnrl_dff #(32) inst_addr_ff (
+    gnrl_dfflr #(32) inst_addr_ff (
         clk,
         rst_n,
+        reg_update_en,
         inst_addr_dnxt,
         inst_addr
     );
@@ -81,9 +87,10 @@ module idu_id_pipe (
 
     wire reg_we_dnxt = flush_en ? `WriteDisable : reg_we_i;
     wire reg_we;
-    gnrl_dff #(1) reg_we_ff (
+    gnrl_dfflr #(1) reg_we_ff (
         clk,
         rst_n,
+        reg_update_en,
         reg_we_dnxt,
         reg_we
     );
@@ -91,9 +98,10 @@ module idu_id_pipe (
 
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = flush_en ? `ZeroReg : reg_waddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
-    gnrl_dff #(5) reg_waddr_ff (
+    gnrl_dfflr #(5) reg_waddr_ff (
         clk,
         rst_n,
+        reg_update_en,
         reg_waddr_dnxt,
         reg_waddr
     );
@@ -102,9 +110,10 @@ module idu_id_pipe (
     // 传递寄存器地址而非数据
     wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_dnxt = flush_en ? `ZeroReg : reg1_raddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg1_raddr;
-    gnrl_dff #(5) reg1_raddr_ff (
+    gnrl_dfflr #(5) reg1_raddr_ff (
         clk,
         rst_n,
+        reg_update_en,
         reg1_raddr_dnxt,
         reg1_raddr
     );
@@ -112,9 +121,10 @@ module idu_id_pipe (
 
     wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_dnxt = flush_en ? `ZeroReg : reg2_raddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg2_raddr;
-    gnrl_dff #(5) reg2_raddr_ff (
+    gnrl_dfflr #(5) reg2_raddr_ff (
         clk,
         rst_n,
+        reg_update_en,
         reg2_raddr_dnxt,
         reg2_raddr
     );
@@ -122,9 +132,10 @@ module idu_id_pipe (
 
     wire csr_we_dnxt = flush_en ? `WriteDisable : csr_we_i;
     wire csr_we;
-    gnrl_dff #(1) csr_we_ff (
+    gnrl_dfflr #(1) csr_we_ff (
         clk,
         rst_n,
+        reg_update_en,
         csr_we_dnxt,
         csr_we
     );
@@ -132,9 +143,10 @@ module idu_id_pipe (
 
     wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_dnxt = flush_en ? `ZeroWord : csr_waddr_i;
     wire [`BUS_ADDR_WIDTH-1:0] csr_waddr;
-    gnrl_dff #(32) csr_waddr_ff (
+    gnrl_dfflr #(32) csr_waddr_ff (
         clk,
         rst_n,
+        reg_update_en,
         csr_waddr_dnxt,
         csr_waddr
     );
@@ -143,9 +155,10 @@ module idu_id_pipe (
     // 传递CSR读地址
     wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = flush_en ? `ZeroWord : csr_raddr_i;
     wire [`BUS_ADDR_WIDTH-1:0] csr_raddr;
-    gnrl_dff #(32) csr_raddr_ff (
+    gnrl_dfflr #(32) csr_raddr_ff (
         clk,
         rst_n,
+        reg_update_en,
         csr_raddr_dnxt,
         csr_raddr
     );
@@ -154,9 +167,10 @@ module idu_id_pipe (
     // 译码信息总线传递
     wire [`DECINFO_WIDTH-1:0] dec_info_bus_dnxt = flush_en ? `ZeroWord : dec_info_bus_i;
     wire [`DECINFO_WIDTH-1:0] dec_info_bus;
-    gnrl_dff #(`DECINFO_WIDTH) dec_info_bus_ff (
+    gnrl_dfflr #(`DECINFO_WIDTH) dec_info_bus_ff (
         clk,
         rst_n,
+        reg_update_en,
         dec_info_bus_dnxt,
         dec_info_bus
     );
@@ -165,12 +179,25 @@ module idu_id_pipe (
     // 立即数传递
     wire [31:0] dec_imm_dnxt = flush_en ? `ZeroWord : dec_imm_i;
     wire [31:0] dec_imm;
-    gnrl_dff #(32) dec_imm_ff (
+    gnrl_dfflr #(32) dec_imm_ff (
         clk,
         rst_n,
+        reg_update_en,
         dec_imm_dnxt,
         dec_imm
     );
     assign dec_imm_o = dec_imm;
+
+    // 长指令ID传递
+    wire [1:0] long_inst_id_dnxt = flush_en ? 2'b00 : long_inst_id_i;
+    wire [1:0] long_inst_id;
+    gnrl_dfflr #(2) long_inst_id_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        long_inst_id_dnxt,
+        long_inst_id
+    );
+    assign long_inst_id_o = long_inst_id;
 
 endmodule

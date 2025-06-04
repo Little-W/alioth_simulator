@@ -5,7 +5,7 @@
 // 内存映射地址
 `define ITCM_BASE_ADDR 32'h0         // ITCM基地址
 `define ITCM_SIZE (1 << `ITCM_ADDR_WIDTH)     // ITCM大小：64KB
-`define DTCM_BASE_ADDR 32'h9000_0000 // DTCM基地址
+`define DTCM_BASE_ADDR 32'h0100_0000 // DTCM基地址
 `define DTCM_SIZE (1 << `DTCM_ADDR_WIDTH)     // DTCM大小：64KB
 
 // 内存初始化控制

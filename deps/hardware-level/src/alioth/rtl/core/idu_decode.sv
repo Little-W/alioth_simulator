@@ -27,7 +27,6 @@
 // 译码模块
 // 纯组合逻辑电路
 module idu_decode (
-
     input wire rst_n,
 
     // from if_id
@@ -42,19 +41,18 @@ module idu_decode (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
 
     // to ex
-    output wire [                31:0] dec_imm_o,       // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,          // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,     // 指令地址
-    output wire                        reg_we_o,        // 写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
-    output wire                        csr_we_o,        // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o      // 写CSR寄存器地址
-
+    output wire [31:0] dec_imm_o,  // 立即数
+    output wire [`DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,  // 指令内容
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,  // 指令地址
+    output wire reg_we_o,  // 写通用寄存器标志
+    output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,  // 写通用寄存器地址
+    output wire csr_we_o,  // 写CSR寄存器标志
+    output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o  // 写CSR寄存器地址
 );
 
-    assign inst_o       = inst_i;
-    assign inst_addr_o  = inst_addr_i;
+    assign inst_o      = inst_i;
+    assign inst_addr_o = inst_addr_i;
 
     wire [31:0] inst = inst_i;
     //取出指令域
@@ -66,9 +64,13 @@ module idu_decode (
     wire [4:0] rs2 = inst_i[24:20];
     // 指令中的立即数，拓展为32位
     wire [31:0] inst_u_type_imm = {inst[31:12], 12'b0};
-    wire [31:0] inst_j_type_imm = {{12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0};
+    wire [31:0] inst_j_type_imm = {
+        {12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0
+    };
     wire [31:0] inst_jr_type_imm = {{20{inst[31]}}, inst[31:20]};
-    wire [31:0] inst_b_type_imm = {{20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0};
+    wire [31:0] inst_b_type_imm = {
+        {20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0
+    };
     wire [31:0] inst_s_type_imm = {{20{inst[31]}}, inst[31:25], inst[11:7]};
     wire [31:0] inst_i_type_imm = {{20{inst[31]}}, inst[31:20]};
     wire [31:0] inst_csr_type_imm = {27'h0, inst[19:15]};
@@ -199,21 +201,21 @@ module idu_decode (
                        ({32{inst_sel_shift_imm}} & inst_shift_type_imm);
 
     wire [`DECINFO_ALU_BUS_WIDTH-1:0] dec_alu_info_bus;
-    assign dec_alu_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_ALU;
-    assign dec_alu_info_bus[`DECINFO_ALU_LUI]    = inst_lui;
-    assign dec_alu_info_bus[`DECINFO_ALU_AUIPC]  = inst_auipc;
-    assign dec_alu_info_bus[`DECINFO_ALU_ADD]    = inst_add | inst_addi;
-    assign dec_alu_info_bus[`DECINFO_ALU_SUB]    = inst_sub;
-    assign dec_alu_info_bus[`DECINFO_ALU_SLL]    = inst_sll | inst_slli;
-    assign dec_alu_info_bus[`DECINFO_ALU_SLT]    = inst_slt | inst_slti;
-    assign dec_alu_info_bus[`DECINFO_ALU_SLTU]   = inst_sltu | inst_sltiu;
-    assign dec_alu_info_bus[`DECINFO_ALU_XOR]    = (inst_xor | inst_xori);
-    assign dec_alu_info_bus[`DECINFO_ALU_SRL]    = inst_srl | inst_srli;
-    assign dec_alu_info_bus[`DECINFO_ALU_SRA]    = inst_sra | inst_srai;
-    assign dec_alu_info_bus[`DECINFO_ALU_OR]     = inst_or | inst_ori;
-    assign dec_alu_info_bus[`DECINFO_ALU_AND]    = inst_and | inst_andi;
+    assign dec_alu_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_ALU;
+    assign dec_alu_info_bus[`DECINFO_ALU_LUI] = inst_lui;
+    assign dec_alu_info_bus[`DECINFO_ALU_AUIPC] = inst_auipc;
+    assign dec_alu_info_bus[`DECINFO_ALU_ADD] = inst_add | inst_addi;
+    assign dec_alu_info_bus[`DECINFO_ALU_SUB] = inst_sub;
+    assign dec_alu_info_bus[`DECINFO_ALU_SLL] = inst_sll | inst_slli;
+    assign dec_alu_info_bus[`DECINFO_ALU_SLT] = inst_slt | inst_slti;
+    assign dec_alu_info_bus[`DECINFO_ALU_SLTU] = inst_sltu | inst_sltiu;
+    assign dec_alu_info_bus[`DECINFO_ALU_XOR] = (inst_xor | inst_xori);
+    assign dec_alu_info_bus[`DECINFO_ALU_SRL] = inst_srl | inst_srli;
+    assign dec_alu_info_bus[`DECINFO_ALU_SRA] = inst_sra | inst_srai;
+    assign dec_alu_info_bus[`DECINFO_ALU_OR] = inst_or | inst_ori;
+    assign dec_alu_info_bus[`DECINFO_ALU_AND] = inst_and | inst_andi;
     assign dec_alu_info_bus[`DECINFO_ALU_OP2IMM] = opcode_0010011 | inst_lui | inst_auipc;
-    assign dec_alu_info_bus[`DECINFO_ALU_OP1PC]  = inst_auipc;
+    assign dec_alu_info_bus[`DECINFO_ALU_OP1PC] = inst_auipc;
 
     wire [`DECINFO_BJP_BUS_WIDTH-1:0] dec_bjp_info_bus;
     assign dec_bjp_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_BJP;
@@ -241,10 +243,10 @@ module idu_decode (
     assign dec_muldiv_info_bus[`DECINFO_MULDIV_OP_DIV] = inst_type_div;
 
     wire [`DECINFO_CSR_BUS_WIDTH-1:0] dec_csr_info_bus;
-    assign dec_csr_info_bus[`DECINFO_GRP_BUS]     = `DECINFO_GRP_CSR;
-    assign dec_csr_info_bus[`DECINFO_CSR_CSRRW]   = inst_csrrw | inst_csrrwi;
-    assign dec_csr_info_bus[`DECINFO_CSR_CSRRS]   = inst_csrrs | inst_csrrsi;
-    assign dec_csr_info_bus[`DECINFO_CSR_CSRRC]   = inst_csrrc | inst_csrrci;
+    assign dec_csr_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_CSR;
+    assign dec_csr_info_bus[`DECINFO_CSR_CSRRW] = inst_csrrw | inst_csrrwi;
+    assign dec_csr_info_bus[`DECINFO_CSR_CSRRS] = inst_csrrs | inst_csrrsi;
+    assign dec_csr_info_bus[`DECINFO_CSR_CSRRC] = inst_csrrc | inst_csrrci;
     assign dec_csr_info_bus[`DECINFO_CSR_RS1IMM]  = inst_csrrwi | inst_csrrsi | inst_csrrci;
     assign dec_csr_info_bus[`DECINFO_CSR_CSRADDR] = inst[31:20];
 
