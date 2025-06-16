@@ -57,7 +57,7 @@ module ifu_ifetch (
     wire                        hold_pc_actual = hold_pc_i || !axi_arready_i;
 
     // 根据控制信号计算下一个PC值
-    assign pc_nxt = (!rst_n) ? `PCResetAddr :  // 复位
+    assign pc_nxt = (!rst_n) ? `PC_RESET_ADDR :  // 复位
         (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
         (hold_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
         pc_o + 4'h4;  // 地址加4

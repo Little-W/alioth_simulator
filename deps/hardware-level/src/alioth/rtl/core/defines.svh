@@ -24,33 +24,19 @@
 
 `include "config.svh"
 
-`define PCResetAddr 32'h0
-
 `define ZeroWord 32'h0
 `define ZeroReg 5'h0
 `define WriteEnable 1'b1
 `define WriteDisable 1'b0
-`define ReadEnable 1'b1
-`define ReadDisable 1'b0
-`define ChipEnable 1'b1
-`define ChipDisable 1'b0
 `define JumpEnable 1'b1
 `define JumpDisable 1'b0
-`define DivResultNotReady 1'b0
-`define DivResultReady 1'b1
 `define HoldEnable 1'b1
 `define HoldDisable 1'b0
-`define Stop 1'b1
-`define NoStop 1'b0
+
+`define PC_RESET_ADDR 32'h0
+
 `define INT_ASSERT 1'b1
 `define INT_DEASSERT 1'b0
-
-// 乘法器相关宏定义
-`define MulResultNotReady 1'b0
-`define MulResultReady 1'b1
-`define MulStart 1'b1
-`define MulStop 1'b0
-
 `define INT_BUS 7:0
 `define INT_NONE 8'h0
 `define INT_RET 8'hff
