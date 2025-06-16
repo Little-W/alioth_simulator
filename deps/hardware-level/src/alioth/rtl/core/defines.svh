@@ -24,7 +24,7 @@
 
 `include "config.svh"
 
-`define CpuResetAddr 32'h0
+`define PCResetAddr 32'h0
 
 `define ZeroWord 32'h0
 `define ZeroReg 5'h0
@@ -59,9 +59,9 @@
 
 `define HOLD_BUS_WIDTH 3
 `define Hold_None 3'b000
-`define Hold_Flush 3'b011
-`define Hold_If 3'b01
-`define Hold_Id 3'b010
+`define Hold_Flush 3'b001
+`define Hold_If 3'b010
+`define Hold_Id 3'b011
 
 // I type inst
 `define INST_TYPE_I 7'b0010011

@@ -44,6 +44,7 @@ module ifu_axi_master #(
     output wire [`INST_DATA_WIDTH-1:0] inst_data_o,  // 指令数据输出
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,  // 指令地址输出
     output wire inst_valid_o,  // 指令有效信号输出
+    output wire pc_stall_o,  // PC暂停信号输出
 
     // AXI读地址通道
     output wire [  C_M_AXI_ID_WIDTH-1:0] M_AXI_ARID,
@@ -77,7 +78,7 @@ module ifu_axi_master #(
     reg [C_M_AXI_ID_WIDTH-1:0] arid_reg;  // ARID寄存器
 
     // 循环FIFO实现 - 只保存地址
-    reg [`INST_ADDR_WIDTH-1:0] fifo_addr[0:1];  // 两级FIFO地址
+    reg [`INST_ADDR_WIDTH-1:0] fifo_addr[0:3];  // 两级FIFO地址
     reg [0:0] rd_ptr;  // 读指针
     reg [0:0] wr_ptr;  // 写指针
     reg [1:0] fifo_count;  // FIFO中数据数量
@@ -90,25 +91,31 @@ module ifu_axi_master #(
     wire same_cycle_resp;  // 同一周期响应
     wire [1:0] fifo_op;  // FIFO操作类型: {push, pop}
     wire rid_match;  // RID匹配信号
+    wire read_hsked;  // 读握手完成
     wire valid_resp;  // 有效响应信号
 
     // FIFO状态信号
     assign fifo_empty = (fifo_count == 0);
-    assign fifo_full = (fifo_count == 2);
+    assign fifo_full = (fifo_count == 3);
 
     // RID匹配检查
     assign rid_match = (M_AXI_RID == arid_reg);
 
-    assign valid_resp = M_AXI_RVALID && M_AXI_RREADY && !M_AXI_RRESP[1] && rid_match;
+    assign read_hsked = M_AXI_RVALID && M_AXI_RREADY && !M_AXI_RRESP[1];
+
+    assign valid_resp = read_hsked && rid_match;
+
+    // PC暂停信号输出
+    assign pc_stall_o = (M_AXI_ARVALID && !M_AXI_ARREADY) || fifo_full;
 
     // 同一周期响应检测
-    assign same_cycle_resp = M_AXI_ARVALID && M_AXI_ARREADY && valid_resp;
+    assign same_cycle_resp = M_AXI_ARVALID && M_AXI_ARREADY && valid_resp && fifo_empty;
 
-    // 推入条件：收到有效响应且RID匹配且不是同一周期响应且FIFO未满
-    assign push_fifo = valid_resp && !(M_AXI_ARVALID && M_AXI_ARREADY) && !fifo_full;
+    // 推入条件：收到有效地址响应且RID匹配且不是同一周期响应且FIFO未满
+    assign push_fifo = M_AXI_ARVALID && M_AXI_ARREADY && !same_cycle_resp && !fifo_full;
 
-    // 弹出条件：不冲刷且FIFO非空或同一周期有响应（使用flush_flag_i替代原来的hold_pc_i）
-    assign pop_fifo = !flush_flag_i && (!fifo_empty || same_cycle_resp);
+    // 弹出条件：不冲刷且FIFO非空或同一周期有响应
+    assign pop_fifo = !flush_flag_i && (!fifo_empty && valid_resp);
 
     // FIFO操作类型
     assign fifo_op = {push_fifo, pop_fifo && !same_cycle_resp};
@@ -125,7 +132,7 @@ module ifu_axi_master #(
     assign M_AXI_ARPROT = 3'h0;
     assign M_AXI_ARQOS = 4'h0;
     assign M_AXI_ARUSER = 4'h0;
-    assign M_AXI_ARVALID = !flush_flag_i;
+    assign M_AXI_ARVALID = !flush_flag_i && !fifo_full;  // 当不冲刷且FIFO未满时有效
     assign M_AXI_RREADY  = !flush_flag_i;  // flush_flag有效时拉低rready，否则为1
 
     // 读响应错误检测
@@ -183,8 +190,8 @@ module ifu_axi_master #(
     assign inst_data_o = M_AXI_RDATA;  // 数据直接从AXI连接到输出
 
     // 地址仍然从FIFO输出
-    assign inst_addr_o = (same_cycle_resp) ? M_AXI_ARADDR :
-                        (!fifo_empty) ? fifo_addr[rd_ptr] : 0;
-    assign inst_valid_o = same_cycle_resp || !fifo_empty;
+    assign inst_addr_o = (!fifo_empty) ? fifo_addr[rd_ptr] : 
+                         (same_cycle_resp) ? M_AXI_ARADDR : 0;
+    assign inst_valid_o = valid_resp;
 
 endmodule

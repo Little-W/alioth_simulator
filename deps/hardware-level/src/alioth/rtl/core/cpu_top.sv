@@ -75,6 +75,7 @@ module cpu_top (
 
     // 添加CSR寄存器写数据信号
     wire [ `REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
+    wire [ `REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
 
     // 系统操作信号
     wire                        exu_ecall_o;
@@ -254,7 +255,7 @@ module cpu_top (
         .jump_addr_i(exu_jump_addr_o),
         .hold_flag_ex_i(exu_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
-        .hold_flag_hdu_i  (idu_hold_flag_o),      // 新增: 从IDU的冒险检测单元接收暂停信号
+        .hold_flag_hdu_i(idu_hold_flag_o),  // 新增: 从IDU的冒险检测单元接收暂停信号
         .hold_flag_o(ctrl_hold_flag_o),
         .jump_flag_o(ctrl_jump_flag_o),
         .jump_addr_o(ctrl_jump_addr_o)
@@ -378,6 +379,7 @@ module cpu_top (
 
         // 连接CSR寄存器写数据信号
         .csr_reg_wdata_o(exu_csr_reg_wdata_o),
+        .csr_reg_waddr_o(exu_csr_reg_waddr_o),  // 连接CSR寄存器写地址输出
 
         .csr_wdata_o(exu_csr_wdata_o),
         .csr_we_o   (exu_csr_we_o),
@@ -461,6 +463,7 @@ module cpu_top (
 
         // CSR对通用寄存器的写数据输入
         .csr_reg_wdata_i(exu_csr_reg_wdata_o),
+        .csr_reg_waddr_i(exu_csr_reg_waddr_o),  // 连接CSR寄存器写地址
 
         .agu_reg_wdata_i(exu_agu_reg_wdata_o),
         .agu_reg_we_i   (exu_agu_reg_we_o),
@@ -486,13 +489,13 @@ module cpu_top (
 
     // clint模块例化
     clint u_clint (
-        .clk(clk),
-        .rst_n(rst_n),
-        .inst_addr_i(idu_inst_addr_o),
-        .jump_flag_i(exu_jump_flag_o),
-        .jump_addr_i(exu_jump_addr_o),
-        .hold_flag_i(ctrl_hold_flag_o),
-        .atom_opt_busy_i(atom_opt_busy),  // 原子操作忙标志
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .inst_addr_i    (idu_inst_addr_o),
+        .jump_flag_i    (exu_jump_flag_o),
+        .jump_addr_i    (exu_jump_addr_o),
+        .hold_flag_i    (ctrl_hold_flag_o),
+        .atom_opt_busy_i(atom_opt_busy),     // 原子操作忙标志
 
         // 连接系统操作信号
         .sys_op_ecall_i (exu_ecall_o),

@@ -65,7 +65,8 @@ module ifu (
 );
 
     // 在顶层处理hold_flag_i信号
-    wire hold_pc = (hold_flag_i != 0);  // PC暂停信号
+    wire axi_pc_stall;
+    wire hold_pc = (hold_flag_i != 0) || axi_pc_stall;  // PC暂停信号
     wire hold_if = (hold_flag_i >= `Hold_If);  // IF暂停信号
     wire flush_flag = (hold_flag_i >= `Hold_Flush);  // 流水线冲刷信号
 
@@ -104,6 +105,7 @@ module ifu (
         .inst_data_o(inst_data),  // 连接指令数据输出
         .inst_addr_o(inst_addr),  // 连接指令地址输出
         .inst_valid_o(inst_valid),  // 连接指令有效信号输出
+        .pc_stall_o(axi_pc_stall),  // 连接PC暂停信号输出
 
         // AXI读地址通道
         .M_AXI_ARID   (M_AXI_ARID),

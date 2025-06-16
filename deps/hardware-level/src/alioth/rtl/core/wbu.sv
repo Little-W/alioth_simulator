@@ -36,11 +36,11 @@ module wbu (
     output wire                       alu_ready_o,      // ALU握手信号
 
     // 来自EXU的MULDIV数据
-    input wire [`REG_DATA_WIDTH-1:0] muldiv_reg_wdata_i,
-    input wire muldiv_reg_we_i,
-    input wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_i,
-    input wire [1:0] muldiv_inst_id_i,  // 乘除法指令ID
-    output wire muldiv_ready_o,  // MULDIV握手信号
+    input  wire [`REG_DATA_WIDTH-1:0] muldiv_reg_wdata_i,
+    input  wire                       muldiv_reg_we_i,
+    input  wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_i,
+    input  wire [                1:0] muldiv_inst_id_i,    // 乘除法指令ID
+    output wire                       muldiv_ready_o,      // MULDIV握手信号
 
     // 来自EXU的CSR数据
     input  wire [`REG_DATA_WIDTH-1:0] csr_wdata_i,
@@ -50,6 +50,7 @@ module wbu (
 
     // CSR寄存器写数据输入
     input wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_i,
+    input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_i,  // 保留寄存器写地址输入
 
     // 来自EXU的AGU/LSU数据
     input wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
@@ -81,12 +82,14 @@ module wbu (
     wire agu_active = agu_reg_we_i;
     wire muldiv_active = muldiv_reg_we_i;
     wire csr_active = csr_we_i;
+    // 移除csr_reg_active，直接使用csr_active判断CSR写通用寄存器
     wire alu_active = alu_reg_we_i;
 
-    // 根据优先级判断冲突：LSU > MULDIV > CSR > ALU
-    wire muldiv_conflict = agu_active && muldiv_active;  // MULDIV与AGU冲突
-    wire csr_conflict = (agu_active || muldiv_active) && csr_active;  // CSR与更高优先级冲突
-    wire alu_conflict = (agu_active || muldiv_active || csr_active) && alu_active;  // ALU与更高优先级冲突
+    // 根据优先级判断冲突
+    wire muldiv_conflict = agu_active && muldiv_active;
+    wire csr_conflict = (agu_active || muldiv_active) && csr_active;
+    // 移除csr_reg_conflict判断
+    wire alu_conflict = (agu_active || muldiv_active || csr_active) && alu_active;
 
     // 各单元ready信号，当无冲突或者是最高优先级时为1
     assign muldiv_ready_o = !muldiv_conflict;
@@ -97,7 +100,7 @@ module wbu (
     wire reg_we_effective = (int_assert_i != `INT_ASSERT) &&
                             (agu_active || 
                             (muldiv_active && !muldiv_conflict) || 
-                            (csr_active && !csr_conflict) || 
+                            (csr_active && !csr_conflict) ||
                             (alu_active && !alu_conflict));
 
     // 写数据多路选择器，按优先级选择
@@ -108,11 +111,12 @@ module wbu (
     assign reg_wdata_r = agu_active ? agu_reg_wdata_i :
                          (muldiv_active && !muldiv_conflict) ? muldiv_reg_wdata_i :
                          (csr_active && !csr_conflict) ? csr_reg_wdata_i :
-                         alu_reg_wdata_i;
+        alu_reg_wdata_i;
 
     assign reg_waddr_r = agu_active ? agu_reg_waddr_i :
                          (muldiv_active && !muldiv_conflict) ? muldiv_reg_waddr_i :
-                         (alu_active && !alu_conflict) ? alu_reg_waddr_i :
+                         (csr_active && !csr_conflict) ? csr_reg_waddr_i :
+                         (alu_active && !alu_conflict) ? alu_reg_waddr_i : 
                          idu_reg_waddr_i;
 
     // 输出到寄存器文件的信号

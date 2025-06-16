@@ -83,8 +83,9 @@ module exu (
     // 新增AGU commit_id输出
     output wire [                3:0] agu_commit_id_o,
 
-    // 增加CSR寄存器写数据输出端口
+    // 更新CSR寄存器写数据输出端口
     output wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
+    output wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_o,
 
     // to csr reg
     output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
@@ -158,214 +159,212 @@ module exu (
 
     // 内部连线定义
     // 除法器信号
-    wire div_ready;
-    wire [`REG_DATA_WIDTH-1:0] div_result;
-    wire div_busy;
-    wire div_valid;  // 新增：除法结果有效信号
-    wire [`REG_ADDR_WIDTH-1:0] div_reg_waddr;
+    wire                        div_ready;
+    wire [ `REG_DATA_WIDTH-1:0] div_result;
+    wire                        div_busy;
+    wire                        div_valid;  // 新增：除法结果有效信号
+    wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr;
     // 除法器信号
-    wire div_start;
-    wire [`REG_DATA_WIDTH-1:0] div_dividend;
-    wire [`REG_DATA_WIDTH-1:0] div_divisor;
-    wire [3:0] div_op;
-    wire [`REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
+    wire                        div_start;
+    wire [ `REG_DATA_WIDTH-1:0] div_dividend;
+    wire [ `REG_DATA_WIDTH-1:0] div_divisor;
+    wire [                 3:0] div_op;
+    wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
 
     // 乘法器信号
-    wire mul_ready;
-    wire [`REG_DATA_WIDTH-1:0] mul_result;
-    wire mul_busy;
-    wire mul_valid;  // 新增：乘法结果有效信号
-    wire [`REG_ADDR_WIDTH-1:0] mul_reg_waddr;
+    wire                        mul_ready;
+    wire [ `REG_DATA_WIDTH-1:0] mul_result;
+    wire                        mul_busy;
+    wire                        mul_valid;  // 新增：乘法结果有效信号
+    wire [ `REG_ADDR_WIDTH-1:0] mul_reg_waddr;
     // 新增乘法器缺失信号
-    wire mul_start;
-    wire [`REG_DATA_WIDTH-1:0] mul_multiplicand;
-    wire [`REG_DATA_WIDTH-1:0] mul_multiplier;
-    wire [3:0] mul_op;
+    wire                        mul_start;
+    wire [ `REG_DATA_WIDTH-1:0] mul_multiplicand;
+    wire [ `REG_DATA_WIDTH-1:0] mul_multiplier;
+    wire [                 3:0] mul_op;
 
     // 新增：commit_id相关信号 - 修改为4位
-    wire [3:0] commit_id = {
-        2'b0, inst_id_i
-    };  // 将指令ID映射为4位commit_id
+    wire [                 3:0] commit_id = {2'b0, inst_id_i};  // 将指令ID映射为4位commit_id
 
     // 修改为4位commit_id
-    wire [3:0] mem_commit_id = {2'b0, mem_inst_id};
+    wire [                 3:0] mem_commit_id = {2'b0, mem_inst_id};
 
     // 新增：ALU握手相关信号
-    wire alu_hold;
+    wire                        alu_hold;
 
     // 新增：CSR握手相关信号
-    wire csr_hold;
-    wire csr_ready;  // CSR写回准备好信号
+    wire                        csr_hold;
+    wire                        csr_ready;  // CSR写回准备好信号
 
     // 新增：总线控制信号
-    wire [1:0] muldiv_inst_id;
-    wire [1:0] mem_inst_id;
+    wire [                 1:0] muldiv_inst_id;
+    wire [                 1:0] mem_inst_id;
 
-    wire [`REG_DATA_WIDTH-1:0] alu_result;
-    wire alu_reg_we;
-    wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr;
+    wire [ `REG_DATA_WIDTH-1:0] alu_result;
+    wire                        alu_reg_we;
+    wire [ `REG_ADDR_WIDTH-1:0] alu_reg_waddr;
 
-    wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata;
-    wire agu_reg_we;
-    wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr;
-    wire [3:0] agu_commit_id;  // 改为4位
+    wire [ `REG_DATA_WIDTH-1:0] agu_reg_wdata;
+    wire                        agu_reg_we;
+    wire [ `REG_ADDR_WIDTH-1:0] agu_reg_waddr;
+    wire [                 3:0] agu_commit_id;  // 改为4位
 
-    wire bru_jump_flag;
+    wire                        bru_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] bru_jump_addr;
 
-    wire [`REG_DATA_WIDTH-1:0] csr_unit_wdata;
-    wire [`REG_DATA_WIDTH-1:0] csr_unit_reg_wdata;
+    wire [ `REG_DATA_WIDTH-1:0] csr_unit_wdata;
+    wire [ `REG_DATA_WIDTH-1:0] csr_unit_reg_wdata;
 
-    wire muldiv_hold_flag;
-    wire muldiv_jump_flag;
+    wire                        muldiv_hold_flag;
+    wire                        muldiv_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] muldiv_jump_addr;
-    wire [`REG_DATA_WIDTH-1:0] muldiv_wdata;
+    wire [ `REG_DATA_WIDTH-1:0] muldiv_wdata;
 
-    wire muldiv_we;
-    wire [`REG_ADDR_WIDTH-1:0] muldiv_waddr;
-    wire [3:0] muldiv_commit_id;  // 改为4位
+    wire                        muldiv_we;
+    wire [ `REG_ADDR_WIDTH-1:0] muldiv_waddr;
+    wire [                 3:0] muldiv_commit_id;  // 改为4位
 
     // 来自ALU的分支比较结果
-    wire [31:0] bjp_res;
-    wire bjp_cmp_res;
+    wire [                31:0] bjp_res;
+    wire                        bjp_cmp_res;
 
     // dispatch to ALU
-    wire [31:0] alu_op1_o;
-    wire [31:0] alu_op2_o;
-    wire req_alu_o;
-    wire [`ALU_OP_WIDTH-1:0] alu_op_info_o;
+    wire [                31:0] alu_op1_o;
+    wire [                31:0] alu_op2_o;
+    wire                        req_alu_o;
+    wire [   `ALU_OP_WIDTH-1:0] alu_op_info_o;
 
     // dispatch to BJP
-    wire [31:0] bjp_op1_o;
-    wire [31:0] bjp_op2_o;
-    wire [31:0] bjp_jump_op1_o;
-    wire [31:0] bjp_jump_op2_o;
-    wire req_bjp_o;
-    wire bjp_op_jump_o;
-    wire bjp_op_beq_o;
-    wire bjp_op_bne_o;
-    wire bjp_op_blt_o;
-    wire bjp_op_bltu_o;
-    wire bjp_op_bge_o;
-    wire bjp_op_bgeu_o;
-    wire bjp_op_jalr_o;
+    wire [                31:0] bjp_op1_o;
+    wire [                31:0] bjp_op2_o;
+    wire [                31:0] bjp_jump_op1_o;
+    wire [                31:0] bjp_jump_op2_o;
+    wire                        req_bjp_o;
+    wire                        bjp_op_jump_o;
+    wire                        bjp_op_beq_o;
+    wire                        bjp_op_bne_o;
+    wire                        bjp_op_blt_o;
+    wire                        bjp_op_bltu_o;
+    wire                        bjp_op_bge_o;
+    wire                        bjp_op_bgeu_o;
+    wire                        bjp_op_jalr_o;
     // dispatch to MULDIV
-    wire req_muldiv_o;
-    wire [31:0] muldiv_op1_o;
-    wire [31:0] muldiv_op2_o;
-    wire muldiv_op_mul_o;
-    wire muldiv_op_mulh_o;
-    wire muldiv_op_mulhsu_o;
-    wire muldiv_op_mulhu_o;
-    wire muldiv_op_div_o;
-    wire muldiv_op_divu_o;
-    wire muldiv_op_rem_o;
-    wire muldiv_op_remu_o;
-    wire muldiv_op_mul_all_o;
-    wire muldiv_op_div_all_o;
+    wire                        req_muldiv_o;
+    wire [                31:0] muldiv_op1_o;
+    wire [                31:0] muldiv_op2_o;
+    wire                        muldiv_op_mul_o;
+    wire                        muldiv_op_mulh_o;
+    wire                        muldiv_op_mulhsu_o;
+    wire                        muldiv_op_mulhu_o;
+    wire                        muldiv_op_div_o;
+    wire                        muldiv_op_divu_o;
+    wire                        muldiv_op_rem_o;
+    wire                        muldiv_op_remu_o;
+    wire                        muldiv_op_mul_all_o;
+    wire                        muldiv_op_div_all_o;
     // dispatch to CSR
-    wire req_csr_o;
-    wire [31:0] csr_op1_o;
-    wire [31:0] csr_addr_o;
-    wire csr_csrrw_o;
-    wire csr_csrrs_o;
-    wire csr_csrrc_o;
+    wire                        req_csr_o;
+    wire [                31:0] csr_op1_o;
+    wire [                31:0] csr_addr_o;
+    wire                        csr_csrrw_o;
+    wire                        csr_csrrs_o;
+    wire                        csr_csrrc_o;
     // dispatch to MEM
-    wire req_mem_o;
-    wire [31:0] mem_op1_o;
-    wire [31:0] mem_op2_o;
-    wire [31:0] mem_rs2_data_o;
-    wire mem_op_lb_o;
-    wire mem_op_lh_o;
-    wire mem_op_lw_o;
-    wire mem_op_lbu_o;
-    wire mem_op_lhu_o;
-    wire mem_op_sb_o;
-    wire mem_op_sh_o;
-    wire mem_op_sw_o;
-    wire mem_op_load_o;
-    wire mem_op_store_o;
+    wire                        req_mem_o;
+    wire [                31:0] mem_op1_o;
+    wire [                31:0] mem_op2_o;
+    wire [                31:0] mem_rs2_data_o;
+    wire                        mem_op_lb_o;
+    wire                        mem_op_lh_o;
+    wire                        mem_op_lw_o;
+    wire                        mem_op_lbu_o;
+    wire                        mem_op_lhu_o;
+    wire                        mem_op_sb_o;
+    wire                        mem_op_sh_o;
+    wire                        mem_op_sw_o;
+    wire                        mem_op_load_o;
+    wire                        mem_op_store_o;
     // dispatch to SYS
-    wire sys_op_nop_o;
-    wire sys_op_mret_o;
-    wire sys_op_ecall_o;
-    wire sys_op_ebreak_o;
-    wire sys_op_fence_o;
-    wire sys_op_dret_o;
+    wire                        sys_op_nop_o;
+    wire                        sys_op_mret_o;
+    wire                        sys_op_ecall_o;
+    wire                        sys_op_ebreak_o;
+    wire                        sys_op_fence_o;
+    wire                        sys_op_dret_o;
 
     exu_dispatch u_exu_dispatch (
         // input
-        .inst_i(inst_i),
-        .dec_info_bus_i(dec_info_bus_i),
-        .dec_imm_i(dec_imm_i),
-        .dec_pc_i(inst_addr_i),
-        .rs1_rdata_i(reg1_rdata_i),
-        .rs2_rdata_i(reg2_rdata_i),
-        .inst_id_i(inst_id_i),  // 新增指令ID输入
+        .inst_i             (inst_i),
+        .dec_info_bus_i     (dec_info_bus_i),
+        .dec_imm_i          (dec_imm_i),
+        .dec_pc_i           (inst_addr_i),
+        .rs1_rdata_i        (reg1_rdata_i),
+        .rs2_rdata_i        (reg2_rdata_i),
+        .inst_id_i          (inst_id_i),            // 新增指令ID输入
         // dispatch to ALU
-        .alu_op1_o(alu_op1_o),
-        .alu_op2_o(alu_op2_o),
-        .req_alu_o(req_alu_o),
-        .alu_op_info_o(alu_op_info_o),
+        .alu_op1_o          (alu_op1_o),
+        .alu_op2_o          (alu_op2_o),
+        .req_alu_o          (req_alu_o),
+        .alu_op_info_o      (alu_op_info_o),
         // dispatch to BJP
-        .bjp_op1_o(bjp_op1_o),
-        .bjp_op2_o(bjp_op2_o),
-        .bjp_jump_op1_o(bjp_jump_op1_o),
-        .bjp_jump_op2_o(bjp_jump_op2_o),
-        .req_bjp_o(req_bjp_o),
-        .bjp_op_jump_o(bjp_op_jump_o),
-        .bjp_op_beq_o(bjp_op_beq_o),
-        .bjp_op_bne_o(bjp_op_bne_o),
-        .bjp_op_blt_o(bjp_op_blt_o),
-        .bjp_op_bltu_o(bjp_op_bltu_o),
-        .bjp_op_bge_o(bjp_op_bge_o),
-        .bjp_op_bgeu_o(bjp_op_bgeu_o),
-        .bjp_op_jalr_o(bjp_op_jalr_o),
+        .bjp_op1_o          (bjp_op1_o),
+        .bjp_op2_o          (bjp_op2_o),
+        .bjp_jump_op1_o     (bjp_jump_op1_o),
+        .bjp_jump_op2_o     (bjp_jump_op2_o),
+        .req_bjp_o          (req_bjp_o),
+        .bjp_op_jump_o      (bjp_op_jump_o),
+        .bjp_op_beq_o       (bjp_op_beq_o),
+        .bjp_op_bne_o       (bjp_op_bne_o),
+        .bjp_op_blt_o       (bjp_op_blt_o),
+        .bjp_op_bltu_o      (bjp_op_bltu_o),
+        .bjp_op_bge_o       (bjp_op_bge_o),
+        .bjp_op_bgeu_o      (bjp_op_bgeu_o),
+        .bjp_op_jalr_o      (bjp_op_jalr_o),
         // dispatch to MULDIV
-        .req_muldiv_o(req_muldiv_o),
-        .muldiv_op1_o(muldiv_op1_o),
-        .muldiv_op2_o(muldiv_op2_o),
-        .muldiv_op_mul_o(muldiv_op_mul_o),
-        .muldiv_op_mulh_o(muldiv_op_mulh_o),
-        .muldiv_op_mulhsu_o(muldiv_op_mulhsu_o),
-        .muldiv_op_mulhu_o(muldiv_op_mulhu_o),
-        .muldiv_op_div_o(muldiv_op_div_o),
-        .muldiv_op_divu_o(muldiv_op_divu_o),
-        .muldiv_op_rem_o(muldiv_op_rem_o),
-        .muldiv_op_remu_o(muldiv_op_remu_o),
+        .req_muldiv_o       (req_muldiv_o),
+        .muldiv_op1_o       (muldiv_op1_o),
+        .muldiv_op2_o       (muldiv_op2_o),
+        .muldiv_op_mul_o    (muldiv_op_mul_o),
+        .muldiv_op_mulh_o   (muldiv_op_mulh_o),
+        .muldiv_op_mulhsu_o (muldiv_op_mulhsu_o),
+        .muldiv_op_mulhu_o  (muldiv_op_mulhu_o),
+        .muldiv_op_div_o    (muldiv_op_div_o),
+        .muldiv_op_divu_o   (muldiv_op_divu_o),
+        .muldiv_op_rem_o    (muldiv_op_rem_o),
+        .muldiv_op_remu_o   (muldiv_op_remu_o),
         .muldiv_op_mul_all_o(muldiv_op_mul_all_o),
         .muldiv_op_div_all_o(muldiv_op_div_all_o),
-        .muldiv_inst_id_o(muldiv_inst_id),  // 新增MULDIV指令ID输出
+        .muldiv_inst_id_o   (muldiv_inst_id),       // 新增MULDIV指令ID输出
         // dispatch to CSR
-        .req_csr_o(req_csr_o),
-        .csr_op1_o(csr_op1_o),
-        .csr_addr_o(csr_addr_o),
-        .csr_csrrw_o(csr_csrrw_o),
-        .csr_csrrs_o(csr_csrrs_o),
-        .csr_csrrc_o(csr_csrrc_o),
+        .req_csr_o          (req_csr_o),
+        .csr_op1_o          (csr_op1_o),
+        .csr_addr_o         (csr_addr_o),
+        .csr_csrrw_o        (csr_csrrw_o),
+        .csr_csrrs_o        (csr_csrrs_o),
+        .csr_csrrc_o        (csr_csrrc_o),
         // dispatch to MEM
-        .req_mem_o(req_mem_o),
-        .mem_op1_o(mem_op1_o),
-        .mem_op2_o(mem_op2_o),
-        .mem_rs2_data_o(mem_rs2_data_o),
-        .mem_op_lb_o(mem_op_lb_o),
-        .mem_op_lh_o(mem_op_lh_o),
-        .mem_op_lw_o(mem_op_lw_o),
-        .mem_op_lbu_o(mem_op_lbu_o),
-        .mem_op_lhu_o(mem_op_lhu_o),
-        .mem_op_sb_o(mem_op_sb_o),
-        .mem_op_sh_o(mem_op_sh_o),
-        .mem_op_sw_o(mem_op_sw_o),
-        .mem_op_load_o(mem_op_load_o),
-        .mem_op_store_o(mem_op_store_o),
-        .mem_inst_id_o(mem_inst_id),  // 新增MEM指令ID输出
+        .req_mem_o          (req_mem_o),
+        .mem_op1_o          (mem_op1_o),
+        .mem_op2_o          (mem_op2_o),
+        .mem_rs2_data_o     (mem_rs2_data_o),
+        .mem_op_lb_o        (mem_op_lb_o),
+        .mem_op_lh_o        (mem_op_lh_o),
+        .mem_op_lw_o        (mem_op_lw_o),
+        .mem_op_lbu_o       (mem_op_lbu_o),
+        .mem_op_lhu_o       (mem_op_lhu_o),
+        .mem_op_sb_o        (mem_op_sb_o),
+        .mem_op_sh_o        (mem_op_sh_o),
+        .mem_op_sw_o        (mem_op_sw_o),
+        .mem_op_load_o      (mem_op_load_o),
+        .mem_op_store_o     (mem_op_store_o),
+        .mem_inst_id_o      (mem_inst_id),          // 新增MEM指令ID输出
         // dispatch to SYS
-        .sys_op_nop_o(sys_op_nop_o),
-        .sys_op_mret_o(sys_op_mret_o),
-        .sys_op_ecall_o(sys_op_ecall_o),
-        .sys_op_ebreak_o(sys_op_ebreak_o),
-        .sys_op_fence_o(sys_op_fence_o),
-        .sys_op_dret_o(sys_op_dret_o)
+        .sys_op_nop_o       (sys_op_nop_o),
+        .sys_op_mret_o      (sys_op_mret_o),
+        .sys_op_ecall_o     (sys_op_ecall_o),
+        .sys_op_ebreak_o    (sys_op_ebreak_o),
+        .sys_op_fence_o     (sys_op_fence_o),
+        .sys_op_dret_o      (sys_op_dret_o)
     );
 
     // 除法器模块例化
@@ -508,7 +507,7 @@ module exu (
         .jump_addr_o       (bru_jump_addr)
     );
 
-    // CSR处理单元模块例化 - 使用专用握手信号
+    // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数据
     exu_csr_unit u_csr_unit (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -521,26 +520,28 @@ module exu (
         .csr_rdata_i (csr_rdata_i),
         .csr_we_i    (csr_we_i),
         .csr_waddr_i (csr_waddr_i),
-        .wb_ready_i  (csr_wb_ready_i),  // 使用CSR专用写回准备信号
+        .reg_waddr_i (reg_waddr_i),      // 连接寄存器写地址输入
+        .wb_ready_i  (csr_wb_ready_i),
         .csr_hold_o  (csr_hold),
         .int_assert_i(int_assert_i),
         .csr_wdata_o (csr_wdata_o),
         .csr_we_o    (csr_we_o),
         .csr_waddr_o (csr_waddr_o),
-        .reg_wdata_o (csr_reg_wdata_o)
+        .reg_wdata_o (csr_reg_wdata_o),
+        .reg_waddr_o (csr_reg_waddr_o)     // 连接寄存器写地址输出
     );
 
     // 乘除法控制逻辑 - 使用专用握手信号
     exu_muldiv_ctrl u_muldiv_ctrl (
-        .clk(clk),
-        .rst_n(rst_n),
-        .wb_ready(muldiv_wb_ready_i),  // 使用MULDIV专用写回准备信号
-        .reg_waddr_i(reg_waddr_i),
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .wb_ready    (muldiv_wb_ready_i),      // 使用MULDIV专用写回准备信号
+        .reg_waddr_i (reg_waddr_i),
         .reg1_rdata_i(reg1_rdata_i),
         .reg2_rdata_i(reg2_rdata_i),
-        .op1_jump_i(bjp_jump_op1_o),
-        .op2_jump_i(bjp_jump_op2_o),
-        .commit_id_i({2'b0, muldiv_inst_id}),  // 修改为4位
+        .op1_jump_i  (bjp_jump_op1_o),
+        .op2_jump_i  (bjp_jump_op2_o),
+        .commit_id_i ({2'b0, muldiv_inst_id}), // 修改为4位
 
         // 连接dispatch模块的译码信号
         .req_muldiv_i       (req_muldiv_o),
@@ -597,8 +598,8 @@ module exu (
 
     // 输出选择逻辑 - 修改hold_flag输出，考虑所有握手信号
     assign hold_flag_o = muldiv_hold_flag | alu_hold | csr_hold | mem_stall_o;
-    assign jump_flag_o        = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
-    assign jump_addr_o        = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
+    assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
+    assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
 
     // 将乘除法开始信号输出给clint
     assign muldiv_started_o = div_start | mul_start;
