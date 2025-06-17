@@ -30,7 +30,6 @@ module idu_id_pipe (
     input wire                        clk,
     input wire                        rst_n,
     // 输入
-    input wire [                31:0] inst_i,          // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,     // 指令地址
     input wire                        reg_we_i,        // 写通用寄存器标志
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 写通用寄存器地址
@@ -44,7 +43,6 @@ module idu_id_pipe (
 
     input wire [`HOLD_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,         // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
     output wire                        reg_we_o,       // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写通用寄存器地址
@@ -60,17 +58,6 @@ module idu_id_pipe (
     wire                        flush_en = (stall_flag_i >= `Hold_Flush);
     wire                        stall_en = (stall_flag_i >= `Hold_Id);
     wire                        reg_update_en = ~stall_en;
-
-    wire [`INST_DATA_WIDTH-1:0] inst_dnxt = flush_en ? `INST_NOP : inst_i;
-    wire [`INST_DATA_WIDTH-1:0] inst;
-    gnrl_dfflr #(32) inst_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        inst_dnxt,
-        inst
-    );
-    assign inst_o = inst;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;

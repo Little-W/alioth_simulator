@@ -2,18 +2,22 @@
 
 `include "defines.svh"
 
+`ifdef JTAGVPI
+`define NO_TIMEOUT
+`endif
+
 // 宏定义控制寄存器调试输出
 // `define DEBUG_DISPLAY_REGS 1
 
 // ToHost程序地址,用于监控测试是否结束
 `define PC_WRITE_TOHOST 32'h00000040
 
-`define ITCM alioth_soc_top_0.u_cpu_top.u_mems.u_itcm
+`define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 
 module tb_top;
     // 定义信号
-    reg clk;
-    reg rst_n;
+    reg  clk;
+    reg  rst_n;
 
     // JTAG接口信号
     reg  tck_i;
@@ -27,7 +31,9 @@ module tb_top;
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.pc_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
+    wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.mcycle[31:0];
+    wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
 
     integer           r;
     reg     [8*300:1] testcase;
@@ -44,39 +50,28 @@ module tb_top;
     // 添加PC监控变量
     reg [31:0] pc_write_to_host_cnt;
     reg [31:0] pc_write_to_host_cycle;
-    reg [31:0] valid_ir_cycle;
-    reg [31:0] cycle_count;
     reg pc_write_to_host_flag;
-    reg [31:0] last_pc;  // 添加一个寄存器来存储上一次的PC值
+    reg [31:0] last_pc;  // 保留用于监测PC变化
 
-    // 添加指令计数和IPC计算相关变量
-    reg [31:0] instruction_count;
-    wire valid_instruction = (pc != last_pc);  // PC变化时认为执行了一条指令
-    real ipc;
+    // 不再自己维护周期和指令计数，直接从CSR获取
+    wire [31:0] current_cycle = csr_cycle[31:0];
+    wire [31:0] current_instructions = csr_instret[31:0];
 
-    // 周期计数器 - 保持同步实现
+    // 周期计数器 - 简化为只更新last_pc
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            cycle_count       <= 32'b0;
-            last_pc           <= 32'b0;  // 初始化上一次的PC值
-            instruction_count <= 32'b0;  // 重置指令计数
+            last_pc <= 32'b0;
         end else begin
-            cycle_count <= cycle_count + 1'b1;
-            last_pc     <= pc;  // 在时钟边缘更新上一次的PC值，用于检测变化
-
-            // 基于PC变化进行指令计数
-            if (valid_instruction) begin
-                instruction_count <= instruction_count + 1'b1;
-            end
+            last_pc <= pc;  // 仍然保留PC变化监测，用于触发to_host判断
         end
     end
 
-    // PC监控逻辑
+    // PC监控逻辑 - 保留用于测试结束判断
     always @(pc) begin
         if (pc == `PC_WRITE_TOHOST && pc != last_pc) begin
             pc_write_to_host_cnt = pc_write_to_host_cnt + 1'b1;
             if (pc_write_to_host_flag == 1'b0) begin
-                pc_write_to_host_cycle = cycle_count;
+                pc_write_to_host_cycle = current_cycle;  // 使用CSR获取的cycle值
                 pc_write_to_host_flag  = 1'b1;
             end
         end
@@ -91,39 +86,41 @@ module tb_top;
         end
     end
 
-    // 超时监控
+    // 超时监控 - 使用CSR的cycle计数
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset logic
         end else begin
-            if (cycle_count[20] == 1'b1) begin
+`ifndef NO_TIMEOUT
+            if (current_cycle[20] == 1'b1) begin
                 $display("Time Out !!!");
                 $finish;
             end
+`endif
         end
     end
 
     // 测试用例解析
     initial begin
         // 初始化信号
-        clk = 0;
-        rst_n = 0;
-        tck_i = 0;
-        tms_i = 0;
-        tdi_i = 0;
-        
+        clk                    = 0;
+        rst_n                  = 0;
+        tck_i                  = 0;
+        tms_i                  = 0;
+        tdi_i                  = 0;
+
         // 初始化监控变量
-        pc_write_to_host_cnt = 0;
-        pc_write_to_host_flag = 0;
+        pc_write_to_host_cnt   = 0;
+        pc_write_to_host_flag  = 0;
         pc_write_to_host_cycle = 0;
-        
+
         // 波形转储
         if ($value$plusargs("dumpwave=%d", dumpwave) && dumpwave != 0) begin
             $dumpfile("tb_top.vcd");
             $dumpvars(0, tb_top);
             $display("Dump waveform to VCD file enabled");
         end
-        
+
         $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         if ($value$plusargs("itcm_init=%s", testcase)) begin
             // 只输出有效的testcase内容
@@ -139,7 +136,7 @@ module tb_top;
 
         // 复位保持一段时间
         #100;
-        
+
         // 处理小端序格式并更新到新的ITCM存储位置
         for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
             `ITCM.mem_r[i] = {prog_mem[i*4+3], prog_mem[i*4+2], prog_mem[i*4+1], prog_mem[i*4+0]};
@@ -151,7 +148,7 @@ module tb_top;
         $display("ITCM 0x02: %h", `ITCM.mem_r[2]);
         $display("ITCM 0x03: %h", `ITCM.mem_r[3]);
         $display("ITCM 0x04: %h", `ITCM.mem_r[4]);
-        
+
         // 释放复位
         #100;
         rst_n = 1;
@@ -159,9 +156,10 @@ module tb_top;
 
     // 对pc_write_to_host_cnt的变化进行监控
     always @(pc_write_to_host_cnt) begin
-        if (pc_write_to_host_cnt == 32'd8) begin
-            // 计算IPC
-            ipc = (instruction_count > 0 && cycle_count > 0) ? (instruction_count * 1.0) / cycle_count : 0.0;
+        if (pc_write_to_host_cnt == 32'd2) begin
+            // 计算IPC - 使用CSR计数器
+            real ipc = (current_instructions > 0 && current_cycle > 0) ? 
+                      (current_instructions * 1.0) / current_cycle : 0.0;
 
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -172,9 +170,11 @@ module tb_top;
             $write("~TESTCASE: ");
             display_testcase_name();
             $display("~");
-            $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", cycle_count);
-            $display("~~~~~The test ending reached at cycle: %d ~~~~~~~~~~~~~", pc_write_to_host_cycle);
-            $display("~~~~~~~~~~Total instructions executed: %d ~~~~~~~~~~~~~", instruction_count);
+            $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", current_cycle);
+            $display("~~~~~The test ending reached at cycle: %d ~~~~~~~~~~~~~",
+                     pc_write_to_host_cycle);
+            $display("~~~~~~~~~~Total instructions executed: %d ~~~~~~~~~~~~~",
+                     current_instructions);
             $display("~~~~~~~~~~~~~~~~~~ IPC value: %.4f ~~~~~~~~~~~~~~~~~~", ipc);
             $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -200,10 +200,12 @@ module tb_top;
                 $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
                 $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 $display("fail testnum = %2d", x3);
-                for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
+                for (r = 0; r < 32; r = r + 1)
+                $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
             end
             // 输出性能指标，方便脚本提取
-            $display("PERF_METRIC: CYCLES=%-d INSTS=%-d IPC=%.4f", cycle_count, instruction_count, ipc);
+            $display("PERF_METRIC: CYCLES=%-d INSTS=%-d IPC=%.4f", current_cycle,
+                     current_instructions, ipc);
             $finish;
         end
     end
@@ -213,13 +215,11 @@ module tb_top;
         integer       i;
         reg     [7:0] ch;
         reg           printing;
-        reg           continue_loop;
 
         printing = 0;
-        continue_loop = 1;
 
         // 跳过前导空格和空字符
-        for (i = 300; i >= 1 && continue_loop; i = i - 1) begin
+        for (i = 300; i >= 1; i = i - 1) begin
             ch = testcase[i*8-:8];
 
             // 如果找到有效字符，开始打印
@@ -231,15 +231,34 @@ module tb_top;
             if (printing && (ch == 8'h00 || ch == 8'h0A)) begin
                 printing = 0;
                 // 完成打印
-                continue_loop = 0;
+                break;
             end
 
             // 处于打印模式且有有效字符时输出
-            if (printing && ch >= 8'h20 && continue_loop) begin
+            if (printing && ch >= 8'h20) begin
                 $write("%c", ch);
             end
         end
     endtask
+
+    /*
+`ifdef JTAGVPI
+    wire jtag_TDI;
+    wire jtag_TDO;
+    wire jtag_TCK;
+    wire jtag_TMS;
+    assign jtag_TDI = tdi_i;
+    assign tdo_o    = jtag_TDO;
+    assign jtag_TCK = tck_i;
+    assign jtag_TMS = tms_i;
+`else
+    wire jtag_TDI = 1'b0;
+    wire jtag_TDO;
+    wire jtag_TCK = 1'b0;
+    wire jtag_TMS = 1'b0;
+    wire jtag_TRST = 1'b0;
+`endif
+    */
 
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
@@ -261,7 +280,8 @@ module tb_top;
         if (write_gpr_reg && (write_gpr_addr == 5'd31)) begin
             $display("\n");
             $display("GPR Register Status:");
-            for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
+            for (r = 0; r < 32; r = r + 1)
+            $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
         end else if (write_csr_reg && (write_csr_addr[11:0] == 12'hc00)) begin
             $display("\n");
             $display("CSR Register Status:");

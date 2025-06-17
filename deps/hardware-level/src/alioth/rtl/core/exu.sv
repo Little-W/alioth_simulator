@@ -30,7 +30,6 @@ module exu (
     input wire rst_n,
 
     // from id_ex
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
     input wire                        reg_we_i,
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -294,7 +293,6 @@ module exu (
 
     exu_dispatch u_exu_dispatch (
         // input
-        .inst_i             (inst_i),
         .dec_info_bus_i     (dec_info_bus_i),
         .dec_imm_i          (dec_imm_i),
         .dec_pc_i           (inst_addr_i),

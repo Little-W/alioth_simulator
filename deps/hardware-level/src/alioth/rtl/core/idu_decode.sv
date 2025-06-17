@@ -43,7 +43,6 @@ module idu_decode (
     // to ex
     output wire [31:0] dec_imm_o,  // 立即数
     output wire [`DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,  // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,  // 指令地址
     output wire reg_we_o,  // 写通用寄存器标志
     output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,  // 写通用寄存器地址
@@ -51,7 +50,6 @@ module idu_decode (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o  // 写CSR寄存器地址
 );
 
-    assign inst_o      = inst_i;
     assign inst_addr_o = inst_addr_i;
 
     wire [31:0] inst = inst_i;

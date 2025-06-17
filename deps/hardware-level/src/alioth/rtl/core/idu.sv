@@ -45,7 +45,6 @@ module idu (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
 
     // to ex
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,         // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
     output wire                        reg_we_o,       // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写通用寄存器地址
@@ -58,8 +57,7 @@ module idu (
     // 移除了HDU相关的输出
 );
 
-    // 内部连线，连接id和id_ex
-    wire [`INST_DATA_WIDTH-1:0] id_inst;
+    // 内部连线，连接id和id_pipe
     wire [`INST_ADDR_WIDTH-1:0] id_inst_addr;
     wire                        id_reg_we;
     wire [ `REG_ADDR_WIDTH-1:0] id_reg_waddr;
@@ -91,7 +89,6 @@ module idu (
         // to id_ex
         .dec_imm_o     (id_dec_imm),
         .dec_info_bus_o(id_dec_info_bus),
-        .inst_o        (id_inst),
         .inst_addr_o   (id_inst_addr),
         .reg_we_o      (id_reg_we),
         .reg_waddr_o   (id_reg_waddr),
@@ -107,7 +104,6 @@ module idu (
         .rst_n(rst_n),
 
         // from id
-        .inst_i        (id_inst),
         .inst_addr_i   (id_inst_addr),
         .reg_we_i      (id_reg_we),
         .reg_waddr_i   (id_reg_waddr),
@@ -123,7 +119,6 @@ module idu (
         .stall_flag_i(stall_flag_i),
 
         // to ex
-        .inst_o        (inst_o),
         .inst_addr_o   (inst_addr_o),
         .reg_we_o      (reg_we_o),
         .reg_waddr_o   (reg_waddr_o),

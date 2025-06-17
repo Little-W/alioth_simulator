@@ -46,7 +46,6 @@ module cpu_top (
     wire [`BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
 
     // idu模块输出信号 - 直接包含了ID和ID_EX的功能
-    wire [`INST_DATA_WIDTH-1:0] idu_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] idu_inst_addr_o;
     wire idu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_o;
@@ -153,6 +152,7 @@ module cpu_top (
     wire atom_opt_busy;
 
     // 给HDU的译码信息
+    wire inst_valid = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
@@ -290,6 +290,7 @@ module cpu_top (
         .raddr_i          (id_csr_raddr_o),
         .waddr_i          (wbu_csr_waddr_o),
         .data_i           (wbu_csr_wdata_o),
+        .inst_valid_i     (inst_valid),
         .data_o           (csr_data_o),
         .global_int_en_o  (csr_global_int_en_o),
         .clint_we_i       (clint_we_o),
@@ -314,7 +315,6 @@ module cpu_top (
         .commit_id_i   (wbu_commit_id_o),
 
         .csr_raddr_o   (id_csr_raddr_o),
-        .inst_o        (idu_inst_o),
         .inst_addr_o   (idu_inst_addr_o),
         .reg_we_o      (idu_reg_we_o),
         .reg_waddr_o   (idu_reg_waddr_o),
@@ -352,7 +352,6 @@ module cpu_top (
     exu u_exu (
         .clk           (clk),
         .rst_n         (rst_n),
-        .inst_i        (idu_inst_o),
         .inst_addr_i   (idu_inst_addr_o),
         .reg_we_i      (idu_reg_we_o),
         .reg_waddr_i   (idu_reg_waddr_o),

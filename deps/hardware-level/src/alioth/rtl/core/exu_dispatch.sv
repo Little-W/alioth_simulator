@@ -27,7 +27,6 @@
 
 module exu_dispatch (
 
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     input wire [                31:0] dec_pc_i,
@@ -145,7 +144,6 @@ module exu_dispatch (
     };
 
     assign req_alu_o      = op_alu;
-    // assign rd_addr_o      = inst_i[11:7];  // ALU指令的目标寄存器地址
 
     // MULDIV info
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
