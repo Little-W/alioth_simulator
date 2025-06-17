@@ -137,9 +137,9 @@ module cpu_top (
     wire ifu_read_resp_error_o;
     wire exu_mem_stall_o;
     wire exu_mem_store_busy_o;
-    wire hdu_stall_flag_o;  // 改为直接从HDU获取
-    wire hdu_long_inst_atom_lock_o;  // 改为直接从HDU获取
-    wire [1:0] hdu_long_inst_id_o;  // 改为直接从HDU获取
+    wire hdu_stall_flag_o;
+    wire hdu_long_inst_atom_lock_o;
+    wire [1:0] hdu_long_inst_id_o;
     wire wbu_commit_valid_o;
     wire [1:0] wbu_commit_id_o;
     wire wbu_alu_ready_o;
@@ -260,9 +260,10 @@ module cpu_top (
         .rst_n             (rst_n),
         .jump_flag_i       (exu_jump_flag_o),
         .jump_addr_i       (exu_jump_addr_o),
+        .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .stall_flag_clint_i(clint_stall_flag_o),
-        .stall_flag_hdu_i  (hdu_stall_flag_o),    // 修改：直接从HDU获取暂停信号
+        .stall_flag_hdu_i  (hdu_stall_flag_o),
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)

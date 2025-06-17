@@ -95,7 +95,6 @@ module exu_mul (
     // 状态寄存器更新
     always @(posedge clk) begin
         if (!rst_n) current_state <= IDLE;
-        else if (!start_i) current_state <= IDLE;
         else current_state <= next_state;
     end
 

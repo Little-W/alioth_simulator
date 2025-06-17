@@ -196,19 +196,8 @@ module exu_muldiv_ctrl (
     // 流水线保持控制逻辑
     assign muldiv_stall_flag_o = stall_mul_cond | stall_div_cond;
 
-    // 条件信号定义
-    wire is_mul_req = is_mul_op;
-    wire mul_not_busy = !mul_busy_i;
-
-    wire is_div_req = is_div_op;
-    wire div_not_busy = !div_busy_i;
-
-    // 跳转条件
-    wire jump_mul_cond = is_mul_req & mul_not_busy;
-    wire jump_div_cond = is_div_req & div_not_busy;
-
-    // 跳转控制逻辑
-    assign muldiv_jump_flag_o = jump_mul_cond | jump_div_cond;
+    // 修改跳转逻辑：运算结束后不执行跳转，只执行正常写回
+    assign muldiv_jump_flag_o = 1'b0; // 始终不执行跳转
 
     // 选择信号定义 - 现在基于内部状态寄存器，不依赖外部输入
     wire sel_div = div_result_we;

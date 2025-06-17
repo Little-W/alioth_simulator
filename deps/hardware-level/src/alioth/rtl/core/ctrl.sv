@@ -34,6 +34,7 @@ module ctrl (
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
     input wire                        stall_flag_ex_i,
+    input wire                        atom_opt_busy_i,  // 原子操作忙信号
 
     // from clint
     input wire stall_flag_clint_i,
@@ -50,10 +51,10 @@ module ctrl (
 );
 
     assign jump_addr_o = jump_addr_i;
-    assign jump_flag_o = jump_flag_i & ~stall_flag_ex_i & ~stall_flag_hdu_i & ~stall_flag_clint_i;
+    assign jump_flag_o = jump_flag_i & ~stall_flag_ex_i & ~stall_flag_hdu_i & ~stall_flag_clint_i & ~atom_opt_busy_i;
 
-    assign stall_flag_o = (stall_flag_ex_i == `HoldEnable || stall_flag_hdu_i == `HoldEnable) ? `Hold_Id :
-                         (jump_flag_i == `JumpEnable || stall_flag_clint_i == `HoldEnable) ? `Hold_Flush:
+    assign stall_flag_o = (stall_flag_ex_i || stall_flag_hdu_i || (atom_opt_busy_i && jump_flag_i)) ? `Hold_Id :
+                         ((jump_flag_i && !atom_opt_busy_i) || stall_flag_clint_i) ? `Hold_Flush :
                          `Hold_None;
 
 endmodule

@@ -39,9 +39,9 @@ module exu_div (
     input wire [                3:0] op_i,        // 操作类型
 
     // to ex
-    output reg [`REG_DATA_WIDTH-1:0] result_o,    // 除法结果，高32位是余数，低32位是商
-    output reg                       busy_o,      // 正在运算信号
-    output reg                       valid_o      // 输出有效信号
+    output reg [`REG_DATA_WIDTH-1:0] result_o,  // 除法结果，高32位是余数，低32位是商
+    output reg busy_o,  // 正在运算信号
+    output reg valid_o  // 输出有效信号
 
 );
 
@@ -94,20 +94,19 @@ module exu_div (
         end else begin
             case (state)
                 STATE_IDLE: begin
+                    valid_o <= 1'b0;
                     if (start_i == 1'b1) begin
-                        op_r        <= op_i;
-                        dividend_r  <= dividend_i;
-                        divisor_r   <= divisor_i;
-                        state       <= STATE_START;
-                        busy_o      <= 1'b1;
-                        valid_o     <= 1'b0;
+                        op_r       <= op_i;
+                        dividend_r <= dividend_i;
+                        divisor_r  <= divisor_i;
+                        state      <= STATE_START;
+                        busy_o     <= 1'b1;
                     end else begin
-                        op_r        <= 3'h0;
-                        dividend_r  <= `ZeroWord;
-                        divisor_r   <= `ZeroWord;
-                        result_o    <= `ZeroWord;
-                        busy_o      <= 1'b0;
-                        valid_o     <= 1'b0;
+                        op_r       <= 3'h0;
+                        dividend_r <= `ZeroWord;
+                        divisor_r  <= `ZeroWord;
+                        result_o   <= `ZeroWord;
+                        busy_o     <= 1'b0;
                     end
                 end
 
@@ -120,9 +119,10 @@ module exu_div (
                         end else begin
                             result_o <= dividend_r;
                         end
-                        state   <= STATE_IDLE;
-                        busy_o  <= 1'b0;
-                    // 除数不为0
+                        state  <= STATE_IDLE;
+                        busy_o <= 1'b0;
+                        valid_o <= 1'b1;
+                        // 除数不为0
                     end else begin
                         busy_o     <= 1'b1;
                         count      <= 32'h40000000;
@@ -158,7 +158,7 @@ module exu_div (
                 end
 
                 STATE_CALC: begin
-                    valid_o <= 1'b0;
+                    busy_o     <= 1'b1;
                     dividend_r <= {dividend_r[30:0], 1'b0};
                     div_result <= div_result_tmp;
                     count      <= {1'b0, count[31:1]};
