@@ -41,7 +41,6 @@ module idu_id_pipe (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
-    input wire [                 1:0] long_inst_id_i,  // 长指令ID输入
 
     input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
 
@@ -55,8 +54,7 @@ module idu_id_pipe (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
-    output wire [                 1:0] long_inst_id_o  // 长指令ID输出
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
 );
 
     wire                        flush_en = (hold_flag_i >= `Hold_Flush);
@@ -187,17 +185,5 @@ module idu_id_pipe (
         dec_imm
     );
     assign dec_imm_o = dec_imm;
-
-    // 长指令ID传递
-    wire [1:0] long_inst_id_dnxt = flush_en ? 2'b00 : long_inst_id_i;
-    wire [1:0] long_inst_id;
-    gnrl_dfflr #(2) long_inst_id_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        long_inst_id_dnxt,
-        long_inst_id
-    );
-    assign long_inst_id_o = long_inst_id;
 
 endmodule

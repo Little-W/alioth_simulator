@@ -41,179 +41,187 @@ module cpu_top (
     wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;
 
     // id模块输出信号
-    wire [ `REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
-    wire [ `REG_ADDR_WIDTH-1:0] id_reg2_raddr_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
+    wire [`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
+    wire [`REG_ADDR_WIDTH-1:0] id_reg2_raddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
 
     // idu模块输出信号 - 直接包含了ID和ID_EX的功能
     wire [`INST_DATA_WIDTH-1:0] idu_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] idu_inst_addr_o;
-    wire                        idu_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] idu_reg_waddr_o;
-    wire [ `REG_ADDR_WIDTH-1:0] idu_reg1_raddr_o;
-    wire [ `REG_ADDR_WIDTH-1:0] idu_reg2_raddr_o;
-    wire                        idu_csr_we_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] idu_csr_waddr_o;
-    wire [ `REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
-    wire [                31:0] idu_dec_imm_o;
-    wire [  `DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
+    wire idu_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_o;
+    wire [`REG_ADDR_WIDTH-1:0] idu_reg1_raddr_o;
+    wire [`REG_ADDR_WIDTH-1:0] idu_reg2_raddr_o;
+    wire idu_csr_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] idu_csr_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
+    wire [31:0] idu_dec_imm_o;
+    wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
 
     // exu模块输出信号
-    wire [ `BUS_DATA_WIDTH-1:0] exu_mem_wdata_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] exu_mem_raddr_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] exu_mem_waddr_o;
-    wire                        exu_mem_we_o;
-    wire                        exu_mem_req_o;
-    wire [                 3:0] exu_mem_wmask_o;
-    wire                        exu_hold_flag_o;
-    wire                        exu_jump_flag_o;
+    wire [`BUS_DATA_WIDTH-1:0] exu_mem_wdata_o;
+    wire [`BUS_ADDR_WIDTH-1:0] exu_mem_raddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] exu_mem_waddr_o;
+    wire exu_mem_we_o;
+    wire exu_mem_req_o;
+    wire [3:0] exu_mem_wmask_o;
+    wire exu_hold_flag_o;
+    wire exu_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] exu_jump_addr_o;
-    wire [ `REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
-    wire                        exu_csr_we_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
-    wire                        exu_muldiv_started_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
+    wire exu_csr_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
+    wire exu_muldiv_started_o;
 
     // 添加CSR寄存器写数据信号
-    wire [ `REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
-    wire [ `REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
 
     // 系统操作信号
-    wire                        exu_ecall_o;
-    wire                        exu_ebreak_o;
-    wire                        exu_mret_o;
+    wire exu_ecall_o;
+    wire exu_ebreak_o;
+    wire exu_mret_o;
 
     // EXU到WBU的数据通路信号
-    wire [ `REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
-    wire                        exu_alu_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] exu_alu_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
+    wire exu_alu_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_alu_reg_waddr_o;
 
-    wire [ `REG_DATA_WIDTH-1:0] exu_muldiv_reg_wdata_o;
-    wire                        exu_muldiv_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] exu_muldiv_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_muldiv_reg_wdata_o;
+    wire exu_muldiv_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_muldiv_reg_waddr_o;
 
-    wire [ `REG_DATA_WIDTH-1:0] exu_agu_reg_wdata_o;
-    wire                        exu_agu_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] exu_agu_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_agu_reg_wdata_o;
+    wire exu_agu_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_agu_reg_waddr_o;
 
     // wbu输出信号
-    wire [ `REG_DATA_WIDTH-1:0] wbu_reg_wdata_o;
-    wire                        wbu_reg_we_o;
-    wire [ `REG_ADDR_WIDTH-1:0] wbu_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] wbu_reg_wdata_o;
+    wire wbu_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] wbu_reg_waddr_o;
 
     // WBU CSR输出信号
-    wire [ `REG_DATA_WIDTH-1:0] wbu_csr_wdata_o;
-    wire                        wbu_csr_we_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] wbu_csr_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] wbu_csr_wdata_o;
+    wire wbu_csr_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] wbu_csr_waddr_o;
 
     // regs模块输出信号
-    wire [ `REG_DATA_WIDTH-1:0] regs_rdata1_o;
-    wire [ `REG_DATA_WIDTH-1:0] regs_rdata2_o;
+    wire [`REG_DATA_WIDTH-1:0] regs_rdata1_o;
+    wire [`REG_DATA_WIDTH-1:0] regs_rdata2_o;
 
     // csr_reg模块输出信号
-    wire [ `REG_DATA_WIDTH-1:0] csr_data_o;
-    wire [ `REG_DATA_WIDTH-1:0] csr_clint_data_o;
-    wire                        csr_global_int_en_o;
-    wire [ `REG_DATA_WIDTH-1:0] csr_clint_csr_mtvec;
-    wire [ `REG_DATA_WIDTH-1:0] csr_clint_csr_mepc;
-    wire [ `REG_DATA_WIDTH-1:0] csr_clint_csr_mstatus;
+    wire [`REG_DATA_WIDTH-1:0] csr_data_o;
+    wire [`REG_DATA_WIDTH-1:0] csr_clint_data_o;
+    wire csr_global_int_en_o;
+    wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mtvec;
+    wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mepc;
+    wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mstatus;
 
     // ctrl模块输出信号
-    wire [ `HOLD_BUS_WIDTH-1:0] ctrl_hold_flag_o;
-    wire                        ctrl_jump_flag_o;
+    wire [`HOLD_BUS_WIDTH-1:0] ctrl_hold_flag_o;
+    wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
     // clint模块输出信号
-    wire                        clint_we_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] clint_waddr_o;
-    wire [ `BUS_ADDR_WIDTH-1:0] clint_raddr_o;
-    wire [ `REG_DATA_WIDTH-1:0] clint_data_o;
+    wire clint_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] clint_waddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] clint_raddr_o;
+    wire [`REG_DATA_WIDTH-1:0] clint_data_o;
     wire [`INST_ADDR_WIDTH-1:0] clint_int_addr_o;
-    wire                        clint_int_assert_o;
-    wire                        clint_hold_flag_o;
+    wire clint_int_assert_o;
+    wire clint_hold_flag_o;
 
-    wire [ `BUS_DATA_WIDTH-1:0] exu_mem_data_i;
+    wire [`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
 
     // 新增信号定义
-    wire                        ifu_read_resp_error_o;
-    wire                        exu_mem_stall_o;
-    wire                        exu_mem_store_busy_o;
-    wire                        idu_long_inst_atom_lock_o;
-    wire                        atom_opt_busy;
-    wire                        idu_hold_flag_o;
-    wire [                 1:0] idu_long_inst_id_o;
-    wire                        wbu_commit_valid_o;
-    wire [                 1:0] wbu_commit_id_o;
-    wire                        wbu_alu_ready_o;
-    wire                        wbu_muldiv_ready_o;
-    wire                        wbu_csr_ready_o;
-    wire [                 7:0] exu_alu_commit_id_o;
-    wire [                 7:0] exu_muldiv_commit_id_o;
-    wire [                 7:0] exu_agu_commit_id_o;
+    wire ifu_read_resp_error_o;
+    wire exu_mem_stall_o;
+    wire exu_mem_store_busy_o;
+    wire hdu_hold_flag_o;  // 改为直接从HDU获取
+    wire hdu_long_inst_atom_lock_o;  // 改为直接从HDU获取
+    wire [1:0] hdu_long_inst_id_o;  // 改为直接从HDU获取
+    wire wbu_commit_valid_o;
+    wire [1:0] wbu_commit_id_o;
+    wire wbu_alu_ready_o;
+    wire wbu_muldiv_ready_o;
+    wire wbu_csr_ready_o;
+    wire [7:0] exu_alu_commit_id_o;
+    wire [7:0] exu_muldiv_commit_id_o;
+    wire [7:0] exu_agu_commit_id_o;
+
+    // 显式声明原子操作忙信号，避免隐式定义
+    wire atom_opt_busy;
+
+    // 给HDU的译码信息
+    wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
+    wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
+    wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
+    wire new_long_inst_valid = is_long_inst;  // 移除了不存在的idu_long_inst_valid
 
     // AXI接口信号 - IFU
-    wire                        ifu_axi_arid;
+    wire ifu_axi_arid;
     wire [`INST_ADDR_WIDTH-1:0] ifu_axi_araddr;
-    wire [                 7:0] ifu_axi_arlen;
-    wire [                 2:0] ifu_axi_arsize;
-    wire [                 1:0] ifu_axi_arburst;
-    wire                        ifu_axi_arlock;
-    wire [                 3:0] ifu_axi_arcache;
-    wire [                 2:0] ifu_axi_arprot;
-    wire [                 3:0] ifu_axi_arqos;
-    wire [                 3:0] ifu_axi_aruser;
-    wire                        ifu_axi_arvalid;
-    wire                        ifu_axi_arready;
-    wire                        ifu_axi_rid;
+    wire [7:0] ifu_axi_arlen;
+    wire [2:0] ifu_axi_arsize;
+    wire [1:0] ifu_axi_arburst;
+    wire ifu_axi_arlock;
+    wire [3:0] ifu_axi_arcache;
+    wire [2:0] ifu_axi_arprot;
+    wire [3:0] ifu_axi_arqos;
+    wire [3:0] ifu_axi_aruser;
+    wire ifu_axi_arvalid;
+    wire ifu_axi_arready;
+    wire ifu_axi_rid;
     wire [`INST_DATA_WIDTH-1:0] ifu_axi_rdata;
-    wire [                 1:0] ifu_axi_rresp;
-    wire                        ifu_axi_rlast;
-    wire [                 3:0] ifu_axi_ruser;
-    wire                        ifu_axi_rvalid;
-    wire                        ifu_axi_rready;
+    wire [1:0] ifu_axi_rresp;
+    wire ifu_axi_rlast;
+    wire [3:0] ifu_axi_ruser;
+    wire ifu_axi_rvalid;
+    wire ifu_axi_rready;
 
     // AXI接口信号 - EXU
-    wire                        exu_axi_awid;
-    wire [                31:0] exu_axi_awaddr;
-    wire [                 7:0] exu_axi_awlen;
-    wire [                 2:0] exu_axi_awsize;
-    wire [                 1:0] exu_axi_awburst;
-    wire                        exu_axi_awlock;
-    wire [                 3:0] exu_axi_awcache;
-    wire [                 2:0] exu_axi_awprot;
-    wire [                 3:0] exu_axi_awqos;
-    wire                        exu_axi_awuser;
-    wire                        exu_axi_awvalid;
-    wire                        exu_axi_awready;
-    wire [                31:0] exu_axi_wdata;
-    wire [                 3:0] exu_axi_wstrb;
-    wire                        exu_axi_wlast;
-    wire                        exu_axi_wuser;
-    wire                        exu_axi_wvalid;
-    wire                        exu_axi_wready;
-    wire                        exu_axi_bid;
-    wire [                 1:0] exu_axi_bresp;
-    wire                        exu_axi_buser;
-    wire                        exu_axi_bvalid;
-    wire                        exu_axi_bready;
-    wire                        exu_axi_arid;
-    wire [                31:0] exu_axi_araddr;
-    wire [                 7:0] exu_axi_arlen;
-    wire [                 2:0] exu_axi_arsize;
-    wire [                 1:0] exu_axi_arburst;
-    wire                        exu_axi_arlock;
-    wire [                 3:0] exu_axi_arcache;
-    wire [                 2:0] exu_axi_arprot;
-    wire [                 3:0] exu_axi_arqos;
-    wire                        exu_axi_aruser;
-    wire                        exu_axi_arvalid;
-    wire                        exu_axi_arready;
-    wire                        exu_axi_rid;
-    wire [                31:0] exu_axi_rdata;
-    wire [                 1:0] exu_axi_rresp;
-    wire                        exu_axi_rlast;
-    wire                        exu_axi_ruser;
-    wire                        exu_axi_rvalid;
-    wire                        exu_axi_rready;
+    wire exu_axi_awid;
+    wire [31:0] exu_axi_awaddr;
+    wire [7:0] exu_axi_awlen;
+    wire [2:0] exu_axi_awsize;
+    wire [1:0] exu_axi_awburst;
+    wire exu_axi_awlock;
+    wire [3:0] exu_axi_awcache;
+    wire [2:0] exu_axi_awprot;
+    wire [3:0] exu_axi_awqos;
+    wire exu_axi_awuser;
+    wire exu_axi_awvalid;
+    wire exu_axi_awready;
+    wire [31:0] exu_axi_wdata;
+    wire [3:0] exu_axi_wstrb;
+    wire exu_axi_wlast;
+    wire exu_axi_wuser;
+    wire exu_axi_wvalid;
+    wire exu_axi_wready;
+    wire exu_axi_bid;
+    wire [1:0] exu_axi_bresp;
+    wire exu_axi_buser;
+    wire exu_axi_bvalid;
+    wire exu_axi_bready;
+    wire exu_axi_arid;
+    wire [31:0] exu_axi_araddr;
+    wire [7:0] exu_axi_arlen;
+    wire [2:0] exu_axi_arsize;
+    wire [1:0] exu_axi_arburst;
+    wire exu_axi_arlock;
+    wire [3:0] exu_axi_arcache;
+    wire [2:0] exu_axi_arprot;
+    wire [3:0] exu_axi_arqos;
+    wire exu_axi_aruser;
+    wire exu_axi_arvalid;
+    wire exu_axi_arready;
+    wire exu_axi_rid;
+    wire [31:0] exu_axi_rdata;
+    wire [1:0] exu_axi_rresp;
+    wire exu_axi_rlast;
+    wire exu_axi_ruser;
+    wire exu_axi_rvalid;
+    wire exu_axi_rready;
 
     // IFU模块例化
     ifu u_ifu (
@@ -250,15 +258,15 @@ module cpu_top (
 
     // ctrl模块例化
     ctrl u_ctrl (
-        .rst_n(rst_n),
-        .jump_flag_i(exu_jump_flag_o),
-        .jump_addr_i(exu_jump_addr_o),
-        .hold_flag_ex_i(exu_hold_flag_o),
+        .rst_n            (rst_n),
+        .jump_flag_i      (exu_jump_flag_o),
+        .jump_addr_i      (exu_jump_addr_o),
+        .hold_flag_ex_i   (exu_hold_flag_o),
         .hold_flag_clint_i(clint_hold_flag_o),
-        .hold_flag_hdu_i(idu_hold_flag_o),  // 新增: 从IDU的冒险检测单元接收暂停信号
-        .hold_flag_o(ctrl_hold_flag_o),
-        .jump_flag_o(ctrl_jump_flag_o),
-        .jump_addr_o(ctrl_jump_addr_o)
+        .hold_flag_hdu_i  (hdu_hold_flag_o),    // 修改：直接从HDU获取暂停信号
+        .hold_flag_o      (ctrl_hold_flag_o),
+        .jump_flag_o      (ctrl_jump_flag_o),
+        .jump_addr_o      (ctrl_jump_addr_o)
     );
 
     // regs模块例化
@@ -294,7 +302,7 @@ module cpu_top (
         .clint_csr_mstatus(csr_clint_csr_mstatus)
     );
 
-    // idu模块例化 - 更新接口
+    // idu模块例化 - 更新接口，移除长指令ID相关接口
     idu u_idu (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -302,7 +310,6 @@ module cpu_top (
         .inst_addr_i(if_inst_addr_o),
         .hold_flag_i(ctrl_hold_flag_o),
 
-        // 新增接口 - 长指令完成信号
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
 
@@ -316,15 +323,32 @@ module cpu_top (
         .csr_we_o      (idu_csr_we_o),
         .csr_waddr_o   (idu_csr_waddr_o),
         .dec_imm_o     (idu_dec_imm_o),
-        .dec_info_bus_o(idu_dec_info_bus_o),
-
-        // 新增输出信号
-        .hold_flag_o          (idu_hold_flag_o),
-        .long_inst_id_o       (idu_long_inst_id_o),
-        .long_inst_atom_lock_o(idu_long_inst_atom_lock_o)  // 新增连接
+        .dec_info_bus_o(idu_dec_info_bus_o)
     );
 
-    // exu模块例化
+    // HDU模块例化
+    hdu u_hdu (
+        .clk  (clk),
+        .rst_n(rst_n),
+
+        // 新指令信息 - 从idu输出获取
+        .new_long_inst_valid(new_long_inst_valid),
+        .new_inst_rd_addr   (idu_reg_waddr_o),      // 从idu获取目标寄存器地址
+        .new_inst_rs1_addr  (idu_reg1_raddr_o),     // 从idu获取源寄存器1地址
+        .new_inst_rs2_addr  (idu_reg2_raddr_o),     // 从idu获取源寄存器2地址
+        .new_inst_rd_we     (idu_reg_we_o),         // 从idu获取写寄存器使能
+
+        // 长指令完成信号 - 从wbu获取
+        .commit_valid_i(wbu_commit_valid_o),
+        .commit_id_i   (wbu_commit_id_o),
+
+        // 控制信号输出
+        .hazard_stall_o       (hdu_hold_flag_o),
+        .commit_id_o          (hdu_long_inst_id_o),
+        .long_inst_atom_lock_o(hdu_long_inst_atom_lock_o)
+    );
+
+    // exu模块例化 - 直接从HDU接收长指令ID
     exu u_exu (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -341,8 +365,8 @@ module cpu_top (
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
 
-        // 新增长指令ID
-        .inst_id_i(idu_long_inst_id_o),
+        // 修改：直接从HDU获取长指令ID
+        .inst_id_i(hdu_long_inst_id_o),
 
         // 写回握手信号
         .alu_wb_ready_i   (wbu_alu_ready_o),
@@ -592,7 +616,7 @@ module cpu_top (
         .M1_AXI_RREADY (exu_axi_rready)
     );
 
-    // 定义原子操作忙信号
-    assign atom_opt_busy = idu_long_inst_atom_lock_o | exu_mem_store_busy_o;
+    // 定义原子操作忙信号 - 使用HDU的原子锁
+    assign atom_opt_busy = hdu_long_inst_atom_lock_o | exu_mem_store_busy_o;
 
 endmodule

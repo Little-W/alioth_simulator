@@ -30,20 +30,20 @@ module hdu (
     input wire rst_n, // 复位信号，低电平有效
 
     // 新指令信息
-    input wire new_long_inst_valid,  // 新长指令有效
-    input  wire [`REG_ADDR_WIDTH-1:0]  new_inst_rd_addr,  // 新指令写寄存器地址
-    input  wire [`REG_ADDR_WIDTH-1:0]  new_inst_rs1_addr, // 新指令读寄存器1地址
-    input  wire [`REG_ADDR_WIDTH-1:0]  new_inst_rs2_addr, // 新指令读寄存器2地址
-    input wire new_inst_rd_we,  // 新指令是否写寄存器
+    input wire                       new_long_inst_valid,  // 新长指令有效
+    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rd_addr,     // 新指令写寄存器地址
+    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs1_addr,    // 新指令读寄存器1地址
+    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs2_addr,    // 新指令读寄存器2地址
+    input wire                       new_inst_rd_we,       // 新指令是否写寄存器
 
     // 长指令完成信号
-    input wire       commit_valid,  // 长指令执行完成有效信号
-    input wire [1:0] commit_id,     // 执行完成的长指令ID
+    input wire       commit_valid_i,  // 长指令执行完成有效信号
+    input wire [1:0] commit_id_i,     // 执行完成的长指令ID
 
     // 控制信号
-    output wire       hold,         // 暂停流水线信号
-    output reg  [1:0] long_inst_id,  // 为新的长指令分配的ID
-    output wire       long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
+    output wire hazard_stall_o,  // 暂停流水线信号
+    output reg [1:0] commit_id_o,  // 为新的长指令分配的ID
+    output wire long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
 );
 
     // 定义FIFO表项结构
@@ -84,8 +84,8 @@ module hdu (
     end
 
     // 只有在有新指令且存在冒险时才暂停流水线
-    assign hazard = (raw_hazard || waw_hazard) && new_long_inst_valid;
-    assign hold   = hazard;
+    assign hazard         = (raw_hazard || waw_hazard);
+    assign hazard_stall_o = hazard;
 
     // 为新的长指令分配ID并更新FIFO
     always @(posedge clk or negedge rst_n) begin
@@ -95,11 +95,11 @@ module hdu (
                 fifo_valid[i]   <= 1'b0;
                 fifo_rd_addr[i] <= 5'h0;
             end
-            long_inst_id <= 2'h0;
+            commit_id_o <= 2'h0;
         end else begin
             // 清除已完成的长指令
-            if (commit_valid) begin
-                fifo_valid[commit_id] <= 1'b0;
+            if (commit_valid_i) begin
+                fifo_valid[commit_id_i] <= 1'b0;
             end
 
             // 添加新的长指令到FIFO
@@ -108,19 +108,19 @@ module hdu (
                 if (~fifo_valid[0]) begin
                     fifo_valid[0]   <= 1'b1;
                     fifo_rd_addr[0] <= new_inst_rd_addr;
-                    long_inst_id    <= 2'h0;
+                    commit_id_o     <= 2'h0;
                 end else if (~fifo_valid[1]) begin
                     fifo_valid[1]   <= 1'b1;
                     fifo_rd_addr[1] <= new_inst_rd_addr;
-                    long_inst_id    <= 2'h1;
+                    commit_id_o     <= 2'h1;
                 end else if (~fifo_valid[2]) begin
                     fifo_valid[2]   <= 1'b1;
                     fifo_rd_addr[2] <= new_inst_rd_addr;
-                    long_inst_id    <= 2'h2;
+                    commit_id_o     <= 2'h2;
                 end else if (~fifo_valid[3]) begin
                     fifo_valid[3]   <= 1'b1;
                     fifo_rd_addr[3] <= new_inst_rd_addr;
-                    long_inst_id    <= 2'h3;
+                    commit_id_o     <= 2'h3;
                 end
                 // 如果所有位置都满了，应该已经触发了hazard信号阻止新指令
             end

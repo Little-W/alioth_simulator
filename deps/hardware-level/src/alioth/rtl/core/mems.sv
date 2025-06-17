@@ -279,15 +279,15 @@ module mems #(
 
     // 端口多路复用 - 将合适的输入连接到ITCM
     // 根据仲裁结果选择ITCM的输入
-    assign itcm_arid = m1_itcm_grant ? M1_AXI_ARID : M0_AXI_ARID;
-    assign itcm_araddr = m1_itcm_grant ? M1_AXI_ARADDR : M0_AXI_ARADDR;
-    assign itcm_arlen = m1_itcm_grant ? M1_AXI_ARLEN : M0_AXI_ARLEN;
-    assign itcm_arsize = m1_itcm_grant ? M1_AXI_ARSIZE : M0_AXI_ARSIZE;
-    assign itcm_arburst = m1_itcm_grant ? M1_AXI_ARBURST : M0_AXI_ARBURST;
-    assign itcm_arlock = m1_itcm_grant ? M1_AXI_ARLOCK : M0_AXI_ARLOCK;
-    assign itcm_arcache = m1_itcm_grant ? M1_AXI_ARCACHE : M0_AXI_ARCACHE;
-    assign itcm_arprot = m1_itcm_grant ? M1_AXI_ARPROT : M0_AXI_ARPROT;
-    assign itcm_arvalid = m1_itcm_grant ? M1_AXI_ARVALID : (m0_itcm_grant ? M0_AXI_ARVALID : 1'b0);
+    assign itcm_arid = m1_itcm_ar_grant ? M1_AXI_ARID : M0_AXI_ARID;
+    assign itcm_araddr = m1_itcm_ar_grant ? M1_AXI_ARADDR : M0_AXI_ARADDR;
+    assign itcm_arlen = m1_itcm_ar_grant ? M1_AXI_ARLEN : M0_AXI_ARLEN;
+    assign itcm_arsize = m1_itcm_ar_grant ? M1_AXI_ARSIZE : M0_AXI_ARSIZE;
+    assign itcm_arburst = m1_itcm_ar_grant ? M1_AXI_ARBURST : M0_AXI_ARBURST;
+    assign itcm_arlock = m1_itcm_ar_grant ? M1_AXI_ARLOCK : M0_AXI_ARLOCK;
+    assign itcm_arcache = m1_itcm_ar_grant ? M1_AXI_ARCACHE : M0_AXI_ARCACHE;
+    assign itcm_arprot = m1_itcm_ar_grant ? M1_AXI_ARPROT : M0_AXI_ARPROT;
+    assign itcm_arvalid = m1_itcm_ar_grant ? M1_AXI_ARVALID : (m0_itcm_ar_grant ? M0_AXI_ARVALID : 1'b0);
 
     // DTCM只在被授权时连接到端口1
     assign dtcm_arid = M1_AXI_ARID;
@@ -302,7 +302,7 @@ module mems #(
 
     // 端口输出连接
     // 端口0连接
-    assign M0_AXI_ARREADY = is_m0_itcm_r ? (itcm_arready && m0_itcm_grant) : 1'b0;
+    assign M0_AXI_ARREADY = is_m0_itcm_r ? (itcm_arready && m0_itcm_ar_grant) : 1'b0;
     assign M0_AXI_RID = itcm_rid;
     assign M0_AXI_RDATA = itcm_rdata;
     assign M0_AXI_RRESP = itcm_rresp;
@@ -312,7 +312,7 @@ module mems #(
 
     // 端口1连接
     // 读地址通道
-    assign M1_AXI_ARREADY = (is_m1_itcm_r && itcm_arready && m1_itcm_grant) || 
+    assign M1_AXI_ARREADY = (is_m1_itcm_r && itcm_arready && m1_itcm_ar_grant) || 
                            (is_m1_dtcm_r && dtcm_arready && m1_dtcm_grant);
 
     // 读数据通道 - 根据活跃的事务选择源
@@ -352,16 +352,9 @@ module mems #(
     // 1. 如果一方有未完成事务，优先保证其完成
     // 2. 如果都没有未完成事务或都有未完成事务，M1优先
     // 3. 地址通道可以立即切换，所以优先处理新请求
-    wire m0_itcm_ar_grant = m0_has_itcm_ar_req && (
-                            (m0_has_active_itcm_r && !m1_has_active_itcm_r) || // M0有未完成事务且M1没有
-                            (!m1_has_itcm_ar_req && !m1_has_active_itcm_r)     // M1既无新请求也无未完成事务
-    );
+    wire m0_itcm_ar_grant = !m1_has_itcm_ar_req;
 
     wire m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
-
-    // 主机授权信号 - 用于高层次仲裁
-    wire m0_itcm_grant = m0_itcm_ar_grant; // M0访问ITCM的授权
-    wire m1_itcm_grant = m1_itcm_ar_grant; // M1访问ITCM的授权
 
     // ==================== 从机选择逻辑（M1对ITCM vs DTCM）====================
     wire m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;        // M1有DTCM读请求
@@ -420,16 +413,16 @@ module mems #(
 
     // ==================== 端口连接信号 ====================
     // ITCM地址通道输入
-    assign itcm_arid = m1_itcm_grant ? M1_AXI_ARID : M0_AXI_ARID;
-    assign itcm_araddr = m1_itcm_grant ? M1_AXI_ARADDR : M0_AXI_ARADDR;
-    assign itcm_arlen = m1_itcm_grant ? M1_AXI_ARLEN : M0_AXI_ARLEN;
-    assign itcm_arsize = m1_itcm_grant ? M1_AXI_ARSIZE : M0_AXI_ARSIZE;
-    assign itcm_arburst = m1_itcm_grant ? M1_AXI_ARBURST : M0_AXI_ARBURST;
-    assign itcm_arlock = m1_itcm_grant ? M1_AXI_ARLOCK : M0_AXI_ARLOCK;
-    assign itcm_arcache = m1_itcm_grant ? M1_AXI_ARCACHE : M0_AXI_ARCACHE;
-    assign itcm_arprot = m1_itcm_grant ? M1_AXI_ARPROT : M0_AXI_ARPROT;
-    assign itcm_arvalid = (m1_itcm_grant && M1_AXI_ARVALID) || 
-                          (m0_itcm_grant && M0_AXI_ARVALID);
+    assign itcm_arid = m1_itcm_ar_grant ? M1_AXI_ARID : M0_AXI_ARID;
+    assign itcm_araddr = m1_itcm_ar_grant ? M1_AXI_ARADDR : M0_AXI_ARADDR;
+    assign itcm_arlen = m1_itcm_ar_grant ? M1_AXI_ARLEN : M0_AXI_ARLEN;
+    assign itcm_arsize = m1_itcm_ar_grant ? M1_AXI_ARSIZE : M0_AXI_ARSIZE;
+    assign itcm_arburst = m1_itcm_ar_grant ? M1_AXI_ARBURST : M0_AXI_ARBURST;
+    assign itcm_arlock = m1_itcm_ar_grant ? M1_AXI_ARLOCK : M0_AXI_ARLOCK;
+    assign itcm_arcache = m1_itcm_ar_grant ? M1_AXI_ARCACHE : M0_AXI_ARCACHE;
+    assign itcm_arprot = m1_itcm_ar_grant ? M1_AXI_ARPROT : M0_AXI_ARPROT;
+    assign itcm_arvalid = (m1_itcm_ar_grant && M1_AXI_ARVALID) || 
+                          (m0_itcm_ar_grant && M0_AXI_ARVALID);
 
     // DTCM地址通道输入 - 只连接到M1
     assign dtcm_arid = M1_AXI_ARID;

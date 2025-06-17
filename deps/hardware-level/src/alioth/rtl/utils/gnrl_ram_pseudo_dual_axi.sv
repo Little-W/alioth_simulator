@@ -289,8 +289,8 @@ module gnrl_ram_pseudo_dual_axi #(
     // 当写地址FIFO未满时才接受新的写请求
     assign S_AXI_AWREADY = (wr_fifo_count < FIFO_DEPTH);
 
-    // 修改S_AXI_WREADY的赋值逻辑，通过寄存器延迟一个周期
-    assign S_AXI_WREADY = wvalid_r;
+    // S_AXI_WREADY始终为1
+    assign S_AXI_WREADY = 1'b1;
 
     // AXI写地址通道处理
     always @(posedge S_AXI_ACLK) begin
@@ -387,10 +387,9 @@ module gnrl_ram_pseudo_dual_axi #(
         if (!S_AXI_ARESETN) begin
             axi_w_flag     <= 1'b0;
             wlast_received <= 1'b0;
-            wvalid_r       <= 1'b0;  // 初始化寄存器
+            // 移除wvalid_r的初始化
         end else begin
-            // 寄存S_AXI_WVALID信号延迟一拍作为S_AXI_WREADY
-            wvalid_r <= S_AXI_WVALID;
+            // 移除对wvalid_r的赋值
 
             if (S_AXI_WVALID && S_AXI_WREADY && !axi_w_flag) begin
                 axi_w_flag <= 1'b1;
