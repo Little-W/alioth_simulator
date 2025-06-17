@@ -40,7 +40,6 @@ module exu (
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
-    // 新增指令ID输入 (来自id_ex)
     input wire [                 1:0] inst_id_i,
 
     input wire alu_wb_ready_i,     // ALU写回握手信号
@@ -50,17 +49,10 @@ module exu (
     // from mem
     input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
 
-    // from regs - 从寄存器读取数据的输入端口
+    // from regs
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
 
-    // to mem
-    output wire [`BUS_DATA_WIDTH-1:0] mem_wdata_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] mem_raddr_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] mem_waddr_o,
-    output wire                       mem_we_o,
-    output wire                       mem_req_o,
-    output wire [                3:0] mem_wmask_o,
     // 新增访存阻塞信号
     output wire                       mem_stall_o,
 
@@ -215,7 +207,6 @@ module exu (
     wire [ `REG_DATA_WIDTH-1:0] csr_unit_reg_wdata;
 
     wire                        muldiv_stall_flag;
-    wire                        muldiv_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] muldiv_jump_addr;
     wire [ `REG_DATA_WIDTH-1:0] muldiv_wdata;
 
@@ -498,7 +489,6 @@ module exu (
         .bjp_op_bgeu_i     (bjp_op_bgeu_o),
         .bjp_op_jalr_i     (bjp_op_jalr_o),
         .sys_op_fence_i    (sys_op_fence_o),
-        .muldiv_jump_flag_i(muldiv_jump_flag),
         .int_assert_i      (int_assert_i),
         .int_addr_i        (int_addr_i),
         .jump_flag_o       (bru_jump_flag),
@@ -537,8 +527,6 @@ module exu (
         .reg_waddr_i (reg_waddr_i),
         .reg1_rdata_i(reg1_rdata_i),
         .reg2_rdata_i(reg2_rdata_i),
-        .op1_jump_i  (bjp_jump_op1_o),
-        .op2_jump_i  (bjp_jump_op2_o),
         .commit_id_i ({2'b0, muldiv_inst_id}), // 修改为4位
 
         // 连接dispatch模块的译码信号
@@ -571,7 +559,6 @@ module exu (
         .mul_multiplier_o   (mul_multiplier),
         .mul_op_o           (mul_op),
         .muldiv_stall_flag_o(muldiv_stall_flag),
-        .muldiv_jump_flag_o (muldiv_jump_flag),
         .reg_wdata_o        (muldiv_wdata),
         .reg_we_o           (muldiv_we),
         .reg_waddr_o        (muldiv_waddr),

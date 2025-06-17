@@ -34,8 +34,6 @@ module exu_muldiv_ctrl (
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] op1_jump_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] op2_jump_i,
     input wire [                3:0] commit_id_i,
 
     // 从dispatch接收的译码输入
@@ -78,7 +76,6 @@ module exu_muldiv_ctrl (
 
     // 控制输出
     output reg muldiv_stall_flag_o,
-    output reg muldiv_jump_flag_o,
 
     // 寄存器写回接口
     output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
@@ -88,16 +85,16 @@ module exu_muldiv_ctrl (
 );
 
     // 添加寄存器保存乘除法指令的写回信息
-    reg  [`REG_ADDR_WIDTH-1:0] saved_div_waddr;
-    reg  [`REG_ADDR_WIDTH-1:0] saved_mul_waddr;
-    reg  [                3:0] saved_div_commit_id;
-    reg  [                3:0] saved_mul_commit_id;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr;
+    wire [                3:0] saved_div_commit_id;
+    wire [                3:0] saved_mul_commit_id;
 
     // 添加状态寄存器，用于控制写回
-    reg                        div_result_we;
-    reg                        mul_result_we;
-    reg  [`REG_DATA_WIDTH-1:0] saved_div_result;
-    reg  [`REG_DATA_WIDTH-1:0] saved_mul_result;
+    wire                       div_result_we;
+    wire                       mul_result_we;
+    wire [`REG_DATA_WIDTH-1:0] saved_div_result;
+    wire [`REG_DATA_WIDTH-1:0] saved_mul_result;
 
     // 生成div_op_o的组合逻辑
     wire [                3:0] div_op_sel;
@@ -111,51 +108,118 @@ module exu_muldiv_ctrl (
     wire is_mul_op = muldiv_op_mul_all_i;
     wire is_div_op = muldiv_op_div_all_i;
 
-    // 时序逻辑：当启动除法或乘法操作时，保存写回地址
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            saved_div_waddr     <= 0;
-            saved_mul_waddr     <= 0;
-            saved_div_commit_id <= 0;
-            saved_mul_commit_id <= 0;
-            div_result_we       <= 1'b0;
-            mul_result_we       <= 1'b0;
-            saved_div_result    <= 0;
-            saved_mul_result    <= 0;
-        end else begin
-            // 除法指令启动时保存信息
-            if (is_div_op && !div_busy_i && !div_result_we) begin
-                saved_div_waddr     <= reg_waddr_i;
-                saved_div_commit_id <= commit_id_i;  // 新增：保存除法指令commit_id
-                div_result_we       <= 1'b0;  // 新指令开始时清除结果有效标志
-            end else if (div_valid_i) begin
-                // 当除法结果有效时，表示除法完成
-                saved_div_result <= div_result_i;  // 保存除法结果
-                div_result_we    <= 1'b1;  // 设置结果有效标志
-            end
+    // 定义控制信号
+    wire div_start_cond = is_div_op && !div_busy_i && !div_result_we;
+    wire mul_start_cond = is_mul_op && !mul_busy_i && !mul_result_we;
+    wire sel_mul = mul_result_we;
+    wire sel_div = div_result_we;
 
-            // 乘法指令启动时保存信息
-            if (is_mul_op && !mul_busy_i && !mul_result_we) begin
-                saved_mul_waddr     <= reg_waddr_i;
-                saved_mul_commit_id <= commit_id_i;  // 新增：保存乘法指令commit_id
-                mul_result_we       <= 1'b0;  // 新指令开始时清除结果有效标志
-            end else if (mul_valid_i) begin
-                // 当乘法结果有效时，表示乘法完成
-                saved_mul_result <= mul_result_i;  // 保存乘法结果
-                mul_result_we    <= 1'b1;  // 设置结果有效标志
-            end
+    // 除法寄存器更新条件
+    wire saved_div_waddr_en = div_start_cond;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr_nxt = reg_waddr_i;
 
-            // 修改写回后清除有效标志的逻辑 - 使用wb_ready握手信号
-            // 优先写回乘法结果：只有当写回请求被接受(wb_ready=1)时才清除valid标志
-            if (mul_result_we && wb_ready && reg_we_o) begin
-                mul_result_we <= 1'b0;
-            end
-            if (div_result_we && wb_ready && reg_we_o && !sel_mul) begin
-                // 只有在不写回乘法结果时，才考虑清除除法结果有效标志
-                div_result_we <= 1'b0;
-            end
-        end
-    end
+    wire saved_div_commit_id_en = div_start_cond;
+    wire [3:0] saved_div_commit_id_nxt = commit_id_i;
+
+    wire div_result_we_en = div_valid_i | (div_result_we && wb_ready && reg_we_o && !sel_mul);
+    wire div_result_we_nxt = div_valid_i ? 1'b1 : 1'b0;
+
+    wire saved_div_result_en = div_valid_i;
+    wire [`REG_DATA_WIDTH-1:0] saved_div_result_nxt = div_result_i;
+
+    // 乘法寄存器更新条件
+    wire saved_mul_waddr_en = mul_start_cond;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr_nxt = reg_waddr_i;
+
+    wire saved_mul_commit_id_en = mul_start_cond;
+    wire [3:0] saved_mul_commit_id_nxt = commit_id_i;
+
+    wire mul_result_we_en = mul_valid_i | (mul_result_we && wb_ready && reg_we_o);
+    wire mul_result_we_nxt = mul_valid_i ? 1'b1 : 1'b0;
+
+    wire saved_mul_result_en = mul_valid_i;
+    wire [`REG_DATA_WIDTH-1:0] saved_mul_result_nxt = mul_result_i;
+
+    // 使用gnrl_dfflr实现时序逻辑
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) saved_div_waddr_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_div_waddr_en),
+        .dnxt (saved_div_waddr_nxt),
+        .qout (saved_div_waddr)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) saved_div_commit_id_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_div_commit_id_en),
+        .dnxt (saved_div_commit_id_nxt),
+        .qout (saved_div_commit_id)
+    );
+
+    gnrl_dfflr #(
+        .DW(1)
+    ) div_result_we_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div_result_we_en),
+        .dnxt (div_result_we_nxt),
+        .qout (div_result_we)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) saved_div_result_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_div_result_en),
+        .dnxt (saved_div_result_nxt),
+        .qout (saved_div_result)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) saved_mul_waddr_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_mul_waddr_en),
+        .dnxt (saved_mul_waddr_nxt),
+        .qout (saved_mul_waddr)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) saved_mul_commit_id_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_mul_commit_id_en),
+        .dnxt (saved_mul_commit_id_nxt),
+        .qout (saved_mul_commit_id)
+    );
+
+    gnrl_dfflr #(
+        .DW(1)
+    ) mul_result_we_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mul_result_we_en),
+        .dnxt (mul_result_we_nxt),
+        .qout (mul_result_we)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) saved_mul_result_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_mul_result_en),
+        .dnxt (saved_mul_result_nxt),
+        .qout (saved_mul_result)
+    );
 
     // 操作数和操作类型输出 - 可以保持为组合逻辑
     assign div_dividend_o     = reg1_rdata_i;
@@ -196,33 +260,12 @@ module exu_muldiv_ctrl (
     // 流水线保持控制逻辑
     assign muldiv_stall_flag_o = stall_mul_cond | stall_div_cond;
 
-    // 修改跳转逻辑：运算结束后不执行跳转，只执行正常写回
-    assign muldiv_jump_flag_o = 1'b0; // 始终不执行跳转
-
-    // 选择信号定义 - 现在基于内部状态寄存器，不依赖外部输入
-    wire sel_div = div_result_we;
-    wire sel_mul = mul_result_we;
-
     // 结果写回数据和地址选择逻辑 - 使用保存的结果和寄存器地址
-    always @(*) begin
-        if (sel_mul) begin
-            reg_wdata_o = saved_mul_result;
-            reg_waddr_o = saved_mul_waddr;
-            commit_id_o = saved_mul_commit_id;
-        end else if (sel_div) begin
-            reg_wdata_o = saved_div_result;
-            reg_waddr_o = saved_div_waddr;
-            commit_id_o = saved_div_commit_id;
-        end else begin
-            reg_wdata_o = 0;
-            reg_waddr_o = 0;
-            commit_id_o = 0;
-        end
-    end
+    assign reg_wdata_o = sel_mul ? saved_mul_result : (sel_div ? saved_div_result : 0);
+    assign reg_waddr_o = sel_mul ? saved_mul_waddr : (sel_div ? saved_div_waddr : 0);
+    assign commit_id_o = sel_mul ? saved_mul_commit_id : (sel_div ? saved_div_commit_id : 0);
 
     // 结果写回使能控制逻辑
     assign reg_we_o = (sel_mul | sel_div);
-
-    // 注意：乘法结果有更高优先级，实现在结果选择逻辑中
 
 endmodule

@@ -33,7 +33,7 @@ module ifu (
     // 来自控制模块
     input wire                        jump_flag_i,  // 跳转标志
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
-    input wire [ `HOLD_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     // 输出到ID阶段的信息
     output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 指令内容
@@ -65,16 +65,17 @@ module ifu (
 );
 
     // 在顶层处理stall_flag_i信号
-    wire axi_pc_stall;
-    wire stall_pc = (stall_flag_i != 0) || axi_pc_stall;  // PC暂停信号
-    wire stall_if = (stall_flag_i >= `Hold_If);  // IF暂停信号
-    wire flush_flag = (stall_flag_i >= `Hold_Flush);  // 流水线冲刷信号
+    wire                        axi_pc_stall;
+    wire                        id_stall = (stall_flag_i != 0);  // ID阶段暂停信号
+    wire                        stall_pc = id_stall || axi_pc_stall;  // PC暂停信号
+    wire                        stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
+    wire                        flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
 
     // 内部信号定义
     wire [`INST_ADDR_WIDTH-1:0] pc;  // 内部PC信号
     wire [`INST_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的指令数据
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 从AXI读取的指令地址
-    wire inst_valid;  // 指令有效信号
+    wire                        inst_valid;  // 指令有效信号
 
     // 实例化IFetch模块，现包含ifu_pipe功能
     ifu_ifetch u_ifu_ifetch (
@@ -98,7 +99,7 @@ module ifu (
     ifu_axi_master u_ifu_axi_master (
         .clk              (clk),
         .rst_n            (rst_n),
-        .flush_flag_i     (flush_flag),
+        .id_stall_i       (id_stall),
         .jump_flag_i      (jump_flag_i),        // 连接跳转标志信号
         .pc_i             (pc),
         .read_resp_error_o(read_resp_error_o),

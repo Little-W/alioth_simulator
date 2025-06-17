@@ -44,7 +44,7 @@ module clint (
     input wire                        sys_op_mret_i,
 
     // from ctrl
-    input wire [`HOLD_BUS_WIDTH-1:0] stall_flag_i,
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,
 
     // from csr_reg
     input wire [`REG_DATA_WIDTH-1:0] data_i,

@@ -43,11 +43,9 @@
 `define INT_TIMER0 8'b00000001
 `define INT_TIMER0_ENTRY_ADDR 32'h4
 
-`define HOLD_BUS_WIDTH 3
-`define Hold_None 3'b000
-`define Hold_Flush 3'b001
-`define Hold_If 3'b010
-`define Hold_Id 3'b011
+`define CU_BUS_WIDTH 2
+`define CU_FLUSH 0
+`define CU_STALL 1
 
 // I type inst
 `define INST_TYPE_I 7'b0010011

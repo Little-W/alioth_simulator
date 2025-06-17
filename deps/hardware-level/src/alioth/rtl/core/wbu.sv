@@ -82,13 +82,11 @@ module wbu (
     wire agu_active = agu_reg_we_i;
     wire muldiv_active = muldiv_reg_we_i;
     wire csr_active = csr_we_i;
-    // 移除csr_reg_active，直接使用csr_active判断CSR写通用寄存器
     wire alu_active = alu_reg_we_i;
 
     // 根据优先级判断冲突
     wire muldiv_conflict = agu_active && muldiv_active;
     wire csr_conflict = (agu_active || muldiv_active) && csr_active;
-    // 移除csr_reg_conflict判断
     wire alu_conflict = (agu_active || muldiv_active || csr_active) && alu_active;
 
     // 各单元ready信号，当无冲突或者是最高优先级时为1
@@ -96,28 +94,31 @@ module wbu (
     assign csr_ready_o    = !csr_conflict;
     assign alu_ready_o    = !alu_conflict;
 
-    // 最终生效的写信号，按优先级选择
-    wire reg_we_effective = (int_assert_i != `INT_ASSERT) &&
-                            (agu_active || 
-                            (muldiv_active && !muldiv_conflict) || 
-                            (csr_active && !csr_conflict) ||
-                            (alu_active && !alu_conflict));
+    // 定义各单元的最终使能信号
+    wire agu_en = agu_active;
+    wire muldiv_en = muldiv_active && !muldiv_conflict;
+    wire csr_en = csr_active && !csr_conflict;
+    wire alu_en = alu_active && !alu_conflict;
+    wire idu_en = !agu_en && !muldiv_en && !csr_en && !alu_en;
 
-    // 写数据多路选择器，按优先级选择
+    // 最终生效的写信号
+    wire reg_we_effective = (int_assert_i != `INT_ASSERT) && (agu_en || muldiv_en || csr_en || alu_en);
+
+    // 写数据和地址多路选择器，使用与或逻辑实现
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
-    // 按照优先级选择最终写入的数据和地址
-    assign reg_wdata_r = agu_active ? agu_reg_wdata_i :
-                         (muldiv_active && !muldiv_conflict) ? muldiv_reg_wdata_i :
-                         (csr_active && !csr_conflict) ? csr_reg_wdata_i :
-        alu_reg_wdata_i;
+    // 使用与或结构简化数据选择逻辑
+    assign reg_wdata_r = ({`REG_DATA_WIDTH{agu_en}} & agu_reg_wdata_i) |
+                        ({`REG_DATA_WIDTH{muldiv_en}} & muldiv_reg_wdata_i) |
+                        ({`REG_DATA_WIDTH{csr_en}} & csr_reg_wdata_i) |
+                        ({`REG_DATA_WIDTH{alu_en}} & alu_reg_wdata_i);
 
-    assign reg_waddr_r = agu_active ? agu_reg_waddr_i :
-                         (muldiv_active && !muldiv_conflict) ? muldiv_reg_waddr_i :
-                         (csr_active && !csr_conflict) ? csr_reg_waddr_i :
-                         (alu_active && !alu_conflict) ? alu_reg_waddr_i : 
-                         idu_reg_waddr_i;
+    assign reg_waddr_r = ({`REG_ADDR_WIDTH{agu_en}} & agu_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{muldiv_en}} & muldiv_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{csr_en}} & csr_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{alu_en}} & alu_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{idu_en}} & idu_reg_waddr_i);
 
     // 输出到寄存器文件的信号
     assign reg_we_o = reg_we_effective;

@@ -41,7 +41,7 @@ module idu_id_pipe (
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
 
-    input wire [`HOLD_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
     output wire                        reg_we_o,       // 写通用寄存器标志
@@ -55,8 +55,8 @@ module idu_id_pipe (
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
 );
 
-    wire                        flush_en = (stall_flag_i >= `Hold_Flush);
-    wire                        stall_en = (stall_flag_i >= `Hold_Id);
+    wire                        flush_en = stall_flag_i[`CU_FLUSH];
+    wire                        stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;

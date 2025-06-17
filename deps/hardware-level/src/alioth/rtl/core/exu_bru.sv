@@ -42,7 +42,6 @@ module exu_bru (
     input wire        bjp_op_jalr_i,   // JALR指令标志
 
     input wire                        sys_op_fence_i,      // FENCE指令
-    input wire                        muldiv_jump_flag_i,  // 乘除法指令跳转标志
     // 中断信号
     input wire                        int_assert_i,
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
@@ -75,7 +74,7 @@ module exu_bru (
     wire bge_jump        = req_bjp_i & bjp_op_bge_i & op1_ge_op2_signed;
     wire bltu_jump       = req_bjp_i & bjp_op_bltu_i & ~op1_ge_op2_unsigned;
     wire bgeu_jump       = req_bjp_i & bjp_op_bgeu_i & op1_ge_op2_unsigned;
-    wire fence_jump      = sys_op_fence_i | muldiv_jump_flag_i;
+    wire fence_jump      = sys_op_fence_i;
 
     // 使用并行选择逻辑确定是否跳转
     assign jump_flag_o = int_jump | jal_jump | jalr_jump | beq_jump | 

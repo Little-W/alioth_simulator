@@ -35,16 +35,16 @@ module ifu_axi_master #(
     input wire rst_n,
 
     // 控制信号
-    input wire flush_flag_i,  // 流水线冲刷信号
-    input wire jump_flag_i,  // 跳转标志信号
-    input wire [`INST_ADDR_WIDTH-1:0] pc_i,  // PC指针
-    output wire read_resp_error_o,  // 读响应错误信号
+    input  wire                        id_stall_i,        // ID阶段阻塞，无法接受新的指令
+    input  wire                        jump_flag_i,       // 跳转标志信号
+    input  wire [`INST_ADDR_WIDTH-1:0] pc_i,              // PC指针
+    output wire                        read_resp_error_o, // 读响应错误信号
 
     // 新增输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_data_o,  // 指令数据输出
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,  // 指令地址输出
-    output wire inst_valid_o,  // 指令有效信号输出
-    output wire pc_stall_o,  // PC暂停信号输出
+    output wire [`INST_DATA_WIDTH-1:0] inst_data_o,   // 指令数据输出
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,   // 指令地址输出
+    output wire                        inst_valid_o,  // 指令有效信号输出
+    output wire                        pc_stall_o,    // PC暂停信号输出
 
     // AXI读地址通道
     output wire [  C_M_AXI_ID_WIDTH-1:0] M_AXI_ARID,
@@ -95,45 +95,45 @@ module ifu_axi_master #(
     wire valid_resp;  // 有效响应信号
 
     // FIFO状态信号
-    assign fifo_empty = (fifo_count == 0);
-    assign fifo_full = (fifo_count == 3);
+    assign fifo_empty      = (fifo_count == 0);
+    assign fifo_full       = (fifo_count == 3);
 
     // RID匹配检查
-    assign rid_match = (M_AXI_RID == arid_reg);
+    assign rid_match       = (M_AXI_RID == arid_reg);
 
-    assign read_hsked = M_AXI_RVALID && M_AXI_RREADY && !M_AXI_RRESP[1];
+    assign read_hsked      = M_AXI_RVALID && M_AXI_RREADY && !M_AXI_RRESP[1];
 
-    assign valid_resp = read_hsked && rid_match;
+    assign valid_resp      = read_hsked && rid_match;
 
     // PC暂停信号输出
-    assign pc_stall_o = (M_AXI_ARVALID && !M_AXI_ARREADY) || fifo_full;
+    assign pc_stall_o      = (M_AXI_ARVALID && !M_AXI_ARREADY) || fifo_full;
 
     // 同一周期响应检测
     assign same_cycle_resp = M_AXI_ARVALID && M_AXI_ARREADY && valid_resp && fifo_empty;
 
     // 推入条件：收到有效地址响应且RID匹配且不是同一周期响应且FIFO未满
-    assign push_fifo = M_AXI_ARVALID && M_AXI_ARREADY && !same_cycle_resp && !fifo_full;
+    assign push_fifo       = M_AXI_ARVALID && M_AXI_ARREADY && !same_cycle_resp && !fifo_full;
 
     // 弹出条件：不冲刷且FIFO非空或同一周期有响应
-    assign pop_fifo = !flush_flag_i && (!fifo_empty && valid_resp);
+    assign pop_fifo        = !id_stall_i && (!fifo_empty && valid_resp);
 
     // FIFO操作类型
-    assign fifo_op = {push_fifo, pop_fifo && !same_cycle_resp};
+    assign fifo_op         = {push_fifo, pop_fifo && !same_cycle_resp};
 
     // I/O连接
     // 读地址通道
-    assign M_AXI_ARID = arid_reg;  // 使用ARID寄存器
-    assign M_AXI_ARADDR = pc_i;  // 直接使用PC指针作为地址
-    assign M_AXI_ARLEN = C_M_AXI_BURST_LEN - 1;  // 突发长度
-    assign M_AXI_ARSIZE = $clog2((C_M_AXI_DATA_WIDTH / 8));  // 数据宽度
-    assign M_AXI_ARBURST = 2'b01;  // INCR类型突发
-    assign M_AXI_ARLOCK = 1'b0;
-    assign M_AXI_ARCACHE = 4'b0010;  // Normal Non-cacheable Non-bufferable
-    assign M_AXI_ARPROT = 3'h0;
-    assign M_AXI_ARQOS = 4'h0;
-    assign M_AXI_ARUSER = 4'h0;
-    assign M_AXI_ARVALID = !flush_flag_i && !fifo_full;  // 当不冲刷且FIFO未满时有效
-    assign M_AXI_RREADY  = !flush_flag_i;  // flush_flag有效时拉低rready，否则为1
+    assign M_AXI_ARID      = arid_reg;  // 使用ARID寄存器
+    assign M_AXI_ARADDR    = pc_i;  // 直接使用PC指针作为地址
+    assign M_AXI_ARLEN     = C_M_AXI_BURST_LEN - 1;  // 突发长度
+    assign M_AXI_ARSIZE    = $clog2((C_M_AXI_DATA_WIDTH / 8));  // 数据宽度
+    assign M_AXI_ARBURST   = 2'b01;  // INCR类型突发
+    assign M_AXI_ARLOCK    = 1'b0;
+    assign M_AXI_ARCACHE   = 4'b0010;  // Normal Non-cacheable Non-bufferable
+    assign M_AXI_ARPROT    = 3'h0;
+    assign M_AXI_ARQOS     = 4'h0;
+    assign M_AXI_ARUSER    = 4'h0;
+    assign M_AXI_ARVALID   = !id_stall_i && !fifo_full;  // 当不冲刷且FIFO未满时有效
+    assign M_AXI_RREADY    = !id_stall_i;  // flush_flag有效时拉低rready，否则为1
 
     // 读响应错误检测
     wire read_resp_error;
@@ -187,11 +187,10 @@ module ifu_axi_master #(
     end
 
     // 输出逻辑 - 数据直接连接到输出
-    assign inst_data_o = M_AXI_RDATA;  // 数据直接从AXI连接到输出
+    assign inst_data_o  = M_AXI_RDATA;  // 数据直接从AXI连接到输出
 
     // 地址仍然从FIFO输出
-    assign inst_addr_o = (!fifo_empty) ? fifo_addr[rd_ptr] : 
-                         (same_cycle_resp) ? M_AXI_ARADDR : 0;
+    assign inst_addr_o  = (!fifo_empty) ? fifo_addr[rd_ptr] : (same_cycle_resp) ? M_AXI_ARADDR : 0;
     assign inst_valid_o = valid_resp;
 
 endmodule

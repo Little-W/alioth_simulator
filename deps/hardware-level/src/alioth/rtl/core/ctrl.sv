@@ -42,7 +42,7 @@ module ctrl (
     // from hdu
     input wire stall_flag_hdu_i,
 
-    output wire [`HOLD_BUS_WIDTH-1:0] stall_flag_o,
+    output wire [`CU_BUS_WIDTH-1:0] stall_flag_o,
 
     // to pc_reg
     output wire                        jump_flag_o,
@@ -53,8 +53,12 @@ module ctrl (
     assign jump_addr_o = jump_addr_i;
     assign jump_flag_o = jump_flag_i & ~stall_flag_ex_i & ~stall_flag_hdu_i & ~stall_flag_clint_i & ~atom_opt_busy_i;
 
-    assign stall_flag_o = (stall_flag_ex_i || stall_flag_hdu_i || (atom_opt_busy_i && jump_flag_i)) ? `Hold_Id :
-                         ((jump_flag_i && !atom_opt_busy_i) || stall_flag_clint_i) ? `Hold_Flush :
-                         `Hold_None;
+    // 使用中间变量提高并行度
+    wire hold_id_condition = stall_flag_ex_i | stall_flag_hdu_i | (atom_opt_busy_i & jump_flag_i);
+    wire hold_flush_condition = ((jump_flag_i & ~atom_opt_busy_i) | stall_flag_clint_i);
+
+    // 使用与或并行逻辑直接生成stall_flag_o
+    assign stall_flag_o[`CU_STALL] = hold_id_condition;
+    assign stall_flag_o[`CU_FLUSH] = hold_flush_condition;
 
 endmodule

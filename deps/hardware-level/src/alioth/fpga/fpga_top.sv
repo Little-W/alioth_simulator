@@ -16,7 +16,7 @@ module fpga_top (
 
     // 通用寄存器访问 - 用于结果判断
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.pc_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
 
     // 计算ITCM的深度和字节大小
     localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数

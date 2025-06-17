@@ -58,12 +58,6 @@ module cpu_top (
     wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
 
     // exu模块输出信号
-    wire [`BUS_DATA_WIDTH-1:0] exu_mem_wdata_o;
-    wire [`BUS_ADDR_WIDTH-1:0] exu_mem_raddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] exu_mem_waddr_o;
-    wire exu_mem_we_o;
-    wire exu_mem_req_o;
-    wire [3:0] exu_mem_wmask_o;
     wire exu_stall_flag_o;
     wire exu_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] exu_jump_addr_o;
@@ -117,7 +111,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mstatus;
 
     // ctrl模块输出信号
-    wire [`HOLD_BUS_WIDTH-1:0] ctrl_stall_flag_o;
+    wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_o;
     wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -376,14 +370,8 @@ module cpu_top (
         .reg1_rdata_i(regs_rdata1_o),
         .reg2_rdata_i(regs_rdata2_o),
 
-        .mem_wdata_o     (exu_mem_wdata_o),
-        .mem_raddr_o     (exu_mem_raddr_o),
-        .mem_waddr_o     (exu_mem_waddr_o),
-        .mem_we_o        (exu_mem_we_o),
-        .mem_req_o       (exu_mem_req_o),
-        .mem_wmask_o     (exu_mem_wmask_o),
-        .mem_stall_o     (exu_mem_stall_o),      // 新增信号
-        .mem_store_busy_o(exu_mem_store_busy_o), // 新增信号
+        .mem_stall_o     (exu_mem_stall_o),
+        .mem_store_busy_o(exu_mem_store_busy_o),
 
         .alu_reg_wdata_o(exu_alu_reg_wdata_o),
         .alu_reg_we_o   (exu_alu_reg_we_o),
