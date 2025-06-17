@@ -25,7 +25,7 @@
 `include "defines.svh"
 
 // CSR寄存器模块
-module csr_reg (
+module csr (
 
     input wire clk,
     input wire rst_n,

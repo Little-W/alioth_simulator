@@ -25,7 +25,7 @@
 `include "defines.svh"
 
 // 通用寄存器模块
-module regs (
+module gpr (
 
     input wire clk,
     input wire rst_n,

@@ -25,7 +25,7 @@ module tb_top;
     always #10 clk = ~clk;
 
     // 通用寄存器访问 - 仅用于错误信息显示
-    wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_regs.regs[3];
+    wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
     wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.pc_o;
 
@@ -200,7 +200,7 @@ module tb_top;
                 $display("~~~~~~~~~~#       #    #     #    ######~~~~~~~~~~");
                 $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 $display("fail testnum = %2d", x3);
-                for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
+                for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
             end
             // 输出性能指标，方便脚本提取
             $display("PERF_METRIC: CYCLES=%-d INSTS=%-d IPC=%.4f", cycle_count, instruction_count, ipc);
@@ -250,8 +250,8 @@ module tb_top;
     // 添加可选的寄存器调试输出功能
 `ifdef DEBUG_DISPLAY_REGS
     // 监控GPR寄存器写入
-    wire        write_gpr_reg = alioth_soc_top_0.u_cpu_top.u_regs.we_i;
-    wire [ 4:0] write_gpr_addr = alioth_soc_top_0.u_cpu_top.u_regs.waddr_i;
+    wire        write_gpr_reg = alioth_soc_top_0.u_cpu_top.u_gpr.we_i;
+    wire [ 4:0] write_gpr_addr = alioth_soc_top_0.u_cpu_top.u_gpr.waddr_i;
 
     // 监控CSR寄存器写入
     wire        write_csr_reg = alioth_soc_top_0.u_cpu_top.u_csr_reg.we_i;
@@ -261,7 +261,7 @@ module tb_top;
         if (write_gpr_reg && (write_gpr_addr == 5'd31)) begin
             $display("\n");
             $display("GPR Register Status:");
-            for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_regs.regs[r]);
+            for (r = 0; r < 32; r = r + 1) $display("x%2d = 0x%x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
         end else if (write_csr_reg && (write_csr_addr[11:0] == 12'hc00)) begin
             $display("\n");
             $display("CSR Register Status:");

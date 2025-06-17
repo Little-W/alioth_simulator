@@ -269,8 +269,8 @@ module cpu_top (
         .jump_addr_o       (ctrl_jump_addr_o)
     );
 
-    // regs模块例化
-    regs u_regs (
+    // gpr模块例化
+    gpr u_gpr (
         .clk     (clk),
         .rst_n   (rst_n),
         .we_i    (wbu_reg_we_o),
@@ -282,8 +282,8 @@ module cpu_top (
         .rdata2_o(regs_rdata2_o)
     );
 
-    // csr_reg模块例化
-    csr_reg u_csr_reg (
+    // csr模块例化
+    csr u_csr (
         .clk              (clk),
         .rst_n            (rst_n),
         .we_i             (wbu_csr_we_o),
