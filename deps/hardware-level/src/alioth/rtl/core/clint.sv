@@ -44,7 +44,7 @@ module clint (
     input wire                        sys_op_mret_i,
 
     // from ctrl
-    input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,
+    input wire [`HOLD_BUS_WIDTH-1:0] stall_flag_i,
 
     // from csr_reg
     input wire [`REG_DATA_WIDTH-1:0] data_i,
@@ -55,7 +55,7 @@ module clint (
     input wire global_int_en_i,  // 全局中断使能标志
 
     // to ctrl
-    output wire hold_flag_o,
+    output wire stall_flag_o,
 
     // to csr_reg
     output reg                       we_o,
@@ -89,7 +89,7 @@ module clint (
     reg [31:0] cause;  // 中断原因代码
 
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时暂停流水线
-    assign hold_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE)) ? `HoldEnable : `HoldDisable;
+    assign stall_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE)) ? `HoldEnable : `HoldDisable;
 
     // 中断状态机逻辑
     always @(*) begin

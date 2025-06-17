@@ -93,7 +93,7 @@ module exu (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o,
 
     // to ctrl
-    output wire                        hold_flag_o,
+    output wire                        stall_flag_o,
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
@@ -190,10 +190,10 @@ module exu (
     wire [                 3:0] mem_commit_id = {2'b0, mem_inst_id};
 
     // 新增：ALU握手相关信号
-    wire                        alu_hold;
+    wire                        alu_stall;
 
     // 新增：CSR握手相关信号
-    wire                        csr_hold;
+    wire                        csr_stall;
     wire                        csr_ready;  // CSR写回准备好信号
 
     // 新增：总线控制信号
@@ -215,7 +215,7 @@ module exu (
     wire [ `REG_DATA_WIDTH-1:0] csr_unit_wdata;
     wire [ `REG_DATA_WIDTH-1:0] csr_unit_reg_wdata;
 
-    wire                        muldiv_hold_flag;
+    wire                        muldiv_stall_flag;
     wire                        muldiv_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] muldiv_jump_addr;
     wire [ `REG_DATA_WIDTH-1:0] muldiv_wdata;
@@ -476,7 +476,7 @@ module exu (
         .alu_op_info_i(alu_op_info_o),
         .alu_rd_i     (reg_waddr_i),
         .wb_ready_i   (alu_wb_ready_i),  // 使用ALU专用写回准备信号
-        .alu_hold_o   (alu_hold),
+        .alu_stall_o  (alu_stall),
         .int_assert_i (int_assert_i),
         .result_o     (alu_result),
         .reg_we_o     (alu_reg_we),
@@ -522,13 +522,13 @@ module exu (
         .csr_waddr_i (csr_waddr_i),
         .reg_waddr_i (reg_waddr_i),      // 连接寄存器写地址输入
         .wb_ready_i  (csr_wb_ready_i),
-        .csr_hold_o  (csr_hold),
+        .csr_stall_o (csr_stall),
         .int_assert_i(int_assert_i),
         .csr_wdata_o (csr_wdata_o),
         .csr_we_o    (csr_we_o),
         .csr_waddr_o (csr_waddr_o),
         .reg_wdata_o (csr_reg_wdata_o),
-        .reg_waddr_o (csr_reg_waddr_o)     // 连接寄存器写地址输出
+        .reg_waddr_o (csr_reg_waddr_o)   // 连接寄存器写地址输出
     );
 
     // 乘除法控制逻辑 - 使用专用握手信号
@@ -564,20 +564,20 @@ module exu (
         .mul_valid_i (mul_valid),    // 新增：连接乘法有效信号
         .int_assert_i(int_assert_i),
 
-        .div_start_o       (div_start),
-        .div_dividend_o    (div_dividend),
-        .div_divisor_o     (div_divisor),
-        .div_op_o          (div_op),
-        .mul_start_o       (mul_start),
-        .mul_multiplicand_o(mul_multiplicand),
-        .mul_multiplier_o  (mul_multiplier),
-        .mul_op_o          (mul_op),
-        .muldiv_hold_flag_o(muldiv_hold_flag),
-        .muldiv_jump_flag_o(muldiv_jump_flag),
-        .reg_wdata_o       (muldiv_wdata),
-        .reg_we_o          (muldiv_we),
-        .reg_waddr_o       (muldiv_waddr),
-        .commit_id_o       (muldiv_commit_id)   // 4位commit_id输出
+        .div_start_o        (div_start),
+        .div_dividend_o     (div_dividend),
+        .div_divisor_o      (div_divisor),
+        .div_op_o           (div_op),
+        .mul_start_o        (mul_start),
+        .mul_multiplicand_o (mul_multiplicand),
+        .mul_multiplier_o   (mul_multiplier),
+        .mul_op_o           (mul_op),
+        .muldiv_stall_flag_o(muldiv_stall_flag),
+        .muldiv_jump_flag_o (muldiv_jump_flag),
+        .reg_wdata_o        (muldiv_wdata),
+        .reg_we_o           (muldiv_we),
+        .reg_waddr_o        (muldiv_waddr),
+        .commit_id_o        (muldiv_commit_id)    // 4位commit_id输出
     );
 
     // 直接将执行单元的结果暴露给wbu - 修改commit_id宽度
@@ -596,8 +596,8 @@ module exu (
     assign agu_reg_waddr_o = agu_reg_waddr;
     assign agu_commit_id_o = agu_commit_id;  // 修改：直接使用8位commit_id
 
-    // 输出选择逻辑 - 修改hold_flag输出，考虑所有握手信号
-    assign hold_flag_o = muldiv_hold_flag | alu_hold | csr_hold | mem_stall_o;
+    // 输出选择逻辑 - 修改stall_flag输出，考虑所有握手信号
+    assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
     assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
     assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
 

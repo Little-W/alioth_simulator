@@ -33,12 +33,12 @@ module ifu (
     // 来自控制模块
     input wire                        jump_flag_i,  // 跳转标志
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
-    input wire [ `HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
+    input wire [ `HOLD_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     // 输出到ID阶段的信息
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,  // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,  // 指令地址
-    output wire read_resp_error_o,  // AXI读响应错误信号
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 指令内容
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
+    output wire                        read_resp_error_o, // AXI读响应错误信号
 
     // AXI接口
     // AXI读地址通道
@@ -64,11 +64,11 @@ module ifu (
     output wire                        M_AXI_RREADY
 );
 
-    // 在顶层处理hold_flag_i信号
+    // 在顶层处理stall_flag_i信号
     wire axi_pc_stall;
-    wire hold_pc = (hold_flag_i != 0) || axi_pc_stall;  // PC暂停信号
-    wire hold_if = (hold_flag_i >= `Hold_If);  // IF暂停信号
-    wire flush_flag = (hold_flag_i >= `Hold_Flush);  // 流水线冲刷信号
+    wire stall_pc = (stall_flag_i != 0) || axi_pc_stall;  // PC暂停信号
+    wire stall_if = (stall_flag_i >= `Hold_If);  // IF暂停信号
+    wire flush_flag = (stall_flag_i >= `Hold_Flush);  // 流水线冲刷信号
 
     // 内部信号定义
     wire [`INST_ADDR_WIDTH-1:0] pc;  // 内部PC信号
@@ -78,34 +78,34 @@ module ifu (
 
     // 实例化IFetch模块，现包含ifu_pipe功能
     ifu_ifetch u_ifu_ifetch (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .jump_flag_i     (jump_flag_i),
-        .jump_addr_i     (jump_addr_i),
-        .hold_pc_i       (hold_pc),
-        .axi_arready_i   (M_AXI_ARREADY), // 连接AXI读地址通道准备好信号
-        .inst_i          (inst_data),     // 使用从AXI读取的指令
-        .inst_addr_i     (inst_addr),     // 使用从AXI读取的指令地址
-        .flush_flag_i    (flush_flag),
-        .inst_valid_i    (inst_valid),    // 从AXI控制器获取的有效信号
-        .hold_if_i       (hold_if),       // 连接IF阶段暂停信号
-        .pc_o            (pc),            // PC输出
-        .inst_o          (inst_o),        // 指令输出
-        .inst_addr_o     (inst_addr_o)    // 指令地址输出
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .jump_flag_i  (jump_flag_i),
+        .jump_addr_i  (jump_addr_i),
+        .stall_pc_i   (stall_pc),
+        .axi_arready_i(M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
+        .inst_i       (inst_data),      // 使用从AXI读取的指令
+        .inst_addr_i  (inst_addr),      // 使用从AXI读取的指令地址
+        .flush_flag_i (flush_flag),
+        .inst_valid_i (inst_valid),     // 从AXI控制器获取的有效信号
+        .stall_if_i   (stall_if),       // 连接IF阶段暂停信号
+        .pc_o         (pc),             // PC输出
+        .inst_o       (inst_o),         // 指令输出
+        .inst_addr_o  (inst_addr_o)     // 指令地址输出
     );
 
     // 实例化AXI主机模块
     ifu_axi_master u_ifu_axi_master (
-        .clk(clk),
-        .rst_n(rst_n),
-        .flush_flag_i(flush_flag),
-        .jump_flag_i(jump_flag_i),  // 连接跳转标志信号
-        .pc_i(pc),
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .flush_flag_i     (flush_flag),
+        .jump_flag_i      (jump_flag_i),        // 连接跳转标志信号
+        .pc_i             (pc),
         .read_resp_error_o(read_resp_error_o),
-        .inst_data_o(inst_data),  // 连接指令数据输出
-        .inst_addr_o(inst_addr),  // 连接指令地址输出
-        .inst_valid_o(inst_valid),  // 连接指令有效信号输出
-        .pc_stall_o(axi_pc_stall),  // 连接PC暂停信号输出
+        .inst_data_o      (inst_data),          // 连接指令数据输出
+        .inst_addr_o      (inst_addr),          // 连接指令地址输出
+        .inst_valid_o     (inst_valid),         // 连接指令有效信号输出
+        .pc_stall_o       (axi_pc_stall),       // 连接PC暂停信号输出
 
         // AXI读地址通道
         .M_AXI_ARID   (M_AXI_ARID),

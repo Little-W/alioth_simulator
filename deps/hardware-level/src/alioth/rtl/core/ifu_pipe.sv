@@ -35,7 +35,7 @@ module ifu_pipe (
 
     input wire flush_flag_i,  // 流水线冲刷标志
     input wire inst_valid_i,  // 指令有效信号
-    input wire hold_i,        // 保持信号，为1时触发器保持不更新
+    input wire stall_i,       // 保持信号，为1时触发器保持不更新
 
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址
@@ -43,7 +43,7 @@ module ifu_pipe (
 );
 
     // 直接使用flush_flag_i，不再寄存
-    wire flush_en = flush_flag_i;
+    wire                        flush_en = flush_flag_i;
 
     // 在指令无效或冲刷信号有效时，选择 NOP 作为寄存器输入
     wire [`INST_DATA_WIDTH-1:0] inst_selected = (flush_en || !inst_valid_i) ? `INST_NOP : inst_i;
@@ -53,7 +53,7 @@ module ifu_pipe (
     gnrl_dfflr #(`INST_DATA_WIDTH) inst_ff (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (!hold_i),      // 当hold_i为1时不更新
+        .lden (!stall_i),       // 当stall_i为1时不更新
         .dnxt (inst_selected),
         .qout (inst_r)
     );
@@ -68,7 +68,7 @@ module ifu_pipe (
     gnrl_dfflr #(`INST_ADDR_WIDTH) inst_addr_ff (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (!hold_i),      // 当hold_i为1时不更新
+        .lden (!stall_i),       // 当stall_i为1时不更新
         .dnxt (addr_selected),
         .qout (inst_addr)
     );

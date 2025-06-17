@@ -38,7 +38,7 @@ module exu_alu (
 
     // 握手信号和控制
     input  wire wb_ready_i,  // 写回单元准备好接收ALU结果
-    output wire alu_hold_o,   // ALU暂停信号
+    output wire alu_stall_o,   // ALU暂停信号
 
     // 中断信号
     input wire int_assert_i,
@@ -209,8 +209,8 @@ module exu_alu (
     // 握手信号控制逻辑
     wire update_output = wb_ready_i; // 仅在有效结果且ready时更新输出
 
-    // 握手失败时输出hold信号
-    assign alu_hold_o = reg_we_r & ~wb_ready_i;
+    // 握手失败时输出stall信号
+    assign alu_stall_o = reg_we_r & ~wb_ready_i;
 
     // 使用gnrl_dfflr实例化输出级寄存器
     wire [`REG_DATA_WIDTH-1:0] result_r;

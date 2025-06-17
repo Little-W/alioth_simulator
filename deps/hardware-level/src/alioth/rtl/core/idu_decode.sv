@@ -274,7 +274,7 @@ module idu_decode (
     assign dec_sys_info_bus[`DECINFO_SYS_FENCE]  = inst_fence | inst_fence_i;
 
     // 操作码逻辑优化
-    wire op_alu = inst_lui | inst_auipc | opcode_0010011 | (opcode_0110011 & (~inst_type_muldiv));
+    wire op_alu = (inst_lui | inst_auipc | (opcode_0010011 & (~inst_nop)) | (opcode_0110011 & (~inst_type_muldiv)));
     wire op_bjp = inst_jal | inst_jalr | inst_type_branch;
     wire op_muldiv = inst_type_muldiv;
     wire op_csr = insr_type_cstr & (funct3_001 | funct3_010 | funct3_011 | funct3_101 | funct3_110 | funct3_111);

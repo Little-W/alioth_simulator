@@ -65,7 +65,7 @@ module cpu_top (
     wire exu_mem_we_o;
     wire exu_mem_req_o;
     wire [3:0] exu_mem_wmask_o;
-    wire exu_hold_flag_o;
+    wire exu_stall_flag_o;
     wire exu_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] exu_jump_addr_o;
     wire [`REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
@@ -118,7 +118,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mstatus;
 
     // ctrl模块输出信号
-    wire [`HOLD_BUS_WIDTH-1:0] ctrl_hold_flag_o;
+    wire [`HOLD_BUS_WIDTH-1:0] ctrl_stall_flag_o;
     wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -129,7 +129,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] clint_data_o;
     wire [`INST_ADDR_WIDTH-1:0] clint_int_addr_o;
     wire clint_int_assert_o;
-    wire clint_hold_flag_o;
+    wire clint_stall_flag_o;
 
     wire [`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
 
@@ -137,7 +137,7 @@ module cpu_top (
     wire ifu_read_resp_error_o;
     wire exu_mem_stall_o;
     wire exu_mem_store_busy_o;
-    wire hdu_hold_flag_o;  // 改为直接从HDU获取
+    wire hdu_stall_flag_o;  // 改为直接从HDU获取
     wire hdu_long_inst_atom_lock_o;  // 改为直接从HDU获取
     wire [1:0] hdu_long_inst_id_o;  // 改为直接从HDU获取
     wire wbu_commit_valid_o;
@@ -156,8 +156,7 @@ module cpu_top (
     wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire new_long_inst_valid = is_long_inst;  // 移除了不存在的idu_long_inst_valid
-
+    wire new_long_inst_valid = is_long_inst && !exu_stall_flag_o;
     // AXI接口信号 - IFU
     wire ifu_axi_arid;
     wire [`INST_ADDR_WIDTH-1:0] ifu_axi_araddr;
@@ -229,7 +228,7 @@ module cpu_top (
         .rst_n            (rst_n),
         .jump_flag_i      (ctrl_jump_flag_o),
         .jump_addr_i      (ctrl_jump_addr_o),
-        .hold_flag_i      (ctrl_hold_flag_o),
+        .stall_flag_i     (ctrl_stall_flag_o),
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
@@ -258,15 +257,15 @@ module cpu_top (
 
     // ctrl模块例化
     ctrl u_ctrl (
-        .rst_n            (rst_n),
-        .jump_flag_i      (exu_jump_flag_o),
-        .jump_addr_i      (exu_jump_addr_o),
-        .hold_flag_ex_i   (exu_hold_flag_o),
-        .hold_flag_clint_i(clint_hold_flag_o),
-        .hold_flag_hdu_i  (hdu_hold_flag_o),    // 修改：直接从HDU获取暂停信号
-        .hold_flag_o      (ctrl_hold_flag_o),
-        .jump_flag_o      (ctrl_jump_flag_o),
-        .jump_addr_o      (ctrl_jump_addr_o)
+        .rst_n             (rst_n),
+        .jump_flag_i       (exu_jump_flag_o),
+        .jump_addr_i       (exu_jump_addr_o),
+        .stall_flag_ex_i   (exu_stall_flag_o),
+        .stall_flag_clint_i(clint_stall_flag_o),
+        .stall_flag_hdu_i  (hdu_stall_flag_o),    // 修改：直接从HDU获取暂停信号
+        .stall_flag_o      (ctrl_stall_flag_o),
+        .jump_flag_o       (ctrl_jump_flag_o),
+        .jump_addr_o       (ctrl_jump_addr_o)
     );
 
     // regs模块例化
@@ -304,11 +303,11 @@ module cpu_top (
 
     // idu模块例化 - 更新接口，移除长指令ID相关接口
     idu u_idu (
-        .clk        (clk),
-        .rst_n      (rst_n),
-        .inst_i     (if_inst_o),
-        .inst_addr_i(if_inst_addr_o),
-        .hold_flag_i(ctrl_hold_flag_o),
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .inst_i      (if_inst_o),
+        .inst_addr_i (if_inst_addr_o),
+        .stall_flag_i(ctrl_stall_flag_o),
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
@@ -343,7 +342,7 @@ module cpu_top (
         .commit_id_i   (wbu_commit_id_o),
 
         // 控制信号输出
-        .hazard_stall_o       (hdu_hold_flag_o),
+        .hazard_stall_o       (hdu_stall_flag_o),
         .commit_id_o          (hdu_long_inst_id_o),
         .long_inst_atom_lock_o(hdu_long_inst_atom_lock_o)
     );
@@ -409,7 +408,7 @@ module cpu_top (
         .csr_we_o   (exu_csr_we_o),
         .csr_waddr_o(exu_csr_waddr_o),
 
-        .hold_flag_o     (exu_hold_flag_o),
+        .stall_flag_o    (exu_stall_flag_o),
         .jump_flag_o     (exu_jump_flag_o),
         .jump_addr_o     (exu_jump_addr_o),
         .muldiv_started_o(exu_muldiv_started_o),
@@ -518,8 +517,8 @@ module cpu_top (
         .inst_addr_i    (idu_inst_addr_o),
         .jump_flag_i    (exu_jump_flag_o),
         .jump_addr_i    (exu_jump_addr_o),
-        .hold_flag_i    (ctrl_hold_flag_o),
-        .atom_opt_busy_i(atom_opt_busy),     // 原子操作忙标志
+        .stall_flag_i   (ctrl_stall_flag_o),
+        .atom_opt_busy_i(atom_opt_busy),      // 原子操作忙标志
 
         // 连接系统操作信号
         .sys_op_ecall_i (exu_ecall_o),
@@ -534,7 +533,7 @@ module cpu_top (
         .waddr_o        (clint_waddr_o),
         .raddr_o        (clint_raddr_o),
         .data_o         (clint_data_o),
-        .hold_flag_o    (clint_hold_flag_o),
+        .stall_flag_o   (clint_stall_flag_o),
         .global_int_en_i(csr_global_int_en_o),
         .int_addr_o     (clint_int_addr_o),
         .int_assert_o   (clint_int_assert_o)

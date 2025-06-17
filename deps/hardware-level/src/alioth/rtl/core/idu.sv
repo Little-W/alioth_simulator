@@ -35,7 +35,7 @@ module idu (
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
 
     // from ctrl
-    input wire [`HOLD_BUS_WIDTH-1:0] hold_flag_i,  // 流水线暂停标志
+    input wire [`HOLD_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
     // 长指令完成信号 - 保留用于内部监控
     input wire       commit_valid_i,  // 长指令执行完成有效信号
@@ -120,7 +120,7 @@ module idu (
         .dec_imm_i     (id_dec_imm),
 
         // from ctrl
-        .hold_flag_i(hold_flag_i),
+        .stall_flag_i(stall_flag_i),
 
         // to ex
         .inst_o        (inst_o),

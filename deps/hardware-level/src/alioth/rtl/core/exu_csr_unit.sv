@@ -47,7 +47,7 @@ module exu_csr_unit (
 
     // 握手信号和控制
     input  wire wb_ready_i,  // 写回单元准备好接收CSR结果
-    output wire csr_hold_o,  // CSR暂停信号
+    output wire csr_stall_o,  // CSR暂停信号
 
     // 中断信号
     input wire int_assert_i,
@@ -87,8 +87,8 @@ module exu_csr_unit (
     wire valid_csr_op = req_csr_i & (int_assert_i != `INT_ASSERT);  // 当前有有效的CSR操作
     wire update_output = wb_ready_i;  // 仅在有有效CSR操作且ready时更新输出
 
-    // 握手失败时输出hold信号
-    assign csr_hold_o = csr_we_o & ~wb_ready_i;
+    // 握手失败时输出stall信号
+    assign csr_stall_o = csr_we_o & ~wb_ready_i;
 
     // CSR写使能输出 - 只有在没有中断时才使能
     wire                       csr_we_comb = (int_assert_i == `INT_ASSERT) ? 1'b0 : csr_we_i;
