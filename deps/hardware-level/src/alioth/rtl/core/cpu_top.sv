@@ -251,6 +251,7 @@ module cpu_top (
 
     // ctrl模块例化
     ctrl u_ctrl (
+        .clk               (clk),
         .rst_n             (rst_n),
         .jump_flag_i       (exu_jump_flag_o),
         .jump_addr_i       (exu_jump_addr_o),

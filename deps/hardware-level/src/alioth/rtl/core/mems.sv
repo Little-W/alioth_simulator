@@ -124,11 +124,11 @@ module mems #(
     wire is_m1_itcm_w = (M1_AXI_AWADDR >= `ITCM_BASE_ADDR) && (M1_AXI_AWADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
 
     // Outstanding事务计数器 - 针对不同内存区域独立追踪
-    reg [3:0] m0_itcm_r_outstanding_cnt;  // M0访问ITCM的读事务计数器
-    reg [3:0] m1_itcm_r_outstanding_cnt;  // M1访问ITCM的读事务计数器
-    reg [3:0] m1_dtcm_r_outstanding_cnt;  // M1访问DTCM的读事务计数器
-    reg [3:0] m1_itcm_w_outstanding_cnt;  // M1访问ITCM的写事务计数器
-    reg [3:0] m1_dtcm_w_outstanding_cnt;  // M1访问DTCM的写事务计数器
+    wire [3:0] m0_itcm_r_outstanding_cnt;  // M0访问ITCM的读事务计数器
+    wire [3:0] m1_itcm_r_outstanding_cnt;  // M1访问ITCM的读事务计数器
+    wire [3:0] m1_dtcm_r_outstanding_cnt;  // M1访问DTCM的读事务计数器
+    wire [3:0] m1_itcm_w_outstanding_cnt;  // M1访问ITCM的写事务计数器
+    wire [3:0] m1_dtcm_w_outstanding_cnt;  // M1访问DTCM的写事务计数器
 
     // 事务跟踪信号
     wire m0_itcm_ar_trans = M0_AXI_ARVALID && M0_AXI_ARREADY && is_m0_itcm_r;
@@ -145,92 +145,107 @@ module mems #(
     wire m1_itcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_itcm_w_outstanding_cnt > 0;
     wire m1_dtcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_dtcm_w_outstanding_cnt > 0;
 
+    // 计数器下一值计算 - 使用与或逻辑实现并行
     // M0 ITCM读outstanding计数器
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m0_itcm_r_outstanding_cnt <= 4'd0;
-        end else begin
-            case ({
-                m0_itcm_ar_trans, m0_itcm_r_trans
-            })
-                2'b10: m0_itcm_r_outstanding_cnt <= m0_itcm_r_outstanding_cnt + 4'd1;  // 新请求
-                2'b01:
-                m0_itcm_r_outstanding_cnt <= m0_itcm_r_outstanding_cnt - 4'd1;  // 完成请求
-                default:
-                m0_itcm_r_outstanding_cnt <= m0_itcm_r_outstanding_cnt;  // 无变化或同时发生
-            endcase
-        end
-    end
+    wire m0_itcm_inc = m0_itcm_ar_trans & ~m0_itcm_r_trans;  // 只增加不减少
+    wire m0_itcm_dec = ~m0_itcm_ar_trans & m0_itcm_r_trans;  // 只减少不增加
+    wire m0_itcm_keep = (m0_itcm_ar_trans & m0_itcm_r_trans) | (~m0_itcm_ar_trans & ~m0_itcm_r_trans); // 保持不变
+
+    wire [3:0] m0_itcm_r_outstanding_cnt_nxt = 
+        ({4{m0_itcm_inc}} & (m0_itcm_r_outstanding_cnt + 4'd1)) |
+        ({4{m0_itcm_dec}} & (m0_itcm_r_outstanding_cnt - 4'd1)) |
+        ({4{m0_itcm_keep}} & m0_itcm_r_outstanding_cnt);
 
     // M1 ITCM读outstanding计数器
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m1_itcm_r_outstanding_cnt <= 4'd0;
-        end else begin
-            case ({
-                m1_itcm_ar_trans, m1_itcm_r_trans
-            })
-                2'b10: m1_itcm_r_outstanding_cnt <= m1_itcm_r_outstanding_cnt + 4'd1;  // 新请求
-                2'b01:
-                m1_itcm_r_outstanding_cnt <= m1_itcm_r_outstanding_cnt - 4'd1;  // 完成请求
-                default:
-                m1_itcm_r_outstanding_cnt <= m1_itcm_r_outstanding_cnt;  // 无变化或同时发生
-            endcase
-        end
-    end
+    wire m1_itcm_inc = m1_itcm_ar_trans & ~m1_itcm_r_trans;
+    wire m1_itcm_dec = ~m1_itcm_ar_trans & m1_itcm_r_trans;
+    wire m1_itcm_keep = (m1_itcm_ar_trans & m1_itcm_r_trans) | (~m1_itcm_ar_trans & ~m1_itcm_r_trans);
+
+    wire [3:0] m1_itcm_r_outstanding_cnt_nxt = 
+        ({4{m1_itcm_inc}} & (m1_itcm_r_outstanding_cnt + 4'd1)) |
+        ({4{m1_itcm_dec}} & (m1_itcm_r_outstanding_cnt - 4'd1)) |
+        ({4{m1_itcm_keep}} & m1_itcm_r_outstanding_cnt);
 
     // M1 DTCM读outstanding计数器
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m1_dtcm_r_outstanding_cnt <= 4'd0;
-        end else begin
-            case ({
-                m1_dtcm_ar_trans, m1_dtcm_r_trans
-            })
-                2'b10: m1_dtcm_r_outstanding_cnt <= m1_dtcm_r_outstanding_cnt + 4'd1;  // 新请求
-                2'b01:
-                m1_dtcm_r_outstanding_cnt <= m1_dtcm_r_outstanding_cnt - 4'd1;  // 完成请求
-                default:
-                m1_dtcm_r_outstanding_cnt <= m1_dtcm_r_outstanding_cnt;  // 无变化或同时发生
-            endcase
-        end
-    end
+    wire m1_dtcm_inc = m1_dtcm_ar_trans & ~m1_dtcm_r_trans;
+    wire m1_dtcm_dec = ~m1_dtcm_ar_trans & m1_dtcm_r_trans;
+    wire m1_dtcm_keep = (m1_dtcm_ar_trans & m1_dtcm_r_trans) | (~m1_dtcm_ar_trans & ~m1_dtcm_r_trans);
+
+    wire [3:0] m1_dtcm_r_outstanding_cnt_nxt = 
+        ({4{m1_dtcm_inc}} & (m1_dtcm_r_outstanding_cnt + 4'd1)) |
+        ({4{m1_dtcm_dec}} & (m1_dtcm_r_outstanding_cnt - 4'd1)) |
+        ({4{m1_dtcm_keep}} & m1_dtcm_r_outstanding_cnt);
 
     // M1 ITCM写outstanding计数器
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m1_itcm_w_outstanding_cnt <= 4'd0;
-        end else begin
-            case ({
-                m1_itcm_aw_trans, m1_itcm_b_trans
-            })
-                2'b10:
-                m1_itcm_w_outstanding_cnt <= m1_itcm_w_outstanding_cnt + 4'd1;  // 新写请求
-                2'b01:
-                m1_itcm_w_outstanding_cnt <= m1_itcm_w_outstanding_cnt - 4'd1;  // 完成写请求
-                default:
-                m1_itcm_w_outstanding_cnt <= m1_itcm_w_outstanding_cnt;  // 无变化或同时发生
-            endcase
-        end
-    end
+    wire m1_itcm_w_inc = m1_itcm_aw_trans & ~m1_itcm_b_trans;
+    wire m1_itcm_w_dec = ~m1_itcm_aw_trans & m1_itcm_b_trans;
+    wire m1_itcm_w_keep = (m1_itcm_aw_trans & m1_itcm_b_trans) | (~m1_itcm_aw_trans & ~m1_itcm_b_trans);
+
+    wire [3:0] m1_itcm_w_outstanding_cnt_nxt = 
+        ({4{m1_itcm_w_inc}} & (m1_itcm_w_outstanding_cnt + 4'd1)) |
+        ({4{m1_itcm_w_dec}} & (m1_itcm_w_outstanding_cnt - 4'd1)) |
+        ({4{m1_itcm_w_keep}} & m1_itcm_w_outstanding_cnt);
 
     // M1 DTCM写outstanding计数器
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m1_dtcm_w_outstanding_cnt <= 4'd0;
-        end else begin
-            case ({
-                m1_dtcm_aw_trans, m1_dtcm_b_trans
-            })
-                2'b10:
-                m1_dtcm_w_outstanding_cnt <= m1_dtcm_w_outstanding_cnt + 4'd1;  // 新写请求
-                2'b01:
-                m1_dtcm_w_outstanding_cnt <= m1_dtcm_w_outstanding_cnt - 4'd1;  // 完成写请求
-                default:
-                m1_dtcm_w_outstanding_cnt <= m1_dtcm_w_outstanding_cnt;  // 无变化或同时发生
-            endcase
-        end
-    end
+    wire m1_dtcm_w_inc = m1_dtcm_aw_trans & ~m1_dtcm_b_trans;
+    wire m1_dtcm_w_dec = ~m1_dtcm_aw_trans & m1_dtcm_b_trans;
+    wire m1_dtcm_w_keep = (m1_dtcm_aw_trans & m1_dtcm_b_trans) | (~m1_dtcm_aw_trans & ~m1_dtcm_b_trans);
+
+    wire [3:0] m1_dtcm_w_outstanding_cnt_nxt = 
+        ({4{m1_dtcm_w_inc}} & (m1_dtcm_w_outstanding_cnt + 4'd1)) |
+        ({4{m1_dtcm_w_dec}} & (m1_dtcm_w_outstanding_cnt - 4'd1)) |
+        ({4{m1_dtcm_w_keep}} & m1_dtcm_w_outstanding_cnt);
+
+    // 使用gnrl_dfflr实例化计数器寄存器
+    gnrl_dfflr #(
+        .DW(4)
+    ) m0_itcm_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),                           // 始终使能
+        .dnxt (m0_itcm_r_outstanding_cnt_nxt),
+        .qout (m0_itcm_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_itcm_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_itcm_r_outstanding_cnt_nxt),
+        .qout (m1_itcm_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_dtcm_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_dtcm_r_outstanding_cnt_nxt),
+        .qout (m1_dtcm_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_itcm_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_itcm_w_outstanding_cnt_nxt),
+        .qout (m1_itcm_w_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_dtcm_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_dtcm_w_outstanding_cnt_nxt),
+        .qout (m1_dtcm_w_outstanding_cnt)
+    );
 
 
     // ITCM与DTCM的接口信号

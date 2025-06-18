@@ -28,6 +28,7 @@
 // 发出跳转、暂停流水线信号
 module ctrl (
 
+    input wire clk,
     input wire rst_n,
 
     // from ex
@@ -50,15 +51,18 @@ module ctrl (
 
 );
 
-    assign jump_addr_o = jump_addr_i;
-    assign jump_flag_o = jump_flag_i & ~stall_flag_ex_i & ~stall_flag_hdu_i & ~stall_flag_clint_i & ~atom_opt_busy_i;
+    // 复合暂停信号 - 合并所有暂停条件
+    wire any_stall = stall_flag_ex_i | stall_flag_hdu_i | stall_flag_clint_i;
 
-    // 使用中间变量提高并行度
-    wire hold_id_condition = stall_flag_ex_i | stall_flag_hdu_i | (atom_opt_busy_i & jump_flag_i);
-    wire hold_flush_condition = ((jump_flag_i & ~atom_opt_busy_i) | stall_flag_clint_i);
+    // 原子操作相关的暂停条件
+    wire atom_stall = atom_opt_busy_i & jump_flag_i;
 
-    // 使用与或并行逻辑直接生成stall_flag_o
-    assign stall_flag_o[`CU_STALL] = hold_id_condition;
-    assign stall_flag_o[`CU_FLUSH] = hold_flush_condition;
+    // 简化的跳转输出逻辑
+    assign jump_addr_o             = jump_addr_i;
+    assign jump_flag_o             = jump_flag_i & ~any_stall & ~atom_opt_busy_i;
+
+    // 简化的暂停标志输出
+    assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | stall_flag_hdu_i | atom_stall;
+    assign stall_flag_o[`CU_FLUSH] = (jump_flag_i & ~atom_opt_busy_i) | stall_flag_clint_i;
 
 endmodule
