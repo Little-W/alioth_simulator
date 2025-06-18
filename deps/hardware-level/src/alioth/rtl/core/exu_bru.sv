@@ -41,13 +41,13 @@ module exu_bru (
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,   // JALR指令标志
 
-    input wire                        sys_op_fence_i,      // FENCE指令
+    input wire                        sys_op_fence_i,  // FENCE指令
     // 中断信号
     input wire                        int_assert_i,
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
 
     // 跳转输出
-    output wire                       jump_flag_o,
+    output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o
 );
     // 内部信号
@@ -64,27 +64,21 @@ module exu_bru (
     // 计算跳转地址
     assign op1_jump_add_op2_jump_res = bjp_jump_op1_i + bjp_jump_op2_i;
 
-    // 各种跳转条件信号
-    wire int_jump        = (int_assert_i == `INT_ASSERT);
-    wire jal_jump        = req_bjp_i & bjp_op_jump_i;
-    wire jalr_jump       = req_bjp_i & bjp_op_jalr_i;
-    wire beq_jump        = req_bjp_i & bjp_op_beq_i & op1_eq_op2;
-    wire bne_jump        = req_bjp_i & bjp_op_bne_i & ~op1_eq_op2;
-    wire blt_jump        = req_bjp_i & bjp_op_blt_i & ~op1_ge_op2_signed;
-    wire bge_jump        = req_bjp_i & bjp_op_bge_i & op1_ge_op2_signed;
-    wire bltu_jump       = req_bjp_i & bjp_op_bltu_i & ~op1_ge_op2_unsigned;
-    wire bgeu_jump       = req_bjp_i & bjp_op_bgeu_i & op1_ge_op2_unsigned;
-    wire fence_jump      = sys_op_fence_i;
+    // 简化跳转条件信号判断
+    wire branch_cond = req_bjp_i & (
+        (bjp_op_beq_i  &  op1_eq_op2) |
+        (bjp_op_bne_i  & ~op1_eq_op2) |
+        (bjp_op_blt_i  & ~op1_ge_op2_signed) |
+        (bjp_op_bge_i  &  op1_ge_op2_signed) |
+        (bjp_op_bltu_i & ~op1_ge_op2_unsigned) |
+        (bjp_op_bgeu_i &  op1_ge_op2_unsigned) |
+        bjp_op_jump_i
+    );
 
-    // 使用并行选择逻辑确定是否跳转
-    assign jump_flag_o = int_jump | jal_jump | jalr_jump | beq_jump | 
-                         bne_jump | blt_jump | bge_jump | bltu_jump | 
-                         bgeu_jump | fence_jump;
+    // 简化跳转标志判断
+    assign jump_flag_o = int_assert_i | branch_cond | sys_op_fence_i;
 
-    // 使用并行选择逻辑确定跳转地址
-    assign jump_addr_o = ({`INST_ADDR_WIDTH{int_jump}} & int_addr_i) |
-                         ({`INST_ADDR_WIDTH{jal_jump | jalr_jump | beq_jump | bne_jump | 
-                                           blt_jump | bge_jump | bltu_jump | bgeu_jump | 
-                                           fence_jump}} & op1_jump_add_op2_jump_res);
+    // 简化跳转地址选择逻辑
+    assign jump_addr_o = int_assert_i ? int_addr_i : op1_jump_add_op2_jump_res;
 
 endmodule

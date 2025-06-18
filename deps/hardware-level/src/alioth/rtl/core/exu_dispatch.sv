@@ -172,10 +172,10 @@ module exu_dispatch (
     // BJP op1
     wire bjp_op1_rs1 = bjp_info[`DECINFO_BJP_OP1RS1];  // 使用rs1寄存器作为跳转基地址 (JALR指令)
     wire [31:0] bjp_op1 = bjp_op1_rs1 ? rs1_rdata_i : dec_pc_i;
-    assign bjp_jump_op1_o = (sys_op_fence_o | op_bjp | op_muldiv) ? bjp_op1 : 32'h0; // 乘除法需要在计算完成后恢复之前保存的PC
+    assign bjp_jump_op1_o = (sys_op_fence_o | op_bjp) ? bjp_op1 : 32'h0;
     // BJP op2
     wire [31:0] bjp_op2 = dec_imm_i;  // 使用立即数作为跳转偏移量
-    assign bjp_jump_op2_o = (sys_op_fence_o | op_muldiv) ? 32'h4 : op_bjp ? bjp_op2 : 32'h0;
+    assign bjp_jump_op2_o = (sys_op_fence_o) ? 32'h4 : op_bjp ? bjp_op2 : 32'h0;
     assign bjp_op1_o      = op_bjp ? rs1_rdata_i : 32'h0;  // 用于分支指令的比较操作数1
     assign bjp_op2_o      = op_bjp ? rs2_rdata_i : 32'h0;  // 用于分支指令的比较操作数2
     assign bjp_op_jump_o  = bjp_info[`DECINFO_BJP_JUMP];  // JAL/JALR指令
