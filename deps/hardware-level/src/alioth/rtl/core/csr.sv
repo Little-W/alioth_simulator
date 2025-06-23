@@ -30,11 +30,15 @@ module csr (
     input wire clk,
     input wire rst_n,
 
+    //from idu
+    input wire[`REG_DATA_WIDTH-1:0] pc_if_i,               // 取指地址**
+
     // form ex
     input wire                       we_i,     // ex模块写寄存器标志
     input wire [`BUS_ADDR_WIDTH-1:0] raddr_i,  // ex模块读寄存器地址
     input wire [`BUS_ADDR_WIDTH-1:0] waddr_i,  // ex模块写寄存器地址
     input wire [`REG_DATA_WIDTH-1:0] data_i,   // ex模块写寄存器数据
+
 
     // from clint
     input wire                       clint_we_i,     // clint模块写寄存器标志
@@ -51,9 +55,16 @@ module csr (
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mtvec,   // mtvec
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mepc,    // mepc
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mstatus, // mstatus
+    output wire [`REG_DATA_WIDTH-1:0] clint_csr_mie,     // mie寄存器值
+    output wire [`REG_DATA_WIDTH-1:0] clint_csr_dpc,     // dpc寄存器值**
+    output wire [`REG_DATA_WIDTH-1:0] clint_csr_dcsr,    // dcsr寄存器值**
 
+    output wire trigger_match_o,              // 断点个数
     // to ex
     output wire [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
+
+
+
 
 );
 
@@ -65,6 +76,12 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mie;
     wire [`REG_DATA_WIDTH-1:0] mstatus;
     wire [`REG_DATA_WIDTH-1:0] mscratch;
+    
+    //调试csr寄存器
+    wire [`REG_DATA_WIDTH-1:0] dpc;  //调试程序计数器
+    wire [`REG_DATA_WIDTH-1:0] dcsr;  //调式csr寄存器
+    wire [`REG_DATA_WIDTH-1:0] dscratch0;  //调试暂存寄存器0
+    wire [`REG_DATA_WIDTH-1:0] dscratch1;  //调试暂存寄存器1
 
     // 机器模式CSR寄存器
     wire [`REG_DATA_WIDTH-1:0] mvendorid;  // 供应商ID寄存器
@@ -148,6 +165,11 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mscratch_next;
     wire [`DOUBLE_REG_WIDTH-1:0] mcycle_next;  // 改名为mcycle_next
 
+    //调试模式
+    wire [`REG_DATA_WIDTH-1:0] dpc_next;
+    wire [`REG_DATA_WIDTH-1:0] dcsr_next;
+    wire [`REG_DATA_WIDTH-1:0] dscratch0_next;
+    wire [`REG_DATA_WIDTH-1:0] dscratch1_next;
     // 机器模式
     wire [`REG_DATA_WIDTH-1:0] mvendorid_next;
     wire [`REG_DATA_WIDTH-1:0] marchid_next;
@@ -210,6 +232,12 @@ module csr (
     wire mtval_we;
     wire mcounteren_we;
 
+    //调试模式
+    wire dpc_we;
+    wire dcsr_we;
+    wire dscratch0_we;
+    wire dscratch1_we;
+
     // 监管者模式
     wire sstatus_we;
     wire sie_we;
@@ -248,6 +276,9 @@ module csr (
     assign clint_csr_mtvec = mtvec;
     assign clint_csr_mepc = mepc;
     assign clint_csr_mstatus = mstatus;
+    assign clint_csr_mie = mie;
+    assign clint_csr_dpc = dpc;
+    assign clint_csr_dcsr = dcsr;
 
     // mcycle counter
     // 复位撤销后就一直计数，但现在还要考虑写操作
@@ -365,6 +396,24 @@ module csr (
     assign mcounteren_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCOUNTEREN) || 
                            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCOUNTEREN);
     assign mcounteren_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCOUNTEREN) ? data_i : clint_data_i;
+
+
+    //调试模式  
+    assign dpc_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DPC) || 
+                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_DPC);
+    assign dpc_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DPC) ? data_i : clint_data_i;
+
+    assign dcsr_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DCSR) || 
+                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_DCSR);
+    assign dcsr_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DCSR) ? data_i : clint_data_i;
+   
+    assign dscratch0_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DSCRATCH0) || 
+                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_DSCRATCH0);
+    assign dscratch0_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DSCRATCH0) ? data_i : clint_data_i;
+
+    assign dscratch1_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DSCRATCH1) || 
+                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_DSCRATCH1);
+    assign dscratch1_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DSCRATCH1) ? data_i : clint_data_i;
 
     // 监管者模式
     assign sstatus_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SSTATUS) || 
@@ -822,19 +871,71 @@ module csr (
         .qout (hpmcounter6)
     );
 
+
+    //调试模式
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) dpc_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (dpc_we),
+        .dnxt (dpc_next),
+        .qout (dpc)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) dpc_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (dcsr_we),
+        .dnxt (dcsr_next),
+        .qout (dcsr)
+    );
+
+
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) dpc_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (dscratch0_we),
+        .dnxt (dscratch0_next),
+        .qout (dscratch0)
+    );
+    
+    gnrl_dfflr #(
+        .DW(`REG_DATA_WIDTH)
+    ) dpc_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (dscratch1_we),
+        .dnxt (dscratch1_next),
+        .qout (dscratch1)
+    );
+
+
     // ex模块读CSR寄存器
     assign data_o = ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) ? data_i :
         // 更新性能计数器读取的CSR地址名称
-        (raddr_i[11:0] == `CSR_MCYCLE || raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-                   (raddr_i[11:0] == `CSR_MCYCLEH || raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-                   (raddr_i[11:0] == `CSR_MINSTRET || raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                   (raddr_i[11:0] == `CSR_MINSTRETH || raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+        (raddr_i[11:0] == `CSR_MCYCLE ) ? mcycle[31:0] :
+                   (raddr_i[11:0] == `CSR_MCYCLEH ) ? mcycle[63:32] :
+                   (raddr_i[11:0] == `CSR_MINSTRET ) ? minstret[31:0] :
+                   (raddr_i[11:0] == `CSR_MINSTRETH ) ? minstret[63:32] :
                    (raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
                    (raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
                    (raddr_i[11:0] == `CSR_MEPC) ? mepc :
                    (raddr_i[11:0] == `CSR_MIE) ? mie :
                    (raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
                    (raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
+
+
+        // 调试模式寄存器
+        (raddr_i[11:0] == `CSR_DPC ) ? dpc[31:0] :
+                    (raddr_i[11:0] == `CSR_DCSR) ? dcsr[31:0] :
+                    (raddr_i[11:0] == `CSR_DSCRATCH0 ) ? dscratch0[31:0] :
+                    (raddr_i[11:0] == `CSR_DSCRATCH1 ) ? dscratch1[31:0] :
+
         // 机器模式寄存器
         (raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
                    (raddr_i[11:0] == `CSR_MARCHID) ? marchid :
@@ -890,6 +991,12 @@ module csr (
                          (clint_raddr_i[11:0] == `CSR_MIE) ? mie :
                          (clint_raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
                          (clint_raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
+
+        // 调试模式寄存器
+        (clint_raddr_i[11:0] == `CSR_DPC ) ? dpc[31:0] :
+                         (clint_raddr_i[11:0] == `CSR_DCSR) ? dcsr[31:0] :
+                         (clint_raddr_i[11:0] == `CSR_DSCRATCH0 ) ? dscratch0[31:0] :
+                         (clint_raddr_i[11:0] == `CSR_DSCRATCH1 ) ? dscratch1[31:0] :
         // 机器模式寄存器
         (clint_raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
                          (clint_raddr_i[11:0] == `CSR_MARCHID) ? marchid :
