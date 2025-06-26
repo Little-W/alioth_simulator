@@ -42,7 +42,7 @@ module hdu (
 
     // 控制信号
     output wire hazard_stall_o,  // 暂停流水线信号
-    output reg [1:0] commit_id_o,  // 为新的长指令分配的ID
+    output wire [1:0] commit_id_o,  // 为新的长指令分配的ID
     output wire long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
 );
 
@@ -87,7 +87,14 @@ module hdu (
     assign hazard         = (raw_hazard || waw_hazard);
     assign hazard_stall_o = hazard;
 
-    // 为新的长指令分配ID并更新FIFO
+    // 为新的长指令分配ID - 使用assign语句
+    assign commit_id_o = (new_long_inst_valid && ~hazard) ? 
+                         (~fifo_valid[0] ? 2'h0 :
+                          ~fifo_valid[1] ? 2'h1 :
+                          ~fifo_valid[2] ? 2'h2 :
+                          ~fifo_valid[3] ? 2'h3 : 2'h0) : 2'h0;
+
+    // 更新FIFO
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             // 复位时清空FIFO
@@ -95,7 +102,6 @@ module hdu (
                 fifo_valid[i]   <= 1'b0;
                 fifo_rd_addr[i] <= 5'h0;
             end
-            commit_id_o <= 2'h0;
         end else begin
             // 清除已完成的长指令
             if (commit_valid_i) begin
@@ -104,25 +110,9 @@ module hdu (
 
             // 添加新的长指令到FIFO
             if (new_long_inst_valid && ~hazard) begin
-                // 查找空闲位置
-                if (~fifo_valid[0]) begin
-                    fifo_valid[0]   <= 1'b1;
-                    fifo_rd_addr[0] <= new_inst_rd_addr;
-                    commit_id_o     <= 2'h0;
-                end else if (~fifo_valid[1]) begin
-                    fifo_valid[1]   <= 1'b1;
-                    fifo_rd_addr[1] <= new_inst_rd_addr;
-                    commit_id_o     <= 2'h1;
-                end else if (~fifo_valid[2]) begin
-                    fifo_valid[2]   <= 1'b1;
-                    fifo_rd_addr[2] <= new_inst_rd_addr;
-                    commit_id_o     <= 2'h2;
-                end else if (~fifo_valid[3]) begin
-                    fifo_valid[3]   <= 1'b1;
-                    fifo_rd_addr[3] <= new_inst_rd_addr;
-                    commit_id_o     <= 2'h3;
-                end
-                // 如果所有位置都满了，应该已经触发了hazard信号阻止新指令
+                // 使用组合逻辑分配的ID更新FIFO
+                fifo_valid[commit_id_o]   <= 1'b1;
+                fifo_rd_addr[commit_id_o] <= new_inst_rd_addr;
             end
         end
     end
