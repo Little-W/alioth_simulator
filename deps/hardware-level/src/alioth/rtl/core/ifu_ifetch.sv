@@ -46,12 +46,14 @@ module ifu_ifetch (
 
     // ifu_pipe 的输出
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,  // 指令地址
+    output wire                        inst_valid_o  // 指令有效信号
 
 );
 
     // 下一个PC值
     wire [`INST_ADDR_WIDTH-1:0] pc_nxt;
+
 
     // 计算实际的PC暂停信号：原有暂停信号或AXI未就绪
     wire                        stall_pc_actual = stall_pc_i || !axi_arready_i;
@@ -80,6 +82,7 @@ module ifu_ifetch (
         .inst_addr_i (inst_addr_i),
         .flush_flag_i(flush_flag_i),
         .inst_valid_i(inst_valid_i),
+        .inst_valid_o(inst_valid_o),
         .stall_i     (stall_if_i),
         .inst_o      (inst_o),
         .inst_addr_o (inst_addr_o)

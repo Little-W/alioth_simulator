@@ -30,8 +30,13 @@ module clint (
     input wire clk,
     input wire rst_n,
 
+    // from ifu_pipe
+    input wire int_req_i,  // 中断请求信号
+    input wire [7:0] int_id_i,  // 中断ID
+
     // from id
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
+    input wire                        inst_valid_i,  // 指令有效信号
 
     // from ex
     input wire                        jump_flag_i,
@@ -51,6 +56,10 @@ module clint (
     input wire [`REG_DATA_WIDTH-1:0] csr_mtvec,
     input wire [`REG_DATA_WIDTH-1:0] csr_mepc,
     input wire [`REG_DATA_WIDTH-1:0] csr_mstatus,
+    input wire [`REG_DATA_WIDTH-1:0] csr_mie,
+    input wire [`REG_DATA_WIDTH-1:0] csr_dpc,
+    input wire [`REG_DATA_WIDTH-1:0] csr_dcsr,
+
 
     input wire global_int_en_i,  // 全局中断使能标志
 
@@ -95,9 +104,9 @@ module clint (
     always @(*) begin
         if (~rst_n) begin
             int_state = S_INT_IDLE;
-        end else if ((sys_op_ecall_i || sys_op_ebreak_i) && atom_opt_busy_i == 1'b0) begin
+        end else if ((sys_op_ecall_i | sys_op_ebreak_i) & atom_opt_busy_i == 1'b0 & inst_valid_i) begin
             int_state = S_INT_SYNC_ASSERT;
-        end else if (sys_op_mret_i) begin
+        end else if (sys_op_mret_i & inst_valid_i) begin
             int_state = S_INT_MRET;
         end else begin
             int_state = S_INT_IDLE;

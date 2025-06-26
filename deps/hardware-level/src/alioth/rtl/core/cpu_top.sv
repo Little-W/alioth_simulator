@@ -28,9 +28,14 @@
 module cpu_top (
 
     input wire clk,
-    input wire rst_n
+    input wire rst_n,
+
+    //外部中断输入
+    input wire ext_int_i;
+    input wire [7:0]ext_int_id_i;
 
 );
+
 
     // pc_reg模块输出信号
     wire [`INST_ADDR_WIDTH-1:0] pc_pc_o;
@@ -39,11 +44,13 @@ module cpu_top (
     wire [`INST_DATA_WIDTH-1:0] if_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
     wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;
+    wire if_inst_valid_o;
 
     // id模块输出信号
     wire [`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
     wire [`REG_ADDR_WIDTH-1:0] id_reg2_raddr_o;
     wire [`BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
+    wire idu_inst_valid_o;
 
     // idu模块输出信号 - 直接包含了ID和ID_EX的功能
     wire [`INST_ADDR_WIDTH-1:0] idu_inst_addr_o;
@@ -226,6 +233,7 @@ module cpu_top (
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
+        .inst_valid_o     (if_inst_valid_o),
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -305,9 +313,12 @@ module cpu_top (
         .inst_i      (if_inst_o),
         .inst_addr_i (if_inst_addr_o),
         .stall_flag_i(ctrl_stall_flag_o),
+        .inst_valid_i(if_inst_valid_o),
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
+
+        .inst_valid_o (idu_inst_valid_o),
 
         .csr_raddr_o   (id_csr_raddr_o),
         .inst_addr_o   (idu_inst_addr_o),
@@ -508,6 +519,13 @@ module cpu_top (
         .jump_addr_i    (exu_jump_addr_o),
         .stall_flag_i   (ctrl_stall_flag_o),
         .atom_opt_busy_i(atom_opt_busy),      // 原子操作忙标志
+
+        //中断标志
+         .int_req_i     (ext_int_i),
+         .int_id_i      (ext_int_id_i),
+        
+        //idu的指令有效性
+        .inst_valid_i   (idu_inst_valid_o),
 
         // 连接系统操作信号
         .sys_op_ecall_i (exu_ecall_o),

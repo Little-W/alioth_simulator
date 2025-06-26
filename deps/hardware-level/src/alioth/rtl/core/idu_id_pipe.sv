@@ -40,6 +40,7 @@ module idu_id_pipe (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
+    input wire                        inst_valid_i,  // 指令有效信号
 
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -53,6 +54,7 @@ module idu_id_pipe (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
+    output wire                        inst_valid_o    // 指令有效信号
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -61,6 +63,10 @@ module idu_id_pipe (
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
+    
+    assign inst_valid_o = inst_valid_i;
+
+    
     gnrl_dfflr #(32) inst_addr_ff (
         clk,
         rst_n,

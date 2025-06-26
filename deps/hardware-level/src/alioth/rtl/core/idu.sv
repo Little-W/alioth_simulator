@@ -33,6 +33,7 @@ module idu (
     // from if_id
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
+    input wire                       inst_valid_i,  // 指令有效信号
 
     // from ctrl
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
@@ -55,6 +56,9 @@ module idu (
     output wire [                31:0] dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
     // 移除了HDU相关的输出
+
+    //clint关于指令有效性
+    output wire                        inst_valid_o    // 指令有效信号 
 );
 
     // 内部连线，连接id和id_pipe
@@ -102,6 +106,8 @@ module idu (
     idu_id_pipe u_idu_id_pipe (
         .clk  (clk),
         .rst_n(rst_n),
+        //from if_id
+        .inst_valid_i(inst_valid_i),
 
         // from id
         .inst_addr_i   (id_inst_addr),
@@ -129,6 +135,10 @@ module idu (
         .csr_raddr_o   (csr_raddr_o),
         .dec_imm_o     (dec_imm_o),
         .dec_info_bus_o(dec_info_bus_o)
+
+        //to clint
+        .inst_valid_o(inst_valid_o)  // 指令有效信号
     );
+
 
 endmodule
