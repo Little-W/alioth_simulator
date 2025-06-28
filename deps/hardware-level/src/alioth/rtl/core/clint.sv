@@ -103,17 +103,73 @@ module clint (
     // 中断状态机逻辑
     always @(*) begin
         if (~rst_n) begin
-            int_state = S_INT_IDLE;
-        end else if ((sys_op_ecall_i | sys_op_ebreak_i) & atom_opt_busy_i == 1'b0 & inst_valid_i) begin
-            int_state = S_INT_SYNC_ASSERT;
+            int_state <= S_INT_IDLE;
+        end else if ((sys_op_ecall_i | sys_op_ebreak_i) & (atom_opt_busy_i == 1'b0) & inst_valid_i) begin
+            int_state <= S_INT_SYNC_ASSERT;
+        end else if (int_req_i & inst_valid_i ) begin
+            int_state <= S_INT_ASYNC_ASSERT;  
         end else if (sys_op_mret_i & inst_valid_i) begin
-            int_state = S_INT_MRET;
+            int_state <= S_INT_MRET;
         end else begin
-            int_state = S_INT_IDLE;
+            int_state <= S_INT_IDLE;
+        end
+    end
+    //硬件中断判断
+    //triggr_match
+
+
+    // 中断原因寄存器更新逻辑
+    always @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            cause <= `ZeroWord;
+        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+            if (sys_op_ecall_i) begin
+                cause <= 32'd11;
+            end else if (sys_op_ebreak_i) begin
+                cause <= 32'd3;
+            end else begin
+                cause <= 32'd10;
+            end
         end
     end
 
-    // CSR写状态机的状态转换逻辑
+    // 中断断言信号和中断地址逻辑
+    always @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            int_assert_o <= `INT_DEASSERT;
+            int_addr_o <= `ZeroWord;
+        end else begin
+            case (csr_state)
+                S_CSR_MCAUSE: begin
+                    int_assert_o <= `INT_ASSERT;
+                    int_addr_o <= csr_mtvec;
+                end
+                S_CSR_MSTATUS_MRET: begin
+                    int_assert_o <= `INT_ASSERT;
+                    int_addr_o <= csr_mepc;
+                end
+                default: begin
+                    int_assert_o <= `INT_DEASSERT;
+                end
+            endcase
+        end
+    end
+
+
+    // 保存指令地址寄存器更新逻辑
+    always @(posedge clk or negedge rst_n) begin
+        if (~rst_n) begin
+            inst_addr <= `ZeroWord;
+        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+            if (jump_flag_i == `JumpEnable) begin
+                inst_addr <= jump_addr_i - 4'h4;
+            end else begin
+                inst_addr <= inst_addr_i;
+            end
+        end
+    end
+
+  // CSR写状态机的状态转换逻辑
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             csr_state <= S_CSR_IDLE;
@@ -139,34 +195,6 @@ module clint (
                     csr_state <= S_CSR_IDLE;
                 end
             endcase
-        end
-    end
-
-    // 中断原因寄存器更新逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            cause <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-            if (sys_op_ecall_i) begin
-                cause <= 32'd11;
-            end else if (sys_op_ebreak_i) begin
-                cause <= 32'd3;
-            end else begin
-                cause <= 32'd10;
-            end
-        end
-    end
-
-    // 保存指令地址寄存器更新逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            inst_addr <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-            if (jump_flag_i == `JumpEnable) begin
-                inst_addr <= jump_addr_i - 4'h4;
-            end else begin
-                inst_addr <= inst_addr_i;
-            end
         end
     end
 
@@ -200,28 +228,6 @@ module clint (
                 end
                 default: begin
                     we_o <= `WriteDisable;
-                end
-            endcase
-        end
-    end
-
-    // 中断断言信号和中断地址逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            int_assert_o <= `INT_DEASSERT;
-            int_addr_o <= `ZeroWord;
-        end else begin
-            case (csr_state)
-                S_CSR_MCAUSE: begin
-                    int_assert_o <= `INT_ASSERT;
-                    int_addr_o <= csr_mtvec;
-                end
-                S_CSR_MSTATUS_MRET: begin
-                    int_assert_o <= `INT_ASSERT;
-                    int_addr_o <= csr_mepc;
-                end
-                default: begin
-                    int_assert_o <= `INT_DEASSERT;
                 end
             endcase
         end
