@@ -60,9 +60,10 @@ module ifu_ifetch (
 
     // 根据控制信号计算下一个PC值
     assign pc_nxt = (!rst_n) ? `PC_RESET_ADDR :  // 复位
-        (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
-        (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
-        pc_o + 4'h4;  // 地址加4
+                    (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
+                    (branch_taken) ? branch_addr :  // 分支跳转
+                    (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
+                    pc_o + 4'h4;  // 地址加4
 
     // 使用gnrl_dff模块实现PC寄存器
     gnrl_dff #(
@@ -86,6 +87,20 @@ module ifu_ifetch (
         .stall_i     (stall_if_i),
         .inst_o      (inst_o),
         .inst_addr_o (inst_addr_o)
+    );
+
+    wire branch_taken;  // 分支预测结果
+    wire [`INST_ADDR_WIDTH-1:0] branch_addr;  // 分支预测地址
+
+    //简易静态分支预测模块
+    sbpu u_sbpu (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .inst_i         (inst_i),
+        .inst_valid_i   (inst_valid_i),
+        .pc_i           (pc_o),
+        .branch_taken_o (branch_taken),
+        .branch_addr_o  (branch_addr)
     );
 
 endmodule
