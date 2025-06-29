@@ -64,6 +64,7 @@ module idu_id_pipe (
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
     
+    //指令有效性
     assign inst_valid_o = inst_valid_i;
 
     

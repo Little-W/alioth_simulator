@@ -39,7 +39,7 @@ module ifu_pipe (
 
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o, // 指令地址
-    output wire                        inst_valid_o  // 指令有效信号
+    output wire  inst_valid_o  // 指令有效信号
 );
 
     // 直接使用flush_flag_i，不再寄存
