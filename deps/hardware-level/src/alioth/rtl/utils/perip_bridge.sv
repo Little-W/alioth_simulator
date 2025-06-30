@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "defines.svh"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -94,14 +95,20 @@ module perip_bridge (
     assign seg_output[37] = 0;
 
 
-    // dram rw
-    dram_driver dram_driver_inst (
+    // dram rw - 使用 gnrl_ram_async 替换 dram_driver
+    gnrl_ram_async #(
+        .ADDR_WIDTH(`DRAM_ADDR_WIDTH),
+        .DATA_WIDTH(32),
+        .INIT_MEM(`INIT_DRAM),
+        .INIT_FILE(`DRAM_INIT_FILE)
+    ) dram_inst (
         .clk        (clk),
-        .perip_addr (perip_addr[17:0]),
-        .perip_wdata(perip_wdata),
-        .perip_mask (perip_mask),
-        .dram_wen   (perip_wen & (perip_addr >= DRAM_ADDR_START && perip_addr < DRAM_ADDR_END)),
-        .perip_rdata(dram_rdata)
+        .rst_n      (~rst),
+        .we_i       (perip_wen & (perip_addr >= DRAM_ADDR_START && perip_addr < DRAM_ADDR_END)),
+        .we_mask_i  ({perip_mask[1], perip_mask[1], perip_mask[0], perip_mask[0]}),
+        .addr_i     (perip_addr[`DRAM_ADDR_WIDTH-1:0]),
+        .data_i     (perip_wdata),
+        .data_o     (dram_rdata)
     );
 
     // counter rw

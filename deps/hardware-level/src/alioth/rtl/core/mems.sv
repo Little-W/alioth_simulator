@@ -502,10 +502,9 @@ module mems #(
     );
 
     // DTCM实例连接
-    gnrl_ram_pseudo_dual_axi #(
+    perip_bridge_axi #(
         .ADDR_WIDTH        (DTCM_ADDR_WIDTH),
         .DATA_WIDTH        (DATA_WIDTH),
-        .INIT_MEM          (0),
         .C_S_AXI_ID_WIDTH  (C_AXI_ID_WIDTH),
         .C_S_AXI_DATA_WIDTH(C_AXI_DATA_WIDTH),
         .C_S_AXI_ADDR_WIDTH(DTCM_ADDR_WIDTH)

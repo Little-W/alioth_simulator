@@ -28,8 +28,6 @@
 module perip_bridge_axi #(
     parameter ADDR_WIDTH = 16,  // 地址宽度参数
     parameter DATA_WIDTH = 32,  // 数据宽度参数
-    parameter INIT_MEM = 1,  // 是否初始化内存，1表示初始化，0表示不初始化
-    parameter INIT_FILE = "prog.mem",  // 初始化文件路径
 
     // AXI接口参数
     parameter integer C_S_AXI_ID_WIDTH   = 4,   // AXI ID宽度

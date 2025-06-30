@@ -12,6 +12,11 @@
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
 `define ITCM_INIT_FILE "/media/5/Projects/RISC-V/alioth_simulator/deps/tools/prog.mem" // ITCM初始化文件路径
 
+// DRAM配置
+`define DRAM_ADDR_WIDTH 18    // DRAM地址宽度，18位对应256KB
+`define INIT_DRAM 1           // 控制DRAM是否初始化，1表示初始化，0表示不初始化
+`define DRAM_INIT_FILE "/media/5/Projects/RISC-V/alioth_simulator/deps/tools/prog.mem" // DRAM初始化文件路径
+
 // 总线宽度定义
 `define BUS_DATA_WIDTH 32
 `define BUS_ADDR_WIDTH 32
