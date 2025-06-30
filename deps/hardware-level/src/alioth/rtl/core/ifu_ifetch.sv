@@ -67,7 +67,7 @@ module ifu_ifetch (
         .DW(`INST_ADDR_WIDTH)
     ) pc_dff (
         .clk  (clk),
-        .rst_n(rst_n),
+        .rst_n(1'b1),  // 不需要复位
         .dnxt (pc_nxt),
         .qout (pc_o)
     );

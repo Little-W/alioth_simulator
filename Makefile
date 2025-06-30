@@ -73,6 +73,9 @@ compile_test_src:
 	@if [ ! -e ${TEST_PROGRAM} ] ; \
 	then	\
 		make SIM_ROOT_DIR=${SIM_ROOT_DIR} XLEN=${XLEN} USE_OPEN_GNU_GCC=${USE_OPEN_GNU_GCC} -j$(nproc) -C ${ISA_TEST_DIR}/test_src/;	\
+		echo "Processing .verilog files for dual memory layout..."; \
+		find ${BUILD_DIR}/test_compiled/ -name "*.verilog" -exec ${SIM_ROOT_DIR}/deps/tools/split_memory.sh {} \; ; \
+		echo "Memory splitting completed"; \
 	fi
 
 asm: alioth

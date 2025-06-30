@@ -10,9 +10,10 @@
 // `define DEBUG_DISPLAY_REGS 1
 
 // ToHost程序地址,用于监控测试是否结束
-`define PC_WRITE_TOHOST 32'h00000040
+`define PC_WRITE_TOHOST 32'h80000040
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
+`define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
 
 module tb_top (
     input clk,
@@ -36,12 +37,15 @@ module tb_top (
     reg     [8*300:1] testcase;
     integer           dumpwave;
 
-    // 计算ITCM的深度和字节大小
+    // 计算ITCM和DTCM的深度和字节大小
     localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数
     localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 4;  // 总字节数
+    localparam DTCM_DEPTH = (1 << (`DTCM_ADDR_WIDTH - 2));  // DTCM中的字数
+    localparam DTCM_BYTE_SIZE = DTCM_DEPTH * 4;  // 总字节数
 
-    // 创建与ITCM容量相同的临时字节数组
-    reg [7:0] prog_mem[0:ITCM_BYTE_SIZE-1];  // 注意数组声明顺序调整
+    // 创建与ITCM和DTCM容量相同的临时字节数组
+    reg [7:0] itcm_prog_mem[0:ITCM_BYTE_SIZE-1];
+    reg [7:0] dtcm_prog_mem[0:DTCM_BYTE_SIZE-1];
     integer i;
 
     // 添加PC监控变量
@@ -109,20 +113,36 @@ module tb_top (
             $finish;
         end
 
-        // 从.verilog文件中读取字节数据
-        $readmemh({testcase, ".verilog"}, prog_mem);
-
-        // 处理小端序格式并更新到新的ITCM存储位置
-        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
-            `ITCM.mem_r[i] = {prog_mem[i*4+3], prog_mem[i*4+2], prog_mem[i*4+1], prog_mem[i*4+0]};
+        // 初始化内存数组
+        for (i = 0; i < ITCM_BYTE_SIZE; i = i + 1) begin
+            itcm_prog_mem[i] = 8'h00;
+        end
+        for (i = 0; i < DTCM_BYTE_SIZE; i = i + 1) begin
+            dtcm_prog_mem[i] = 8'h00;
         end
 
-        $display("Successfully loaded instructions to ITCM");
+        // 从分割后的.verilog文件中读取字节数据
+        $readmemh({testcase, "_itcm.verilog"}, itcm_prog_mem);
+        $readmemh({testcase, "_dtcm.verilog"}, dtcm_prog_mem);
+
+        // 处理小端序格式并更新到ITCM
+        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
+            `ITCM.mem_r[i] = {itcm_prog_mem[i*4+3], itcm_prog_mem[i*4+2], itcm_prog_mem[i*4+1], itcm_prog_mem[i*4+0]};
+        end
+
+        // 处理小端序格式并更新到DTCM
+        for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个字
+            `DTCM.mem_r[i] = {dtcm_prog_mem[i*4+3], dtcm_prog_mem[i*4+2], dtcm_prog_mem[i*4+1], dtcm_prog_mem[i*4+0]};
+        end
+
+        $display("Successfully loaded instructions to ITCM and data to DTCM");
         $display("ITCM 0x00: %h", `ITCM.mem_r[0]);
         $display("ITCM 0x01: %h", `ITCM.mem_r[1]);
         $display("ITCM 0x02: %h", `ITCM.mem_r[2]);
         $display("ITCM 0x03: %h", `ITCM.mem_r[3]);
         $display("ITCM 0x04: %h", `ITCM.mem_r[4]);
+        $display("DTCM 0x00: %h", `DTCM.mem_r[0]);
+        $display("DTCM 0x01: %h", `DTCM.mem_r[1]);
     end
 
     // 对pc_write_to_host_cnt的变化进行监控
