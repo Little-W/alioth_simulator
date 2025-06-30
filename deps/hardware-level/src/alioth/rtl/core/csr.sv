@@ -108,27 +108,6 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mtval;  // 陷阱值寄存器
     wire [`REG_DATA_WIDTH-1:0] mcounteren;  // 计数器使能寄存器
 
-    // 监管者模式CSR寄存器
-    wire [`REG_DATA_WIDTH-1:0] sstatus;  // 监管者模式状态寄存器
-    wire [`REG_DATA_WIDTH-1:0] sie;  // 监管者中断使能寄存器
-    wire [`REG_DATA_WIDTH-1:0] stvec;  // 监管者陷阱处理基地址
-    wire [`REG_DATA_WIDTH-1:0] scounteren;  // 监管者计数器使能
-    wire [`REG_DATA_WIDTH-1:0] sscratch;  // 监管者暂存寄存器
-    wire [`REG_DATA_WIDTH-1:0] sepc;  // 监管者异常程序计数器
-    wire [`REG_DATA_WIDTH-1:0] scause;  // 监管者陷阱原因寄存器
-    wire [`REG_DATA_WIDTH-1:0] stval;  // 监管者陷阱值
-    wire [`REG_DATA_WIDTH-1:0] sip;  // 监管者待处理中断
-
-    // 用户模式CSR寄存器
-    wire [`REG_DATA_WIDTH-1:0] ustatus;  // 用户模式状态寄存器
-    wire [`REG_DATA_WIDTH-1:0] uie;  // 用户中断使能寄存器
-    wire [`REG_DATA_WIDTH-1:0] utvec;  // 用户陷阱处理基地址
-    wire [`REG_DATA_WIDTH-1:0] uscratch;  // 用户暂存寄存器
-    wire [`REG_DATA_WIDTH-1:0] uepc;  // 用户异常程序计数器
-    wire [`REG_DATA_WIDTH-1:0] ucause;  // 用户陷阱原因寄存器
-    wire [`REG_DATA_WIDTH-1:0] utval;  // 用户陷阱值
-    wire [`REG_DATA_WIDTH-1:0] uip;  // 用户待处理中断
-
     // 性能计数器
     wire [`DOUBLE_REG_WIDTH-1:0] minstret;  // 改名为minstret
     wire [`DOUBLE_REG_WIDTH-1:0] time_val;  // 实时时钟
@@ -160,27 +139,6 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mtval_next;
     wire [`REG_DATA_WIDTH-1:0] mcounteren_next;
 
-    // 监管者模式
-    wire [`REG_DATA_WIDTH-1:0] sstatus_next;
-    wire [`REG_DATA_WIDTH-1:0] sie_next;
-    wire [`REG_DATA_WIDTH-1:0] stvec_next;
-    wire [`REG_DATA_WIDTH-1:0] scounteren_next;
-    wire [`REG_DATA_WIDTH-1:0] sscratch_next;
-    wire [`REG_DATA_WIDTH-1:0] sepc_next;
-    wire [`REG_DATA_WIDTH-1:0] scause_next;
-    wire [`REG_DATA_WIDTH-1:0] stval_next;
-    wire [`REG_DATA_WIDTH-1:0] sip_next;
-
-    // 用户模式
-    wire [`REG_DATA_WIDTH-1:0] ustatus_next;
-    wire [`REG_DATA_WIDTH-1:0] uie_next;
-    wire [`REG_DATA_WIDTH-1:0] utvec_next;
-    wire [`REG_DATA_WIDTH-1:0] uscratch_next;
-    wire [`REG_DATA_WIDTH-1:0] uepc_next;
-    wire [`REG_DATA_WIDTH-1:0] ucause_next;
-    wire [`REG_DATA_WIDTH-1:0] utval_next;
-    wire [`REG_DATA_WIDTH-1:0] uip_next;
-
     // 性能计数器
     wire [`DOUBLE_REG_WIDTH-1:0] minstret_next;  // 改名为minstret_next
     wire [`DOUBLE_REG_WIDTH-1:0] time_next;
@@ -209,27 +167,6 @@ module csr (
     wire mip_we;
     wire mtval_we;
     wire mcounteren_we;
-
-    // 监管者模式
-    wire sstatus_we;
-    wire sie_we;
-    wire stvec_we;
-    wire scounteren_we;
-    wire sscratch_we;
-    wire sepc_we;
-    wire scause_we;
-    wire stval_we;
-    wire sip_we;
-
-    // 用户模式
-    wire ustatus_we;
-    wire uie_we;
-    wire utvec_we;
-    wire uscratch_we;
-    wire uepc_we;
-    wire ucause_we;
-    wire utval_we;
-    wire uip_we;
 
     // 性能计数器
     wire mcycle_we;
@@ -366,76 +303,6 @@ module csr (
                            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCOUNTEREN);
     assign mcounteren_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCOUNTEREN) ? data_i : clint_data_i;
 
-    // 监管者模式
-    assign sstatus_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SSTATUS) || 
-                        (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SSTATUS);
-    assign sstatus_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SSTATUS) ? data_i : clint_data_i;
-
-    assign sie_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SIE) || 
-                    (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SIE);
-    assign sie_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SIE) ? data_i : clint_data_i;
-
-    assign stvec_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_STVEC) || 
-                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_STVEC);
-    assign stvec_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_STVEC) ? data_i : clint_data_i;
-
-    assign scounteren_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SCOUNTEREN) || 
-                           (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SCOUNTEREN);
-    assign scounteren_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SCOUNTEREN) ? data_i : clint_data_i;
-
-    assign sscratch_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SSCRATCH) || 
-                         (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SSCRATCH);
-    assign sscratch_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SSCRATCH) ? data_i : clint_data_i;
-
-    assign sepc_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SEPC) || 
-                     (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SEPC);
-    assign sepc_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SEPC) ? data_i : clint_data_i;
-
-    assign scause_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SCAUSE) || 
-                       (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SCAUSE);
-    assign scause_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SCAUSE) ? data_i : clint_data_i;
-
-    assign stval_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_STVAL) || 
-                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_STVAL);
-    assign stval_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_STVAL) ? data_i : clint_data_i;
-
-    assign sip_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SIP) || 
-                    (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SIP);
-    assign sip_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SIP) ? data_i : clint_data_i;
-
-    // 用户模式
-    assign ustatus_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_USTATUS) || 
-                        (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_USTATUS);
-    assign ustatus_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_USTATUS) ? data_i : clint_data_i;
-
-    assign uie_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UIE) || 
-                    (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UIE);
-    assign uie_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UIE) ? data_i : clint_data_i;
-
-    assign utvec_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UTVEC) || 
-                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UTVEC);
-    assign utvec_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UTVEC) ? data_i : clint_data_i;
-
-    assign uscratch_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_USCRATCH) || 
-                         (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_USCRATCH);
-    assign uscratch_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_USCRATCH) ? data_i : clint_data_i;
-
-    assign uepc_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UEPC) || 
-                     (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UEPC);
-    assign uepc_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UEPC) ? data_i : clint_data_i;
-
-    assign ucause_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UCAUSE) || 
-                       (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UCAUSE);
-    assign ucause_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UCAUSE) ? data_i : clint_data_i;
-
-    assign utval_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UTVAL) || 
-                      (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UTVAL);
-    assign utval_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UTVAL) ? data_i : clint_data_i;
-
-    assign uip_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UIP) || 
-                    (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UIP);
-    assign uip_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UIP) ? data_i : clint_data_i;
-
     // 硬件性能监控计数器
     assign hpmcounter3_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_HPMCOUNTER3) || 
                             (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_HPMCOUNTER3);
@@ -557,8 +424,6 @@ module csr (
         .qout (mhartid)
     );
 
-    // 移除misa_dfflr
-
     gnrl_dfflr #(
         .DW(`REG_DATA_WIDTH)
     ) medeleg_dfflr (
@@ -607,178 +472,6 @@ module csr (
         .lden (mcounteren_we),
         .dnxt (mcounteren_next),
         .qout (mcounteren)
-    );
-
-    // 监管者模式
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) sstatus_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (sstatus_we),
-        .dnxt (sstatus_next),
-        .qout (sstatus)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) sie_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (sie_we),
-        .dnxt (sie_next),
-        .qout (sie)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) stvec_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (stvec_we),
-        .dnxt (stvec_next),
-        .qout (stvec)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) scounteren_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (scounteren_we),
-        .dnxt (scounteren_next),
-        .qout (scounteren)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) sscratch_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (sscratch_we),
-        .dnxt (sscratch_next),
-        .qout (sscratch)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) sepc_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (sepc_we),
-        .dnxt (sepc_next),
-        .qout (sepc)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) scause_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (scause_we),
-        .dnxt (scause_next),
-        .qout (scause)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) stval_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (stval_we),
-        .dnxt (stval_next),
-        .qout (stval)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) sip_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (sip_we),
-        .dnxt (sip_next),
-        .qout (sip)
-    );
-
-    // 用户模式
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) ustatus_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (ustatus_we),
-        .dnxt (ustatus_next),
-        .qout (ustatus)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) uie_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (uie_we),
-        .dnxt (uie_next),
-        .qout (uie)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) utvec_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (utvec_we),
-        .dnxt (utvec_next),
-        .qout (utvec)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) uscratch_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (uscratch_we),
-        .dnxt (uscratch_next),
-        .qout (uscratch)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) uepc_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (uepc_we),
-        .dnxt (uepc_next),
-        .qout (uepc)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) ucause_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (ucause_we),
-        .dnxt (ucause_next),
-        .qout (ucause)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) utval_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (utval_we),
-        .dnxt (utval_next),
-        .qout (utval)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) uip_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (uip_we),
-        .dnxt (uip_next),
-        .qout (uip)
     );
 
     // 硬件性能监控计数器
@@ -846,25 +539,6 @@ module csr (
                    (raddr_i[11:0] == `CSR_MIP) ? mip :
                    (raddr_i[11:0] == `CSR_MTVAL) ? mtval :
                    (raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
-        // 监管者模式寄存器
-        (raddr_i[11:0] == `CSR_SSTATUS) ? sstatus :
-                   (raddr_i[11:0] == `CSR_SIE) ? sie :
-                   (raddr_i[11:0] == `CSR_STVEC) ? stvec :
-                   (raddr_i[11:0] == `CSR_SCOUNTEREN) ? scounteren :
-                   (raddr_i[11:0] == `CSR_SSCRATCH) ? sscratch :
-                   (raddr_i[11:0] == `CSR_SEPC) ? sepc :
-                   (raddr_i[11:0] == `CSR_SCAUSE) ? scause :
-                   (raddr_i[11:0] == `CSR_STVAL) ? stval :
-                   (raddr_i[11:0] == `CSR_SIP) ? sip :
-        // 用户模式寄存器
-        (raddr_i[11:0] == `CSR_USTATUS) ? ustatus :
-                   (raddr_i[11:0] == `CSR_UIE) ? uie :
-                   (raddr_i[11:0] == `CSR_UTVEC) ? utvec :
-                   (raddr_i[11:0] == `CSR_USCRATCH) ? uscratch :
-                   (raddr_i[11:0] == `CSR_UEPC) ? uepc :
-                   (raddr_i[11:0] == `CSR_UCAUSE) ? ucause :
-                   (raddr_i[11:0] == `CSR_UTVAL) ? utval :
-                   (raddr_i[11:0] == `CSR_UIP) ? uip :
         // 性能计数器
         (raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
                    (raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
@@ -901,25 +575,6 @@ module csr (
                          (clint_raddr_i[11:0] == `CSR_MIP) ? mip :
                          (clint_raddr_i[11:0] == `CSR_MTVAL) ? mtval :
                          (clint_raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
-        // 监管者模式寄存器
-        (clint_raddr_i[11:0] == `CSR_SSTATUS) ? sstatus :
-                         (clint_raddr_i[11:0] == `CSR_SIE) ? sie :
-                         (clint_raddr_i[11:0] == `CSR_STVEC) ? stvec :
-                         (clint_raddr_i[11:0] == `CSR_SCOUNTEREN) ? scounteren :
-                         (clint_raddr_i[11:0] == `CSR_SSCRATCH) ? sscratch :
-                         (clint_raddr_i[11:0] == `CSR_SEPC) ? sepc :
-                         (clint_raddr_i[11:0] == `CSR_SCAUSE) ? scause :
-                         (clint_raddr_i[11:0] == `CSR_STVAL) ? stval :
-                         (clint_raddr_i[11:0] == `CSR_SIP) ? sip :
-        // 用户模式寄存器
-        (clint_raddr_i[11:0] == `CSR_USTATUS) ? ustatus :
-                         (clint_raddr_i[11:0] == `CSR_UIE) ? uie :
-                         (clint_raddr_i[11:0] == `CSR_UTVEC) ? utvec :
-                         (clint_raddr_i[11:0] == `CSR_USCRATCH) ? uscratch :
-                         (clint_raddr_i[11:0] == `CSR_UEPC) ? uepc :
-                         (clint_raddr_i[11:0] == `CSR_UCAUSE) ? ucause :
-                         (clint_raddr_i[11:0] == `CSR_UTVAL) ? utval :
-                         (clint_raddr_i[11:0] == `CSR_UIP) ? uip :
         // 性能计数器
         (clint_raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
                          (clint_raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
