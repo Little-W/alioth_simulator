@@ -13,7 +13,7 @@
 `define PC_WRITE_TOHOST 32'h80000040
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
-`define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
+`define DTCM alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.ram_inst
 
 module tb_top (
     input clk,
@@ -44,19 +44,19 @@ module tb_top (
     localparam DTCM_BYTE_SIZE = DTCM_DEPTH * 4;  // 总字节数
 
     // 创建与ITCM和DTCM容量相同的临时字节数组
-    reg [7:0] itcm_prog_mem[0:ITCM_BYTE_SIZE-1];
-    reg [7:0] dtcm_prog_mem[0:DTCM_BYTE_SIZE-1];
-    integer i;
+    reg     [ 7:0] itcm_prog_mem                            [0:ITCM_BYTE_SIZE-1];
+    reg     [ 7:0] dtcm_prog_mem                            [0:DTCM_BYTE_SIZE-1];
+    integer        i;
 
     // 添加PC监控变量
-    reg [31:0] pc_write_to_host_cnt;
-    reg [31:0] pc_write_to_host_cycle;
-    reg pc_write_to_host_flag;
-    reg [31:0] last_pc;  // 保留用于监测PC变化
+    reg     [31:0] pc_write_to_host_cnt;
+    reg     [31:0] pc_write_to_host_cycle;
+    reg            pc_write_to_host_flag;
+    reg     [31:0] last_pc;  // 保留用于监测PC变化
 
     // 不再自己维护周期和指令计数，直接从CSR获取
-    wire [31:0] current_cycle = csr_cycle[31:0];
-    wire [31:0] current_instructions = csr_instret[31:0];
+    wire    [31:0] current_cycle = csr_cycle[31:0];
+    wire    [31:0] current_instructions = csr_instret[31:0];
 
     // 周期计数器 - 简化为只更新last_pc
     always @(posedge clk or negedge rst_n) begin
@@ -127,12 +127,22 @@ module tb_top (
 
         // 处理小端序格式并更新到ITCM
         for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
-            `ITCM.mem_r[i] = {itcm_prog_mem[i*4+3], itcm_prog_mem[i*4+2], itcm_prog_mem[i*4+1], itcm_prog_mem[i*4+0]};
+            `ITCM.mem_r[i] = {
+                itcm_prog_mem[i*4+3],
+                itcm_prog_mem[i*4+2],
+                itcm_prog_mem[i*4+1],
+                itcm_prog_mem[i*4+0]
+            };
         end
 
         // 处理小端序格式并更新到DTCM
         for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个字
-            `DTCM.mem_r[i] = {dtcm_prog_mem[i*4+3], dtcm_prog_mem[i*4+2], dtcm_prog_mem[i*4+1], dtcm_prog_mem[i*4+0]};
+            `DTCM.mem_r[i] = {
+                dtcm_prog_mem[i*4+3],
+                dtcm_prog_mem[i*4+2],
+                dtcm_prog_mem[i*4+1],
+                dtcm_prog_mem[i*4+0]
+            };
         end
 
         $display("Successfully loaded instructions to ITCM and data to DTCM");
@@ -254,7 +264,14 @@ module tb_top (
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
         .clk  (clk),
-        .rst_n(rst_n)
+        .rst_n(rst_n),
+
+        // 外设引脚连接
+        .cnt_clk           (),
+        .virtual_sw_input  (),
+        .virtual_key_input (),
+        .virtual_seg_output(),
+        .virtual_led_output()
     );
 
     // 添加可选的寄存器调试输出功能

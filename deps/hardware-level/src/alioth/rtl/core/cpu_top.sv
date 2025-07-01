@@ -28,8 +28,14 @@
 module cpu_top (
 
     input wire clk,
-    input wire rst_n
+    input wire rst_n,
 
+    // 外设相关引脚
+    input  wire         cnt_clk,            // 计数器时钟
+    input  wire [63:0]  virtual_sw_input,   // 虚拟开关输入
+    input  wire [7:0]   virtual_key_input,  // 虚拟按键输入
+    output wire [39:0]  virtual_seg_output, // 虚拟七段显示器输出
+    output wire [31:0]  virtual_led_output  // 虚拟LED输出
 );
 
     // pc_reg模块输出信号
@@ -539,6 +545,13 @@ module cpu_top (
     ) u_mems (
         .clk  (clk),
         .rst_n(rst_n),
+
+        // 外设相关引脚
+        .cnt_clk            (cnt_clk),
+        .virtual_sw_input   (virtual_sw_input),
+        .virtual_key_input  (virtual_key_input),
+        .virtual_seg_output (virtual_seg_output),
+        .virtual_led_output (virtual_led_output),
 
         // 端口0 - IFU指令获取接口 (M0)
         .M0_AXI_ARID   (ifu_axi_arid),
