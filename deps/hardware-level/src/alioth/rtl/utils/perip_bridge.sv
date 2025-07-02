@@ -46,10 +46,10 @@ module perip_bridge (
 
     logic [31:0] LED;
     logic [31:0] seg_wdata, cnt_rdata, mmio_rdata, dram_rdata;
+    logic [31:0] mmio_rdata_reg, cnt_rdata_reg; // 添加MMIO和计数器的寄存器
     logic [39:0] seg_output;
-    logic [31:0] perip_rdata_reg;  // 添加寄存器
 
-    // we don't care perip_mask in LED, SEG, SW & KEY, only care in DTCM
+    // we don't care perip_mask in LED, SEG, SW & KEY, only care in DTCMDRAM
     // write process
     always_ff @(posedge clk) begin
         if (perip_wen) begin
@@ -71,6 +71,17 @@ module perip_bridge (
         endcase
     end
 
+    // 添加MMIO和计数器数据的寄存器
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            mmio_rdata_reg <= 32'h0;
+            cnt_rdata_reg <= 32'h0;
+        end else begin
+            mmio_rdata_reg <= mmio_rdata;
+            cnt_rdata_reg <= cnt_rdata;
+        end
+    end
+
     // seg driver
     display_seg seg_driver (
         .clk (clk),
@@ -89,7 +100,7 @@ module perip_bridge (
     assign seg_output[37] = 0;
 
     // DTCM实例化
-    gnrl_ram_pseudo_dual_async #(
+    gnrl_ram_pseudo_dual #(
         .ADDR_WIDTH(`DTCM_ADDR_WIDTH),
         .DATA_WIDTH(32),
         .INIT_MEM  (`INIT_DTCM),
@@ -114,21 +125,13 @@ module perip_bridge (
         .perip_rdata(cnt_rdata)
     );
 
-    // 添加一级寄存器进行数据读取
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            perip_rdata_reg <= 32'h0;
-        end else begin
-            perip_rdata_reg <= {32{perip_raddr == `SW0_ADDR}} & mmio_rdata |
-                              {32{perip_raddr == `SW1_ADDR}} & mmio_rdata |
-                              {32{perip_raddr == `KEY_ADDR}} & mmio_rdata |
-                              {32{perip_raddr == `SEG_ADDR}} & mmio_rdata |
-                              {32{perip_raddr >= DTCM_ADDR_START && perip_raddr < DTCM_ADDR_END}} & dram_rdata |
-                              {32{perip_raddr == `CNT_ADDR}} & cnt_rdata;
-        end
-    end
-
-    assign perip_rdata        = perip_rdata_reg;
+    // 直接使用各个数据源，不需要总的寄存器
+    assign perip_rdata = {32{perip_raddr == `SW0_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr == `SW1_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr == `KEY_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr == `SEG_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr >= DTCM_ADDR_START && perip_raddr < DTCM_ADDR_END}} & dram_rdata |
+                         {32{perip_raddr == `CNT_ADDR}} & cnt_rdata_reg;
 
     assign virtual_led_output = LED;
     assign virtual_seg_output = seg_output;
