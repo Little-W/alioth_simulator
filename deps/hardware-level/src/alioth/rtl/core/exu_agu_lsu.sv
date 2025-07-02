@@ -406,17 +406,6 @@ module exu_agu_lsu #(
     wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : mem_wdata;
     wire [ 3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask;
 
-    // 使用gnrl_dfflr实例替换读控制相关的时序逻辑
-    // axi_rready寄存器 - 总是为1
-    gnrl_dfflr #(
-        .DW(1)
-    ) axi_rready_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (1'b1),
-        .qout (axi_rready)
-    );
 
     // wait_for_rdata寄存器
     gnrl_dfflr #(
@@ -493,18 +482,6 @@ module exu_agu_lsu #(
         .lden (reg_write_valid_set),
         .dnxt (curr_commit_id),
         .qout (current_commit_id_r)
-    );
-
-    // 使用gnrl_dfflr实例替换写控制相关的时序逻辑
-    // axi_bready寄存器 - 总是为1
-    gnrl_dfflr #(
-        .DW(1)
-    ) axi_bready_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (1'b1),
-        .qout (axi_bready)
     );
 
     // wait_for_bvalid寄存器
