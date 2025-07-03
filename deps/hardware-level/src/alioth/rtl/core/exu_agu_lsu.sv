@@ -167,38 +167,38 @@ module exu_agu_lsu #(
     localparam FIFO_DEPTH = 4;
     localparam FIFO_PTR_WIDTH = $clog2(FIFO_DEPTH);
 
-    // 寄存器信号定义
+    // 寄存器信号定义 - 将wire改为reg类型
+    reg  [FIFO_PTR_WIDTH-1:0] read_fifo_wr_ptr;
+    reg  [FIFO_PTR_WIDTH-1:0] read_fifo_rd_ptr;
+    reg  [    FIFO_DEPTH-1:0] read_fifo_valid;
+
+    reg                       wait_for_bvalid;
+    reg  [FIFO_PTR_WIDTH-1:0] write_fifo_wr_ptr;
+    reg  [FIFO_PTR_WIDTH-1:0] write_fifo_rd_ptr;
+    reg  [    FIFO_DEPTH-1:0] write_fifo_valid;
+
     wire                      axi_rready;
-    wire                      wait_for_rdata;
-    wire [FIFO_PTR_WIDTH-1:0] read_fifo_wr_ptr;
-    wire [FIFO_PTR_WIDTH-1:0] read_fifo_rd_ptr;
-    wire [    FIFO_DEPTH-1:0] read_fifo_valid;
-
     wire                      axi_bready;
-    wire                      wait_for_bvalid;
-    wire [FIFO_PTR_WIDTH-1:0] write_fifo_wr_ptr;
-    wire [FIFO_PTR_WIDTH-1:0] write_fifo_rd_ptr;
-    wire [    FIFO_DEPTH-1:0] write_fifo_valid;
 
-    // 读取请求FIFO数组
-    wire                      read_fifo_mem_op_lb     [0:FIFO_DEPTH-1];
-    wire                      read_fifo_mem_op_lh     [0:FIFO_DEPTH-1];
-    wire                      read_fifo_mem_op_lw     [0:FIFO_DEPTH-1];
-    wire                      read_fifo_mem_op_lbu    [0:FIFO_DEPTH-1];
-    wire                      read_fifo_mem_op_lhu    [0:FIFO_DEPTH-1];
-    wire [               4:0] read_fifo_rd_addr       [0:FIFO_DEPTH-1];
-    wire [               1:0] read_fifo_mem_addr_index[0:FIFO_DEPTH-1];
-    wire [               3:0] read_fifo_commit_id     [0:FIFO_DEPTH-1];
+    // 读取请求FIFO数组 - 改为reg类型
+    reg                       read_fifo_mem_op_lb     [0:FIFO_DEPTH-1];
+    reg                       read_fifo_mem_op_lh     [0:FIFO_DEPTH-1];
+    reg                       read_fifo_mem_op_lw     [0:FIFO_DEPTH-1];
+    reg                       read_fifo_mem_op_lbu    [0:FIFO_DEPTH-1];
+    reg                       read_fifo_mem_op_lhu    [0:FIFO_DEPTH-1];
+    reg  [               4:0] read_fifo_rd_addr       [0:FIFO_DEPTH-1];
+    reg  [               1:0] read_fifo_mem_addr_index[0:FIFO_DEPTH-1];
+    reg  [               3:0] read_fifo_commit_id     [0:FIFO_DEPTH-1];
 
-    // 写请求FIFO数组
-    wire [              31:0] write_fifo_data         [0:FIFO_DEPTH-1];
-    wire [               3:0] write_fifo_strb         [0:FIFO_DEPTH-1];
+    // 写请求FIFO数组 - 改为reg类型
+    reg  [              31:0] write_fifo_data         [0:FIFO_DEPTH-1];
+    reg  [               3:0] write_fifo_strb         [0:FIFO_DEPTH-1];
 
-    // 输出寄存器
-    wire [              31:0] current_reg_wdata_r;
-    wire                      reg_write_valid_r;
-    wire [               4:0] reg_waddr_r;
-    wire [               3:0] current_commit_id_r;
+    // 输出寄存器 - 改为reg类型
+    reg  [              31:0] current_reg_wdata_r;
+    reg                       reg_write_valid_r;
+    reg  [               4:0] reg_waddr_r;
+    reg  [               3:0] current_commit_id_r;
 
     // 读写FIFO状态信号
     wire                      read_fifo_empty;
@@ -218,7 +218,7 @@ module exu_agu_lsu #(
 
     // 同周期响应判断
     wire same_cycle_response;
-    assign same_cycle_response = (~wait_for_rdata & M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID & axi_rready);
+    assign same_cycle_response = (read_fifo_empty & M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID & axi_rready);
 
     // 基本信号计算
     assign mem_addr = mem_op1_i + mem_op2_i;
@@ -251,11 +251,11 @@ module exu_agu_lsu #(
     assign axi_rready = 1'b1;  // 始终保持读数据通道ready
 
     // 读FIFO写入使能 - 当地址握手成功但数据未同时到达时
-    assign read_fifo_wr_en = M_AXI_ARVALID & M_AXI_ARREADY & ~M_AXI_RVALID & ~read_fifo_full;
+    assign read_fifo_wr_en = (M_AXI_ARVALID & M_AXI_ARREADY) & (~(M_AXI_RVALID | read_fifo_full) | ~read_fifo_empty);
     assign read_fifo_wr_ptr_nxt = (read_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
 
     // 读FIFO读取使能 - 当等待数据且数据到达时
-    assign read_fifo_rd_en = wait_for_rdata & M_AXI_RVALID & axi_rready & ~read_fifo_empty;
+    assign read_fifo_rd_en = M_AXI_RVALID & axi_rready & ~read_fifo_empty;
     assign read_fifo_rd_ptr_nxt = (read_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
 
     // 写控制信号逻辑
@@ -268,15 +268,6 @@ module exu_agu_lsu #(
     // 写FIFO读取使能 - 当FIFO非空且数据握手成功时
     assign write_fifo_rd_en = ~write_fifo_empty & M_AXI_WREADY;
     assign write_fifo_rd_ptr_nxt = (write_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
-
-    // 等待数据信号的下一状态逻辑
-    wire wait_for_rdata_set;
-    wire wait_for_rdata_clear;
-    wire wait_for_rdata_nxt;
-
-    assign wait_for_rdata_set = M_AXI_ARVALID & M_AXI_ARREADY & ~M_AXI_RVALID;
-    assign wait_for_rdata_clear = (M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID) | (wait_for_rdata & M_AXI_RVALID & axi_rready & ~read_fifo_empty);
-    assign wait_for_rdata_nxt = (wait_for_rdata_set & ~wait_for_rdata_clear) | (wait_for_rdata & ~wait_for_rdata_clear);
 
     // 等待写响应信号的下一状态逻辑
     wire wait_for_bvalid_set;
@@ -291,8 +282,7 @@ module exu_agu_lsu #(
     wire reg_write_valid_set;
     wire reg_write_valid_nxt;
 
-    assign reg_write_valid_set = (M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID) | 
-                             (wait_for_rdata & M_AXI_RVALID & axi_rready & ~read_fifo_empty);
+    assign reg_write_valid_set = (axi_rready & M_AXI_RVALID);
     assign reg_write_valid_nxt = reg_write_valid_set;
 
     // 直接从AXI读取数据
@@ -407,213 +397,167 @@ module exu_agu_lsu #(
     wire [ 3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask;
 
 
-    // wait_for_rdata寄存器
-    gnrl_dfflr #(
-        .DW(1)
-    ) wait_for_rdata_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (wait_for_rdata_nxt),
-        .qout (wait_for_rdata)
-    );
-
+    // 使用always块替换gnrl_dfflr实例
     // read_fifo_wr_ptr寄存器
-    gnrl_dfflr #(
-        .DW(FIFO_PTR_WIDTH)
-    ) read_fifo_wr_ptr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (read_fifo_wr_en),
-        .dnxt (read_fifo_wr_ptr_nxt),
-        .qout (read_fifo_wr_ptr)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            read_fifo_wr_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+        end else if (read_fifo_wr_en) begin
+            read_fifo_wr_ptr <= read_fifo_wr_ptr_nxt;
+        end
+    end
 
     // read_fifo_rd_ptr寄存器
-    gnrl_dfflr #(
-        .DW(FIFO_PTR_WIDTH)
-    ) read_fifo_rd_ptr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (read_fifo_rd_en),
-        .dnxt (read_fifo_rd_ptr_nxt),
-        .qout (read_fifo_rd_ptr)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            read_fifo_rd_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+        end else if (read_fifo_rd_en) begin
+            read_fifo_rd_ptr <= read_fifo_rd_ptr_nxt;
+        end
+    end
 
     // 寄存器写回控制寄存器
-    gnrl_dfflr #(
-        .DW(1)
-    ) reg_write_valid_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (reg_write_valid_nxt),
-        .qout (reg_write_valid_r)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            reg_write_valid_r <= 1'b0;
+        end else begin
+            reg_write_valid_r <= reg_write_valid_nxt;
+        end
+    end
 
     // 当前寄存器写回数据
-    gnrl_dfflr #(
-        .DW(32)
-    ) current_reg_wdata_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (reg_write_valid_set),
-        .dnxt (current_reg_wdata),
-        .qout (current_reg_wdata_r)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            current_reg_wdata_r <= 32'b0;
+        end else if (reg_write_valid_set) begin
+            current_reg_wdata_r <= current_reg_wdata;
+        end
+    end
 
     // 目标寄存器地址
-    gnrl_dfflr #(
-        .DW(5)
-    ) reg_waddr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (reg_write_valid_set),
-        .dnxt (curr_rd_addr),
-        .qout (reg_waddr_r)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            reg_waddr_r <= 5'b0;
+        end else if (reg_write_valid_set) begin
+            reg_waddr_r <= curr_rd_addr;
+        end
+    end
 
     // 提交ID
-    gnrl_dfflr #(
-        .DW(4)
-    ) current_commit_id_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (reg_write_valid_set),
-        .dnxt (curr_commit_id),
-        .qout (current_commit_id_r)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            current_commit_id_r <= 4'b0;
+        end else if (reg_write_valid_set) begin
+            current_commit_id_r <= curr_commit_id;
+        end
+    end
 
     // wait_for_bvalid寄存器
-    gnrl_dfflr #(
-        .DW(1)
-    ) wait_for_bvalid_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (wait_for_bvalid_nxt),
-        .qout (wait_for_bvalid)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            wait_for_bvalid <= 1'b0;
+        end else begin
+            wait_for_bvalid <= wait_for_bvalid_nxt;
+        end
+    end
 
     // write_fifo_wr_ptr寄存器
-    gnrl_dfflr #(
-        .DW(FIFO_PTR_WIDTH)
-    ) write_fifo_wr_ptr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (write_fifo_wr_en),
-        .dnxt (write_fifo_wr_ptr_nxt),
-        .qout (write_fifo_wr_ptr)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            write_fifo_wr_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+        end else if (write_fifo_wr_en) begin
+            write_fifo_wr_ptr <= write_fifo_wr_ptr_nxt;
+        end
+    end
 
     // write_fifo_rd_ptr寄存器
-    gnrl_dfflr #(
-        .DW(FIFO_PTR_WIDTH)
-    ) write_fifo_rd_ptr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (write_fifo_rd_en),
-        .dnxt (write_fifo_rd_ptr_nxt),
-        .qout (write_fifo_rd_ptr)
-    );
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            write_fifo_rd_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+        end else if (write_fifo_rd_en) begin
+            write_fifo_rd_ptr <= write_fifo_rd_ptr_nxt;
+        end
+    end
 
-    // 实现读FIFO的有效位数组
+    // 实现读FIFO的有效位数组和数据
     generate
         for (genvar i = 0; i < FIFO_DEPTH; i = i + 1) begin : read_fifo_valid_gen
             wire read_fifo_valid_set = read_fifo_wr_en & (read_fifo_wr_ptr == i);
             wire read_fifo_valid_clear = read_fifo_rd_en & (read_fifo_rd_ptr == i);
             wire read_fifo_valid_nxt = (read_fifo_valid_set | (read_fifo_valid[i] & ~read_fifo_valid_clear));
 
-            gnrl_dfflr #(
-                .DW(1)
-            ) read_fifo_valid_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set | read_fifo_valid_clear),
-                .dnxt (read_fifo_valid_nxt),
-                .qout (read_fifo_valid[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_valid[i] <= 1'b0;
+                end else if (read_fifo_valid_set | read_fifo_valid_clear) begin
+                    read_fifo_valid[i] <= read_fifo_valid_nxt;
+                end
+            end
 
-            // 为每个FIFO槽位创建gnrl_dfflr实例，存储读请求数据
-            gnrl_dfflr #(
-                .DW(1)
-            ) read_fifo_mem_op_lb_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (mem_op_lb_i),
-                .qout (read_fifo_mem_op_lb[i])
-            );
+            // 读请求数据寄存器
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_mem_op_lb[i] <= 1'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_mem_op_lb[i] <= mem_op_lb_i;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(1)
-            ) read_fifo_mem_op_lh_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (mem_op_lh_i),
-                .qout (read_fifo_mem_op_lh[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_mem_op_lh[i] <= 1'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_mem_op_lh[i] <= mem_op_lh_i;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(1)
-            ) read_fifo_mem_op_lw_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (mem_op_lw_i),
-                .qout (read_fifo_mem_op_lw[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_mem_op_lw[i] <= 1'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_mem_op_lw[i] <= mem_op_lw_i;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(1)
-            ) read_fifo_mem_op_lbu_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (mem_op_lbu_i),
-                .qout (read_fifo_mem_op_lbu[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_mem_op_lbu[i] <= 1'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_mem_op_lbu[i] <= mem_op_lbu_i;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(1)
-            ) read_fifo_mem_op_lhu_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (mem_op_lhu_i),
-                .qout (read_fifo_mem_op_lhu[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_mem_op_lhu[i] <= 1'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_mem_op_lhu[i] <= mem_op_lhu_i;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(5)
-            ) read_fifo_rd_addr_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (rd_addr_i),
-                .qout (read_fifo_rd_addr[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_rd_addr[i] <= 5'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_rd_addr[i] <= rd_addr_i;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(2)
-            ) read_fifo_mem_addr_index_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (mem_addr_index),
-                .qout (read_fifo_mem_addr_index[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_mem_addr_index[i] <= 2'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_mem_addr_index[i] <= mem_addr_index;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(4)
-            ) read_fifo_commit_id_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (read_fifo_valid_set),
-                .dnxt (commit_id_i),
-                .qout (read_fifo_commit_id[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    read_fifo_commit_id[i] <= 4'b0;
+                end else if (read_fifo_valid_set) begin
+                    read_fifo_commit_id[i] <= commit_id_i;
+                end
+            end
         end
     endgenerate
 
@@ -624,36 +568,30 @@ module exu_agu_lsu #(
             wire write_fifo_valid_clear = write_fifo_rd_en & (write_fifo_rd_ptr == i);
             wire write_fifo_valid_nxt = (write_fifo_valid_set | (write_fifo_valid[i] & ~write_fifo_valid_clear));
 
-            gnrl_dfflr #(
-                .DW(1)
-            ) write_fifo_valid_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (write_fifo_valid_set | write_fifo_valid_clear),
-                .dnxt (write_fifo_valid_nxt),
-                .qout (write_fifo_valid[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    write_fifo_valid[i] <= 1'b0;
+                end else if (write_fifo_valid_set | write_fifo_valid_clear) begin
+                    write_fifo_valid[i] <= write_fifo_valid_nxt;
+                end
+            end
 
-            // 存储写数据和掩码
-            gnrl_dfflr #(
-                .DW(32)
-            ) write_fifo_data_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (write_fifo_valid_set),
-                .dnxt (mem_wdata),
-                .qout (write_fifo_data[i])
-            );
+            // 写数据和掩码
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    write_fifo_data[i] <= 32'b0;
+                end else if (write_fifo_valid_set) begin
+                    write_fifo_data[i] <= mem_wdata;
+                end
+            end
 
-            gnrl_dfflr #(
-                .DW(4)
-            ) write_fifo_strb_dfflr (
-                .clk  (clk),
-                .rst_n(rst_n),
-                .lden (write_fifo_valid_set),
-                .dnxt (mem_wmask),
-                .qout (write_fifo_strb[i])
-            );
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    write_fifo_strb[i] <= 4'b0;
+                end else if (write_fifo_valid_set) begin
+                    write_fifo_strb[i] <= mem_wmask;
+                end
+            end
         end
     endgenerate
 

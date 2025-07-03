@@ -53,8 +53,10 @@ module exu (
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
 
+    input wire                       hazard_stall_i,  // 来自HDU的冒险暂停信号
+
     // 新增访存阻塞信号
-    output wire                       mem_stall_o,
+    output wire                      mem_stall_o,
 
     // to regs
     output wire [`REG_DATA_WIDTH-1:0] alu_reg_wdata_o,
@@ -460,6 +462,7 @@ module exu (
         .clk          (clk),
         .rst_n        (rst_n),
         .req_alu_i    (req_alu_o),
+        .hazard_stall_i(hazard_stall_i),  // 来自HDU的冒险暂停信号
         .alu_op1_i    (alu_op1_o),
         .alu_op2_i    (alu_op2_o),
         .alu_op_info_i(alu_op_info_o),
@@ -474,25 +477,25 @@ module exu (
 
     // 分支单元模块例化 - 保持不变
     exu_bru u_bru (
-        .rst_n             (rst_n),
-        .req_bjp_i         (req_bjp_o),
-        .bjp_op1_i         (bjp_op1_o),
-        .bjp_op2_i         (bjp_op2_o),
-        .bjp_jump_op1_i    (bjp_jump_op1_o),
-        .bjp_jump_op2_i    (bjp_jump_op2_o),
-        .bjp_op_jump_i     (bjp_op_jump_o),
-        .bjp_op_beq_i      (bjp_op_beq_o),
-        .bjp_op_bne_i      (bjp_op_bne_o),
-        .bjp_op_blt_i      (bjp_op_blt_o),
-        .bjp_op_bltu_i     (bjp_op_bltu_o),
-        .bjp_op_bge_i      (bjp_op_bge_o),
-        .bjp_op_bgeu_i     (bjp_op_bgeu_o),
-        .bjp_op_jalr_i     (bjp_op_jalr_o),
-        .sys_op_fence_i    (sys_op_fence_o),
-        .int_assert_i      (int_assert_i),
-        .int_addr_i        (int_addr_i),
-        .jump_flag_o       (bru_jump_flag),
-        .jump_addr_o       (bru_jump_addr)
+        .rst_n         (rst_n),
+        .req_bjp_i     (req_bjp_o),
+        .bjp_op1_i     (bjp_op1_o),
+        .bjp_op2_i     (bjp_op2_o),
+        .bjp_jump_op1_i(bjp_jump_op1_o),
+        .bjp_jump_op2_i(bjp_jump_op2_o),
+        .bjp_op_jump_i (bjp_op_jump_o),
+        .bjp_op_beq_i  (bjp_op_beq_o),
+        .bjp_op_bne_i  (bjp_op_bne_o),
+        .bjp_op_blt_i  (bjp_op_blt_o),
+        .bjp_op_bltu_i (bjp_op_bltu_o),
+        .bjp_op_bge_i  (bjp_op_bge_o),
+        .bjp_op_bgeu_i (bjp_op_bgeu_o),
+        .bjp_op_jalr_i (bjp_op_jalr_o),
+        .sys_op_fence_i(sys_op_fence_o),
+        .int_assert_i  (int_assert_i),
+        .int_addr_i    (int_addr_i),
+        .jump_flag_o   (bru_jump_flag),
+        .jump_addr_o   (bru_jump_addr)
     );
 
     // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数据
