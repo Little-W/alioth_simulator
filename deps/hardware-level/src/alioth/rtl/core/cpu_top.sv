@@ -371,6 +371,8 @@ module cpu_top (
         .reg1_rdata_i(regs_rdata1_o),
         .reg2_rdata_i(regs_rdata2_o),
 
+        .hazard_stall_i(hdu_stall_flag_o),  // 来自HDU的冒险暂停信号
+
         .mem_stall_o     (exu_mem_stall_o),
         .mem_store_busy_o(exu_mem_store_busy_o),
 

@@ -31,6 +31,7 @@ module exu_alu (
 
     // ALU
     input wire req_alu_i,
+    input wire hazard_stall_i,  // 来自HDU的冒险暂停信号
     input wire [31:0] alu_op1_i,
     input wire [31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,  // 统一的ALU操作信息信号
@@ -207,7 +208,7 @@ module exu_alu (
     wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : alu_rd_i;
 
     // 握手信号控制逻辑
-    wire update_output = wb_ready_i; // 仅在有效结果且ready时更新输出
+    wire update_output = (wb_ready_i | ~reg_we_o) & ~hazard_stall_i;
 
     // 握手失败时输出stall信号
     assign alu_stall_o = reg_we_r & ~wb_ready_i;

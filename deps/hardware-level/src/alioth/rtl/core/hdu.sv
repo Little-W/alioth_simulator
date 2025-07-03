@@ -70,21 +70,24 @@ module hdu (
         for (int i = 0; i < 4; i = i + 1) begin
             if (fifo_valid[i]) begin
                 // RAW冒险：新指令读取的寄存器是FIFO中长指令的目标寄存器
-                if ((rs1_check && new_inst_rs1_addr == fifo_rd_addr[i]) || 
-                    (rs2_check && new_inst_rs2_addr == fifo_rd_addr[i])) begin
-                    raw_hazard = 1'b1;
-                end
+                // 如果该长指令正在完成(commit_valid_i=1且commit_id_i=i)，则跳过冒险检测
+                if (!(commit_valid_i && commit_id_i == i)) begin
+                    if (((rs1_check && new_inst_rs1_addr == fifo_rd_addr[i]) || 
+                    (rs2_check && new_inst_rs2_addr == fifo_rd_addr[i]))) begin
+                        raw_hazard = 1'b1;
+                    end
 
-                // WAW冒险：新指令写入的寄存器是FIFO中长指令的目标寄存器
-                if (rd_check && new_inst_rd_addr == fifo_rd_addr[i]) begin
-                    waw_hazard = 1'b1;
+                    // WAW冒险：新指令写入的寄存器是FIFO中长指令的目标寄存器
+                    if (rd_check && new_inst_rd_addr == fifo_rd_addr[i]) begin
+                        waw_hazard = 1'b1;
+                    end
                 end
             end
         end
     end
 
     // 只有在有新指令且存在冒险时才暂停流水线
-    assign hazard         = (raw_hazard || waw_hazard);
+    assign hazard = (raw_hazard || waw_hazard);
     assign hazard_stall_o = hazard;
 
     // 为新的长指令分配ID - 使用assign语句
