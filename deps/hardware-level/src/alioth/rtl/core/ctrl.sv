@@ -38,6 +38,7 @@ module ctrl (
     input wire                        atom_opt_busy_i,  // 原子操作忙信号
 
     // from clint
+    input wire flush_flag_clint_i,    // 添加中断刷新信号输入
     input wire stall_flag_clint_i,
 
     // from hdu
@@ -59,10 +60,10 @@ module ctrl (
 
     // 简化的跳转输出逻辑
     assign jump_addr_o             = jump_addr_i;
-    assign jump_flag_o             = jump_flag_i & ~any_stall & ~atom_opt_busy_i;
+    assign jump_flag_o             = jump_flag_i & ~any_stall;
 
-    // 简化的暂停标志输出
-    assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | stall_flag_hdu_i | atom_stall;
-    assign stall_flag_o[`CU_FLUSH] = (jump_flag_i & ~atom_opt_busy_i) | stall_flag_clint_i;
+    // 更新暂停标志输出，区分stall和flush
+    assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | stall_flag_hdu_i | stall_flag_clint_i;
+    assign stall_flag_o[`CU_FLUSH] = jump_flag_i | flush_flag_clint_i;
 
 endmodule
