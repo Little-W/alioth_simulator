@@ -527,6 +527,7 @@ module exu (
         .clk         (clk),
         .rst_n       (rst_n),
         .wb_ready    (muldiv_wb_ready_i),      // 使用MULDIV专用写回准备信号
+        .hazard_stall_i(hazard_stall_i),      // 连接数据冒险暂停信号
         .reg_waddr_i (reg_waddr_i),
         .reg1_rdata_i(reg1_rdata_i),
         .reg2_rdata_i(reg2_rdata_i),

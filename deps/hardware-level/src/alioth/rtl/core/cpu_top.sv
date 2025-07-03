@@ -128,6 +128,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] clint_data_o;
     wire [`INST_ADDR_WIDTH-1:0] clint_int_addr_o;
     wire clint_int_assert_o;
+    wire clint_flush_flag_o;  // 添加中断刷新信号
     wire clint_stall_flag_o;
 
     wire [`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
@@ -263,6 +264,7 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
+        .flush_flag_clint_i(clint_flush_flag_o),  // 添加连接到clint的flush信号
         .stall_flag_clint_i(clint_stall_flag_o),
         .stall_flag_hdu_i  (hdu_stall_flag_o),
         .stall_flag_o      (ctrl_stall_flag_o),
@@ -530,6 +532,7 @@ module cpu_top (
         .waddr_o        (clint_waddr_o),
         .raddr_o        (clint_raddr_o),
         .data_o         (clint_data_o),
+        .flush_flag_o   (clint_flush_flag_o),  // 连接flush信号
         .stall_flag_o   (clint_stall_flag_o),
         .global_int_en_i(csr_global_int_en_o),
         .int_addr_o     (clint_int_addr_o),
