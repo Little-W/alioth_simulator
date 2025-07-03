@@ -16,11 +16,12 @@
 `define PC_WRITE_TOHOST 32'h80000040
 
 // 添加监控的PC地址范围 - 修改为新的程序段
-`define PC_MONITOR_START 32'h80000530
-`define PC_MONITOR_END 32'h8000053c
+`define PC_MONITOR_START 32'h800001f8
+`define PC_MONITOR_END 32'h80000330
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.ram_inst
+`define seg_ori_data alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.seg_wdata
 
 module tb_top (
     input clk,
@@ -141,7 +142,7 @@ module tb_top (
             // Reset logic
         end else begin
 `ifndef NO_TIMEOUT
-            if (current_cycle[26] == 1'b1) begin
+            if (current_cycle[27] == 1'b1) begin
                 $display("Time Out !!!");
                 $finish;
             end
@@ -233,6 +234,8 @@ module tb_top (
                      current_instructions);
             $display("~~~~~~~~~~~~~~~~~~ IPC value: %.4f ~~~~~~~~~~~~~~~~~~", ipc);
             $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
+            // 添加最终PC位置的报告
+            $display("~~~~~~~~~~~~~~~Final PC position: 0x%08x ~~~~~~~~~~~~~~", pc);
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
             if (x3 == 1) begin
@@ -323,7 +326,7 @@ module tb_top (
     end
     // 实例化顶层模块
     // 声明LED输出信号并连接
-    wire [7:0] virtual_led;  // 假设LED输出是8位宽
+    wire [31:0] virtual_led;  // 假设LED输出是8位宽
 
     alioth_soc_top alioth_soc_top_0 (
         .clk  (clk),
@@ -338,16 +341,31 @@ module tb_top (
     );
 
     // LED监控 - 添加监控逻辑检测LED输出变化
-    reg [7:0] last_led_value;
+    reg [31:0] last_led_value;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            last_led_value <= 8'h00;
+            last_led_value <= 0;
         end else begin
             if (virtual_led !== last_led_value) begin
                 $display("[LED_MONITOR] Cycle: %d, LED value changed: 0x%02x -> 0x%02x",
                          current_cycle, last_led_value, virtual_led);
                 last_led_value <= virtual_led;
+            end
+        end
+    end
+
+    // SEG显示监控 - 添加监控逻辑检测段码显示数据变化
+    reg [31:0] last_seg_value;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_seg_value <= 32'h0;
+        end else begin
+            if (`seg_ori_data !== last_seg_value) begin
+                $display("[SEG_MONITOR] Cycle: %d, SEG value changed: 0x%08x -> 0x%08x",
+                         current_cycle, last_seg_value, `seg_ori_data);
+                last_seg_value <= `seg_ori_data;
             end
         end
     end
