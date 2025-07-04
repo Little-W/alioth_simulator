@@ -651,8 +651,7 @@ module csr (
     );
 
     // ex模块读CSR寄存器
-    assign data_o = ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) ? data_i :
-        // 更新读取寄存器逻辑，使用单独的32位寄存器
+    assign data_o =
         (raddr_i[11:0] == `CSR_MCYCLE) ? mcycle :
         (raddr_i[11:0] == `CSR_MCYCLEH) ? mcycleh :
         (raddr_i[11:0] == `CSR_CYCLE) ? cycle :
@@ -687,8 +686,7 @@ module csr (
         `ZeroWord;
 
     // clint模块读CSR寄存器
-    assign clint_data_o = ((clint_waddr_i[11:0] == clint_raddr_i[11:0]) && (clint_we_i == `WriteEnable)) ? clint_data_i :
-        // 更新读取寄存器逻辑，使用单独的32位寄存器
+    assign clint_data_o =
         (clint_raddr_i[11:0] == `CSR_MCYCLE) ? mcycle :
         (clint_raddr_i[11:0] == `CSR_MCYCLEH) ? mcycleh :
         (clint_raddr_i[11:0] == `CSR_CYCLE) ? cycle :

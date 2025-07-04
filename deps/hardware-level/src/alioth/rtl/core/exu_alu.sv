@@ -234,66 +234,13 @@ module exu_alu (
     // 目标寄存器地址逻辑
     wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT || misaligned_fetch_i) ? 5'b0 : alu_rd_i;
 
-    // 握手信号控制逻辑
-    wire update_output = (wb_ready_i | ~reg_we_o);
-
-    // 使用gnrl_dfflr实例化输出级寄存器
-    wire [`REG_DATA_WIDTH-1:0] result_r;
-    wire reg_we_r;
-    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
-    wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
-
     // 握手失败时输出stall信号
-    assign alu_stall_o = reg_we_o & ~wb_ready_i & alu_r_we;
+    assign alu_stall_o = reg_we_o & ~wb_ready_i;
 
-    // 结果寄存器
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_result_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (alu_res),
-        .qout (result_r)
-    );
-
-    // 写使能寄存器
-    gnrl_dfflr #(
-        .DW(1)
-    ) u_r_we_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (alu_r_we),
-        .qout (reg_we_r)
-    );
-
-    // 写地址寄存器
-    gnrl_dfflr #(
-        .DW(`REG_ADDR_WIDTH)
-    ) u_r_waddr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (alu_r_waddr),
-        .qout (reg_waddr_r)
-    );
-
-    // commit ID寄存器
-    gnrl_dfflr #(
-        .DW(`COMMIT_ID_WIDTH)
-    ) u_commit_id_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (commit_id_i),
-        .qout (commit_id_r)
-    );
-
-    // 输出信号赋值
-    assign result_o    = result_r;
-    assign reg_we_o    = reg_we_r;
-    assign reg_waddr_o = reg_waddr_r;
-    assign commit_id_o = commit_id_r;
+    // 结果直接输出
+    assign result_o    = alu_res;
+    assign reg_we_o    = alu_r_we;
+    assign reg_waddr_o = alu_r_waddr;
+    assign commit_id_o = commit_id_i;
 
 endmodule

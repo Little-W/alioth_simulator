@@ -86,101 +86,15 @@ module exu_csr_unit (
     wire csr_we_nxt = (valid_csr_op & csr_we_i) ? `WriteEnable : `WriteDisable;
 
     // 握手失败时输出stall信号
-    assign csr_stall_o = csr_reg_we_o & ~wb_ready_i & csr_reg_we_nxt;
+    assign csr_stall_o = csr_reg_we_o & ~wb_ready_i;
 
-    // 使用gnrl_dfflr实例化输出级寄存器
-    wire [ `REG_DATA_WIDTH-1:0] csr_wdata_r;
-    wire [ `REG_DATA_WIDTH-1:0] reg_wdata_r;
-    wire                        csr_we_r;
-    wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_r;
-    wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_r;
-    wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
-    wire                        csr_reg_we_r;
-
-    // CSR写数据寄存器
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_csr_wdata_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (csr_wdata_nxt),
-        .qout (csr_wdata_r)
-    );
-
-    // 寄存器写回数据寄存器
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) u_r_wdata_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (reg_wdata_nxt),
-        .qout (reg_wdata_r)
-    );
-
-    // CSR写使能寄存器
-    gnrl_dfflr #(
-        .DW(1)
-    ) u_csr_we_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (csr_we_nxt),
-        .qout (csr_we_r)
-    );
-
-    // CSR写地址寄存器
-    gnrl_dfflr #(
-        .DW(`BUS_ADDR_WIDTH)
-    ) u_csr_waddr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (csr_waddr_i),
-        .qout (csr_waddr_r)
-    );
-
-    // 寄存器写地址寄存器
-    gnrl_dfflr #(
-        .DW(`REG_ADDR_WIDTH)
-    ) u_reg_waddr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (reg_waddr_i),
-        .qout (reg_waddr_r)
-    );
-
-    // commit ID寄存器
-    gnrl_dfflr #(
-        .DW(`COMMIT_ID_WIDTH)
-    ) u_commit_id_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (commit_id_i),
-        .qout (commit_id_r)
-    );
-
-    // csr_reg_we寄存器
-    gnrl_dfflr #(
-        .DW(1)
-    ) u_csr_reg_we_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (update_output),
-        .dnxt (csr_reg_we_nxt),
-        .qout (csr_reg_we_r)
-    );
-
-    // 输出信号赋值
-    assign csr_wdata_o  = csr_wdata_r;
-    assign reg_wdata_o  = reg_wdata_r;
-    assign csr_we_o     = csr_we_r;
-    assign csr_waddr_o  = csr_waddr_r;
-    assign reg_waddr_o  = reg_waddr_r;
-    assign commit_id_o  = commit_id_r;  // 输出commit ID
-    assign csr_reg_we_o = csr_reg_we_r;  // 新增：输出csr_reg_we
+    // 直接输出信号赋值
+    assign csr_wdata_o  = csr_wdata_nxt;
+    assign reg_wdata_o  = reg_wdata_nxt;
+    assign csr_we_o     = csr_we_nxt;
+    assign csr_waddr_o  = csr_waddr_i;
+    assign reg_waddr_o  = reg_waddr_i;
+    assign commit_id_o  = commit_id_i;  // 输出commit ID
+    assign csr_reg_we_o = csr_reg_we_nxt;
 
 endmodule

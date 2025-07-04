@@ -315,42 +315,6 @@ module exu_lsu #(
     wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : mem_wdata_i;
     wire [3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask_i;
 
-    // 寄存器写回控制寄存器
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            reg_write_valid_r <= 1'b0;
-        end else begin
-            reg_write_valid_r <= reg_write_valid_nxt;
-        end
-    end
-
-    // 当前寄存器写回数据
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            current_reg_wdata_r <= 32'b0;
-        end else if (reg_write_valid_set) begin
-            current_reg_wdata_r <= current_reg_wdata;
-        end
-    end
-
-    // 目标寄存器地址
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            reg_waddr_r <= 5'b0;
-        end else if (reg_write_valid_set) begin
-            reg_waddr_r <= curr_rd_addr;
-        end
-    end
-
-    // 提交ID
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            current_commit_id_r <= {`COMMIT_ID_WIDTH{1'b0}};
-        end else if (reg_write_valid_set) begin
-            current_commit_id_r <= curr_commit_id;
-        end
-    end
-
     // 合并读FIFO指针和有效位、数据更新（带循环）
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -489,10 +453,10 @@ module exu_lsu #(
     // 读数据通道
     assign M_AXI_RREADY  = axi_rready;
 
-    // 寄存器写回信号
-    assign reg_we_o      = reg_write_valid_r;
-    assign reg_wdata_o   = current_reg_wdata_r;
-    assign reg_waddr_o   = reg_waddr_r;
-    assign commit_id_o   = current_commit_id_r;
+    // 寄存器写回信号 - 直接使用组合逻辑连接
+    assign reg_we_o      = reg_write_valid_nxt;
+    assign reg_wdata_o   = current_reg_wdata;
+    assign reg_waddr_o   = curr_rd_addr;
+    assign commit_id_o   = curr_commit_id;
 
 endmodule
