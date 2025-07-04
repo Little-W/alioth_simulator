@@ -30,7 +30,7 @@ module exu (
     input wire rst_n,
 
     //from ctrl
-    input wire                        stall_flag_i,   // 流水线暂停信号
+ //   input wire                        stall_flag_i,   // 流水线暂停信号
 
     // from id_ex
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -46,7 +46,7 @@ module exu (
     input wire [                 1:0] inst_id_i,
 
     input wire [`INST_ADDR_WIDTH-1:0] old_pc_i,  // 旧的PC地址
-    input wire                        branch_taken_i, // 分支预测结果
+ //   input wire                        branch_taken_i, // 分支预测结果
 
     input wire alu_wb_ready_i,     // ALU写回握手信号
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
@@ -94,7 +94,7 @@ module exu (
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
-    output wire branch_mispredict_o,  // 分支预测错误信号
+ //   output wire branch_mispredict_o,  // 分支预测错误信号
 
     // 输出LSU未完成传输事务信号
     output wire mem_store_busy_o,
@@ -584,7 +584,7 @@ module exu (
     end
 
     //预测失败
-    assign branch_mispredict_o = branch_mispredict;
+ //   assign branch_mispredict_o = branch_mispredict;
     wire   branch_mispredict;
     assign branch_mispredict = branch_taken & (~bjp_cmp_res_o) & req_bjp_o & (~bjp_op_jump_o);
 
