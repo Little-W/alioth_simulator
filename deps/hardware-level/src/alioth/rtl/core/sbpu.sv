@@ -24,67 +24,122 @@
 
 `include "defines.svh"
 
-//静态分支预测模块
+//分支预测模块
 module sbpu (
     input wire clk,
     input wire rst_n,
 
+    // -------- IF 侧接口 --------
     input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
-    input wire                        inst_valid_i,  // 指令有效信号
-    input wire [`INST_ADDR_WIDTH-1:0] pc_i,          // PC指针
-    input wire                        any_stall_i,   // 流水线暂停信号
+    input wire                        inst_valid_i,  // 指令有效
+    input wire [`INST_ADDR_WIDTH-1:0] pc_i,          // 当前 PC
+    input wire                        any_stall_i,   // 流水线暂停
 
-    output wire branch_taken_o,  // 预测是否为分支
-    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,  // 预测的分支地址
-    // 添加新的输出信号传递给EXU
-    output wire is_pred_branch_o  // 当前指令是经过预测的有条件分支指令
-    // 删除与预测验证相关的接口，因为已移至EXU
+    output wire                        branch_taken_o,   // 预测是否跳
+    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,    // 预测目标
+    output wire                        is_pred_branch_o, // 本条是否为预测分支
+
+    // -------- EXU -> BHT 回写接口 --------
+    input wire                        update_valid_i,  // 需更新?
+    input wire [`INST_ADDR_WIDTH-1:0] update_pc_i,     // 被更新 PC
+    input wire                        real_taken_i     // 实际结果
 );
+
+    // -----------------------------------------------------------
+    // 1. 指令类型判定
+    // -----------------------------------------------------------
     wire [6:0] opcode = inst_i[6:0];
 
-    wire opcode_1100011 = (opcode == 7'b1100011);
-    wire opcode_1101111 = (opcode == 7'b1101111);
-    wire opcode_1100111 = (opcode == 7'b1100111);
+    localparam OPC_BRANCH = 7'b1100011;
+    localparam OPC_JAL = 7'b1101111;
+    localparam OPC_JALR = 7'b1100111;
 
-    wire inst_type_branch = opcode_1100011;
-    wire inst_jal = opcode_1101111;
-    wire inst_jalr = opcode_1100111;
+    wire inst_branch = (opcode == OPC_BRANCH);
+    wire inst_jal = (opcode == OPC_JAL);
+    // JALR 此处仍不预测
+    // -----------------------------------------------------------
+    // 2. 立即数解码
+    // -----------------------------------------------------------
+    wire [31:0] imm_b = {{20{inst_i[31]}}, inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0};
+    wire [31:0] imm_j = {{12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0};
 
-    wire [31:0] inst_b_type_imm = {{20{inst_i[31]}}, inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0};
-    wire [31:0] inst_j_type_imm = {
-        {12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0
-    };
+    // -----------------------------------------------------------
+    // 3. BHT 存储体 (同步写、组合读)
+    // -----------------------------------------------------------
+    // 使用宏定义BHT计数器位宽
+    reg [`BHT_CNT_WIDTH-1:0] bht[0:`BHT_ENTRIES-1];
 
-    // 内部信号
-    wire is_pred_branch = inst_valid_i & (inst_type_branch & inst_b_type_imm[31]);
-    wire is_pred_jal = inst_valid_i & (inst_jal);
+    // 读索引：PC对齐4B，取低`BHT_IDX_WIDTH位
+    wire [`BHT_IDX_WIDTH-1:0] bht_ridx = pc_i[`BHT_IDX_WIDTH+1:2];
+    wire [`BHT_CNT_WIDTH-1:0] bht_rval = bht[bht_ridx];
 
-    // 标识当前指令是否为分支指令（用于传递给EXU）
-    // 加回JALR和JAL判断
-    assign is_pred_branch_o = is_pred_branch;
+    // 静态分支预测BTFN
+    wire is_pred_branch_static = inst_branch & imm_b[31];
+    // 简单2-bit饱和计数器预测：最高位决定预测结果
+    wire bht_predict_taken = bht_rval[`BHT_CNT_WIDTH-1] | (bht_rval[0] & is_pred_branch_static);
 
-    // wire [31:0] inst_i_type_imm = {{20{inst_i[31]}}, inst_i[31:20]};  // 为JALR添加I-type立即数
+    // -----------------------------------------------------------
+    // 4. 预测输出
+    // -----------------------------------------------------------
+    wire predict_taken = inst_valid_i & (inst_branch ? bht_predict_taken : inst_jal ? 1'b1 : 1'b0);
 
-    // 只预测条件分支指令和JAL
-    // 我们不预测JALR，因为我们无法在这个阶段读取寄存器
-    wire        branch_taken = is_pred_branch | is_pred_jal;
-
-    reg  [31:0] branch_addr;
-
+    reg [`INST_ADDR_WIDTH-1:0] predict_addr;
     always @(*) begin
-        // 默认值，避免锁存器
-        branch_addr = pc_i + 4;
-
-        case (1'b1)
-            inst_type_branch: branch_addr = pc_i + inst_b_type_imm;
-            inst_jal:         branch_addr = pc_i + inst_j_type_imm;
-            // JALR不计算预测地址，因为需要寄存器值
-            default:          ;
-        endcase
+        predict_addr = pc_i + 32'd4;
+        if (inst_branch) predict_addr = pc_i + imm_b;
+        else if (inst_jal) predict_addr = pc_i + imm_j;
+        // JALR: Not predicted here
     end
 
-    assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
-    assign branch_addr_o = branch_addr;
+    assign branch_taken_o   = predict_taken & ~any_stall_i;
+    assign branch_addr_o    = predict_addr;
+    assign is_pred_branch_o = inst_valid_i & inst_branch & branch_taken_o;
 
-    // 预测跳但实际没跳的情况的处理逻辑在EXU
+    // -----------------------------------------------------------
+    // 5. BHT 更新逻辑
+    // -----------------------------------------------------------
+    wire [`BHT_IDX_WIDTH-1:0] bht_widx = update_pc_i[`BHT_IDX_WIDTH+1:2];
+    reg  [`BHT_CNT_WIDTH-1:0] bht_wval;
+
+    // 定义状态常量，提高可读性
+    localparam [`BHT_CNT_WIDTH-1:0] STRONG_NOT_TAKEN = 2'b00;
+    localparam [`BHT_CNT_WIDTH-1:0] WEAK_NOT_TAKEN = 2'b01;
+    localparam [`BHT_CNT_WIDTH-1:0] WEAK_TAKEN = 2'b10;
+    localparam [`BHT_CNT_WIDTH-1:0] STRONG_TAKEN = 2'b11;
+
+    always @(*) begin
+        bht_wval = bht[bht_widx];
+        if (update_valid_i) begin
+            if (real_taken_i) begin
+                // 实际跳转，状态向上饱和
+                case (bht[bht_widx])
+                    STRONG_NOT_TAKEN: bht_wval = WEAK_NOT_TAKEN;
+                    WEAK_NOT_TAKEN:   bht_wval = WEAK_TAKEN;
+                    WEAK_TAKEN:       bht_wval = STRONG_TAKEN;
+                    STRONG_TAKEN:     bht_wval = STRONG_TAKEN;  // 饱和
+                endcase
+            end else begin
+                // 实际不跳转，状态向下饱和
+                case (bht[bht_widx])
+                    STRONG_NOT_TAKEN: bht_wval = STRONG_NOT_TAKEN;  // 饱和
+                    WEAK_NOT_TAKEN:   bht_wval = STRONG_NOT_TAKEN;
+                    WEAK_TAKEN:       bht_wval = WEAK_NOT_TAKEN;
+                    STRONG_TAKEN:     bht_wval = WEAK_TAKEN;
+                endcase
+            end
+        end
+    end
+
+    integer i;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            // 初始化为弱不跳状态
+            for (i = 0; i < `BHT_ENTRIES; i = i + 1) begin
+                bht[i] = WEAK_NOT_TAKEN;
+            end
+        end else if (update_valid_i) begin
+            bht[bht_widx] <= bht_wval;  // 保持非阻塞，正常时钟写
+        end
+    end
+
 endmodule

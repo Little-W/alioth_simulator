@@ -380,3 +380,7 @@
 // `define ENABLE_UART1      1
 `define ENABLE_GPIO0 1
 // `define ENABLE_GPIO1      1
+
+// 分支预测配置
+`define BHT_CNT_WIDTH 2      // 饱和计数器位宽
+`define BHT_IDX_WIDTH $clog2(`BHT_ENTRIES)  // BHT索引位宽
