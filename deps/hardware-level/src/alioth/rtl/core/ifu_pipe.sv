@@ -37,13 +37,16 @@ module ifu_pipe (
     input wire inst_valid_i,  // 指令有效信号
     input wire stall_i,       // 保持信号，为1时触发器保持不更新
 
+    input wire branch_taken_i, // 分支预测结果
+    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i, // 分支目标地址
+
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址
 
 );
 
     // 直接使用flush_flag_i，不再寄存
-    wire                        flush_en = flush_flag_i;
+    wire flush_en = flush_flag_i;
 
     // 在指令无效或冲刷信号有效时，选择 NOP 作为寄存器输入
     wire [`INST_DATA_WIDTH-1:0] inst_selected = (flush_en || !inst_valid_i) ? `INST_NOP : inst_i;

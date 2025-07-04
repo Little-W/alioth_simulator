@@ -46,7 +46,13 @@ module ifu_ifetch (
 
     // ifu_pipe 的输出
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o , // 指令地址
+    output wire                        inst_valid_o , // 指令有效信号
+
+    // 分支预测采用前的pc
+    output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,  // 输出旧的PC地址
+    //taken******out
+//    output wire branch_taken_o
 
 );
 
@@ -54,13 +60,14 @@ module ifu_ifetch (
     wire [`INST_ADDR_WIDTH-1:0] pc_nxt;
 
     // 计算实际的PC暂停信号：原有暂停信号或AXI未就绪
-    wire                        stall_pc_actual = stall_pc_i || !axi_arready_i;
+    wire  stall_pc_actual = stall_pc_i || !axi_arready_i;
 
     // 根据控制信号计算下一个PC值
     assign pc_nxt = (!rst_n) ? `PC_RESET_ADDR :  // 复位
-        (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
-        (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
-        pc_o + 4'h4;  // 地址加4
+                    (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
+                    (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
+                    (branch_taken) ? branch_addr :  // 分支跳转
+                     pc_o + 4'h4;  // 地址加4
 
     // 使用gnrl_dff模块实现PC寄存器
     gnrl_dff #(
@@ -84,5 +91,29 @@ module ifu_ifetch (
         .inst_o      (inst_o),
         .inst_addr_o (inst_addr_o)
     );
+       
+    assign branch_taken_o = branch_taken;
+    wire branch_taken;  // 分支预测结果
+    wire [`INST_ADDR_WIDTH-1:0] branch_addr;  // 分支预测地址
+
+
+    //简易静态分支预测模块
+    if (`staticBranchPredict) begin: g_static_branch_predictor
+        // 实例化静态分支预测
+        sbpu u_sbpu (
+            .clk            (clk),
+            .rst_n          (rst_n),
+            .inst_i         (inst_i),
+            .inst_valid_i   (inst_valid_i),
+            .pc_i           (pc_o),
+            .branch_taken_o (branch_taken),
+            .branch_addr_o  (branch_addr)
+            .old_pc_o       (old_pc_o)  // 输出旧的PC地址
+        );
+    end else begin: g_no_static_branch_predictor
+        // 如果不使用静态分支预测，则直接将分支预测结果设置为无效
+        assign branch_taken = 1'b0;
+        assign branch_addr = `PC_RESET_ADDR;  // 默认地址
+    end
 
 endmodule

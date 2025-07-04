@@ -33,6 +33,8 @@ module idu (
     // from if_id
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
+    input wire  [`INST_ADDR_WIDTH-1:0] old_pc_i,  // 流水线冲刷标志
+    input wire                         branch_taken_i, // 分支预测结果
 
     // from ctrl
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
@@ -53,7 +55,10 @@ module idu (
     output wire                        csr_we_o,       // 写CSR寄存器标志
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息总线
+
+    output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,  // 输出旧的PC地址
+    output wire                        branch_taken_o  // 分支预测结果输出
     // 移除了HDU相关的输出
 );
 
@@ -114,6 +119,8 @@ module idu (
         .csr_raddr_i   (id_csr_raddr),
         .dec_info_bus_i(id_dec_info_bus),
         .dec_imm_i     (id_dec_imm),
+        .old_pc_i      (old_pc_i),  // 旧跳转地址
+        .branch_taken_i(branch_taken_i),  // 分支预测结果
 
         // from ctrl
         .stall_flag_i(stall_flag_i),
@@ -129,6 +136,8 @@ module idu (
         .csr_raddr_o   (csr_raddr_o),
         .dec_imm_o     (dec_imm_o),
         .dec_info_bus_o(dec_info_bus_o)
+        .old_pc_o      (old_pc_o)  // 输出旧的PC地址
+        .branch_taken_o(branch_taken_o)  // 分支预测结果输出
     );
 
 endmodule

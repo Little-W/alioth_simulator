@@ -34,6 +34,9 @@ module cpu_top (
 
     // pc_reg模块输出信号
     wire [`INST_ADDR_WIDTH-1:0] pc_pc_o;
+    //***
+    wire [`INST_ADDR_WIDTH-1:0] ifu_idu_old_pc_o;
+ //   wire if_id_branch_taken_o; // 分支预测结果输出
 
     // if_id模块输出信号
     wire [`INST_DATA_WIDTH-1:0] if_inst_o;
@@ -56,6 +59,9 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
     wire [31:0] idu_dec_imm_o;
     wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
+
+    wire [`INST_ADDR_WIDTH-1:0] idu_exu_old_pc_o;
+ //   wire idu_exu_branch_taken_o; // 分支预测结果输出
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -227,6 +233,10 @@ module cpu_top (
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
 
+        //分支预测输出
+        .old_pc_o         (ifu_idu_old_pc_o)  // 输出旧的PC地址
+        .branch_taken_o   (if_id_branch_taken_o),  // 分支预测结果输出
+
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
         .M_AXI_ARADDR (ifu_axi_araddr),
@@ -305,6 +315,8 @@ module cpu_top (
         .inst_i      (if_inst_o),
         .inst_addr_i (if_inst_addr_o),
         .stall_flag_i(ctrl_stall_flag_o),
+        .old_pc_i    (ifu_idu_old_pc_o),  // 旧的PC地址
+        .branch_taken_i(if_id_branch_taken_o),  // 分支预测结果
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
@@ -318,7 +330,9 @@ module cpu_top (
         .csr_we_o      (idu_csr_we_o),
         .csr_waddr_o   (idu_csr_waddr_o),
         .dec_imm_o     (idu_dec_imm_o),
-        .dec_info_bus_o(idu_dec_info_bus_o)
+        .dec_info_bus_o(idu_dec_info_bus_o),
+        .old_pc_o      (idu_exu_old_pc_o),  // 输出旧的PC地址
+        .branch_taken_o(idu_exu_branch_taken_o)  // 分支预测结果输出
     );
 
     // HDU模块例化
@@ -358,6 +372,11 @@ module cpu_top (
         .mem_rdata_i   (exu_mem_data_i),
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
+
+        //from idu
+        .old_pc_i      (idu_exu_old_pc_o),  // 旧的PC地址
+        .branch_taken_i(idu_exu_branch_taken_o),  // 分支预测结果
+
 
         // 修改：直接从HDU获取长指令ID
         .inst_id_i(hdu_long_inst_id_o),

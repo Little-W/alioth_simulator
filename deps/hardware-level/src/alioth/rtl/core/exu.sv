@@ -29,6 +29,9 @@ module exu (
     input wire clk,
     input wire rst_n,
 
+    //from ctrl
+    input wire                        stall_flag_i,   // 流水线暂停信号
+
     // from id_ex
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
     input wire                        reg_we_i,
@@ -41,6 +44,9 @@ module exu (
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     input wire [                 1:0] inst_id_i,
+
+    input wire [`INST_ADDR_WIDTH-1:0] old_pc_i,  // 旧的PC地址
+    input wire                        branch_taken_i, // 分支预测结果
 
     input wire alu_wb_ready_i,     // ALU写回握手信号
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
@@ -87,6 +93,8 @@ module exu (
     output wire                        stall_flag_o,
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
+
+    output wire branch_mispredict_o,  // 分支预测错误信号
 
     // 输出LSU未完成传输事务信号
     output wire mem_store_busy_o,
@@ -565,6 +573,22 @@ module exu (
         .commit_id_o        (muldiv_commit_id)    // 4位commit_id输出
     );
 
+    //静态预测实际
+    wire branch_taken;
+    if (staticBranchPredict) begin
+        assign branch_taken = ((~bjp_op_jalr_o) & bjp_op_jump_o) |
+                            // bxx & imm[31]
+                            (req_bjp_o & (~bjp_op_jump_o) & dec_imm_i[31]);
+    end else begin
+        assign branch_taken = 1'b0;
+    end
+
+    //预测失败
+    assign branch_mispredict_o = branch_mispredict;
+    wire   branch_mispredict;
+    assign branch_mispredict = branch_taken & (~bjp_cmp_res_o) & req_bjp_o & (~bjp_op_jump_o);
+
+
     // 直接将执行单元的结果暴露给wbu - 修改commit_id宽度
     assign alu_reg_wdata_o = alu_result;
     assign alu_reg_we_o = alu_reg_we;
@@ -582,9 +606,16 @@ module exu (
     assign agu_commit_id_o = agu_commit_id;  // 修改：直接使用8位commit_id
 
     // 输出选择逻辑 - 修改stall_flag输出，考虑所有握手信号
-    assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
-    assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
-    assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
+    wire stall_flag = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
+    assign stall_flag_o = stall_flag;
+
+    //************************地址不确定******
+    assign jump_flag_o = ((bru_jump_flag |branch_mispredict)&(~stall_flag))| ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
+
+    
+    assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i :
+                         branch_mispredict ? old_pc_i + 4'h4 :
+                         bru_jump_addr;
 
     // 将乘除法开始信号输出给clint
     assign muldiv_started_o = div_start | mul_start;

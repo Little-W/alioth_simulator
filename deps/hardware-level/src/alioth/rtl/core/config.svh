@@ -24,3 +24,6 @@
 `define REG_DATA_WIDTH 32
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
+
+//静态预测使能
+`define staticBranchPredict 1 // 静态预测使能，1表示启用，0表示禁用

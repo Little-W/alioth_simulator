@@ -31,7 +31,7 @@ module ifu (
     input wire rst_n,
 
     // 来自控制模块
-    input wire                        jump_flag_i,  // 跳转标志
+    input wire                        jump_flag_i,  // 跳转标志***或bpu信号
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
@@ -39,6 +39,11 @@ module ifu (
     output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
     output wire                        read_resp_error_o, // AXI读响应错误信号
+    output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,  // 输出旧的PC地址
+
+    //输出分支预测结果
+    output wire                        branch_taken_o,  // 分支预测结果输出
+
 
     // AXI接口
     // AXI读地址通道
@@ -76,12 +81,16 @@ module ifu (
     wire [`INST_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的指令数据
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 从AXI读取的指令地址
     wire                        inst_valid;  // 指令有效信号
+    wire                        branch_taken;  // 分支预测输出
 
+    assign jump_flag =  jump_flag_i || branch_taken;  // 将分支预测结果作为跳转标志
+    assign branch_taken_o = branch_taken;  // 将分支预测结果输出
+    
     // 实例化IFetch模块，现包含ifu_pipe功能
     ifu_ifetch u_ifu_ifetch (
         .clk          (clk),
         .rst_n        (rst_n),
-        .jump_flag_i  (jump_flag_i),
+        .jump_flag_i  (jump_flag),
         .jump_addr_i  (jump_addr_i),
         .stall_pc_i   (stall_pc),
         .axi_arready_i(M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
@@ -92,15 +101,19 @@ module ifu (
         .stall_if_i   (stall_if),       // 连接IF阶段暂停信号
         .pc_o         (pc),             // PC输出
         .inst_o       (inst_o),         // 指令输出
-        .inst_addr_o  (inst_addr_o)     // 指令地址输出
+        .inst_addr_o  (inst_addr_o),     // 指令地址输出
+        .old_pc_o     (old_pc_o),        // 输出旧的PC地址
+        .inst_valid_o (inst_valid_o)    // 指令有效信号输出
+        .branch_taken_o(branch_taken)        // 分支预测输出
     );
+
 
     // 实例化AXI主机模块
     ifu_axi_master u_ifu_axi_master (
         .clk              (clk),
         .rst_n            (rst_n),
         .id_stall_i       (id_stall),
-        .jump_flag_i      (jump_flag_i),        // 连接跳转标志信号
+        .jump_flag_i      (jump_flag),        // 连接跳转标志信号
         .pc_i             (pc),
         .read_resp_error_o(read_resp_error_o),
         .inst_data_o      (inst_data),          // 连接指令数据输出

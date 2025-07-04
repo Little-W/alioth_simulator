@@ -42,6 +42,8 @@ module idu_id_pipe (
     input wire [                31:0] dec_imm_i,
 
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
+    input wire [`INST_ADDR_WIDTH-1:0] old_pc_i,      // 旧跳转地址
+//    input wire                        branch_taken_i, // 分支预测结果
 
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
     output wire                        reg_we_o,       // 写通用寄存器标志
@@ -52,10 +54,12 @@ module idu_id_pipe (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
+    output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,       // 旧跳转地址
+ //   output wire                        branch_taken_o  // 分支预测结果
 );
 
-    wire                        flush_en = stall_flag_i[`CU_FLUSH];
+    wire                        flush_en = stall_flag_i[`CU_FLUSH];// 流水线冲刷标志(是否加上分支预测错误标志？)
     wire                        stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
@@ -80,6 +84,30 @@ module idu_id_pipe (
         reg_we
     );
     assign reg_we_o = reg_we;
+
+
+    wire [`INST_ADDR_WIDTH-1:0] old_pc_dnxt = flush_en ? `ZeroWord : old_pc_i;
+    wire [`INST_ADDR_WIDTH-1:0] old_pc;
+    gnrl_dfflr #(32) old_pc_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        old_pc_dnxt,
+        old_pc
+    );
+    assign old_pc_o = old_pc;
+
+//   wire branch_taken_dnxt = flush_en ? `BranchNotTaken : branch_taken_i;
+//   wire branch_taken;
+//   gnrl_dfflr #(1) branch_taken_ff (
+//        clk,
+//       rst_n,
+//       reg_update_en,
+//       branch_taken_dnxt,
+//        branch_taken
+//    );
+//   assign branch_taken_o = branch_taken;
+
 
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = flush_en ? `ZeroReg : reg_waddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
