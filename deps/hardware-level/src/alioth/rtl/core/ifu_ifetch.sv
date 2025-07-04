@@ -35,18 +35,7 @@ module ifu_ifetch (
     input wire                        stall_pc_i,    // PC暂停信号
     input wire                        axi_arready_i, // AXI读地址通道准备好信号
 
-    // ifu_pipe 所需的输入
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,   // 指令地址
-    input wire                        flush_flag_i,  // 流水线冲刷标志
-    input wire                        inst_valid_i,  // 指令有效信号
-    input wire                        stall_if_i,    // IF阶段保持信号
-
-    output wire [`INST_ADDR_WIDTH-1:0] pc_o,  // PC指针
-
-    // ifu_pipe 的输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o  // 指令地址
+    output wire [`INST_ADDR_WIDTH-1:0] pc_o  // PC指针
 
 );
 
@@ -70,19 +59,6 @@ module ifu_ifetch (
         .rst_n(1'b1),  // 不需要复位
         .dnxt (pc_nxt),
         .qout (pc_o)
-    );
-
-    // 实例化ifu_pipe模块
-    ifu_pipe u_ifu_pipe (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .inst_i      (inst_i),
-        .inst_addr_i (inst_addr_i),
-        .flush_flag_i(flush_flag_i),
-        .inst_valid_i(inst_valid_i),
-        .stall_i     (stall_if_i),
-        .inst_o      (inst_o),
-        .inst_addr_o (inst_addr_o)
     );
 
 endmodule

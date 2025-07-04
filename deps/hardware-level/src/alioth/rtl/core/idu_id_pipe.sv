@@ -40,6 +40,7 @@ module idu_id_pipe (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
+    input wire                        is_pred_branch_i, // 添加预测分支指令标志输入
 
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -52,7 +53,8 @@ module idu_id_pipe (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o  // 译码信息总线
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
+    output wire                        is_pred_branch_o  // 添加预测分支指令标志输出
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -172,5 +174,17 @@ module idu_id_pipe (
         dec_imm
     );
     assign dec_imm_o = dec_imm;
+
+    // 预测分支信号传递
+    wire is_pred_branch_dnxt = flush_en ? 1'b0 : is_pred_branch_i;
+    wire is_pred_branch;
+    gnrl_dfflr #(1) is_pred_branch_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        is_pred_branch_dnxt,
+        is_pred_branch
+    );
+    assign is_pred_branch_o = is_pred_branch;
 
 endmodule

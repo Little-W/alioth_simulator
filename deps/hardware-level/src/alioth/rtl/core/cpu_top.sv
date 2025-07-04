@@ -39,6 +39,7 @@ module cpu_top (
     wire [`INST_DATA_WIDTH-1:0] if_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
     wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;
+    wire if_is_pred_branch_o;  // 添加预测分支信号线
 
     // id模块输出信号
     wire [`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
@@ -56,6 +57,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
     wire [31:0] idu_dec_imm_o;
     wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
+    wire idu_is_pred_branch_o;  // 添加预测分支指令标志输出
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -308,6 +310,7 @@ module cpu_top (
         .inst_i      (if_inst_o),
         .inst_addr_i (if_inst_addr_o),
         .stall_flag_i(ctrl_stall_flag_o),
+        .is_pred_branch_i(if_is_pred_branch_o),  // 连接预测分支信号输入
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
@@ -321,7 +324,8 @@ module cpu_top (
         .csr_we_o      (idu_csr_we_o),
         .csr_waddr_o   (idu_csr_waddr_o),
         .dec_imm_o     (idu_dec_imm_o),
-        .dec_info_bus_o(idu_dec_info_bus_o)
+        .dec_info_bus_o(idu_dec_info_bus_o),
+        .is_pred_branch_o(idu_is_pred_branch_o)  // 连接预测分支信号输出
     );
 
     // HDU模块例化
@@ -361,6 +365,7 @@ module cpu_top (
         .mem_rdata_i   (exu_mem_data_i),
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
+        .is_pred_branch_i(idu_is_pred_branch_o),  // 连接预测分支信号输入
 
         // 修改：直接从HDU获取长指令ID
         .inst_id_i(hdu_long_inst_id_o),

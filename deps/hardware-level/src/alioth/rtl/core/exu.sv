@@ -45,6 +45,7 @@ module exu (
     input wire alu_wb_ready_i,     // ALU写回握手信号
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
     input wire csr_wb_ready_i,     // CSR写回握手信号
+    input wire is_pred_branch_i,   // 添加预测分支指令标志输入
 
     // from mem
     input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
@@ -53,10 +54,10 @@ module exu (
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
 
-    input wire                       hazard_stall_i,  // 来自HDU的冒险暂停信号
+    input wire hazard_stall_i,  // 来自HDU的冒险暂停信号
 
     // 新增访存阻塞信号
-    output wire                      mem_stall_o,
+    output wire mem_stall_o,
 
     // to regs
     output wire [`REG_DATA_WIDTH-1:0] alu_reg_wdata_o,
@@ -462,43 +463,44 @@ module exu (
 
     // 算术逻辑单元模块例化 - 使用专用握手信号
     exu_alu u_alu (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .req_alu_i    (req_alu_o),
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .req_alu_i     (req_alu_o),
         .hazard_stall_i(hazard_stall_i),  // 来自HDU的冒险暂停信号
-        .alu_op1_i    (alu_op1_o),
-        .alu_op2_i    (alu_op2_o),
-        .alu_op_info_i(alu_op_info_o),
-        .alu_rd_i     (reg_waddr_i),
-        .wb_ready_i   (alu_wb_ready_i),  // 使用ALU专用写回准备信号
-        .alu_stall_o  (alu_stall),
-        .int_assert_i (int_assert_i),
-        .result_o     (alu_result),
-        .reg_we_o     (alu_reg_we),
-        .reg_waddr_o  (alu_reg_waddr)
+        .alu_op1_i     (alu_op1_o),
+        .alu_op2_i     (alu_op2_o),
+        .alu_op_info_i (alu_op_info_o),
+        .alu_rd_i      (reg_waddr_i),
+        .wb_ready_i    (alu_wb_ready_i),  // 使用ALU专用写回准备信号
+        .alu_stall_o   (alu_stall),
+        .int_assert_i  (int_assert_i),
+        .result_o      (alu_result),
+        .reg_we_o      (alu_reg_we),
+        .reg_waddr_o   (alu_reg_waddr)
     );
 
     // 分支单元模块例化 - 保持不变
     exu_bru u_bru (
-        .rst_n         (rst_n),
-        .req_bjp_i     (req_bjp_o),
-        .bjp_op1_i     (bjp_op1_o),
-        .bjp_op2_i     (bjp_op2_o),
-        .bjp_jump_op1_i(bjp_jump_op1_o),
-        .bjp_jump_op2_i(bjp_jump_op2_o),
-        .bjp_op_jump_i (bjp_op_jump_o),
-        .bjp_op_beq_i  (bjp_op_beq_o),
-        .bjp_op_bne_i  (bjp_op_bne_o),
-        .bjp_op_blt_i  (bjp_op_blt_o),
-        .bjp_op_bltu_i (bjp_op_bltu_o),
-        .bjp_op_bge_i  (bjp_op_bge_o),
-        .bjp_op_bgeu_i (bjp_op_bgeu_o),
-        .bjp_op_jalr_i (bjp_op_jalr_o),
-        .sys_op_fence_i(sys_op_fence_o),
-        .int_assert_i  (int_assert_i),
-        .int_addr_i    (int_addr_i),
-        .jump_flag_o   (bru_jump_flag),
-        .jump_addr_o   (bru_jump_addr)
+        .rst_n           (rst_n),
+        .req_bjp_i       (req_bjp_o),
+        .bjp_op1_i       (bjp_op1_o),
+        .bjp_op2_i       (bjp_op2_o),
+        .bjp_jump_op1_i  (bjp_jump_op1_o),
+        .bjp_jump_op2_i  (bjp_jump_op2_o),
+        .bjp_op_jump_i   (bjp_op_jump_o),
+        .bjp_op_beq_i    (bjp_op_beq_o),
+        .bjp_op_bne_i    (bjp_op_bne_o),
+        .bjp_op_blt_i    (bjp_op_blt_o),
+        .bjp_op_bltu_i   (bjp_op_bltu_o),
+        .bjp_op_bge_i    (bjp_op_bge_o),
+        .bjp_op_bgeu_i   (bjp_op_bgeu_o),
+        .bjp_op_jalr_i   (bjp_op_jalr_o),
+        .is_pred_branch_i(is_pred_branch_i),  // 新增：预测分支指令标志输入
+        .sys_op_fence_i  (sys_op_fence_o),
+        .int_assert_i    (int_assert_i),
+        .int_addr_i      (int_addr_i),
+        .jump_flag_o     (bru_jump_flag),
+        .jump_addr_o     (bru_jump_addr)
     );
 
     // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数据
@@ -527,14 +529,14 @@ module exu (
 
     // 乘除法控制逻辑 - 使用专用握手信号
     exu_muldiv_ctrl u_muldiv_ctrl (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .wb_ready    (muldiv_wb_ready_i),      // 使用MULDIV专用写回准备信号
-        .hazard_stall_i(hazard_stall_i),      // 连接数据冒险暂停信号
-        .reg_waddr_i (reg_waddr_i),
-        .reg1_rdata_i(reg1_rdata_i),
-        .reg2_rdata_i(reg2_rdata_i),
-        .commit_id_i ({2'b0, muldiv_inst_id}), // 修改为4位
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .wb_ready      (muldiv_wb_ready_i),      // 使用MULDIV专用写回准备信号
+        .hazard_stall_i(hazard_stall_i),         // 连接数据冒险暂停信号
+        .reg_waddr_i   (reg_waddr_i),
+        .reg1_rdata_i  (reg1_rdata_i),
+        .reg2_rdata_i  (reg2_rdata_i),
+        .commit_id_i   ({2'b0, muldiv_inst_id}), // 修改为4位
 
         // 连接dispatch模块的译码信号
         .req_muldiv_i       (req_muldiv_o),

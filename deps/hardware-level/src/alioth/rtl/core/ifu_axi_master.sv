@@ -35,7 +35,7 @@ module ifu_axi_master #(
     input wire rst_n,
 
     // 控制信号
-    input  wire                        id_stall_i,        // ID阶段阻塞，无法接受新的指令
+    input  wire                        stall_axi_i,        // 无法接受新的指令(Flush或者Stall)
     input  wire                        jump_flag_i,       // 跳转标志信号
     input  wire [`INST_ADDR_WIDTH-1:0] pc_i,              // PC指针
     output wire                        read_resp_error_o, // 读响应错误信号
@@ -115,7 +115,7 @@ module ifu_axi_master #(
     assign push_fifo       = M_AXI_ARVALID && M_AXI_ARREADY && !same_cycle_resp && !fifo_full;
 
     // 弹出条件：不冲刷且FIFO非空或同一周期有响应
-    assign pop_fifo        = !id_stall_i && (!fifo_empty && valid_resp);
+    assign pop_fifo        = !stall_axi_i && (!fifo_empty && valid_resp);
 
     // FIFO操作类型
     assign fifo_op         = {push_fifo, pop_fifo && !same_cycle_resp};
@@ -132,8 +132,8 @@ module ifu_axi_master #(
     assign M_AXI_ARPROT    = 3'h0;
     assign M_AXI_ARQOS     = 4'h0;
     assign M_AXI_ARUSER    = 4'h0;
-    assign M_AXI_ARVALID   = !id_stall_i && !fifo_full;  // 当不冲刷且FIFO未满时有效
-    assign M_AXI_RREADY    = !id_stall_i;  // flush_flag有效时拉低rready，否则为1
+    assign M_AXI_ARVALID   = !stall_axi_i && !fifo_full;  // 当不冲刷且FIFO未满时有效
+    assign M_AXI_RREADY    = !stall_axi_i;  // flush_flag有效时拉低rready，否则为1
 
     // 读响应错误检测
     wire read_resp_error;

@@ -40,6 +40,7 @@ module exu_bru (
     input wire        bjp_op_bge_i,
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,   // JALR指令标志
+    input wire        is_pred_branch_i, // 前级是否进行了分支预测
 
     input wire                        sys_op_fence_i,  // FENCE指令
     // 中断信号
@@ -54,15 +55,20 @@ module exu_bru (
     wire        op1_eq_op2;
     wire        op1_ge_op2_signed;
     wire        op1_ge_op2_unsigned;
-    wire [31:0] op1_jump_add_op2_jump_res;
+    wire [31:0] adder_op2;
+    wire [31:0] adder_result;
 
     // 比较结果
     assign op1_eq_op2                = (bjp_op1_i == bjp_op2_i);
     assign op1_ge_op2_signed         = $signed(bjp_op1_i) >= $signed(bjp_op2_i);
     assign op1_ge_op2_unsigned       = bjp_op1_i >= bjp_op2_i;
 
-    // 计算跳转地址
-    assign op1_jump_add_op2_jump_res = bjp_jump_op1_i + bjp_jump_op2_i;
+    // 预测回退条件：当预测分支但实际不需要跳转
+    wire pred_rollback = is_pred_branch_i & req_bjp_i & ~branch_cond;
+
+    // 复用加法器：根据是否需要回退选择加法的第二个操作数
+    assign adder_op2 = pred_rollback ? 32'h4 : bjp_jump_op2_i;
+    assign adder_result = bjp_jump_op1_i + adder_op2;
 
     // 简化跳转条件信号判断
     wire branch_cond = req_bjp_i & (
@@ -72,13 +78,13 @@ module exu_bru (
         (bjp_op_bge_i  &  op1_ge_op2_signed) |
         (bjp_op_bltu_i & ~op1_ge_op2_unsigned) |
         (bjp_op_bgeu_i &  op1_ge_op2_unsigned) |
-        bjp_op_jump_i
+        bjp_op_jalr_i
     );
 
-    // 简化跳转标志判断
-    assign jump_flag_o = int_assert_i | branch_cond | sys_op_fence_i;
+    // 简化跳转标志判断，增加预测回退条件
+    assign jump_flag_o = int_assert_i | (branch_cond & ~is_pred_branch_i) | sys_op_fence_i | pred_rollback;
 
     // 简化跳转地址选择逻辑
-    assign jump_addr_o = int_assert_i ? int_addr_i : op1_jump_add_op2_jump_res;
+    assign jump_addr_o = int_assert_i ? int_addr_i : adder_result;
 
 endmodule
