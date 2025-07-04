@@ -30,17 +30,21 @@ module ifu_pipe (
     input wire clk,
     input wire rst_n,
 
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
-    input wire                        is_pred_branch_i, // 是否为预测分支指令
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,            // 指令内容
+    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,       // 指令地址
+    input wire                        is_pred_branch_i,  // 是否为预测分支指令
+    input wire                        is_pred_jalr_i,    // 是否为预测JALR指令
+    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,     // 预测的分支地址
 
     input wire flush_flag_i,  // 流水线冲刷标志
     input wire inst_valid_i,  // 指令有效信号
     input wire stall_i,       // 保持信号，为1时触发器保持不更新
 
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o, // 指令地址
-    output wire                        is_pred_branch_o  // 输出到ID/EXU的预测分支标志
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 指令内容
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
+    output wire                        is_pred_branch_o,  // 输出到ID/EXU的预测分支标志
+    output wire                        is_pred_jalr_o,    // 输出到ID/EXU的预测JALR标志
+    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o      // 输出到ID/EXU的预测分支地址
 );
 
     // 直接使用flush_flag_i，不再寄存
@@ -80,10 +84,32 @@ module ifu_pipe (
     gnrl_dfflr #(1) is_pred_branch_ff (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (!stall_i),       // 当stall_i为1时不更新
+        .lden (!stall_i),                            // 当stall_i为1时不更新
         .dnxt (flush_en ? 1'b0 : is_pred_branch_i),
         .qout (is_pred_branch_r)
     );
     assign is_pred_branch_o = is_pred_branch_r;
+
+    // 寄存预测JALR指令标志
+    wire is_pred_jalr_r;
+    gnrl_dfflr #(1) is_pred_jalr_ff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (!stall_i),                          // 当stall_i为1时不更新
+        .dnxt (flush_en ? 1'b0 : is_pred_jalr_i),
+        .qout (is_pred_jalr_r)
+    );
+    assign is_pred_jalr_o = is_pred_jalr_r;
+
+    // 寄存预测分支地址
+    wire [`INST_ADDR_WIDTH-1:0] branch_addr_r;
+    gnrl_dfflr #(`INST_ADDR_WIDTH) branch_addr_ff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (!stall_i),                              // 当stall_i为1时不更新
+        .dnxt (flush_en ? `ZeroWord : branch_addr_i),
+        .qout (branch_addr_r)
+    );
+    assign branch_addr_o = branch_addr_r;
 
 endmodule
