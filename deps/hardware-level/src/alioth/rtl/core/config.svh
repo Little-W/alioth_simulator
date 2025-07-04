@@ -27,3 +27,5 @@
 `define REG_DATA_WIDTH 32
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
+
+`define BPU_COUNT_WIDTH 4  // BPU计数器宽度
