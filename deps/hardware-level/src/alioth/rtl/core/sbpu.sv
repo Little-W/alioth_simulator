@@ -34,11 +34,14 @@ module sbpu (
     input wire [`INST_ADDR_WIDTH-1:0] pc_i,          // PC指针
     input wire                        any_stall_i,   // 流水线暂停信号
 
+    // GPR接口
+    output wire [`REG_ADDR_WIDTH-1:0] gpr_raddr_o,  // BPU向GPR请求的读地址
+    input  wire [`REG_DATA_WIDTH-1:0] gpr_rdata_i,  // GPR返回给BPU的读数据
+
     output wire branch_taken_o,  // 预测是否为分支
     output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,  // 预测的分支地址
-    // 添加新的输出信号传递给EXU
-    output wire is_pred_branch_o  // 当前指令是经过预测的有条件分支指令
-    // 删除与预测验证相关的接口，因为已移至EXU
+    output wire is_pred_branch_o,  // 当前指令是经过预测的有条件分支指令
+    output wire is_pred_jalr_o  // 当前指令是经过预测的JALR指令
 );
     wire [6:0] opcode = inst_i[6:0];
 
@@ -52,23 +55,30 @@ module sbpu (
 
     // 内部信号
     wire       is_pred_branch = inst_valid_i & (inst_type_branch & inst_b_type_imm[31]);
-    wire       is_pred_jal = inst_valid_i & (inst_jal);
+    wire       is_pred_jal = inst_valid_i & inst_jal;
+    wire       is_pred_jalr = inst_valid_i & inst_jalr;
 
-    // 标识当前指令是否为分支指令（用于传递给EXU）
-    // 加回JALR和JAL判断
+    // 标识当前指令类型（用于传递给EXU）
     assign is_pred_branch_o = is_pred_branch;
+    assign is_pred_jalr_o   = is_pred_jalr;
 
+    // 立即数生成
     wire [31:0] inst_b_type_imm = {{20{inst_i[31]}}, inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0};
     wire [31:0] inst_j_type_imm = {
         {12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0
     };
-    // wire [31:0] inst_i_type_imm = {{20{inst_i[31]}}, inst_i[31:20]};  // 为JALR添加I-type立即数
+    wire [31:0] inst_i_type_imm = {{20{inst_i[31]}}, inst_i[31:20]};  // JALR使用I型立即数
 
-    // 只预测条件分支指令和JAL
-    // 我们不预测JALR，因为我们无法在这个阶段读取寄存器
-    wire branch_taken = is_pred_branch | is_pred_jal;
+    // JALR使用的寄存器地址(rs1)
+    wire [4:0] jalr_rs1 = inst_i[19:15];
 
-    reg [31:0] branch_addr;
+    // 设置GPR读地址
+    assign gpr_raddr_o = jalr_rs1;  // 读取JALR指令的基址寄存器
+
+    // 预测所有类型的分支指令
+    wire        branch_taken = is_pred_branch | is_pred_jal | is_pred_jalr;
+
+    reg  [31:0] branch_addr;
 
     always @(*) begin
         // 默认值，避免锁存器
@@ -76,14 +86,20 @@ module sbpu (
 
         case (1'b1)
             inst_type_branch: branch_addr = pc_i + inst_b_type_imm;
-            inst_jal:         branch_addr = pc_i + inst_j_type_imm;
-            // JALR不计算预测地址，因为需要寄存器值
-            default:          ;
+            inst_jal: branch_addr = pc_i + inst_j_type_imm;
+            inst_jalr:
+            branch_addr = (gpr_rdata_i + inst_i_type_imm) & ~32'h1;  // JALR目标地址计算，低位置0
+            default: ;
         endcase
     end
 
-    assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
-    assign branch_addr_o  = branch_addr;
+    // 跳转指令范围验证：确保跳转地址在ITCM有效范围内
+    wire addr_in_valid_range = (branch_addr >= `ITCM_BASE_ADDR) && 
+                               (branch_addr < (`ITCM_BASE_ADDR + `ITCM_SIZE));
+
+    // 分支预测结果，需同时满足：预测跳转、不在暂停状态、地址在有效范围内
+    assign branch_taken_o = branch_taken & ~any_stall_i & addr_in_valid_range;
+    assign branch_addr_o = branch_addr;
 
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule
