@@ -101,6 +101,11 @@ module exu (
     output wire exu_op_ecall_o,
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
+    
+    // BHT回写接口输出
+    output wire                        update_valid_o, // 需要更新BHT
+    output wire [`INST_ADDR_WIDTH-1:0] update_pc_o,    // 被更新指令PC
+    output wire                        real_taken_o,   // 分支实际结果
 
     // AXI接口 - 新增
     output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
@@ -283,6 +288,11 @@ module exu (
     wire                        sys_op_ebreak_o;
     wire                        sys_op_fence_o;
     wire                        sys_op_dret_o;
+
+    // BHT 回写相关信号
+    wire                        bru_update_valid; // BHT 更新有效信号
+    wire [`INST_ADDR_WIDTH-1:0] bru_update_pc;    // BHT 更新的 PC
+    wire                        bru_real_taken;   // 分支实际结果
 
     exu_dispatch u_exu_dispatch (
         // input
@@ -495,12 +505,18 @@ module exu (
         .bjp_op_bge_i    (bjp_op_bge_o),
         .bjp_op_bgeu_i   (bjp_op_bgeu_o),
         .bjp_op_jalr_i   (bjp_op_jalr_o),
-        .is_pred_branch_i(is_pred_branch_i),  // 新增：预测分支指令标志输入
+        .is_pred_branch_i(is_pred_branch_i),  // 预测分支指令标志输入
+        .inst_addr_i     (inst_addr_i),       // 连接当前指令PC
         .sys_op_fence_i  (sys_op_fence_o),
         .int_assert_i    (int_assert_i),
         .int_addr_i      (int_addr_i),
         .jump_flag_o     (bru_jump_flag),
-        .jump_addr_o     (bru_jump_addr)
+        .jump_addr_o     (bru_jump_addr),
+        
+        // BHT回写接口
+        .update_valid_o  (bru_update_valid),  // 连接回写有效信号
+        .update_pc_o     (bru_update_pc),     // 连接回写PC
+        .real_taken_o    (bru_real_taken)     // 连接实际跳转结果
     );
 
     // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数据
@@ -602,5 +618,10 @@ module exu (
     assign exu_op_ecall_o = sys_op_ecall_o;
     assign exu_op_ebreak_o = sys_op_ebreak_o;
     assign exu_op_mret_o = sys_op_mret_o;
+
+    // 将BHT回写信号连接到输出端口
+    assign update_valid_o = bru_update_valid;
+    assign update_pc_o = bru_update_pc;
+    assign real_taken_o = bru_real_taken;
 
 endmodule

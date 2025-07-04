@@ -58,3 +58,8 @@
 `define CNT_ADDR 32'h8020_0050  // counter
 `define CNT_START 32'h8000_0000 // 计数开始值
 `define CNT_END 32'hFFFF_FFFF // 计数结束值
+
+// 分支预测配置
+`define BHT_ENTRIES 256      // BHT表项数，必须为2的幂
+`define BHT_CNT_WIDTH 2      // 饱和计数器位宽
+`define BHT_IDX_WIDTH $clog2(`BHT_ENTRIES)  // BHT索引位宽
