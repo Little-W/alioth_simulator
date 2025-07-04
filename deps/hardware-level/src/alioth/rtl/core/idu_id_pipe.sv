@@ -24,42 +24,42 @@
 
 `include "defines.svh"
 
-// 将译码结果向执行模块传递
+// 将译码结果向执行模块传�??
 module idu_id_pipe (
 
     input wire                        clk,
     input wire                        rst_n,
     // 输入
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,     // 指令地址
-    input wire                        reg_we_i,        // 写通用寄存器标志
-    input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 写通用寄存器地址
-    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,    // 读通用寄存器1地址
-    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,    // 读通用寄存器2地址
-    input wire                        csr_we_i,        // 写CSR寄存器标志
-    input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,     // 写CSR寄存器地址
-    input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
+    input wire                        reg_we_i,        // 写�?�用寄存器标�?
+    input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 写�?�用寄存器地�?
+    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,    // 读�?�用寄存�?1地址
+    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,    // 读�?�用寄存�?2地址
+    input wire                        csr_we_i,        // 写CSR寄存器标�?
+    input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,     // 写CSR寄存器地�?
+    input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地�?
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
 
-    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
-    input wire [`INST_ADDR_WIDTH-1:0] old_pc_i,      // 旧跳转地址
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标�?
+    input wire [`INST_ADDR_WIDTH-1:0] old_pc_i,      // 旧跳转地�?
 //    input wire                        branch_taken_i, // 分支预测结果
 
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
-    output wire                        reg_we_o,       // 写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写通用寄存器地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读通用寄存器1地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读通用寄存器2地址
-    output wire                        csr_we_o,       // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
-    output wire [                31:0] dec_imm_o,      // 立即数
+    output wire                        reg_we_o,       // 写�?�用寄存器标�?
+    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写�?�用寄存器地�?
+    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读�?�用寄存�?1地址
+    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读�?�用寄存�?2地址
+    output wire                        csr_we_o,       // 写CSR寄存器标�?
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地�?
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地�?
+    output wire [                31:0] dec_imm_o,      // 立即�?
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
-    output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,       // 旧跳转地址
+    output wire [`INST_ADDR_WIDTH-1:0] old_pc_o       // 旧跳转地�?
  //   output wire                        branch_taken_o  // 分支预测结果
 );
 
-    wire                        flush_en = stall_flag_i[`CU_FLUSH];// 流水线冲刷标志(是否加上分支预测错误标志？)
+    wire                        flush_en = stall_flag_i[`CU_FLUSH];// 流水线冲刷标�?(是否加上分支预测错误标志�?)
     wire                        stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
@@ -120,7 +120,7 @@ module idu_id_pipe (
     );
     assign reg_waddr_o = reg_waddr;
 
-    // 传递寄存器地址而非数据
+    // 传�?�寄存器地址而非数据
     wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_dnxt = flush_en ? `ZeroReg : reg1_raddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg1_raddr;
     gnrl_dfflr #(5) reg1_raddr_ff (
@@ -165,7 +165,7 @@ module idu_id_pipe (
     );
     assign csr_waddr_o = csr_waddr;
 
-    // 传递CSR读地址
+    // 传�?�CSR读地�?
     wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = flush_en ? `ZeroWord : csr_raddr_i;
     wire [`BUS_ADDR_WIDTH-1:0] csr_raddr;
     gnrl_dfflr #(32) csr_raddr_ff (
@@ -177,7 +177,7 @@ module idu_id_pipe (
     );
     assign csr_raddr_o = csr_raddr;
 
-    // 译码信息总线传递
+    // 译码信息总线传�??
     wire [`DECINFO_WIDTH-1:0] dec_info_bus_dnxt = flush_en ? `ZeroWord : dec_info_bus_i;
     wire [`DECINFO_WIDTH-1:0] dec_info_bus;
     gnrl_dfflr #(`DECINFO_WIDTH) dec_info_bus_ff (
@@ -189,7 +189,7 @@ module idu_id_pipe (
     );
     assign dec_info_bus_o = dec_info_bus;
 
-    // 立即数传递
+    // 立即数传�?
     wire [31:0] dec_imm_dnxt = flush_en ? `ZeroWord : dec_imm_i;
     wire [31:0] dec_imm;
     gnrl_dfflr #(32) dec_imm_ff (

@@ -33,12 +33,12 @@ module ifu (
     // 来自控制模块
     input wire                        jump_flag_i,  // 跳转标志***或bpu信号
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
-    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标�?
 
-    // 输出到ID阶段的信息
+    // 输出到ID阶段的信�?
     output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
-    output wire                        read_resp_error_o, // AXI读响应错误信号
+    output wire                        read_resp_error_o, // AXI读响应错误信�?
     output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,  // 输出旧的PC地址
 
     //输出分支预测结果
@@ -46,7 +46,7 @@ module ifu (
 
 
     // AXI接口
-    // AXI读地址通道
+    // AXI读地�?通道
     output wire [                 3:0] M_AXI_ARID,
     output wire [`INST_ADDR_WIDTH-1:0] M_AXI_ARADDR,
     output wire [                 7:0] M_AXI_ARLEN,
@@ -59,7 +59,7 @@ module ifu (
     output wire [                 3:0] M_AXI_ARUSER,
     output wire                        M_AXI_ARVALID,
     input  wire                        M_AXI_ARREADY,
-    // AXI读数据通道
+    // AXI读数据�?�道
     input  wire [                 3:0] M_AXI_RID,
     input  wire [`INST_DATA_WIDTH-1:0] M_AXI_RDATA,
     input  wire [                 1:0] M_AXI_RRESP,
@@ -78,13 +78,13 @@ module ifu (
 
     // 内部信号定义
     wire [`INST_ADDR_WIDTH-1:0] pc;  // 内部PC信号
-    wire [`INST_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的指令数据
-    wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 从AXI读取的指令地址
+    wire [`INST_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的指令数�?
+    wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 从AXI读取的指令地�?
     wire                        inst_valid;  // 指令有效信号
     wire                        branch_taken;  // 分支预测输出
 
-    assign jump_flag =  jump_flag_i || branch_taken;  // 将分支预测结果作为跳转标志
-    assign branch_taken_o = branch_taken;  // 将分支预测结果输出
+    assign jump_flag =  jump_flag_i || branch_taken;  // 将分支预测结果作为跳转标�?
+    assign branch_taken_o = branch_taken;  // 将分支预测结果输�?
     
     // 实例化IFetch模块，现包含ifu_pipe功能
     ifu_ifetch u_ifu_ifetch (
@@ -93,9 +93,9 @@ module ifu (
         .jump_flag_i  (jump_flag),
         .jump_addr_i  (jump_addr_i),
         .stall_pc_i   (stall_pc),
-        .axi_arready_i(M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
-        .inst_i       (inst_data),      // 使用从AXI读取的指令
-        .inst_addr_i  (inst_addr),      // 使用从AXI读取的指令地址
+        .axi_arready_i(M_AXI_ARREADY),  // 连接AXI读地�?通道准备好信�?
+        .inst_i       (inst_data),      // 使用从AXI读取的指�?
+        .inst_addr_i  (inst_addr),      // 使用从AXI读取的指令地�?
         .flush_flag_i (flush_flag),
         .inst_valid_i (inst_valid),     // 从AXI控制器获取的有效信号
         .stall_if_i   (stall_if),       // 连接IF阶段暂停信号
@@ -103,7 +103,7 @@ module ifu (
         .inst_o       (inst_o),         // 指令输出
         .inst_addr_o  (inst_addr_o),     // 指令地址输出
         .old_pc_o     (old_pc_o),        // 输出旧的PC地址
-        .inst_valid_o (inst_valid_o)    // 指令有效信号输出
+        .inst_valid_o (inst_valid_o),    // 指令有效信号输出
         .branch_taken_o(branch_taken)        // 分支预测输出
     );
 
@@ -121,7 +121,7 @@ module ifu (
         .inst_valid_o     (inst_valid),         // 连接指令有效信号输出
         .pc_stall_o       (axi_pc_stall),       // 连接PC暂停信号输出
 
-        // AXI读地址通道
+        // AXI读地�?通道
         .M_AXI_ARID   (M_AXI_ARID),
         .M_AXI_ARADDR (M_AXI_ARADDR),
         .M_AXI_ARLEN  (M_AXI_ARLEN),
@@ -135,7 +135,7 @@ module ifu (
         .M_AXI_ARVALID(M_AXI_ARVALID),
         .M_AXI_ARREADY(M_AXI_ARREADY),
 
-        // AXI读数据通道
+        // AXI读数据�?�道
         .M_AXI_RID   (M_AXI_RID),
         .M_AXI_RDATA (M_AXI_RDATA),
         .M_AXI_RRESP (M_AXI_RRESP),

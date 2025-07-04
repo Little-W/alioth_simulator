@@ -24,7 +24,7 @@
 
  `include "defines.sv"
 
- //静态分支预测模块
+ //静�?�分支预测模�?
  module sbpu(
     input wire clk,
     input wire rst_n,
@@ -33,8 +33,8 @@
     input wire inst_valid_i,                          // 指令有效信号
     input wire [`INST_ADDR_WIDTH-1:0] pc_i,          // PC指针
 
-    output wire branch_taken_o,                        // 预测是否为分支
-    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o   //  预测的分支地址
+    output wire branch_taken_o,                        // 预测是否为分�?
+    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,   //  预测的分支地�?
 
     output wire old_pc_o // 旧的PC地址
 

@@ -33,33 +33,33 @@ module idu (
     // from if_id
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
-    input wire  [`INST_ADDR_WIDTH-1:0] old_pc_i,  // 流水线冲刷标志
+    input wire  [`INST_ADDR_WIDTH-1:0] old_pc_i,  // 流水线冲刷标�?
     input wire                         branch_taken_i, // 分支预测结果
 
     // from ctrl
-    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标�?
 
-    // 长指令完成信号 - 保留用于内部监控
-    input wire       commit_valid_i,  // 长指令执行完成有效信号
+    // 长指令完成信�? - 保留用于内部监控
+    input wire       commit_valid_i,  // 长指令执行完成有效信�?
     input wire [1:0] commit_id_i,     // 执行完成的长指令ID
 
     // to csr reg
-    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
+    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地�?
 
     // to ex
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
-    output wire                        reg_we_o,       // 写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写通用寄存器地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读通用寄存器1地址(传给EX)
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读通用寄存器2地址(传给EX)
-    output wire                        csr_we_o,       // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
-    output wire [                31:0] dec_imm_o,      // 立即数
+    output wire                        reg_we_o,       // 写�?�用寄存器标�?
+    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写�?�用寄存器地�?
+    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读�?�用寄存�?1地址(传给EX)
+    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读�?�用寄存�?2地址(传给EX)
+    output wire                        csr_we_o,       // 写CSR寄存器标�?
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地�?
+    output wire [                31:0] dec_imm_o,      // 立即�?
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息总线
 
     output wire [`INST_ADDR_WIDTH-1:0] old_pc_o,  // 输出旧的PC地址
     output wire                        branch_taken_o  // 分支预测结果输出
-    // 移除了HDU相关的输出
+    // 移除了HDU相关的输�?
 );
 
     // 内部连线，连接id和id_pipe
@@ -70,7 +70,7 @@ module idu (
     wire [ `REG_ADDR_WIDTH-1:0] id_reg2_raddr;
     wire                        id_csr_we;
     wire [ `BUS_ADDR_WIDTH-1:0] id_csr_waddr;
-    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_raddr;  // CSR读地址
+    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_raddr;  // CSR读地�?
     wire [                31:0] id_dec_imm;
     wire [  `DECINFO_WIDTH-1:0] id_dec_info_bus;
 
@@ -119,7 +119,7 @@ module idu (
         .csr_raddr_i   (id_csr_raddr),
         .dec_info_bus_i(id_dec_info_bus),
         .dec_imm_i     (id_dec_imm),
-        .old_pc_i      (old_pc_i),  // 旧跳转地址
+        .old_pc_i      (old_pc_i),  // 旧跳转地�?
         .branch_taken_i(branch_taken_i),  // 分支预测结果
 
         // from ctrl
@@ -135,8 +135,8 @@ module idu (
         .csr_waddr_o   (csr_waddr_o),
         .csr_raddr_o   (csr_raddr_o),
         .dec_imm_o     (dec_imm_o),
-        .dec_info_bus_o(dec_info_bus_o)
-        .old_pc_o      (old_pc_o)  // 输出旧的PC地址
+        .dec_info_bus_o(dec_info_bus_o),
+        .old_pc_o      (old_pc_o),  // 输出旧的PC地址
         .branch_taken_o(branch_taken_o)  // 分支预测结果输出
     );
 
