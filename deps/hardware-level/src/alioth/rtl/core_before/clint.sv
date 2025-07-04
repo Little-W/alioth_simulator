@@ -36,12 +36,12 @@ module clint (
     // from ex
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
-    input wire                        atom_opt_busy_i, // 原子操作忙标志
+    input wire                        atom_opt_busy_i,  // 原子操作忙标志
 
     // 添加系统操作输入端口
-    input wire sys_op_ecall_i,
-    input wire sys_op_ebreak_i,
-    input wire sys_op_mret_i,
+    input wire                        sys_op_ecall_i,
+    input wire                        sys_op_ebreak_i,
+    input wire                        sys_op_mret_i,
 
     // from ctrl
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,
@@ -55,8 +55,7 @@ module clint (
     input wire global_int_en_i,  // 全局中断使能标志
 
     // to ctrl
-    output wire flush_flag_o,  // 用于刷新流水线
-    output wire stall_flag_o,  // 用于暂停流水线
+    output wire stall_flag_o,
 
     // to csr_reg
     output reg                       we_o,
@@ -84,14 +83,13 @@ module clint (
     localparam S_CSR_MCAUSE = 5'b10000;  // 写入mcause寄存器状态
 
     // 状态机和相关信号声明
-    reg [                 3:0] int_state;  // 中断状态机当前状态
-    reg [                 4:0] csr_state;  // CSR写状态机当前状态
+    reg [3:0] int_state;  // 中断状态机当前状态
+    reg [4:0] csr_state;  // CSR写状态机当前状态
     reg [`INST_ADDR_WIDTH-1:0] inst_addr;  // 保存的指令地址
-    reg [                31:0] cause;  // 中断原因代码
+    reg [31:0] cause;  // 中断原因代码
 
-    // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时冲刷流水线
-    assign flush_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE));
-    assign stall_flag_o = ((sys_op_ecall_i || sys_op_ebreak_i) & atom_opt_busy_i);
+    // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时暂停流水线
+    assign stall_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE)) ? `HoldEnable : `HoldDisable;
 
     // 中断状态机逻辑
     always @(*) begin
@@ -166,30 +164,30 @@ module clint (
     // CSR写使能、写地址和写数据逻辑
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
-            we_o    <= `WriteDisable;
+            we_o <= `WriteDisable;
             waddr_o <= `ZeroWord;
-            data_o  <= `ZeroWord;
+            data_o <= `ZeroWord;
         end else begin
             case (csr_state)
                 S_CSR_MEPC: begin
-                    we_o    <= `WriteEnable;
+                    we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MEPC};
-                    data_o  <= inst_addr;
+                    data_o <= inst_addr;
                 end
                 S_CSR_MSTATUS: begin
-                    we_o    <= `WriteEnable;
+                    we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
+                    data_o <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
                 end
                 S_CSR_MCAUSE: begin
-                    we_o    <= `WriteEnable;
+                    we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MCAUSE};
-                    data_o  <= cause;
+                    data_o <= cause;
                 end
                 S_CSR_MSTATUS_MRET: begin
-                    we_o    <= `WriteEnable;
+                    we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]};
+                    data_o <= {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]};
                 end
                 default: begin
                     we_o <= `WriteDisable;
@@ -202,16 +200,16 @@ module clint (
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             int_assert_o <= `INT_DEASSERT;
-            int_addr_o   <= `ZeroWord;
+            int_addr_o <= `ZeroWord;
         end else begin
             case (csr_state)
                 S_CSR_MCAUSE: begin
                     int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mtvec;
+                    int_addr_o <= csr_mtvec;
                 end
                 S_CSR_MSTATUS_MRET: begin
                     int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mepc;
+                    int_addr_o <= csr_mepc;
                 end
                 default: begin
                     int_assert_o <= `INT_DEASSERT;

@@ -29,7 +29,6 @@ module exu_muldiv_ctrl (
     input wire clk,
     input wire rst_n,
     input wire wb_ready,
-    input wire hazard_stall_i,  // 添加数据冒险检测信号
 
     // 指令和操作数输入
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -237,7 +236,7 @@ module exu_muldiv_ctrl (
     wire div_int_cond = int_assert_i;
     wire div_op_busy_cond = is_div_op && div_busy_i;
     wire div_op_ready_cond = is_div_op && !div_busy_i;
-    wire div_op_start_cond = is_div_op && !div_busy_i && !div_result_we && !hazard_stall_i;
+    wire div_op_start_cond = is_div_op && !div_busy_i && !div_result_we;
     wire div_busy_cond = !is_div_op && div_busy_i;
 
     // 除法启动控制逻辑 - 只在需要启动新的除法操作时为高，并在中断时禁止启动
@@ -247,7 +246,7 @@ module exu_muldiv_ctrl (
     wire mul_int_cond = int_assert_i;
     wire mul_op_busy_cond = is_mul_op && mul_busy_i;
     wire mul_op_ready_cond = is_mul_op && !mul_busy_i;
-    wire mul_op_start_cond = is_mul_op && !mul_busy_i && !mul_result_we && !hazard_stall_i;
+    wire mul_op_start_cond = is_mul_op && !mul_busy_i && !mul_result_we;
     wire mul_busy_cond = !is_mul_op && mul_busy_i;
 
     // 乘法启动控制逻辑 - 只在需要启动新的乘法操作时为高，并在中断时禁止启动

@@ -33,6 +33,8 @@
 `define HoldEnable 1'b1
 `define HoldDisable 1'b0
 
+`define PC_RESET_ADDR 32'h0
+
 `define INT_ASSERT 1'b1
 `define INT_DEASSERT 1'b0
 `define INT_BUS 7:0

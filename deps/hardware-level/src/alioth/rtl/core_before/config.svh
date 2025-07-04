@@ -2,12 +2,10 @@
 `define ITCM_ADDR_WIDTH 16  // ITCM地址宽度，16位对应64KB
 `define DTCM_ADDR_WIDTH 16  // DTCM地址宽度，16位对应64KB
 
-`define PC_RESET_ADDR 32'h8000_0000
-
 // 内存映射地址
-`define ITCM_BASE_ADDR 32'h8000_0000         // ITCM基地址
+`define ITCM_BASE_ADDR 32'h0         // ITCM基地址
 `define ITCM_SIZE (1 << `ITCM_ADDR_WIDTH)     // ITCM大小：64KB
-`define DTCM_BASE_ADDR 32'h8010_0000 // DTCM基地址
+`define DTCM_BASE_ADDR 32'h0100_0000 // DTCM基地址
 `define DTCM_SIZE (1 << `DTCM_ADDR_WIDTH)     // DTCM大小：64KB
 
 // 内存初始化控制
@@ -27,5 +25,5 @@
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
 
-// sbpu配置
-`define branchprediction_enable 1 // 是否启用分支预测
+//静态预测使能
+`define staticBranchPredict 1 // 静态预测使能，1表示启用，0表示禁用

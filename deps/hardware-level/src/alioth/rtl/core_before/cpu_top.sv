@@ -34,19 +34,21 @@ module cpu_top (
 
     // pc_reg模块输出信号
     wire [`INST_ADDR_WIDTH-1:0] pc_pc_o;
+    //***
+    wire [`INST_ADDR_WIDTH-1:0] ifu_idu_old_pc_o;
+ //   wire if_id_branch_taken_o; // 分支预测结果输出
 
     // if_id模块输出信号
     wire [`INST_DATA_WIDTH-1:0] if_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
     wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;
-    wire [`INST_ADDR_WIDTH-1:0] ifu_idu_old_pc_o; // 旧的PC地址输出
 
     // id模块输出信号
     wire [`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
     wire [`REG_ADDR_WIDTH-1:0] id_reg2_raddr_o;
     wire [`BUS_ADDR_WIDTH-1:0] id_csr_raddr_o;
 
-    // idu模块输出信号 - 直接包含了ID和ID_EX的功能
+    // idu模块输出信号 - 直接包含了ID和ID_EX的功�?
     wire [`INST_ADDR_WIDTH-1:0] idu_inst_addr_o;
     wire idu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_o;
@@ -57,6 +59,9 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
     wire [31:0] idu_dec_imm_o;
     wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
+
+    wire [`INST_ADDR_WIDTH-1:0] idu_exu_old_pc_o;
+ //   wire idu_exu_branch_taken_o; // 分支预测结果输出
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -76,7 +81,7 @@ module cpu_top (
     wire exu_ebreak_o;
     wire exu_mret_o;
 
-    // EXU到WBU的数据通路信号
+    // EXU到WBU的数据�?�路信号
     wire [`REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
     wire exu_alu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_alu_reg_waddr_o;
@@ -123,7 +128,6 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] clint_data_o;
     wire [`INST_ADDR_WIDTH-1:0] clint_int_addr_o;
     wire clint_int_assert_o;
-    wire clint_flush_flag_o;  // 添加中断刷新信号
     wire clint_stall_flag_o;
 
     wire [`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
@@ -147,7 +151,7 @@ module cpu_top (
     // 显式声明原子操作忙信号，避免隐式定义
     wire atom_opt_busy;
 
-    // 给HDU的译码信息
+    // 给HDU的译码信�?
     wire inst_valid = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
@@ -228,7 +232,10 @@ module cpu_top (
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
-        .old_pc_o         (ifu_idu_old_pc_o), // 旧的PC地址输出
+
+        //分支预测输出
+        .old_pc_o         (ifu_idu_old_pc_o),  // 输出旧的PC地址
+ //       .branch_taken_o   (if_id_branch_taken_o),  // 分支预测结果输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -260,7 +267,6 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
-        .flush_flag_clint_i(clint_flush_flag_o),  // 添加连接到clint的flush信号
         .stall_flag_clint_i(clint_stall_flag_o),
         .stall_flag_hdu_i  (hdu_stall_flag_o),
         .stall_flag_o      (ctrl_stall_flag_o),
@@ -309,7 +315,8 @@ module cpu_top (
         .inst_i      (if_inst_o),
         .inst_addr_i (if_inst_addr_o),
         .stall_flag_i(ctrl_stall_flag_o),
-        .old_pc_i    (ifu_idu_old_pc_o), // 连接旧的PC地址
+        .old_pc_i    (ifu_idu_old_pc_o),  // 旧的PC地址
+ //       .branch_taken_i(if_id_branch_taken_o),  // 分支预测结果
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
@@ -324,7 +331,8 @@ module cpu_top (
         .csr_waddr_o   (idu_csr_waddr_o),
         .dec_imm_o     (idu_dec_imm_o),
         .dec_info_bus_o(idu_dec_info_bus_o),
-        .old_pc_o      (idu_exu_old_pc_o)  // 旧的PC地址输出
+        .old_pc_o      (idu_exu_old_pc_o),  // 输出旧的PC地址
+ //       .branch_taken_o(idu_exu_branch_taken_o)  // 分支预测结果输出
     );
 
     // HDU模块例化
@@ -332,14 +340,14 @@ module cpu_top (
         .clk  (clk),
         .rst_n(rst_n),
 
-        // 新指令信息 - 从idu输出获取
+        // 新指令信�? - 从idu输出获取
         .new_long_inst_valid(new_long_inst_valid),
-        .new_inst_rd_addr   (idu_reg_waddr_o),      // 从idu获取目标寄存器地址
+        .new_inst_rd_addr   (idu_reg_waddr_o),      // 从idu获取目标寄存器地�?
         .new_inst_rs1_addr  (idu_reg1_raddr_o),     // 从idu获取源寄存器1地址
         .new_inst_rs2_addr  (idu_reg2_raddr_o),     // 从idu获取源寄存器2地址
         .new_inst_rd_we     (idu_reg_we_o),         // 从idu获取写寄存器使能
 
-        // 长指令完成信号 - 从wbu获取
+        // 长指令完成信�? - 从wbu获取
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
 
@@ -364,7 +372,11 @@ module cpu_top (
         .mem_rdata_i   (exu_mem_data_i),
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
+
+        //from idu
         .old_pc_i      (idu_exu_old_pc_o),  // 旧的PC地址
+ //       .branch_taken_i(idu_exu_branch_taken_o),  // 分支预测结果
+
 
         // 修改：直接从HDU获取长指令ID
         .inst_id_i(hdu_long_inst_id_o),
@@ -377,8 +389,6 @@ module cpu_top (
         // 直接从寄存器文件读取数据
         .reg1_rdata_i(regs_rdata1_o),
         .reg2_rdata_i(regs_rdata2_o),
-
-        .hazard_stall_i(hdu_stall_flag_o),  // 来自HDU的冒险暂停信号
 
         .mem_stall_o     (exu_mem_stall_o),
         .mem_store_busy_o(exu_mem_store_busy_o),
@@ -482,7 +492,7 @@ module cpu_top (
         .csr_waddr_i(exu_csr_waddr_o),
         .csr_ready_o(wbu_csr_ready_o),  // 新增握手信号
 
-        // CSR对通用寄存器的写数据输入
+        // CSR对�?�用寄存器的写数据输�?
         .csr_reg_wdata_i(exu_csr_reg_wdata_o),
         .csr_reg_waddr_i(exu_csr_reg_waddr_o),  // 连接CSR寄存器写地址
 
@@ -495,7 +505,7 @@ module cpu_top (
 
         .int_assert_i(clint_int_assert_o),
 
-        // 新增长指令完成输出
+        // 新增长指令完成输�?
         .commit_valid_o(wbu_commit_valid_o),
         .commit_id_o   (wbu_commit_id_o),
 
@@ -516,7 +526,7 @@ module cpu_top (
         .jump_flag_i    (exu_jump_flag_o),
         .jump_addr_i    (exu_jump_addr_o),
         .stall_flag_i   (ctrl_stall_flag_o),
-        .atom_opt_busy_i(atom_opt_busy),      // 原子操作忙标志
+        .atom_opt_busy_i(atom_opt_busy),      // 原子操作忙标�?
 
         // 连接系统操作信号
         .sys_op_ecall_i (exu_ecall_o),
@@ -531,7 +541,6 @@ module cpu_top (
         .waddr_o        (clint_waddr_o),
         .raddr_o        (clint_raddr_o),
         .data_o         (clint_data_o),
-        .flush_flag_o   (clint_flush_flag_o),  // 连接flush信号
         .stall_flag_o   (clint_stall_flag_o),
         .global_int_en_i(csr_global_int_en_o),
         .int_addr_o     (clint_int_addr_o),
@@ -614,7 +623,7 @@ module cpu_top (
         .M1_AXI_RREADY (exu_axi_rready)
     );
 
-    // 定义原子操作忙信号 - 使用HDU的原子锁
+    // 定义原子操作忙信�? - 使用HDU的原子锁
     assign atom_opt_busy = hdu_long_inst_atom_lock_o | exu_mem_store_busy_o;
 
 endmodule
