@@ -54,7 +54,7 @@ module exu (
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
 
-    input wire                       hazard_stall_i,  // 来自HDU的冒险暂停信号
+    input wire                       hazard_stall_i,  // 来自HDU的冒险暂停信�?
 
     // 新增访存阻塞信号
     output wire                      mem_stall_o,
@@ -91,13 +91,13 @@ module exu (
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
-    // 输出LSU未完成传输事务信号
+    // 输出LSU未完成传输事务信�?
     output wire mem_store_busy_o,
 
     // to clint
     output wire muldiv_started_o,
 
-    // 添加系统操作信号输出到顶层
+    // 添加系统操作信号输出到顶�?
     output wire exu_op_ecall_o,
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
@@ -152,35 +152,35 @@ module exu (
 );
 
     // 内部连线定义
-    // 除法器信号
+    // 除法器信�?
     wire                        div_ready;
     wire [ `REG_DATA_WIDTH-1:0] div_result;
     wire                        div_busy;
-    wire                        div_valid;  // 新增：除法结果有效信号
+    wire                        div_valid;  // 新增：除法结果有效信�?
     wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr;
-    // 除法器信号
+    // 除法器信�?
     wire                        div_start;
     wire [ `REG_DATA_WIDTH-1:0] div_dividend;
     wire [ `REG_DATA_WIDTH-1:0] div_divisor;
     wire [                 3:0] div_op;
     wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
 
-    // 乘法器信号
+    // 乘法器信�?
     wire                        mul_ready;
     wire [ `REG_DATA_WIDTH-1:0] mul_result;
     wire                        mul_busy;
-    wire                        mul_valid;  // 新增：乘法结果有效信号
+    wire                        mul_valid;  // 新增：乘法结果有效信�?
     wire [ `REG_ADDR_WIDTH-1:0] mul_reg_waddr;
-    // 新增乘法器缺失信号
+    // 新增乘法器缺失信�?
     wire                        mul_start;
     wire [ `REG_DATA_WIDTH-1:0] mul_multiplicand;
     wire [ `REG_DATA_WIDTH-1:0] mul_multiplier;
     wire [                 3:0] mul_op;
 
-    // 新增：commit_id相关信号 - 修改为4位
-    wire [                 3:0] commit_id = {2'b0, inst_id_i};  // 将指令ID映射为4位commit_id
+    // 新增：commit_id相关信号 - 修改�?4�?
+    wire [                 3:0] commit_id = {2'b0, inst_id_i};  // 将指令ID映射�?4位commit_id
 
-    // 修改为4位commit_id
+    // 修改�?4位commit_id
     wire [                 3:0] mem_commit_id = {2'b0, mem_inst_id};
 
     // 新增：ALU握手相关信号
@@ -188,9 +188,9 @@ module exu (
 
     // 新增：CSR握手相关信号
     wire                        csr_stall;
-    wire                        csr_ready;  // CSR写回准备好信号
+    wire                        csr_ready;  // CSR写回准备好信�?
 
-    // 新增：总线控制信号
+    // 新增：�?�线控制信号
     wire [                 1:0] muldiv_inst_id;
     wire [                 1:0] mem_inst_id;
 
@@ -201,7 +201,7 @@ module exu (
     wire [ `REG_DATA_WIDTH-1:0] agu_reg_wdata;
     wire                        agu_reg_we;
     wire [ `REG_ADDR_WIDTH-1:0] agu_reg_waddr;
-    wire [                 3:0] agu_commit_id;  // 改为4位
+    wire [                 3:0] agu_commit_id;  // 改为4�?
 
     wire                        bru_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] bru_jump_addr;
@@ -215,9 +215,9 @@ module exu (
 
     wire                        muldiv_we;
     wire [ `REG_ADDR_WIDTH-1:0] muldiv_waddr;
-    wire [                 3:0] muldiv_commit_id;  // 改为4位
+    wire [                 3:0] muldiv_commit_id;  // 改为4�?
 
-    // 来自ALU的分支比较结果
+    // 来自ALU的分支比较结�?
     wire [                31:0] bjp_res;
     wire                        bjp_cmp_res;
 
@@ -359,7 +359,7 @@ module exu (
         .sys_op_dret_o      (sys_op_dret_o)
     );
 
-    // 除法器模块例化
+    // 除法器模块例�?
     exu_div u_div (
         .clk       (clk),
         .rst_n     (rst_n),
@@ -372,7 +372,7 @@ module exu (
         .valid_o   (div_valid)
     );
 
-    // 乘法器模块例化
+    // 乘法器模块例�?
     exu_mul u_mul (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -463,7 +463,7 @@ module exu (
         .clk          (clk),
         .rst_n        (rst_n),
         .req_alu_i    (req_alu_o),
-        .hazard_stall_i(hazard_stall_i),  // 来自HDU的冒险暂停信号
+        .hazard_stall_i(hazard_stall_i),  // 来自HDU的冒险暂停信�?
         .alu_op1_i    (alu_op1_o),
         .alu_op2_i    (alu_op2_o),
         .alu_op_info_i(alu_op_info_o),
@@ -499,7 +499,7 @@ module exu (
         .jump_addr_o   (bru_jump_addr)
     );
 
-    // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数据
+    // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数�?
     exu_csr_unit u_csr_unit (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -523,7 +523,7 @@ module exu (
         .reg_waddr_o (csr_reg_waddr_o)   // 连接寄存器写地址输出
     );
 
-    // 乘除法控制逻辑 - 使用专用握手信号
+    // 乘除法控制�?�辑 - 使用专用握手信号
     exu_muldiv_ctrl u_muldiv_ctrl (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -532,9 +532,9 @@ module exu (
         .reg_waddr_i (reg_waddr_i),
         .reg1_rdata_i(reg1_rdata_i),
         .reg2_rdata_i(reg2_rdata_i),
-        .commit_id_i ({2'b0, muldiv_inst_id}), // 修改为4位
+        .commit_id_i ({2'b0, muldiv_inst_id}), // 修改�?4�?
 
-        // 连接dispatch模块的译码信号
+        // 连接dispatch模块的译码信�?
         .req_muldiv_i       (req_muldiv_o),
         .muldiv_op_mul_i    (muldiv_op_mul_o),
         .muldiv_op_mulh_i   (muldiv_op_mulh_o),
@@ -549,10 +549,10 @@ module exu (
 
         .div_result_i(div_result),
         .div_busy_i  (div_busy),
-        .div_valid_i (div_valid),    // 新增：连接除法有效信号
+        .div_valid_i (div_valid),    // 新增：连接除法有效信�?
         .mul_result_i(mul_result),
         .mul_busy_i  (mul_busy),
-        .mul_valid_i (mul_valid),    // 新增：连接乘法有效信号
+        .mul_valid_i (mul_valid),    // 新增：连接乘法有效信�?
         .int_assert_i(int_assert_i),
 
         .div_start_o        (div_start),
@@ -572,13 +572,13 @@ module exu (
 
     //exu internior branch prediction(mis or right)
     wire branch_taken;
-    if (branchprediction_enable) begin: go_branchprediction
+    if (`branchprediction_enable) begin 
             //jal
         assign branch_taken = ((~bjp_op_jalr_o) & bjp_op_jump_o) |
                             // bxx & imm[31]
                             (req_bjp_o & (~bjp_op_jump_o) & dec_imm_i[31]);
-    end else begin: no_branchprediction
-        assign branch_taken = 1`b0; // 不使用分支预测时，默认不预测分支
+    end else begin
+        assign branch_taken = 1'b0; // 不使用分支预测时，默认不预测分支
     end
 
     //预测失败
@@ -589,7 +589,7 @@ module exu (
     assign alu_reg_wdata_o = alu_result;
     assign alu_reg_we_o = alu_reg_we;
     assign alu_reg_waddr_o = alu_reg_waddr;
-    assign alu_commit_id_o = {2'b0, inst_id_i};  // 修改为4位commit_id
+    assign alu_commit_id_o = {2'b0, inst_id_i};  // 修改�?4位commit_id
 
     assign muldiv_reg_wdata_o = muldiv_wdata;
     assign muldiv_reg_we_o = muldiv_we;
@@ -599,17 +599,17 @@ module exu (
     assign agu_reg_wdata_o = agu_reg_wdata;
     assign agu_reg_we_o = agu_reg_we;
     assign agu_reg_waddr_o = agu_reg_waddr;
-    assign agu_commit_id_o = agu_commit_id;  // 修改：直接使用8位commit_id
+    assign agu_commit_id_o = agu_commit_id;  // 修改：直接使�?8位commit_id
 
-    // 输出选择逻辑 - 修改stall_flag输出，考虑所有握手信号
+    // 输出选择逻辑 - 修改stall_flag输出，�?�虑�?有握手信�?
     assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
     assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
     assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
 
-    // 将乘除法开始信号输出给clint
+    // 将乘除法�?始信号输出给clint
     assign muldiv_started_o = div_start | mul_start;
 
-    // 将SYS操作信号连接到输出
+    // 将SYS操作信号连接到输�?
     assign exu_op_ecall_o = sys_op_ecall_o;
     assign exu_op_ebreak_o = sys_op_ebreak_o;
     assign exu_op_mret_o = sys_op_mret_o;
