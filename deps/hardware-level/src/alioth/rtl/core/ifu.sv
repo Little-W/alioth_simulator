@@ -42,7 +42,7 @@ module ifu (
 
     // AXI接口
     // AXI读地址通道
-    output wire [                 3:0] M_AXI_ARID,
+    output wire [   `BUS_ID_WIDTH-1:0] M_AXI_ARID,     // 使用BUS_ID_WIDTH定义宽度
     output wire [`INST_ADDR_WIDTH-1:0] M_AXI_ARADDR,
     output wire [                 7:0] M_AXI_ARLEN,
     output wire [                 2:0] M_AXI_ARSIZE,
@@ -55,7 +55,7 @@ module ifu (
     output wire                        M_AXI_ARVALID,
     input  wire                        M_AXI_ARREADY,
     // AXI读数据通道
-    input  wire [                 3:0] M_AXI_RID,
+    input  wire [   `BUS_ID_WIDTH-1:0] M_AXI_RID,
     input  wire [`INST_DATA_WIDTH-1:0] M_AXI_RDATA,
     input  wire [                 1:0] M_AXI_RRESP,
     input  wire                        M_AXI_RLAST,
@@ -96,7 +96,11 @@ module ifu (
     );
 
     // 实例化AXI主机模块
-    ifu_axi_master u_ifu_axi_master (
+    ifu_axi_master #(
+        .C_M_AXI_ID_WIDTH  (`BUS_ID_WIDTH),
+        .C_M_AXI_DATA_WIDTH(`BUS_DATA_WIDTH),
+        .C_M_AXI_ADDR_WIDTH(`BUS_ADDR_WIDTH)
+    ) u_ifu_axi_master (
         .clk              (clk),
         .rst_n            (rst_n),
         .id_stall_i       (id_stall),

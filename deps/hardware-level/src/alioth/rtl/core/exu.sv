@@ -102,18 +102,18 @@ module exu (
     output wire exu_op_mret_o,
 
     // AXI接口 - 新增
-    output wire [ 1:0] M_AXI_AWID,
-    output wire [31:0] M_AXI_AWADDR,
-    output wire [ 7:0] M_AXI_AWLEN,
-    output wire [ 2:0] M_AXI_AWSIZE,
-    output wire [ 1:0] M_AXI_AWBURST,
-    output wire        M_AXI_AWLOCK,
-    output wire [ 3:0] M_AXI_AWCACHE,
-    output wire [ 2:0] M_AXI_AWPROT,
-    output wire [ 3:0] M_AXI_AWQOS,
-    output wire [ 0:0] M_AXI_AWUSER,
-    output wire        M_AXI_AWVALID,
-    input  wire        M_AXI_AWREADY,
+    output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
+    output wire [             31:0] M_AXI_AWADDR,
+    output wire [              7:0] M_AXI_AWLEN,
+    output wire [              2:0] M_AXI_AWSIZE,
+    output wire [              1:0] M_AXI_AWBURST,
+    output wire                     M_AXI_AWLOCK,
+    output wire [              3:0] M_AXI_AWCACHE,
+    output wire [              2:0] M_AXI_AWPROT,
+    output wire [              3:0] M_AXI_AWQOS,
+    output wire [              0:0] M_AXI_AWUSER,
+    output wire                     M_AXI_AWVALID,
+    input  wire                     M_AXI_AWREADY,
 
     output wire [31:0] M_AXI_WDATA,
     output wire [ 3:0] M_AXI_WSTRB,
@@ -122,34 +122,33 @@ module exu (
     output wire        M_AXI_WVALID,
     input  wire        M_AXI_WREADY,
 
-    input  wire [1:0] M_AXI_BID,
-    input  wire [1:0] M_AXI_BRESP,
-    input  wire [0:0] M_AXI_BUSER,
-    input  wire       M_AXI_BVALID,
-    output wire       M_AXI_BREADY,
+    input  wire [`BUS_ID_WIDTH-1:0] M_AXI_BID,     // 使用BUS_ID_WIDTH定义位宽
+    input  wire [              1:0] M_AXI_BRESP,
+    input  wire [              0:0] M_AXI_BUSER,
+    input  wire                     M_AXI_BVALID,
+    output wire                     M_AXI_BREADY,
 
-    output wire [ 1:0] M_AXI_ARID,
-    output wire [31:0] M_AXI_ARADDR,
-    output wire [ 7:0] M_AXI_ARLEN,
-    output wire [ 2:0] M_AXI_ARSIZE,
-    output wire [ 1:0] M_AXI_ARBURST,
-    output wire        M_AXI_ARLOCK,
-    output wire [ 3:0] M_AXI_ARCACHE,
-    output wire [ 2:0] M_AXI_ARPROT,
-    output wire [ 3:0] M_AXI_ARQOS,
-    output wire [ 0:0] M_AXI_ARUSER,
-    output wire        M_AXI_ARVALID,
-    input  wire        M_AXI_ARREADY,
+    output wire [`BUS_ID_WIDTH-1:0] M_AXI_ARID,     // 使用BUS_ID_WIDTH定义位宽
+    output wire [             31:0] M_AXI_ARADDR,
+    output wire [              7:0] M_AXI_ARLEN,
+    output wire [              2:0] M_AXI_ARSIZE,
+    output wire [              1:0] M_AXI_ARBURST,
+    output wire                     M_AXI_ARLOCK,
+    output wire [              3:0] M_AXI_ARCACHE,
+    output wire [              2:0] M_AXI_ARPROT,
+    output wire [              3:0] M_AXI_ARQOS,
+    output wire [              0:0] M_AXI_ARUSER,
+    output wire                     M_AXI_ARVALID,
+    input  wire                     M_AXI_ARREADY,
 
-    input  wire [ 1:0] M_AXI_RID,
-    input  wire [31:0] M_AXI_RDATA,
-    input  wire [ 1:0] M_AXI_RRESP,
-    input  wire        M_AXI_RLAST,
-    input  wire [ 0:0] M_AXI_RUSER,
-    input  wire        M_AXI_RVALID,
-    output wire        M_AXI_RREADY
+    input  wire [`BUS_ID_WIDTH-1:0] M_AXI_RID,     // 使用BUS_ID_WIDTH定义位宽
+    input  wire [             31:0] M_AXI_RDATA,
+    input  wire [              1:0] M_AXI_RRESP,
+    input  wire                     M_AXI_RLAST,
+    input  wire [              0:0] M_AXI_RUSER,
+    input  wire                     M_AXI_RVALID,
+    output wire                     M_AXI_RREADY
 );
-
     // 内部连线定义
     // 除法器信号
     wire                        div_ready;
@@ -385,7 +384,11 @@ module exu (
     );
 
     // 地址生成单元模块例化 - 更新commit_id宽度
-    exu_agu_lsu u_agu (
+    exu_agu_lsu #(
+        .C_M_AXI_ID_WIDTH  (`BUS_ID_WIDTH),
+        .C_M_AXI_DATA_WIDTH(`BUS_DATA_WIDTH),
+        .C_M_AXI_ADDR_WIDTH(`BUS_ADDR_WIDTH)
+    ) u_agu_lsu (
         .clk           (clk),
         .rst_n         (rst_n),
         .req_mem_i     (req_mem_o),

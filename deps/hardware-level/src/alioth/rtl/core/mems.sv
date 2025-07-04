@@ -31,7 +31,7 @@ module mems #(
     parameter DATA_WIDTH      = 32,  // RAM数据宽度
 
     // AXI接口参数
-    parameter C_AXI_ID_WIDTH   = 1,   // AXI ID宽度
+    parameter C_AXI_ID_WIDTH   = 2,   // AXI ID宽度
     parameter C_AXI_DATA_WIDTH = 32,  // AXI数据宽度
     parameter C_AXI_ADDR_WIDTH = 32   // AXI地址宽度
 ) (
