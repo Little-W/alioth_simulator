@@ -221,8 +221,6 @@ module gnrl_ram_pseudo_dual_axi #(
         end else begin
             // 存储读请求信息
             if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-                // 删除 axi_arvalid_r 的赋值
-                
                 // 保存burst信息用于后续访问
                 axi_ar_flag    <= 1'b1;
                 axi_arid_r     <= S_AXI_ARID;
