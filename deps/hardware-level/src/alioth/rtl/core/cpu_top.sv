@@ -45,7 +45,13 @@ module cpu_top (
     wire [`INST_DATA_WIDTH-1:0] if_inst_o;
     wire [`INST_ADDR_WIDTH-1:0] if_inst_addr_o;
     wire [`INST_DATA_WIDTH-1:0] if_int_flag_o;
-    wire if_is_pred_branch_o;  // 添加预测分支信号线
+    wire if_is_pred_branch_o;  // 预测分支信号线
+    wire if_is_pred_jalr_o;    // 预测JALR信号线
+    wire [`INST_ADDR_WIDTH-1:0] if_branch_addr_o; // 预测分支地址信号线
+
+    // IFU到GPR的接口信号
+    wire [`REG_ADDR_WIDTH-1:0] ifu_gpr_raddr_o;  // IFU向GPR请求的读地址
+    wire [`REG_DATA_WIDTH-1:0] ifu_gpr_rdata_i;  // GPR返回给IFU的读数据
 
     // id模块输出信号
     wire [`REG_ADDR_WIDTH-1:0] id_reg1_raddr_o;
@@ -63,7 +69,9 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] idu_csr_rdata_o;
     wire [31:0] idu_dec_imm_o;
     wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
-    wire idu_is_pred_branch_o;  // 添加预测分支指令标志输出
+    wire idu_is_pred_branch_o;  // 预测分支指令标志输出
+    wire idu_is_pred_jalr_o;    // 预测JALR指令标志输出
+    wire [`INST_ADDR_WIDTH-1:0] idu_branch_addr_o; // 预测分支地址输出
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -232,10 +240,14 @@ module cpu_top (
         .jump_flag_i      (ctrl_jump_flag_o),
         .jump_addr_i      (ctrl_jump_addr_o),
         .stall_flag_i     (ctrl_stall_flag_o),
+        .gpr_raddr_o      (ifu_gpr_raddr_o),  // BPU向GPR请求的读地址
+        .gpr_rdata_i      (ifu_gpr_rdata_i),  // GPR返回给BPU的读数据
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
         .is_pred_branch_o (if_is_pred_branch_o),  // 连接预测分支信号输出
+        .is_pred_jalr_o   (if_is_pred_jalr_o),    // 连接预测JALR信号输出
+        .branch_addr_o    (if_branch_addr_o),     // 连接预测分支地址输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -275,7 +287,7 @@ module cpu_top (
         .jump_addr_o       (ctrl_jump_addr_o)
     );
 
-    // gpr模块例化
+    // gpr模块例化 - 添加第三个读端口连接
     gpr u_gpr (
         .clk     (clk),
         .rst_n   (rst_n),
@@ -285,7 +297,9 @@ module cpu_top (
         .raddr1_i(idu_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
         .raddr2_i(idu_reg2_raddr_o),
-        .rdata2_o(regs_rdata2_o)
+        .rdata2_o(regs_rdata2_o),
+        .raddr3_i(ifu_gpr_raddr_o),  // 连接IFU的GPR读地址
+        .rdata3_o(ifu_gpr_rdata_i)   // 连接IFU的GPR读数据
     );
 
     // csr模块例化
@@ -309,7 +323,7 @@ module cpu_top (
         .clint_csr_mstatus(csr_clint_csr_mstatus)
     );
 
-    // idu模块例化 - 更新接口，移除长指令ID相关接口
+    // idu模块例化 - 更新接口，添加预测信号连接
     idu u_idu (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -317,6 +331,8 @@ module cpu_top (
         .inst_addr_i (if_inst_addr_o),
         .stall_flag_i(ctrl_stall_flag_o),
         .is_pred_branch_i(if_is_pred_branch_o),  // 连接预测分支信号输入
+        .is_pred_jalr_i  (if_is_pred_jalr_o),    // 连接预测JALR信号输入
+        .branch_addr_i   (if_branch_addr_o),     // 连接预测分支地址输入
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
@@ -331,7 +347,9 @@ module cpu_top (
         .csr_waddr_o   (idu_csr_waddr_o),
         .dec_imm_o     (idu_dec_imm_o),
         .dec_info_bus_o(idu_dec_info_bus_o),
-        .is_pred_branch_o(idu_is_pred_branch_o)  // 连接预测分支信号输出
+        .is_pred_branch_o(idu_is_pred_branch_o),  // 连接预测分支信号输出
+        .is_pred_jalr_o  (idu_is_pred_jalr_o),    // 连接预测JALR信号输出
+        .branch_addr_o   (idu_branch_addr_o)      // 连接预测分支地址输出
     );
 
     // HDU模块例化
@@ -356,7 +374,7 @@ module cpu_top (
         .long_inst_atom_lock_o(hdu_long_inst_atom_lock_o)
     );
 
-    // exu模块例化 - 直接从HDU接收长指令ID
+    // exu模块例化 - 添加预测JALR和分支地址连接
     exu u_exu (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -372,6 +390,8 @@ module cpu_top (
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
         .is_pred_branch_i(idu_is_pred_branch_o),  // 连接预测分支信号输入
+        .is_pred_jalr_i  (idu_is_pred_jalr_o),    // 连接预测JALR信号输入
+        .branch_addr_i   (idu_branch_addr_o),     // 连接预测分支地址输入
 
         // 修改：直接从HDU获取长指令ID
         .inst_id_i(hdu_long_inst_id_o),
