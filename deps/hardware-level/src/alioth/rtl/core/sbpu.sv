@@ -85,18 +85,5 @@ module sbpu (
     assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
     assign branch_addr_o  = branch_addr;
 
-    // 只保存预测跳转指令的pc+4，用于预测失败时恢复
-    reg [`INST_ADDR_WIDTH-1:0] branch_pred_pc_bak;
-    reg [`INST_ADDR_WIDTH-1:0] pred_taken_pc;
-
-    // 只在预测跳转时保存PC+4（用于分支预测回滚）
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            branch_pred_pc_bak <= 32'b0;
-        end else if (is_pred_branch) begin
-            branch_pred_pc_bak <= pc_i + 4;
-        end
-    end
-
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule
