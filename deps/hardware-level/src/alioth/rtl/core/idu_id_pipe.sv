@@ -41,8 +41,6 @@ module idu_id_pipe (
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     input wire                        is_pred_branch_i, // 添加预测分支指令标志输入
-    input wire                        is_pred_jalr_i,   // 添加预测JALR指令标志输入
-    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,    // 添加预测分支地址输入
 
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -56,9 +54,7 @@ module idu_id_pipe (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
-    output wire                        is_pred_branch_o, // 添加预测分支指令标志输出
-    output wire                        is_pred_jalr_o,   // 添加预测JALR指令标志输出
-    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o     // 添加预测分支地址输出
+    output wire                        is_pred_branch_o  // 添加预测分支指令标志输出
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -190,29 +186,5 @@ module idu_id_pipe (
         is_pred_branch
     );
     assign is_pred_branch_o = is_pred_branch;
-
-    // 添加预测JALR信号传递
-    wire is_pred_jalr_dnxt = flush_en ? 1'b0 : is_pred_jalr_i;
-    wire is_pred_jalr;
-    gnrl_dfflr #(1) is_pred_jalr_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        is_pred_jalr_dnxt,
-        is_pred_jalr
-    );
-    assign is_pred_jalr_o = is_pred_jalr;
-
-    // 添加分支地址传递
-    wire [`INST_ADDR_WIDTH-1:0] branch_addr_dnxt = flush_en ? `ZeroWord : branch_addr_i;
-    wire [`INST_ADDR_WIDTH-1:0] branch_addr;
-    gnrl_dfflr #(32) branch_addr_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        branch_addr_dnxt,
-        branch_addr
-    );
-    assign branch_addr_o = branch_addr;
 
 endmodule

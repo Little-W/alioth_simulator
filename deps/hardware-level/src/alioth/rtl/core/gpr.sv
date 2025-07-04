@@ -45,13 +45,7 @@ module gpr (
     input wire [`REG_ADDR_WIDTH-1:0] raddr2_i,  // 读寄存器2地址
 
     // to id
-    output wire [`REG_DATA_WIDTH-1:0] rdata2_o,  // 读寄存器2数据
-
-    // from bpu
-    input wire [`REG_ADDR_WIDTH-1:0] raddr3_i,  // 读寄存器3地址，给BPU使用
-
-    // to bpu
-    output wire [`REG_DATA_WIDTH-1:0] rdata3_o   // 读寄存器3数据，给BPU使用
+    output wire [`REG_DATA_WIDTH-1:0] rdata2_o  // 读寄存器2数据
 
 );
 
@@ -99,13 +93,5 @@ module gpr (
     assign rdata2_o = (raddr2_i == `ZeroReg) ? `ZeroWord :
                       ((raddr2_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
                       regs[raddr2_i];
-
-    // 读寄存器3（BPU专用）
-    // 如果读地址为零寄存器，则返回零
-    // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
-    // 否则返回寄存器值
-    assign rdata3_o = (raddr3_i == `ZeroReg) ? `ZeroWord :
-                      ((raddr3_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
-                      regs[raddr3_i];
 
 endmodule
