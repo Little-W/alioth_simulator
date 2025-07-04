@@ -26,7 +26,7 @@
 
 // 指令获取模块的AXI主机接口
 module ifu_axi_master #(
-    parameter C_M_AXI_ID_WIDTH   = 1,   // AXI ID宽度
+    parameter C_M_AXI_ID_WIDTH   = 2,   // AXI ID宽度
     parameter C_M_AXI_ADDR_WIDTH = 32,  // AXI地址宽度
     parameter C_M_AXI_DATA_WIDTH = 32   // AXI数据宽度
 ) (
@@ -151,7 +151,7 @@ module ifu_axi_master #(
         end else begin
             // 跳转处理：翻转ARID，清空FIFO
             if (jump_flag_i) begin
-                arid_reg   <= ~arid_reg;
+                arid_reg   <= arid_reg + 1;  // 循环切换ID
                 rd_ptr     <= 0;
                 wr_ptr     <= 0;
                 fifo_count <= 0;

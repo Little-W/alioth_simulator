@@ -159,7 +159,7 @@ module cpu_top (
     wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
     wire new_long_inst_valid = is_long_inst && !exu_stall_flag_o;
     // AXI接口信号 - IFU
-    wire ifu_axi_arid;
+    wire [`BUS_ID_WIDTH-1:0] ifu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
     wire [`INST_ADDR_WIDTH-1:0] ifu_axi_araddr;
     wire [7:0] ifu_axi_arlen;
     wire [2:0] ifu_axi_arsize;
@@ -171,7 +171,7 @@ module cpu_top (
     wire [3:0] ifu_axi_aruser;
     wire ifu_axi_arvalid;
     wire ifu_axi_arready;
-    wire ifu_axi_rid;
+    wire [`BUS_ID_WIDTH-1:0] ifu_axi_rid;  // 使用BUS_ID_WIDTH定义位宽
     wire [`INST_DATA_WIDTH-1:0] ifu_axi_rdata;
     wire [1:0] ifu_axi_rresp;
     wire ifu_axi_rlast;
@@ -180,7 +180,7 @@ module cpu_top (
     wire ifu_axi_rready;
 
     // AXI接口信号 - EXU
-    wire exu_axi_awid;
+    wire [`BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
     wire [31:0] exu_axi_awaddr;
     wire [7:0] exu_axi_awlen;
     wire [2:0] exu_axi_awsize;
@@ -198,12 +198,12 @@ module cpu_top (
     wire exu_axi_wuser;
     wire exu_axi_wvalid;
     wire exu_axi_wready;
-    wire exu_axi_bid;
+    wire [`BUS_ID_WIDTH-1:0] exu_axi_bid;  // 使用BUS_ID_WIDTH定义位宽
     wire [1:0] exu_axi_bresp;
     wire exu_axi_buser;
     wire exu_axi_bvalid;
     wire exu_axi_bready;
-    wire exu_axi_arid;
+    wire [`BUS_ID_WIDTH-1:0] exu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
     wire [31:0] exu_axi_araddr;
     wire [7:0] exu_axi_arlen;
     wire [2:0] exu_axi_arsize;
@@ -215,7 +215,7 @@ module cpu_top (
     wire exu_axi_aruser;
     wire exu_axi_arvalid;
     wire exu_axi_arready;
-    wire exu_axi_rid;
+    wire [`BUS_ID_WIDTH-1:0] exu_axi_rid;  // 使用BUS_ID_WIDTH定义位宽
     wire [31:0] exu_axi_rdata;
     wire [1:0] exu_axi_rresp;
     wire exu_axi_rlast;
@@ -233,6 +233,7 @@ module cpu_top (
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
+        .is_pred_branch_o (if_is_pred_branch_o),  // 连接预测分支信号输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -544,7 +545,7 @@ module cpu_top (
         .ITCM_ADDR_WIDTH (`ITCM_ADDR_WIDTH),
         .DTCM_ADDR_WIDTH (`DTCM_ADDR_WIDTH),
         .DATA_WIDTH      (`BUS_DATA_WIDTH),
-        .C_AXI_ID_WIDTH  (1),
+        .C_AXI_ID_WIDTH  (`BUS_ID_WIDTH),
         .C_AXI_DATA_WIDTH(`BUS_DATA_WIDTH),
         .C_AXI_ADDR_WIDTH(`BUS_ADDR_WIDTH)
     ) u_mems (

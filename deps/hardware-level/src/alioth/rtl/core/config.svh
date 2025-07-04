@@ -22,6 +22,7 @@
 // 总线宽度定义
 `define BUS_DATA_WIDTH 32
 `define BUS_ADDR_WIDTH 32
+`define BUS_ID_WIDTH 2
 
 `define INST_DATA_WIDTH 32
 `define INST_ADDR_WIDTH 32
