@@ -32,7 +32,7 @@ module exu_dispatch (
     input wire [                31:0] dec_pc_i,
     input wire [                31:0] rs1_rdata_i,
     input wire [                31:0] rs2_rdata_i,
-    input wire [                 1:0] inst_id_i,    // 长指令ID输入
+    input wire [`COMMIT_ID_WIDTH-1:0] inst_id_i,    // 使用COMMIT_ID_WIDTH宏定义宽度
 
     // dispatch to ALU
     output wire        req_alu_o,
@@ -69,7 +69,7 @@ module exu_dispatch (
     output wire        muldiv_op_remu_o,
     output wire        muldiv_op_mul_all_o,
     output wire        muldiv_op_div_all_o,
-    output wire [ 1:0] muldiv_inst_id_o, // MULDIV长指令ID输出
+    output wire [`COMMIT_ID_WIDTH-1:0] muldiv_inst_id_o, // 使用COMMIT_ID_WIDTH宏定义宽度
 
     // dispatch to CSR
     output wire        req_csr_o,
@@ -94,7 +94,7 @@ module exu_dispatch (
     output wire        mem_op_sw_o,
     output wire        mem_op_load_o,
     output wire        mem_op_store_o,
-    output wire [ 1:0] mem_inst_id_o,    // MEM长指令ID输出
+    output wire [`COMMIT_ID_WIDTH-1:0] mem_inst_id_o,    // 使用COMMIT_ID_WIDTH宏定义宽度
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -108,12 +108,11 @@ module exu_dispatch (
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
 
-    // 长指令ID传递 - 仅传递给乘除法和访存模块
+    // 长指令ID传递 - 使用COMMIT_ID_WIDTH宏定义宽度
     assign muldiv_inst_id_o = inst_id_i; // 乘除法指令ID
     assign mem_inst_id_o = inst_id_i;    // 访存指令ID
 
     // ALU info
-
     wire op_alu = (disp_info_grp == `DECINFO_GRP_ALU);
     wire [`DECINFO_WIDTH-1:0] alu_info = {`DECINFO_WIDTH{op_alu}} & dec_info_bus_i;
     // ALU op1

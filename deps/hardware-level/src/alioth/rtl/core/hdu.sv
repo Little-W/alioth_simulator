@@ -37,16 +37,16 @@ module hdu (
     input wire                       new_inst_rd_we,       // 新指令是否写寄存器
 
     // 长指令完成信号
-    input wire       commit_valid_i,  // 长指令执行完成有效信号
-    input wire [1:0] commit_id_i,     // 执行完成的长指令ID
+    input wire                        commit_valid_i,      // 长指令执行完成有效信号
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,         // 执行完成的长指令ID，使用COMMIT_ID_WIDTH宏
 
     // 控制信号
-    output wire hazard_stall_o,  // 暂停流水线信号
-    output wire [1:0] commit_id_o,  // 为新的长指令分配的ID
-    output wire long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
+    output wire                        hazard_stall_o,     // 暂停流水线信号
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,        // 为新的长指令分配的ID，使用COMMIT_ID_WIDTH宏
+    output wire                        long_inst_atom_lock_o // 原子锁信号，FIFO中有未销毁的长指令时为1
 );
 
-    // 定义FIFO表项结构
+    // 定义FIFO表项结构 - 注意：仍然使用4个条目，但索引应该考虑COMMIT_ID_WIDTH可能大于2的情况
     reg fifo_valid[0:3];  // 有效位
     reg [`REG_ADDR_WIDTH-1:0] fifo_rd_addr[0:3];  // 目标寄存器地址
 
@@ -91,11 +91,13 @@ module hdu (
     assign hazard_stall_o = hazard;
 
     // 为新的长指令分配ID - 使用assign语句
+    // 如果COMMIT_ID_WIDTH > 2，这里只使用低2位，高位置0
     assign commit_id_o = (new_long_inst_valid && ~hazard) ? 
-                         (~fifo_valid[0] ? 2'h0 :
-                          ~fifo_valid[1] ? 2'h1 :
-                          ~fifo_valid[2] ? 2'h2 :
-                          ~fifo_valid[3] ? 2'h3 : 2'h0) : 2'h0;
+                         (~fifo_valid[0] ? {{(`COMMIT_ID_WIDTH-2){1'b0}}, 2'h0} :
+                          ~fifo_valid[1] ? {{(`COMMIT_ID_WIDTH-2){1'b0}}, 2'h1} :
+                          ~fifo_valid[2] ? {{(`COMMIT_ID_WIDTH-2){1'b0}}, 2'h2} :
+                          ~fifo_valid[3] ? {{(`COMMIT_ID_WIDTH-2){1'b0}}, 2'h3} : 
+                                          {`COMMIT_ID_WIDTH{1'b0}}) : {`COMMIT_ID_WIDTH{1'b0}};
 
     // 更新FIFO
     always @(posedge clk or negedge rst_n) begin
@@ -106,16 +108,16 @@ module hdu (
                 fifo_rd_addr[i] <= 5'h0;
             end
         end else begin
-            // 清除已完成的长指令
+            // 清除已完成的长指令 - 只使用commit_id_i的低2位作为索引
             if (commit_valid_i) begin
-                fifo_valid[commit_id_i] <= 1'b0;
+                fifo_valid[commit_id_i[1:0]] <= 1'b0;
             end
 
-            // 添加新的长指令到FIFO
+            // 添加新的长指令到FIFO - 使用低2位作为索引
             if (new_long_inst_valid && ~hazard) begin
                 // 使用组合逻辑分配的ID更新FIFO
-                fifo_valid[commit_id_o]   <= 1'b1;
-                fifo_rd_addr[commit_id_o] <= new_inst_rd_addr;
+                fifo_valid[commit_id_o[1:0]]   <= 1'b1;
+                fifo_rd_addr[commit_id_o[1:0]] <= new_inst_rd_addr;
             end
         end
     end

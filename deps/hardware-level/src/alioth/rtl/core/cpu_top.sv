@@ -350,7 +350,152 @@ module cpu_top (
         .long_inst_atom_lock_o(hdu_long_inst_atom_lock_o)
     );
 
-    // exu模块例化 - 直接从HDU接收长指令ID
+    // dispatch模块输出信号
+    wire req_alu;
+    wire [31:0] alu_op1;
+    wire [31:0] alu_op2;
+    wire [`ALU_OP_WIDTH-1:0] alu_op_info;
+
+    wire req_bjp;
+    wire [31:0] bjp_op1;
+    wire [31:0] bjp_op2;
+    wire [31:0] bjp_jump_op1;
+    wire [31:0] bjp_jump_op2;
+    wire bjp_op_jump;
+    wire bjp_op_beq;
+    wire bjp_op_bne;
+    wire bjp_op_blt;
+    wire bjp_op_bltu;
+    wire bjp_op_bge;
+    wire bjp_op_bgeu;
+    wire bjp_op_jalr;
+
+    wire req_muldiv;
+    wire [31:0] muldiv_op1;
+    wire [31:0] muldiv_op2;
+    wire muldiv_op_mul;
+    wire muldiv_op_mulh;
+    wire muldiv_op_mulhsu;
+    wire muldiv_op_mulhu;
+    wire muldiv_op_div;
+    wire muldiv_op_divu;
+    wire muldiv_op_rem;
+    wire muldiv_op_remu;
+    wire muldiv_op_mul_all;
+    wire muldiv_op_div_all;
+    wire [`COMMIT_ID_WIDTH-1:0] muldiv_inst_id;
+
+    wire req_csr;
+    wire [31:0] csr_op1;
+    wire [31:0] csr_addr;
+    wire csr_csrrw;
+    wire csr_csrrs;
+    wire csr_csrrc;
+
+    wire req_mem;
+    wire [31:0] mem_op1;
+    wire [31:0] mem_op2;
+    wire [31:0] mem_rs2_data;
+    wire mem_op_lb;
+    wire mem_op_lh;
+    wire mem_op_lw;
+    wire mem_op_lbu;
+    wire mem_op_lhu;
+    wire mem_op_sb;
+    wire mem_op_sh;
+    wire mem_op_sw;
+    wire mem_op_load;
+    wire mem_op_store;
+    wire [`COMMIT_ID_WIDTH-1:0] mem_inst_id;
+
+    wire sys_op_nop;
+    wire sys_op_mret;
+    wire sys_op_ecall;
+    wire sys_op_ebreak;
+    wire sys_op_fence;
+    wire sys_op_dret;
+
+    // dispatch模块实例化
+    exu_dispatch u_exu_dispatch (
+        .dec_info_bus_i     (idu_dec_info_bus_o),
+        .dec_imm_i          (idu_dec_imm_o),
+        .dec_pc_i           (idu_inst_addr_o),
+        .rs1_rdata_i        (regs_rdata1_o),
+        .rs2_rdata_i        (regs_rdata2_o),
+        .inst_id_i          (hdu_long_inst_id_o),
+
+        // dispatch to ALU
+        .req_alu_o          (req_alu),
+        .alu_op1_o          (alu_op1),
+        .alu_op2_o          (alu_op2),
+        .alu_op_info_o      (alu_op_info),
+
+        // dispatch to BJP
+        .req_bjp_o          (req_bjp),
+        .bjp_op1_o          (bjp_op1),
+        .bjp_op2_o          (bjp_op2),
+        .bjp_jump_op1_o     (bjp_jump_op1),
+        .bjp_jump_op2_o     (bjp_jump_op2),
+        .bjp_op_jump_o      (bjp_op_jump),
+        .bjp_op_beq_o       (bjp_op_beq),
+        .bjp_op_bne_o       (bjp_op_bne),
+        .bjp_op_blt_o       (bjp_op_blt),
+        .bjp_op_bltu_o      (bjp_op_bltu),
+        .bjp_op_bge_o       (bjp_op_bge),
+        .bjp_op_bgeu_o      (bjp_op_bgeu),
+        .bjp_op_jalr_o      (bjp_op_jalr),
+
+        // dispatch to MULDIV
+        .req_muldiv_o       (req_muldiv),
+        .muldiv_op1_o       (muldiv_op1),
+        .muldiv_op2_o       (muldiv_op2),
+        .muldiv_op_mul_o    (muldiv_op_mul),
+        .muldiv_op_mulh_o   (muldiv_op_mulh),
+        .muldiv_op_mulhsu_o (muldiv_op_mulhsu),
+        .muldiv_op_mulhu_o  (muldiv_op_mulhu),
+        .muldiv_op_div_o    (muldiv_op_div),
+        .muldiv_op_divu_o   (muldiv_op_divu),
+        .muldiv_op_rem_o    (muldiv_op_rem),
+        .muldiv_op_remu_o   (muldiv_op_remu),
+        .muldiv_op_mul_all_o(muldiv_op_mul_all),
+        .muldiv_op_div_all_o(muldiv_op_div_all),
+        .muldiv_inst_id_o   (muldiv_inst_id),
+
+        // dispatch to CSR
+        .req_csr_o          (req_csr),
+        .csr_op1_o          (csr_op1),
+        .csr_addr_o         (csr_addr),
+        .csr_csrrw_o        (csr_csrrw),
+        .csr_csrrs_o        (csr_csrrs),
+        .csr_csrrc_o        (csr_csrrc),
+
+        // dispatch to MEM
+        .req_mem_o          (req_mem),
+        .mem_op1_o          (mem_op1),
+        .mem_op2_o          (mem_op2),
+        .mem_rs2_data_o     (mem_rs2_data),
+        .mem_op_lb_o        (mem_op_lb),
+        .mem_op_lh_o        (mem_op_lh),
+        .mem_op_lw_o        (mem_op_lw),
+        .mem_op_lbu_o       (mem_op_lbu),
+        .mem_op_lhu_o       (mem_op_lhu),
+        .mem_op_sb_o        (mem_op_sb),
+        .mem_op_sh_o        (mem_op_sh),
+        .mem_op_sw_o        (mem_op_sw),
+        .mem_op_load_o      (mem_op_load),
+        .mem_op_store_o     (mem_op_store),
+        .mem_inst_id_o      (mem_inst_id),
+
+        // dispatch to SYS
+        .sys_op_nop_o       (sys_op_nop),
+        .sys_op_mret_o      (sys_op_mret),
+        .sys_op_ecall_o     (sys_op_ecall),
+        .sys_op_ebreak_o    (sys_op_ebreak),
+        .sys_op_fence_o     (sys_op_fence),
+        .sys_op_dret_o      (sys_op_dret)
+    );
+
+    // exu模块例化 - 更新接口连接
     exu u_exu (
         .clk           (clk),
         .rst_n         (rst_n),
@@ -360,64 +505,120 @@ module cpu_top (
         .csr_we_i      (idu_csr_we_o),
         .csr_waddr_i   (idu_csr_waddr_o),
         .csr_rdata_i   (csr_data_o),
-        .dec_info_bus_i(idu_dec_info_bus_o),
-        .dec_imm_i     (idu_dec_imm_o),
-        .mem_rdata_i   (exu_mem_data_i),
         .int_assert_i  (clint_int_assert_o),
         .int_addr_i    (clint_int_addr_o),
-        .is_pred_branch_i(idu_is_pred_branch_o),  // 连接预测分支信号输入
+        .commit_id_i   (hdu_long_inst_id_o),  // 传递指令ID
+        .is_pred_branch_i(idu_is_pred_branch_o),
 
-        // 修改：直接从HDU获取长指令ID
-        .inst_id_i(hdu_long_inst_id_o),
+        // 连接从dispatch模块传来的信号
+        .req_alu_i          (req_alu),
+        .alu_op1_i          (alu_op1),
+        .alu_op2_i          (alu_op2),
+        .alu_op_info_i      (alu_op_info),
 
-        // 写回握手信号
-        .alu_wb_ready_i   (wbu_alu_ready_o),
-        .muldiv_wb_ready_i(wbu_muldiv_ready_o),
-        .csr_wb_ready_i   (wbu_csr_ready_o),
+        .req_bjp_i          (req_bjp),
+        .bjp_op1_i          (bjp_op1),
+        .bjp_op2_i          (bjp_op2),
+        .bjp_jump_op1_i     (bjp_jump_op1),
+        .bjp_jump_op2_i     (bjp_jump_op2),
+        .bjp_op_jump_i      (bjp_op_jump),
+        .bjp_op_beq_i       (bjp_op_beq),
+        .bjp_op_bne_i       (bjp_op_bne),
+        .bjp_op_blt_i       (bjp_op_blt),
+        .bjp_op_bltu_i      (bjp_op_bltu),
+        .bjp_op_bge_i       (bjp_op_bge),
+        .bjp_op_bgeu_i      (bjp_op_bgeu),
+        .bjp_op_jalr_i      (bjp_op_jalr),
 
-        // 直接从寄存器文件读取数据
-        .reg1_rdata_i(regs_rdata1_o),
-        .reg2_rdata_i(regs_rdata2_o),
+        .req_muldiv_i       (req_muldiv),
+        .muldiv_op1_i       (muldiv_op1),
+        .muldiv_op2_i       (muldiv_op2),
+        .muldiv_op_mul_i    (muldiv_op_mul),
+        .muldiv_op_mulh_i   (muldiv_op_mulh),
+        .muldiv_op_mulhsu_i (muldiv_op_mulhsu),
+        .muldiv_op_mulhu_i  (muldiv_op_mulhu),
+        .muldiv_op_div_i    (muldiv_op_div),
+        .muldiv_op_divu_i   (muldiv_op_divu),
+        .muldiv_op_rem_i    (muldiv_op_rem),
+        .muldiv_op_remu_i   (muldiv_op_remu),
+        .muldiv_op_mul_all_i(muldiv_op_mul_all),
+        .muldiv_op_div_all_i(muldiv_op_div_all),
+        .muldiv_inst_id_i   (muldiv_inst_id),
 
-        .hazard_stall_i(hdu_stall_flag_o),  // 来自HDU的冒险暂停信号
+        .req_csr_i          (req_csr),
+        .csr_op1_i          (csr_op1),
+        .csr_addr_i         (csr_addr),
+        .csr_csrrw_i        (csr_csrrw),
+        .csr_csrrs_i        (csr_csrrs),
+        .csr_csrrc_i        (csr_csrrc),
 
-        .mem_stall_o     (exu_mem_stall_o),
-        .mem_store_busy_o(exu_mem_store_busy_o),
+        .req_mem_i          (req_mem),
+        .mem_op1_i          (mem_op1),
+        .mem_op2_i          (mem_op2),
+        .mem_rs2_data_i     (mem_rs2_data),
+        .mem_op_lb_i        (mem_op_lb),
+        .mem_op_lh_i        (mem_op_lh),
+        .mem_op_lw_i        (mem_op_lw),
+        .mem_op_lbu_i       (mem_op_lbu),
+        .mem_op_lhu_i       (mem_op_lhu),
+        .mem_op_sb_i        (mem_op_sb),
+        .mem_op_sh_i        (mem_op_sh),
+        .mem_op_sw_i        (mem_op_sw),
+        .mem_op_load_i      (mem_op_load),
+        .mem_op_store_i     (mem_op_store),
+        .mem_inst_id_i      (mem_inst_id),
 
-        .alu_reg_wdata_o(exu_alu_reg_wdata_o),
-        .alu_reg_we_o   (exu_alu_reg_we_o),
-        .alu_reg_waddr_o(exu_alu_reg_waddr_o),
-        .alu_commit_id_o(exu_alu_commit_id_o),  // 新增信号
+        .sys_op_nop_i       (sys_op_nop),
+        .sys_op_mret_i      (sys_op_mret),
+        .sys_op_ecall_i     (sys_op_ecall),
+        .sys_op_ebreak_i    (sys_op_ebreak),
+        .sys_op_fence_i     (sys_op_fence),
+        .sys_op_dret_i      (sys_op_dret),
 
-        .muldiv_reg_wdata_o(exu_muldiv_reg_wdata_o),
-        .muldiv_reg_we_o   (exu_muldiv_reg_we_o),
-        .muldiv_reg_waddr_o(exu_muldiv_reg_waddr_o),
-        .muldiv_commit_id_o(exu_muldiv_commit_id_o),  // 新增信号
+        .alu_wb_ready_i     (wbu_alu_ready_o),
+        .muldiv_wb_ready_i  (wbu_muldiv_ready_o),
+        .csr_wb_ready_i     (wbu_csr_ready_o),
 
-        .agu_reg_wdata_o(exu_agu_reg_wdata_o),
-        .agu_reg_we_o   (exu_agu_reg_we_o),
-        .agu_reg_waddr_o(exu_agu_reg_waddr_o),
-        .agu_commit_id_o(exu_agu_commit_id_o),  // 新增信号
+        .mem_rdata_i        (exu_mem_data_i),
+        .reg1_rdata_i       (regs_rdata1_o),
+        .reg2_rdata_i       (regs_rdata2_o),
+        .hazard_stall_i     (hdu_stall_flag_o),
 
-        // 连接CSR寄存器写数据信号
-        .csr_reg_wdata_o(exu_csr_reg_wdata_o),
-        .csr_reg_waddr_o(exu_csr_reg_waddr_o),  // 连接CSR寄存器写地址输出
+        .mem_stall_o        (exu_mem_stall_o),
+        .mem_store_busy_o   (exu_mem_store_busy_o),
 
-        .csr_wdata_o(exu_csr_wdata_o),
-        .csr_we_o   (exu_csr_we_o),
-        .csr_waddr_o(exu_csr_waddr_o),
+        .alu_reg_wdata_o    (exu_alu_reg_wdata_o),
+        .alu_reg_we_o       (exu_alu_reg_we_o),
+        .alu_reg_waddr_o    (exu_alu_reg_waddr_o),
+        .alu_commit_id_o    (exu_alu_commit_id_o),
 
-        .stall_flag_o    (exu_stall_flag_o),
-        .jump_flag_o     (exu_jump_flag_o),
-        .jump_addr_o     (exu_jump_addr_o),
-        .muldiv_started_o(exu_muldiv_started_o),
+        .muldiv_reg_wdata_o (exu_muldiv_reg_wdata_o),
+        .muldiv_reg_we_o    (exu_muldiv_reg_we_o),
+        .muldiv_reg_waddr_o (exu_muldiv_reg_waddr_o),
+        .muldiv_commit_id_o (exu_muldiv_commit_id_o),
 
-        // 系统操作信号输出
-        .exu_op_ecall_o (exu_ecall_o),
-        .exu_op_ebreak_o(exu_ebreak_o),
-        .exu_op_mret_o  (exu_mret_o),
+        .agu_reg_wdata_o    (exu_agu_reg_wdata_o),
+        .agu_reg_we_o       (exu_agu_reg_we_o),
+        .agu_reg_waddr_o    (exu_agu_reg_waddr_o),
+        .agu_commit_id_o    (exu_agu_commit_id_o),
 
-        // 添加AXI接口连接
+        .csr_reg_wdata_o    (exu_csr_reg_wdata_o),
+        .csr_reg_waddr_o    (exu_csr_reg_waddr_o),
+        
+        .csr_wdata_o        (exu_csr_wdata_o),
+        .csr_we_o           (exu_csr_we_o),
+        .csr_waddr_o        (exu_csr_waddr_o),
+        
+        .stall_flag_o       (exu_stall_flag_o),
+        .jump_flag_o        (exu_jump_flag_o),
+        .jump_addr_o        (exu_jump_addr_o),
+        .muldiv_started_o   (exu_muldiv_started_o),
+        
+        .exu_op_ecall_o     (exu_ecall_o),
+        .exu_op_ebreak_o    (exu_ebreak_o),
+        .exu_op_mret_o      (exu_mret_o),
+
+        // AXI接口
         .M_AXI_AWID   (exu_axi_awid),
         .M_AXI_AWADDR (exu_axi_awaddr),
         .M_AXI_AWLEN  (exu_axi_awlen),

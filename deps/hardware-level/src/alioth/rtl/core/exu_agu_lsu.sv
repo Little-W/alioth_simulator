@@ -55,8 +55,8 @@ module exu_agu_lsu #(
     input wire        mem_op_store_i,
     input wire [ 4:0] rd_addr_i,
 
-    // 修改commit_id输入为4位
-    input wire [3:0] commit_id_i,
+    // 使用COMMIT_ID_WIDTH宏定义commit_id宽度
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 中断信号
     input wire int_assert_i,
@@ -72,8 +72,8 @@ module exu_agu_lsu #(
     output wire                       reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
 
-    // 修改commit_id输出为4位
-    output wire [3:0] commit_id_o,
+    // 使用COMMIT_ID_WIDTH宏定义commit_id宽度
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
 
     // AXI Master接口
     // 写地址通道
@@ -188,7 +188,8 @@ module exu_agu_lsu #(
     reg                       read_fifo_mem_op_lhu    [0:FIFO_DEPTH-1];
     reg  [               4:0] read_fifo_rd_addr       [0:FIFO_DEPTH-1];
     reg  [               1:0] read_fifo_mem_addr_index[0:FIFO_DEPTH-1];
-    reg  [               3:0] read_fifo_commit_id     [0:FIFO_DEPTH-1];
+    // 修改为使用COMMIT_ID_WIDTH宏
+    reg  [`COMMIT_ID_WIDTH-1:0] read_fifo_commit_id   [0:FIFO_DEPTH-1];
 
     // 写请求FIFO数组 - 改为reg类型
     reg  [              31:0] write_fifo_data         [0:FIFO_DEPTH-1];
@@ -198,7 +199,8 @@ module exu_agu_lsu #(
     reg  [              31:0] current_reg_wdata_r;
     reg                       reg_write_valid_r;
     reg  [               4:0] reg_waddr_r;
-    reg  [               3:0] current_commit_id_r;
+    // 修改为使用COMMIT_ID_WIDTH宏
+    reg  [`COMMIT_ID_WIDTH-1:0] current_commit_id_r;
 
     // 读写FIFO状态信号
     wire                      read_fifo_empty;
@@ -296,7 +298,8 @@ module exu_agu_lsu #(
     wire curr_mem_op_lbu = same_cycle_response ? mem_op_lbu_i : read_fifo_mem_op_lbu[read_fifo_rd_ptr];
     wire curr_mem_op_lhu = same_cycle_response ? mem_op_lhu_i : read_fifo_mem_op_lhu[read_fifo_rd_ptr];
     wire [4:0] curr_rd_addr = same_cycle_response ? rd_addr_i : read_fifo_rd_addr[read_fifo_rd_ptr];
-    wire [3:0] curr_commit_id = same_cycle_response ? commit_id_i : read_fifo_commit_id[read_fifo_rd_ptr];
+    // 修改为使用COMMIT_ID_WIDTH宏
+    wire [`COMMIT_ID_WIDTH-1:0] curr_commit_id = same_cycle_response ? commit_id_i : read_fifo_commit_id[read_fifo_rd_ptr];
 
     // 字节加载数据的与或逻辑
     wire [31:0] lb_data, lh_data, lw_data, lbu_data, lhu_data;
@@ -446,7 +449,8 @@ module exu_agu_lsu #(
     // 提交ID
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            current_commit_id_r <= 4'b0;
+            // 修改为使用COMMIT_ID_WIDTH宏
+            current_commit_id_r <= {`COMMIT_ID_WIDTH{1'b0}};
         end else if (reg_write_valid_set) begin
             current_commit_id_r <= curr_commit_id;
         end
@@ -553,7 +557,8 @@ module exu_agu_lsu #(
 
             always_ff @(posedge clk or negedge rst_n) begin
                 if (!rst_n) begin
-                    read_fifo_commit_id[i] <= 4'b0;
+                    // 修改为使用COMMIT_ID_WIDTH宏
+                    read_fifo_commit_id[i] <= {`COMMIT_ID_WIDTH{1'b0}};
                 end else if (read_fifo_valid_set) begin
                     read_fifo_commit_id[i] <= commit_id_i;
                 end
