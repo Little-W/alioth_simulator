@@ -38,11 +38,7 @@ module ifu (
     // GPR接口
     output wire [`REG_ADDR_WIDTH-1:0] gpr_raddr_o,  // BPU向GPR请求的读地址
     input  wire [`REG_DATA_WIDTH-1:0] gpr_rdata_i,  // GPR返回给BPU的读数据
-    // EXU -> BHT 回写接口
-    input wire                        update_valid_i, // 需更新?
-    input wire [`INST_ADDR_WIDTH-1:0] update_pc_i,    // 被更新 PC
-    input wire                        real_taken_i,   // 实际结果
-    
+
     // 输出到ID阶段的信息
     output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,        // 指令地址
@@ -100,7 +96,7 @@ module ifu (
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
 
     // 实例化静态分支预测单元
-    bpu u_bpu (
+    sbpu u_sbpu (
         .clk         (clk),
         .rst_n       (rst_n),
         .inst_i      (inst_data),   // 指令内容
@@ -115,11 +111,7 @@ module ifu (
         .branch_taken_o  (branch_taken),    // 预测是否为分支
         .branch_addr_o   (branch_addr),     // 预测的分支地址
         .is_pred_branch_o(is_pred_branch),  // 当前指令是否为预测分支
-        .is_pred_jalr_o  (is_pred_jalr),     // 当前指令是否为预测JALR
-        // 连接 BHT 回写接口
-        .update_valid_i  (update_valid_i),  // 需要更新
-        .update_pc_i     (update_pc_i),     // 被更新 PC
-        .real_taken_i    (real_taken_i)     // 分支实际结果
+        .is_pred_jalr_o  (is_pred_jalr)     // 当前指令是否为预测JALR
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
