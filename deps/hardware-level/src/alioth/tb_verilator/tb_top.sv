@@ -10,7 +10,7 @@
 // `define DEBUG_DISPLAY_REGS 1
 
 // 宏定义控制PC监控输出
-`define DEBUG_PC_MONITOR 1
+// `define DEBUG_PC_MONITOR 1
 
 // ToHost程序地址,用于监控测试是否结束
 `define PC_WRITE_TOHOST 32'h80000040
