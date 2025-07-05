@@ -30,17 +30,18 @@ module exu_csr_unit (
     input wire rst_n,
 
     // 指令和操作数输入
-    input wire                       req_csr_i,
-    input wire [               31:0] csr_op1_i,
-    input wire [               31:0] csr_addr_i,
-    input wire                       csr_csrrw_i,
-    input wire                       csr_csrrs_i,
-    input wire                       csr_csrrc_i,
-    input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,
+    input wire                        req_csr_i,
+    input wire [                31:0] csr_op1_i,
+    input wire [                31:0] csr_addr_i,
+    input wire                        csr_csrrw_i,
+    input wire                        csr_csrrs_i,
+    input wire                        csr_csrrc_i,
+    input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,
 
     // 从ID/EX阶段传入的CSR控制信号
-    input wire                       csr_we_i,    // CSR寄存器写使能信号
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i, // CSR寄存器写地址
+    input wire                       csr_we_i,      // CSR寄存器写使能信号
+    input wire                       csr_reg_we_i,  // 保留寄存器写使能信号
+    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,   // CSR寄存器写地址
 
     // 寄存器写地址输入
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,  // 寄存器写地址输入
@@ -58,8 +59,9 @@ module exu_csr_unit (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o,  // CSR写地址
 
     // 寄存器写回数据 - 用于对通用寄存器的写回
-    output wire [`REG_DATA_WIDTH-1:0] reg_wdata_o,
-    output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o   // 寄存器写地址输出
+    output wire [ `REG_DATA_WIDTH-1:0] reg_wdata_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,  // 寄存器写地址输出
+    output wire                        csr_reg_we_o  // 保留寄存器写使能输出
 );
     // CSR处理单元逻辑 - 组合逻辑部分
     reg [`REG_DATA_WIDTH-1:0] csr_wdata_comb;
@@ -87,6 +89,7 @@ module exu_csr_unit (
     wire valid_csr_op = req_csr_i & (int_assert_i != `INT_ASSERT);  // 当前有有效的CSR操作
     wire update_output = wb_ready_i;  // 仅在有有效CSR操作且ready时更新输出
 
+    wire csr_reg_we_nxt = (valid_csr_op & csr_reg_we_i) ? `WriteEnable : `WriteDisable;
     // 握手失败时输出stall信号
     assign csr_stall_o = csr_we_o & ~wb_ready_i;
 
@@ -94,11 +97,12 @@ module exu_csr_unit (
     wire                       csr_we_comb = (int_assert_i == `INT_ASSERT) ? 1'b0 : csr_we_i;
 
     // 使用gnrl_dfflr实例化输出级寄存器
-    wire [`REG_DATA_WIDTH-1:0] csr_wdata_r;
-    wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
-    wire                       csr_we_r;
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_r;
-    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    wire [ `REG_DATA_WIDTH-1:0] csr_wdata_r;
+    wire [ `REG_DATA_WIDTH-1:0] reg_wdata_r;
+    wire                        csr_we_r;
+    wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_r;
+    wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    wire                        csr_reg_we_r;
 
     // CSR写数据寄存器
     gnrl_dfflr #(
@@ -154,12 +158,23 @@ module exu_csr_unit (
         .dnxt (reg_waddr_i),
         .qout (reg_waddr_r)
     );
+    // csr_reg_we寄存器
+    gnrl_dfflr #(
+        .DW(1)
+    ) u_csr_reg_we_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (update_output),
+        .dnxt (csr_reg_we_nxt),
+        .qout (csr_reg_we_r)
+    );
 
     // 输出信号赋值
-    assign csr_wdata_o = csr_wdata_r;
-    assign reg_wdata_o = reg_wdata_r;
-    assign csr_we_o    = csr_we_r;
-    assign csr_waddr_o = csr_waddr_r;
-    assign reg_waddr_o = reg_waddr_r;
+    assign csr_wdata_o  = csr_wdata_r;
+    assign reg_wdata_o  = reg_wdata_r;
+    assign csr_we_o     = csr_we_r;
+    assign csr_waddr_o  = csr_waddr_r;
+    assign reg_waddr_o  = reg_waddr_r;
+    assign csr_reg_we_o = csr_reg_we_r;  // 新增：输出csr_reg_we
 
 endmodule
