@@ -10,14 +10,14 @@
 // `define DEBUG_DISPLAY_REGS 1
 
 // 宏定义控制PC监控输出
-// `define DEBUG_PC_MONITOR 1
+`define DEBUG_PC_MONITOR 1
 
 // ToHost程序地址,用于监控测试是否结束
 `define PC_WRITE_TOHOST 32'h80000040
 
 // 添加监控的PC地址范围 - 修改为新的程序段
-`define PC_MONITOR_START 32'h800001f8
-`define PC_MONITOR_END 32'h80000330
+`define PC_MONITOR_START 32'h80000104
+`define PC_MONITOR_END 32'h80000284
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.ram_inst
@@ -37,7 +37,7 @@ module tb_top (
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_axi_master.inst_addr_o;
     wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.mcycle[31:0];
     wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
 
