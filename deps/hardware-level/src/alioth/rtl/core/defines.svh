@@ -41,9 +41,10 @@
 `define INT_TIMER0 8'b00000001
 `define INT_TIMER0_ENTRY_ADDR 32'h4
 
-`define CU_BUS_WIDTH 2
+`define CU_BUS_WIDTH 3
 `define CU_FLUSH 0
 `define CU_STALL 1
+`define CU_STALL_DISPATCH 2
 
 // I type inst
 `define INST_TYPE_I 7'b0010011

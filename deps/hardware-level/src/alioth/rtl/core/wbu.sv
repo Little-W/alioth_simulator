@@ -30,23 +30,25 @@ module wbu (
     input wire rst_n,
 
     // 来自EXU的ALU数据
-    input  wire [`REG_DATA_WIDTH-1:0] alu_reg_wdata_i,
-    input  wire                       alu_reg_we_i,
-    input  wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr_i,
-    output wire                       alu_ready_o,      // ALU握手信号
+    input  wire [ `REG_DATA_WIDTH-1:0] alu_reg_wdata_i,
+    input  wire                        alu_reg_we_i,
+    input  wire [ `REG_ADDR_WIDTH-1:0] alu_reg_waddr_i,
+    input  wire [`COMMIT_ID_WIDTH-1:0] alu_commit_id_i,  // ALU指令ID
+    output wire                        alu_ready_o,      // ALU握手信号
 
     // 来自EXU的MULDIV数据
-    input  wire [`REG_DATA_WIDTH-1:0] muldiv_reg_wdata_i,
-    input  wire                       muldiv_reg_we_i,
-    input  wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_i,
-    input  wire [`COMMIT_ID_WIDTH-1:0] muldiv_inst_id_i,    // 乘除法指令ID
-    output wire                       muldiv_ready_o,      // MULDIV握手信号
+    input  wire [ `REG_DATA_WIDTH-1:0] muldiv_reg_wdata_i,
+    input  wire                        muldiv_reg_we_i,
+    input  wire [ `REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_i,
+    input  wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id_i,  // 乘除法指令ID
+    output wire                        muldiv_ready_o,      // MULDIV握手信号
 
     // 来自EXU的CSR数据
-    input  wire [`REG_DATA_WIDTH-1:0] csr_wdata_i,
-    input  wire                       csr_we_i,
-    input  wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
-    output wire                       csr_ready_o,  // CSR握手信号
+    input  wire [ `REG_DATA_WIDTH-1:0] csr_wdata_i,
+    input  wire                        csr_we_i,
+    input  wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input  wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_i,  // CSR指令ID
+    output wire                        csr_ready_o,      // CSR握手信号
 
     // CSR寄存器写数据输入
     input wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_i,
@@ -54,10 +56,10 @@ module wbu (
     input wire                       csr_reg_we_i,     // 新增：csr写回使能输入
 
     // 来自EXU的AGU/LSU数据
-    input wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
-    input wire                       agu_reg_we_i,
-    input wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] agu_inst_id_i,       // LSU指令ID
+    input wire [ `REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
+    input wire                        agu_reg_we_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] agu_reg_waddr_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] agu_commit_id_i,  // LSU指令ID，修改为3位
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
 
@@ -65,7 +67,7 @@ module wbu (
     input wire int_assert_i,
 
     // 长指令完成信号（对接hazard_detection）
-    output wire       commit_valid_o,  // 指令完成有效信号
+    output wire                        commit_valid_o,  // 指令完成有效信号
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,     // 完成指令ID
 
     // 寄存器写回接口
@@ -132,7 +134,10 @@ module wbu (
     assign csr_waddr_o = csr_waddr_i;
 
     // 长指令完成信号（对接hazard_detection）
-    assign commit_valid_o = (muldiv_active || agu_active) && (int_assert_i != `INT_ASSERT);
-    assign commit_id_o = agu_active ? agu_inst_id_i : muldiv_inst_id_i;
+    assign commit_valid_o = (muldiv_active || agu_active || alu_active || csr_active) && (int_assert_i != `INT_ASSERT);
+    assign commit_id_o = agu_active ? agu_commit_id_i : 
+                        muldiv_active ? muldiv_commit_id_i :
+                        csr_active ? csr_commit_id_i :
+                        alu_commit_id_i;
 
 endmodule
