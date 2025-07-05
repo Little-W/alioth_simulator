@@ -27,3 +27,5 @@
 `define REG_DATA_WIDTH 32
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
+`define COMMIT_ID_WIDTH 2
+

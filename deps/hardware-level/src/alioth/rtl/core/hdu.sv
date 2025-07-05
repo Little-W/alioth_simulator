@@ -37,17 +37,17 @@ module hdu (
     input wire                       new_inst_rd_we,       // 新指令是否写寄存器
 
     // 长指令完成信号
-    input wire       commit_valid_i,  // 长指令执行完成有效信号
-    input wire [1:0] commit_id_i,     // 执行完成的长指令ID
+    input wire                        commit_valid_i,  // 长指令执行完成有效信号
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // 执行完成的长指令ID
 
     // 控制信号
     output wire hazard_stall_o,  // 暂停流水线信号
-    output wire [1:0] commit_id_o,  // 为新的长指令分配的ID
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,  // 为新的长指令分配的ID
     output wire long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
 );
 
     // 定义FIFO表项结构
-    reg fifo_valid[0:3];  // 有效位
+    reg [3:0] fifo_valid;  // 有效位
     reg [`REG_ADDR_WIDTH-1:0] fifo_rd_addr[0:3];  // 目标寄存器地址
 
     // 冒险检测信号
@@ -92,16 +92,16 @@ module hdu (
 
     // 为新的长指令分配ID - 使用assign语句
     assign commit_id_o = (new_long_inst_valid && ~hazard) ? 
-                         (~fifo_valid[0] ? 2'h0 :
-                          ~fifo_valid[1] ? 2'h1 :
-                          ~fifo_valid[2] ? 2'h2 :
-                          ~fifo_valid[3] ? 2'h3 : 2'h0) : 2'h0;
+        ( ~fifo_valid[0] ? 0 :
+          ~fifo_valid[1] ? 1 :
+          ~fifo_valid[2] ? 2 :
+          ~fifo_valid[3] ? 3 : 0 ) : 0;
 
     // 更新FIFO
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             // 复位时清空FIFO
-            for (int i = 0; i < 4; i = i + 1) begin
+            for (int i = 0; i < (1 << `COMMIT_ID_WIDTH); i = i + 1) begin
                 fifo_valid[i]   <= 1'b0;
                 fifo_rd_addr[i] <= 5'h0;
             end
@@ -121,6 +121,5 @@ module hdu (
     end
 
     // 生成原子锁信号 - 当FIFO中有任何一个有效的长指令时为1
-    assign long_inst_atom_lock_o = fifo_valid[0] | fifo_valid[1] | fifo_valid[2] | fifo_valid[3];
-
+    assign long_inst_atom_lock_o = |fifo_valid;
 endmodule
