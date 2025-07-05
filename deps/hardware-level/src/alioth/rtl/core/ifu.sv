@@ -35,10 +35,9 @@ module ifu (
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
-    // BTB更新接口
-    input wire                        btb_update_i,       // BTB更新使能
-    input wire [`INST_ADDR_WIDTH-1:0] btb_update_pc_i,    // 需要更新的PC
-    input wire [`INST_ADDR_WIDTH-1:0] btb_update_target_i,// 更新的目标地址
+    // GPR接口
+    output wire [`REG_ADDR_WIDTH-1:0] gpr_raddr_o,  // BPU向GPR请求的读地址
+    input  wire [`REG_DATA_WIDTH-1:0] gpr_rdata_i,  // GPR返回给BPU的读数据
 
     // 输出到ID阶段的信息
     output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
@@ -105,10 +104,9 @@ module ifu (
         .pc_i        (inst_addr),   // 指令地址
         .any_stall_i (stall_axi),   // 流水线暂停信号
 
-        // BTB更新接口
-        .btb_update_i      (btb_update_i),
-        .btb_update_pc_i   (btb_update_pc_i),
-        .btb_update_target_i(btb_update_target_i),
+        // GPR接口连接
+        .gpr_raddr_o(gpr_raddr_o),  // 连接到GPR读地址输出端口
+        .gpr_rdata_i(gpr_rdata_i),  // 连接到GPR读数据输入端口
 
         .branch_taken_o  (branch_taken),    // 预测是否为分支
         .branch_addr_o   (branch_addr),     // 预测的分支地址

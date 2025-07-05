@@ -42,12 +42,12 @@ module exu (
     input wire [                31:0] dec_imm_i,
     input wire [                 1:0] inst_id_i,
 
-    input wire                        alu_wb_ready_i,     // ALU写回握手信号
-    input wire                        muldiv_wb_ready_i,  // MULDIV写回握手信号
-    input wire                        csr_wb_ready_i,     // CSR写回握手信号
-    input wire                        is_pred_branch_i,   // 添加预测分支指令标志输入
-    input wire                        is_pred_jalr_i,     // 添加预测JALR指令标志输入
-    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,      // 添加预测分支地址输入
+    input wire alu_wb_ready_i,     // ALU写回握手信号
+    input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
+    input wire csr_wb_ready_i,     // CSR写回握手信号
+    input wire is_pred_branch_i,   // 添加预测分支指令标志输入
+    input wire is_pred_jalr_i,     // 添加预测JALR指令标志输入
+    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,  // 添加预测分支地址输入
 
     // from mem
     input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
@@ -103,11 +103,6 @@ module exu (
     output wire exu_op_ecall_o,
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
-
-    // BTB更新输出接口
-    output wire                        btb_update_o,        // BTB更新使能
-    output wire [`INST_ADDR_WIDTH-1:0] btb_update_pc_o,     // 需要更新的PC
-    output wire [`INST_ADDR_WIDTH-1:0] btb_update_target_o, // 更新的目标地址
 
     // AXI接口 - 新增
     output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
@@ -290,11 +285,6 @@ module exu (
     wire                        sys_op_ebreak_o;
     wire                        sys_op_fence_o;
     wire                        sys_op_dret_o;
-
-    // 新增BTB更新相关的内部信号声明
-    wire                        bru_btb_update;
-    wire [`INST_ADDR_WIDTH-1:0] bru_btb_update_pc;
-    wire [`INST_ADDR_WIDTH-1:0] bru_btb_update_target;
 
     exu_dispatch u_exu_dispatch (
         // input
@@ -491,7 +481,7 @@ module exu (
         .reg_waddr_o   (alu_reg_waddr)
     );
 
-    // 分支单元模块例化 - 添加BTB更新信号连接
+    // 分支单元模块例化 - 添加新信号的连接
     exu_bru u_bru (
         .rst_n           (rst_n),
         .req_bjp_i       (req_bjp_o),
@@ -508,19 +498,13 @@ module exu (
         .bjp_op_bgeu_i   (bjp_op_bgeu_o),
         .bjp_op_jalr_i   (bjp_op_jalr_o),
         .is_pred_branch_i(is_pred_branch_i),
-        .is_pred_jalr_i  (is_pred_jalr_i),    // 连接预测JALR指令标志
-        .branch_addr_i   (branch_addr_i),     // 连接预测分支地址
-        .inst_addr_i     (inst_addr_i),       // 连接当前指令地址
+        .is_pred_jalr_i  (is_pred_jalr_i),     // 新增：连接预测JALR指令标志
+        .branch_addr_i   (branch_addr_i),      // 新增：连接预测分支地址
         .sys_op_fence_i  (sys_op_fence_o),
         .int_assert_i    (int_assert_i),
         .int_addr_i      (int_addr_i),
         .jump_flag_o     (bru_jump_flag),
-        .jump_addr_o     (bru_jump_addr),
-
-        // 连接BTB更新输出
-        .btb_update_o       (bru_btb_update),
-        .btb_update_pc_o    (bru_btb_update_pc),
-        .btb_update_target_o(bru_btb_update_target)
+        .jump_addr_o     (bru_jump_addr)
     );
 
     // CSR处理单元模块例化 - 只连接必要的寄存器写地址和数据
@@ -622,10 +606,5 @@ module exu (
     assign exu_op_ecall_o = sys_op_ecall_o;
     assign exu_op_ebreak_o = sys_op_ebreak_o;
     assign exu_op_mret_o = sys_op_mret_o;
-
-    // 将BRU的BTB更新信号连接到EXU输出
-    assign btb_update_o = bru_btb_update;
-    assign btb_update_pc_o = bru_btb_update_pc;
-    assign btb_update_target_o = bru_btb_update_target;
 
 endmodule

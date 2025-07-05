@@ -43,7 +43,6 @@ module exu_bru (
     input wire                        is_pred_branch_i,  // 前级是否进行了分支预测
     input wire                        is_pred_jalr_i,    // 添加预测JALR指令标志输入
     input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,     // 添加预测分支地址输入
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,       // 添加当前指令地址输入
 
     input wire                        sys_op_fence_i,  // FENCE指令
     // 中断信号
@@ -52,12 +51,7 @@ module exu_bru (
 
     // 跳转输出
     output wire                        jump_flag_o,
-    output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
-
-    // BTB更新输出
-    output wire                        btb_update_o,        // BTB更新使能
-    output wire [`INST_ADDR_WIDTH-1:0] btb_update_pc_o,     // 需要更新的PC
-    output wire [`INST_ADDR_WIDTH-1:0] btb_update_target_o  // 更新的目标地址
+    output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o
 );
     // 内部信号
     wire        op1_eq_op2;
@@ -101,18 +95,5 @@ module exu_bru (
 
     // 简化跳转地址选择逻辑
     assign jump_addr_o = int_assert_i ? int_addr_i : adder_result;
-
-    // BTB更新逻辑 - 针对JALR指令
-    // 在以下情况更新BTB：
-    // 1. 执行了JALR指令且它没有被预测(需要建立新的BTB条目)
-    // 2. 执行了JALR指令且预测地址错误(需要更新已有的BTB条目)
-    assign btb_update_o = rst_n & bjp_op_jalr_i & req_bjp_i & 
-                          (!is_pred_jalr_i | (is_pred_jalr_i & addr_mismatch));
-
-    // 将当前指令地址设为BTB更新源地址
-    assign btb_update_pc_o = inst_addr_i;
-
-    // 将计算出的JALR目标地址作为BTB更新目标地址
-    assign btb_update_target_o = adder_result;
 
 endmodule

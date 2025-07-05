@@ -33,9 +33,7 @@
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
 
-// BTB配置
-`define BTB_INDEX_WIDTH 5  // BTB索引位宽
-`define BTB_SIZE (1 << `BTB_INDEX_WIDTH)  // BTB表项数量
+`define BPU_COUNT_WIDTH 4  // BPU计数器宽度
 
 // 外设桥地址空间定义 (0x8010_0000~0x8020_0FFF)
 `define PERIP_BRIDGE_BASE_ADDR 32'h8010_0000
