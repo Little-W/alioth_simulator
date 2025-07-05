@@ -30,23 +30,24 @@ module exu_alu (
     input wire rst_n,
 
     // ALU
-    input wire req_alu_i,
-    input wire hazard_stall_i,  // 来自HDU的冒险暂停信号
-    input wire [31:0] alu_op1_i,
-    input wire [31:0] alu_op2_i,
-    input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,  // 统一的ALU操作信息信号
-    input wire [4:0] alu_rd_i,
+    input  wire                        req_alu_i,
+    input  wire                        hazard_stall_i,  // 来自HDU的冒险暂停信号
+    input  wire [                31:0] alu_op1_i,
+    input  wire [                31:0] alu_op2_i,
+    input  wire [   `ALU_OP_WIDTH-1:0] alu_op_info_i,   // 统一的ALU操作信息信号
+    input  wire [                 4:0] alu_rd_i,
 
     // 握手信号和控制
-    input  wire wb_ready_i,  // 写回单元准备好接收ALU结果
-    output wire alu_stall_o,   // ALU暂停信号
+    input  wire                        wb_ready_i,      // 写回单元准备好接收ALU结果
+    input  wire                        reg_we_i,        // ALU结果写回寄存器使能
+    output wire                        alu_stall_o,     // ALU暂停信号
 
     // 中断信号
     input wire int_assert_i,
 
     // 结果输出
-    output wire [`REG_DATA_WIDTH-1:0] result_o,
-    output wire                       reg_we_o,
+    output wire [ `REG_DATA_WIDTH-1:0] result_o,
+    output wire                        reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o
 );
 
@@ -84,10 +85,8 @@ module exu_alu (
     wire [31:0] shifter_res;
 
     // 为右移操作翻转输入位
-    assign shifter_in1 = {32{op_shift}} & (
-        (op_sra | op_srl) ? 
-        {   // 输入位反转
-            mux_op1[00],mux_op1[01],mux_op1[02],mux_op1[03],
+    assign shifter_in1 = {32{op_shift}} & ((op_sra | op_srl) ? {  // 输入位反转
+        mux_op1[00],mux_op1[01],mux_op1[02],mux_op1[03],
             mux_op1[04],mux_op1[05],mux_op1[06],mux_op1[07],
             mux_op1[08],mux_op1[09],mux_op1[10],mux_op1[11],
             mux_op1[12],mux_op1[13],mux_op1[14],mux_op1[15],
@@ -108,14 +107,38 @@ module exu_alu (
 
     // 逻辑右移结果 - 通过反转左移结果
     wire [31:0] srl_res = {
-        shifter_res[00],shifter_res[01],shifter_res[02],shifter_res[03],
-        shifter_res[04],shifter_res[05],shifter_res[06],shifter_res[07],
-        shifter_res[08],shifter_res[09],shifter_res[10],shifter_res[11],
-        shifter_res[12],shifter_res[13],shifter_res[14],shifter_res[15],
-        shifter_res[16],shifter_res[17],shifter_res[18],shifter_res[19],
-        shifter_res[20],shifter_res[21],shifter_res[22],shifter_res[23],
-        shifter_res[24],shifter_res[25],shifter_res[26],shifter_res[27],
-        shifter_res[28],shifter_res[29],shifter_res[30],shifter_res[31]
+        shifter_res[00],
+        shifter_res[01],
+        shifter_res[02],
+        shifter_res[03],
+        shifter_res[04],
+        shifter_res[05],
+        shifter_res[06],
+        shifter_res[07],
+        shifter_res[08],
+        shifter_res[09],
+        shifter_res[10],
+        shifter_res[11],
+        shifter_res[12],
+        shifter_res[13],
+        shifter_res[14],
+        shifter_res[15],
+        shifter_res[16],
+        shifter_res[17],
+        shifter_res[18],
+        shifter_res[19],
+        shifter_res[20],
+        shifter_res[21],
+        shifter_res[22],
+        shifter_res[23],
+        shifter_res[24],
+        shifter_res[25],
+        shifter_res[26],
+        shifter_res[27],
+        shifter_res[28],
+        shifter_res[29],
+        shifter_res[30],
+        shifter_res[31]
     };
 
     // 算术右移结果 - 在逻辑右移基础上处理符号位
@@ -127,7 +150,7 @@ module exu_alu (
     //////////////////////////////////////////////////////////////
     wire [31:0] adder_in1;
     wire [31:0] adder_in2;
-    wire        adder_cin;
+    wire adder_cin;
     wire [32:0] adder_res;  // 33位，包含进位信息
 
     // 标识无符号操作
@@ -201,8 +224,7 @@ module exu_alu (
         ({32{op_lui}} & lui_res);
 
     // 所有算术逻辑操作都需要写回寄存器
-    wire alu_r_we = (int_assert_i == `INT_ASSERT) ? `WriteDisable :
-                      (req_alu_i | op_jump) ? `WriteEnable : `WriteDisable;
+    wire alu_r_we = !(int_assert_i == `INT_ASSERT) && (req_alu_i | op_jump) && reg_we_i;
 
     // 目标寄存器地址逻辑
     wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : alu_rd_i;
@@ -214,9 +236,9 @@ module exu_alu (
     assign alu_stall_o = reg_we_r & ~wb_ready_i;
 
     // 使用gnrl_dfflr实例化输出级寄存器
-    wire [`REG_DATA_WIDTH-1:0] result_r;
-    wire                       reg_we_r;
-    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    wire [ `REG_DATA_WIDTH-1:0] result_r;
+    wire                        reg_we_r;
+    wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
     // 结果寄存器
     gnrl_dfflr #(

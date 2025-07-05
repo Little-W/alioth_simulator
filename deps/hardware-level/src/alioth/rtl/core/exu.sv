@@ -467,12 +467,13 @@ module exu (
         .clk           (clk),
         .rst_n         (rst_n),
         .req_alu_i     (req_alu_o),
-        .hazard_stall_i(hazard_stall_i),  // 来自HDU的冒险暂停信号
+        .hazard_stall_i(hazard_stall_i),   // 来自HDU的冒险暂停信号
         .alu_op1_i     (alu_op1_o),
         .alu_op2_i     (alu_op2_o),
         .alu_op_info_i (alu_op_info_o),
         .alu_rd_i      (reg_waddr_i),
         .wb_ready_i    (alu_wb_ready_i),  // 使用ALU专用写回准备信号
+        .reg_we_i      (reg_we_i),
         .alu_stall_o   (alu_stall),
         .int_assert_i  (int_assert_i),
         .result_o      (alu_result),
