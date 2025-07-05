@@ -16,12 +16,13 @@
 `define PC_WRITE_TOHOST 32'h80000040
 
 // 添加监控的PC地址范围 - 修改为新的程序段
-`define PC_MONITOR_START 32'h80000104
-`define PC_MONITOR_END 32'h80000284
+`define PC_MONITOR_START 32'h80000334
+`define PC_MONITOR_END 32'h80000388
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.ram_inst
 `define seg_ori_data alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.seg_wdata
+`define cnt_start alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.counter_inst.start
 
 module tb_top (
     input clk,
@@ -37,7 +38,7 @@ module tb_top (
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_axi_master.inst_addr_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_idu.u_idu_id_pipe.inst_addr_o;
     wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.mcycle[31:0];
     wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
 
@@ -98,6 +99,9 @@ module tb_top (
                              pc, current_instructions);
                     last_monitored_pc  <= pc;
                     pc_monitor_counter <= pc_monitor_counter + 1;
+                    // 新增：打印所有通用寄存器
+                    for (r = 0; r < 32; r = r + 1)
+                        $display("[PC_MONITOR] x%2d = 0x%08x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
                 end
             end else begin
                 // 离开监控范围
@@ -142,7 +146,27 @@ module tb_top (
             // Reset logic
         end else begin
 `ifndef NO_TIMEOUT
-            if (current_cycle[27] == 1'b1) begin
+            if (current_cycle[26] == 1'b1) begin
+                // 新增：超时退出前打印IPC等性能信息
+                real ipc = (current_instructions > 0 && current_cycle > 0) ? 
+                          (current_instructions * 1.0) / current_cycle : 0.0;
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~ TIMEOUT ~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $write("~TESTCASE: ");
+                display_testcase_name();
+                $display("~");
+`ifdef DEBUG_PC_MONITOR
+                $display("~~~~~~~Total monitored PC changes: %d ~~~~~~~~~~~~~~", pc_monitor_counter);
+`endif
+                $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", current_cycle);
+                $display("~~~~~~~~~~Total instructions executed: %d ~~~~~~~~~~~~~",
+                         current_instructions);
+                $display("~~~~~~~~~~~~~~~~~~ IPC value: %.4f ~~~~~~~~~~~~~~~~~~", ipc);
+                $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
+                $display("~~~~~~~~~~~~~~~Final PC position: 0x%08x ~~~~~~~~~~~~~~", pc);
+                $display("PERF_METRIC: CYCLES=%-d INSTS=%-d IPC=%.4f", current_cycle,
+                         current_instructions, ipc);
                 $display("Time Out !!!");
                 $finish;
             end
@@ -366,6 +390,20 @@ module tb_top (
                 $display("[SEG_MONITOR] Cycle: %d, SEG value changed: 0x%08x -> 0x%08x",
                          current_cycle, last_seg_value, `seg_ori_data);
                 last_seg_value <= `seg_ori_data;
+            end
+        end
+    end
+
+    // 监控cnt_start信号变化
+    reg last_cnt_start;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_cnt_start <= 0;
+        end else begin
+            if (`cnt_start !== last_cnt_start) begin
+                $display("[CNT_START_MONITOR] Cycle: %d, cnt_start changed: %b -> %b",
+                         current_cycle, last_cnt_start, `cnt_start);
+                last_cnt_start <= `cnt_start;
             end
         end
     end
