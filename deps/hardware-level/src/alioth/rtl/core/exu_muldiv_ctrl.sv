@@ -35,7 +35,7 @@ module exu_muldiv_ctrl (
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
-    input wire [                3:0] commit_id_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 从dispatch接收的译码输入
     input wire req_muldiv_i,
@@ -82,14 +82,14 @@ module exu_muldiv_ctrl (
     output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
     output reg                       reg_we_o,
     output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
-    output reg [                3:0] commit_id_o
+    output reg [`COMMIT_ID_WIDTH-1:0] commit_id_o
 );
 
     // 添加寄存器保存乘除法指令的写回信息
     wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr;
     wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr;
-    wire [                3:0] saved_div_commit_id;
-    wire [                3:0] saved_mul_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id;
 
     // 添加状态寄存器，用于控制写回
     wire                       div_result_we;
@@ -120,7 +120,7 @@ module exu_muldiv_ctrl (
     wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr_nxt = reg_waddr_i;
 
     wire saved_div_commit_id_en = div_start_cond;
-    wire [3:0] saved_div_commit_id_nxt = commit_id_i;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id_nxt = commit_id_i;
 
     wire div_result_we_en = div_valid_i | (div_result_we && wb_ready && reg_we_o && !sel_mul);
     wire div_result_we_nxt = div_valid_i ? 1'b1 : 1'b0;
@@ -133,7 +133,7 @@ module exu_muldiv_ctrl (
     wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr_nxt = reg_waddr_i;
 
     wire saved_mul_commit_id_en = mul_start_cond;
-    wire [3:0] saved_mul_commit_id_nxt = commit_id_i;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_nxt = commit_id_i;
 
     wire mul_result_we_en = mul_valid_i | (mul_result_we && wb_ready && reg_we_o);
     wire mul_result_we_nxt = mul_valid_i ? 1'b1 : 1'b0;
@@ -153,7 +153,7 @@ module exu_muldiv_ctrl (
     );
 
     gnrl_dfflr #(
-        .DW(4)
+        .DW(`COMMIT_ID_WIDTH)
     ) saved_div_commit_id_dfflr (
         .clk  (clk),
         .rst_n(rst_n),
@@ -193,7 +193,7 @@ module exu_muldiv_ctrl (
     );
 
     gnrl_dfflr #(
-        .DW(4)
+        .DW(`COMMIT_ID_WIDTH)
     ) saved_mul_commit_id_dfflr (
         .clk  (clk),
         .rst_n(rst_n),

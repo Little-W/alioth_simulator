@@ -39,7 +39,7 @@ module wbu (
     input  wire [`REG_DATA_WIDTH-1:0] muldiv_reg_wdata_i,
     input  wire                       muldiv_reg_we_i,
     input  wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_i,
-    input  wire [                1:0] muldiv_inst_id_i,    // 乘除法指令ID
+    input  wire [`COMMIT_ID_WIDTH-1:0] muldiv_inst_id_i,    // 乘除法指令ID
     output wire                       muldiv_ready_o,      // MULDIV握手信号
 
     // 来自EXU的CSR数据
@@ -56,7 +56,7 @@ module wbu (
     input wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
     input wire                       agu_reg_we_i,
     input wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr_i,
-    input wire [                1:0] agu_inst_id_i,    // LSU指令ID
+    input wire [`COMMIT_ID_WIDTH-1:0] agu_inst_id_i,       // LSU指令ID
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
 
@@ -65,7 +65,7 @@ module wbu (
 
     // 长指令完成信号（对接hazard_detection）
     output wire       commit_valid_o,  // 指令完成有效信号
-    output wire [1:0] commit_id_o,     // 完成指令ID
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,     // 完成指令ID
 
     // 寄存器写回接口
     output wire [`REG_DATA_WIDTH-1:0] reg_wdata_o,

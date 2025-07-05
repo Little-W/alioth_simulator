@@ -135,16 +135,15 @@ module cpu_top (
     wire exu_mem_store_busy_o;
     wire hdu_stall_flag_o;
     wire hdu_long_inst_atom_lock_o;
-    wire [1:0] hdu_long_inst_id_o;
-    wire wbu_commit_valid_o;
-    wire [1:0] wbu_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] wbu_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] exu_alu_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] exu_muldiv_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] exu_agu_commit_id_o;
     wire wbu_alu_ready_o;
     wire wbu_muldiv_ready_o;
     wire wbu_csr_ready_o;
-    wire [7:0] exu_alu_commit_id_o;
-    wire [7:0] exu_muldiv_commit_id_o;
-    wire [7:0] exu_agu_commit_id_o;
-
+    wire wbu_commit_valid_o;
     // 显式声明原子操作忙信号，避免隐式定义
     wire atom_opt_busy;
 
@@ -475,7 +474,7 @@ module cpu_top (
         .muldiv_reg_wdata_i(exu_muldiv_reg_wdata_o),
         .muldiv_reg_we_i   (exu_muldiv_reg_we_o),
         .muldiv_reg_waddr_i(exu_muldiv_reg_waddr_o),
-        .muldiv_inst_id_i  (exu_muldiv_commit_id_o[1:0]),  // 乘除法指令ID
+        .muldiv_inst_id_i  (exu_muldiv_commit_id_o),  // 乘除法指令ID
         .muldiv_ready_o    (wbu_muldiv_ready_o),           // 新增握手信号
 
         .csr_wdata_i(exu_csr_wdata_o),
@@ -490,7 +489,7 @@ module cpu_top (
         .agu_reg_wdata_i(exu_agu_reg_wdata_o),
         .agu_reg_we_i   (exu_agu_reg_we_o),
         .agu_reg_waddr_i(exu_agu_reg_waddr_o),
-        .agu_inst_id_i  (exu_agu_commit_id_o[1:0]), // LSU指令ID
+        .agu_inst_id_i  (exu_agu_commit_id_o), // LSU指令ID
 
         .idu_reg_waddr_i(idu_reg_waddr_o),
 

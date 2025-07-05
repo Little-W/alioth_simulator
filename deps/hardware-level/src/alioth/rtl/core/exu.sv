@@ -40,7 +40,7 @@ module exu (
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
-    input wire [                 1:0] inst_id_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] inst_id_i,
 
     input wire alu_wb_ready_i,     // ALU写回握手信号
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
@@ -64,18 +64,18 @@ module exu (
     output wire                       alu_reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] alu_reg_waddr_o,
     // 新增ALU commit_id输出
-    output wire [                3:0] alu_commit_id_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] alu_commit_id_o,
 
     output wire [`REG_DATA_WIDTH-1:0] muldiv_reg_wdata_o,
     output wire                       muldiv_reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_o,
-    output wire [                3:0] muldiv_commit_id_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id_o,
 
     output wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_o,
     output wire                       agu_reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] agu_reg_waddr_o,
     // 新增AGU commit_id输出
-    output wire [                3:0] agu_commit_id_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] agu_commit_id_o,
 
     // 更新CSR寄存器写数据输出端口
     output wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
@@ -176,11 +176,11 @@ module exu (
     wire [ `REG_DATA_WIDTH-1:0] mul_multiplier;
     wire [                 3:0] mul_op;
 
-    // 新增：commit_id相关信号 - 修改为4位
-    wire [                 3:0] commit_id = {2'b0, inst_id_i};  // 将指令ID映射为4位commit_id
+    // 新增：commit_id相关信号 - 使用宏定义位宽
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id = {{(`COMMIT_ID_WIDTH-2){1'b0}}, inst_id_i};  // 将指令ID映射为COMMIT_ID_WIDTH位commit_id
 
-    // 修改为4位commit_id
-    wire [                 3:0] mem_commit_id = {2'b0, mem_inst_id};
+    // 修改为宏定义位宽
+    wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id = {{(`COMMIT_ID_WIDTH-2){1'b0}}, mem_inst_id};
 
     // 新增：ALU握手相关信号
     wire                        alu_stall;
@@ -578,7 +578,7 @@ module exu (
     assign alu_reg_wdata_o = alu_result;
     assign alu_reg_we_o = alu_reg_we;
     assign alu_reg_waddr_o = alu_reg_waddr;
-    assign alu_commit_id_o = {2'b0, inst_id_i};  // 修改为4位commit_id
+    assign alu_commit_id_o = inst_id_i;  // 修改为使用宏定义位宽
 
     assign muldiv_reg_wdata_o = muldiv_wdata;
     assign muldiv_reg_we_o = muldiv_we;
