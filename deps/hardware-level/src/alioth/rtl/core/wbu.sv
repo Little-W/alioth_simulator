@@ -51,6 +51,7 @@ module wbu (
     // CSR寄存器写数据输入
     input wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_i,
     input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_i,  // 保留寄存器写地址输入
+    input wire                       csr_reg_we_i,     // 新增：csr写回使能输入
 
     // 来自EXU的AGU/LSU数据
     input wire [`REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
@@ -81,12 +82,12 @@ module wbu (
     // 确定各单元活动状态
     wire agu_active = agu_reg_we_i;
     wire muldiv_active = muldiv_reg_we_i;
-    wire csr_active = csr_we_i;
+    wire csr_active = csr_reg_we_i;
     wire alu_active = alu_reg_we_i;
 
     // 根据优先级判断冲突
     wire muldiv_conflict = agu_active && muldiv_active;
-    wire csr_conflict = (agu_active || muldiv_active) && csr_active;
+    wire csr_conflict = (agu_active || muldiv_active) && csr_active && (~csr_reg_we_i);
     wire alu_conflict = (agu_active || muldiv_active || csr_active) && alu_active;
 
     // 各单元ready信号，当无冲突或者是最高优先级时为1
@@ -111,13 +112,13 @@ module wbu (
     // 使用与或结构简化数据选择逻辑
     assign reg_wdata_r = ({`REG_DATA_WIDTH{agu_en}} & agu_reg_wdata_i) |
                         ({`REG_DATA_WIDTH{muldiv_en}} & muldiv_reg_wdata_i) |
-                        ({`REG_DATA_WIDTH{csr_en}} & csr_reg_wdata_i) |
-                        ({`REG_DATA_WIDTH{alu_en}} & alu_reg_wdata_i);
+                        ({`REG_DATA_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_wdata_i) | // 仅当csr_reg_we_i有效时写回
+        ({`REG_DATA_WIDTH{alu_en}} & alu_reg_wdata_i);
 
     assign reg_waddr_r = ({`REG_ADDR_WIDTH{agu_en}} & agu_reg_waddr_i) |
                         ({`REG_ADDR_WIDTH{muldiv_en}} & muldiv_reg_waddr_i) |
-                        ({`REG_ADDR_WIDTH{csr_en}} & csr_reg_waddr_i) |
-                        ({`REG_ADDR_WIDTH{alu_en}} & alu_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_waddr_i) | // 仅当csr_reg_we_i有效时写回
+        ({`REG_ADDR_WIDTH{alu_en}} & alu_reg_waddr_i) |
                         ({`REG_ADDR_WIDTH{idu_en}} & idu_reg_waddr_i);
 
     // 输出到寄存器文件的信号
@@ -126,7 +127,7 @@ module wbu (
     assign reg_waddr_o = reg_waddr_r;
 
     // CSR写回信号
-    assign csr_we_o = (int_assert_i != `INT_ASSERT) && csr_active && !csr_conflict;
+    assign csr_we_o = (int_assert_i != `INT_ASSERT) && csr_we_i && !csr_conflict;
     assign csr_wdata_o = csr_wdata_i;
     assign csr_waddr_o = csr_waddr_i;
 

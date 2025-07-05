@@ -73,6 +73,8 @@ module cpu_top (
     wire [`REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
 
     // 系统操作信号
+    wire                        exu_csr_reg_we_o; // 新增：csr_reg_we信号线
+    // 系统操作信号
     wire exu_ecall_o;
     wire exu_ebreak_o;
     wire exu_mret_o;
@@ -400,7 +402,8 @@ module cpu_top (
 
         // 连接CSR寄存器写数据信号
         .csr_reg_wdata_o(exu_csr_reg_wdata_o),
-        .csr_reg_waddr_o(exu_csr_reg_waddr_o),  // 连接CSR寄存器写地址输出
+        .csr_reg_waddr_o(exu_csr_reg_waddr_o),
+        .csr_reg_we_o   (exu_csr_reg_we_o),     // 新增：连接csr_reg_we_o
 
         .csr_wdata_o(exu_csr_wdata_o),
         .csr_we_o   (exu_csr_we_o),
@@ -485,7 +488,7 @@ module cpu_top (
         // CSR对通用寄存器的写数据输入
         .csr_reg_wdata_i(exu_csr_reg_wdata_o),
         .csr_reg_waddr_i(exu_csr_reg_waddr_o),  // 连接CSR寄存器写地址
-
+        .csr_reg_we_i   (exu_csr_reg_we_o),
         .agu_reg_wdata_i(exu_agu_reg_wdata_o),
         .agu_reg_we_i   (exu_agu_reg_we_o),
         .agu_reg_waddr_i(exu_agu_reg_waddr_o),

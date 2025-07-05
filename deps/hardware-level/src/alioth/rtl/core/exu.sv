@@ -80,6 +80,7 @@ module exu (
     // 更新CSR寄存器写数据输出端口
     output wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
     output wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_o,
+    output wire                        csr_reg_we_o,
 
     // to csr reg
     output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
@@ -515,6 +516,7 @@ module exu (
         .csr_csrrc_i (csr_csrrc_o),
         .csr_rdata_i (csr_rdata_i),
         .csr_we_i    (csr_we_i),
+        .csr_reg_we_i(reg_we_i),
         .csr_waddr_i (csr_waddr_i),
         .reg_waddr_i (reg_waddr_i),      // 连接寄存器写地址输入
         .wb_ready_i  (csr_wb_ready_i),
@@ -524,7 +526,8 @@ module exu (
         .csr_we_o    (csr_we_o),
         .csr_waddr_o (csr_waddr_o),
         .reg_wdata_o (csr_reg_wdata_o),
-        .reg_waddr_o (csr_reg_waddr_o)   // 连接寄存器写地址输出
+        .reg_waddr_o (csr_reg_waddr_o),
+        .csr_reg_we_o(csr_reg_we_o) // 新增：连接csr_reg_we_o
     );
 
     // 乘除法控制逻辑 - 使用专用握手信号
