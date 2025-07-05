@@ -118,6 +118,7 @@ module perip_bridge (
 
     // counter rw
     counter counter_inst (
+        .clk_fast   (clk),                                     // 使用高速时钟
         .clk        (cnt_clk),
         .rst        (rst),
         .perip_wdata(perip_wdata),
