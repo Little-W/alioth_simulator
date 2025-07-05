@@ -561,10 +561,10 @@ module cpu_top (
 
         // 外设相关引脚
         .cnt_clk            (cnt_clk),
-        .virtual_sw_input   (virtual_sw_input),
-        .virtual_key_input  (virtual_key_input),
-        .virtual_seg_output (virtual_seg_output),
-        .virtual_led_output (virtual_led_output),
+        .virtual_sw_input   (virtual_sw_input_r),    // 使用缓存后的信号
+        .virtual_key_input  (virtual_key_input_r),   // 使用缓存后的信号
+        .virtual_seg_output (virtual_seg_output_r),  // 输出到缓存信号
+        .virtual_led_output (virtual_led_output_r),  // 输出到缓存信号
 
         // 端口0 - IFU指令获取接口 (M0)
         .M0_AXI_ARID   (ifu_axi_arid),
@@ -628,6 +628,40 @@ module cpu_top (
         .M1_AXI_RUSER  (exu_axi_ruser),
         .M1_AXI_RVALID (exu_axi_rvalid),
         .M1_AXI_RREADY (exu_axi_rready)
+    );
+
+    // 外设输入缓存寄存器
+    wire [63:0] virtual_sw_input_r;
+    wire [7:0]  virtual_key_input_r;
+
+    gnrl_dff #(.DW(64)) u_sw_input_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(virtual_sw_input),
+        .qout(virtual_sw_input_r)
+    );
+    gnrl_dff #(.DW(8)) u_key_input_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(virtual_key_input),
+        .qout(virtual_key_input_r)
+    );
+
+    // 外设输出缓存寄存器
+    wire [39:0] virtual_seg_output_r;
+    wire [31:0] virtual_led_output_r;
+
+    gnrl_dff #(.DW(40)) u_seg_output_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(virtual_seg_output_r),
+        .qout(virtual_seg_output)
+    );
+    gnrl_dff #(.DW(32)) u_led_output_dff (
+        .clk(clk),
+        .rst_n(rst_n),
+        .dnxt(virtual_led_output_r),
+        .qout(virtual_led_output)
     );
 
     // 定义原子操作忙信号 - 使用HDU的原子锁
