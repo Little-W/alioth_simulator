@@ -65,5 +65,6 @@ module ctrl (
     // 更新暂停标志输出，区分stall和flush
     assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | stall_flag_hdu_i | stall_flag_clint_i;
     assign stall_flag_o[`CU_FLUSH] = jump_flag_i | flush_flag_clint_i;
+    assign stall_flag_o[`CU_STALL_DISPATCH] = stall_flag_ex_i | stall_flag_clint_i;
 
 endmodule

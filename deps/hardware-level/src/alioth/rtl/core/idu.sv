@@ -38,10 +38,6 @@ module idu (
     // from ctrl
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
-    // 长指令完成信号 - 保留用于内部监控
-    input wire       commit_valid_i,  // 长指令执行完成有效信号
-    input wire [1:0] commit_id_i,     // 执行完成的长指令ID
-
     // to csr reg
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
 
