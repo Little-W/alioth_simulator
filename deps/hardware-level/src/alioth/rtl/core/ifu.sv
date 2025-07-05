@@ -35,11 +35,6 @@ module ifu (
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
-    // EXU -> BHT 回写接口
-    input wire                        update_valid_i, // 需更新?
-    input wire [`INST_ADDR_WIDTH-1:0] update_pc_i,    // 被更新 PC
-    input wire                        real_taken_i,   // 实际结果
-
     // 输出到ID阶段的信息
     output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,        // 指令地址
@@ -100,12 +95,7 @@ module ifu (
         .any_stall_i     (stall_axi),      // 流水线暂停信号
         .branch_taken_o  (branch_taken),   // 预测是否为分支
         .branch_addr_o   (branch_addr),    // 预测的分支地址
-        .is_pred_branch_o(is_pred_branch), // 当前指令是否为预测分支
-        
-        // 连接 BHT 回写接口
-        .update_valid_i  (update_valid_i),  // 需要更新
-        .update_pc_i     (update_pc_i),     // 被更新 PC
-        .real_taken_i    (real_taken_i)     // 分支实际结果
+        .is_pred_branch_o(is_pred_branch)  // 当前指令是否为预测分支
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
