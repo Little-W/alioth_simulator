@@ -298,8 +298,13 @@ module idu_decode (
 
     assign reg2_raddr_o = access_rs2 ? rs2 : 5'h0;
 
-    // 是否需要访问rd寄存器
-    wire access_rd = inst_lui | inst_auipc | inst_jal | inst_jalr | inst_type_load | opcode_0010011 | opcode_0110011 | op_csr;
+    // 是否需要访问rd寄存器，优化逻辑：
+    // 1. 只有真正需要写回的指令才会置位access_rd
+    // 2. 当rd=x0时不进行写回操作（RISC-V架构规定）
+    wire rd_not_zero = (rd != 5'h0);
+    wire access_rd = (inst_lui | inst_auipc | inst_jal | inst_jalr | 
+                     inst_type_load | (opcode_0010011 & (~inst_nop)) | opcode_0110011 | 
+                     op_csr) & rd_not_zero;
 
     assign reg_waddr_o = access_rd ? rd : 5'h0;
     assign reg_we_o    = access_rd;

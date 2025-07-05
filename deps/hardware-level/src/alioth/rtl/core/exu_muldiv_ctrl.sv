@@ -32,9 +32,9 @@ module exu_muldiv_ctrl (
     input wire hazard_stall_i,  // 添加数据冒险检测信号
 
     // 指令和操作数输入
-    input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
-    input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
-    input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
+    input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,
+    input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 从dispatch接收的译码输入
@@ -79,26 +79,26 @@ module exu_muldiv_ctrl (
     output reg muldiv_stall_flag_o,
 
     // 寄存器写回接口
-    output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
-    output reg                       reg_we_o,
-    output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
+    output reg [ `REG_DATA_WIDTH-1:0] reg_wdata_o,
+    output reg                        reg_we_o,
+    output reg [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,
     output reg [`COMMIT_ID_WIDTH-1:0] commit_id_o
 );
 
     // 添加寄存器保存乘除法指令的写回信息
-    wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr;
+    wire [ `REG_ADDR_WIDTH-1:0] saved_div_waddr;
+    wire [ `REG_ADDR_WIDTH-1:0] saved_mul_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id;
 
     // 添加状态寄存器，用于控制写回
-    wire                       div_result_we;
-    wire                       mul_result_we;
-    wire [`REG_DATA_WIDTH-1:0] saved_div_result;
-    wire [`REG_DATA_WIDTH-1:0] saved_mul_result;
+    wire                        div_result_we;
+    wire                        mul_result_we;
+    wire [ `REG_DATA_WIDTH-1:0] saved_div_result;
+    wire [ `REG_DATA_WIDTH-1:0] saved_mul_result;
 
     // 生成div_op_o的组合逻辑
-    wire [                3:0] div_op_sel;
+    wire [                 3:0] div_op_sel;
     assign div_op_sel = {muldiv_op_remu_i, muldiv_op_rem_i, muldiv_op_divu_i, muldiv_op_div_i};
 
     // 生成mul_op_o的组合逻辑

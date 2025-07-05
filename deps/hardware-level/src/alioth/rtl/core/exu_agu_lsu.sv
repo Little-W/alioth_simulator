@@ -55,7 +55,6 @@ module exu_agu_lsu #(
     input wire        mem_op_store_i,
     input wire [ 4:0] rd_addr_i,
 
-    // 修改commit_id输入为使用宏定义位宽
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 中断信号
@@ -72,7 +71,6 @@ module exu_agu_lsu #(
     output wire                       reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
 
-    // 修改commit_id输出为使用宏定义位宽
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
 
     // AXI Master接口
@@ -177,8 +175,8 @@ module exu_agu_lsu #(
     reg  [FIFO_PTR_WIDTH-1:0] write_fifo_rd_ptr;
     reg  [    FIFO_DEPTH-1:0] write_fifo_valid;
 
-    wire                      axi_rready;
-    wire                      axi_bready;
+    wire                        axi_rready;
+    wire                        axi_bready;
 
     // 读取请求FIFO数组 - 改为reg类型
     reg                       read_fifo_mem_op_lb     [0:FIFO_DEPTH-1];
@@ -201,10 +199,10 @@ module exu_agu_lsu #(
     reg  [`COMMIT_ID_WIDTH-1:0] current_commit_id_r;
 
     // 读写FIFO状态信号
-    wire                      read_fifo_empty;
-    wire                      read_fifo_full;
-    wire                      write_fifo_empty;
-    wire                      write_fifo_full;
+    wire                        read_fifo_empty;
+    wire                        read_fifo_full;
+    wire                        write_fifo_empty;
+    wire                        write_fifo_full;
 
     // FIFO状态计算
     assign read_fifo_empty = (read_fifo_wr_ptr == read_fifo_rd_ptr) && (read_fifo_valid[read_fifo_rd_ptr] == 1'b0);

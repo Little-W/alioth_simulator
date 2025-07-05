@@ -36,7 +36,7 @@ module exu_alu (
     input wire [31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,  // 统一的ALU操作信息信号
     input wire [4:0] alu_rd_i,
-
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,  // ALU指令ID
     // 握手信号和控制
     input  wire wb_ready_i,  // 写回单元准备好接收ALU结果
     output wire alu_stall_o,   // ALU暂停信号
@@ -47,7 +47,8 @@ module exu_alu (
     // 结果输出
     output wire [`REG_DATA_WIDTH-1:0] result_o,
     output wire                       reg_we_o,
-    output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o
+    output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o  // 输出指令ID
 );
 
     // ALU操作数选择 - 统一的运算器输入
@@ -208,7 +209,7 @@ module exu_alu (
     wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : alu_rd_i;
 
     // 握手信号控制逻辑
-    wire update_output = (wb_ready_i | ~reg_we_o) & ~hazard_stall_i;
+    wire update_output = (wb_ready_i | ~reg_we_o);
 
     // 握手失败时输出stall信号
     assign alu_stall_o = reg_we_r & ~wb_ready_i;
@@ -217,6 +218,7 @@ module exu_alu (
     wire [`REG_DATA_WIDTH-1:0] result_r;
     wire                       reg_we_r;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
 
     // 结果寄存器
     gnrl_dfflr #(
@@ -251,9 +253,21 @@ module exu_alu (
         .qout (reg_waddr_r)
     );
 
+    // commit ID寄存器
+    gnrl_dfflr #(
+        .DW(`COMMIT_ID_WIDTH)
+    ) u_commit_id_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (update_output),
+        .dnxt (commit_id_i),
+        .qout (commit_id_r)
+    );
+
     // 输出信号赋值
     assign result_o    = result_r;
     assign reg_we_o    = reg_we_r;
     assign reg_waddr_o = reg_waddr_r;
+    assign commit_id_o = commit_id_r;
 
 endmodule
