@@ -392,14 +392,15 @@ module exu (
     exu_alu u_alu (
         .clk           (clk),
         .rst_n         (rst_n),
-        .req_alu_i    (req_alu_i),
-        .hazard_stall_i(hazard_stall_i),  // 来自HDU的冒险暂停信号
-        .alu_op1_i    (alu_op1_i),
-        .alu_op2_i    (alu_op2_i),
-        .alu_op_info_i(alu_op_info_i),
+        .req_alu_i     (req_alu_i),
+        .hazard_stall_i(hazard_stall_i),   // 来自HDU的冒险暂停信号
+        .alu_op1_i     (alu_op1_i),
+        .alu_op2_i     (alu_op2_i),
+        .alu_op_info_i (alu_op_info_i),
         .alu_rd_i      (reg_waddr_i),
-        .commit_id_i  (commit_id_i),
-        .wb_ready_i   (alu_wb_ready_i),
+        .commit_id_i   (commit_id_i),
+        .wb_ready_i    (alu_wb_ready_i),
+        .reg_we_i      (reg_we_i),
         .alu_stall_o   (alu_stall),
         .int_assert_i  (int_assert_i),
         .result_o      (alu_reg_wdata_o),
@@ -410,26 +411,26 @@ module exu (
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
-        .rst_n         (rst_n),
-        .req_bjp_i     (req_bjp_i),
-        .bjp_op1_i     (bjp_op1_i),
-        .bjp_op2_i     (bjp_op2_i),
-        .bjp_jump_op1_i(bjp_jump_op1_i),
-        .bjp_jump_op2_i(bjp_jump_op2_i),
-        .bjp_op_jump_i (bjp_op_jump_i),
-        .bjp_op_beq_i  (bjp_op_beq_i),
-        .bjp_op_bne_i  (bjp_op_bne_i),
-        .bjp_op_blt_i  (bjp_op_blt_i),
-        .bjp_op_bltu_i (bjp_op_bltu_i),
-        .bjp_op_bge_i  (bjp_op_bge_i),
-        .bjp_op_bgeu_i (bjp_op_bgeu_i),
-        .bjp_op_jalr_i (bjp_op_jalr_i),
+        .rst_n           (rst_n),
+        .req_bjp_i       (req_bjp_i),
+        .bjp_op1_i       (bjp_op1_i),
+        .bjp_op2_i       (bjp_op2_i),
+        .bjp_jump_op1_i  (bjp_jump_op1_i),
+        .bjp_jump_op2_i  (bjp_jump_op2_i),
+        .bjp_op_jump_i   (bjp_op_jump_i),
+        .bjp_op_beq_i    (bjp_op_beq_i),
+        .bjp_op_bne_i    (bjp_op_bne_i),
+        .bjp_op_blt_i    (bjp_op_blt_i),
+        .bjp_op_bltu_i   (bjp_op_bltu_i),
+        .bjp_op_bge_i    (bjp_op_bge_i),
+        .bjp_op_bgeu_i   (bjp_op_bgeu_i),
+        .bjp_op_jalr_i   (bjp_op_jalr_i),
         .is_pred_branch_i(is_pred_branch_i),  // 新增：预测分支指令标志输入
-        .sys_op_fence_i(sys_op_fence_i),
-        .int_assert_i  (int_assert_i),
-        .int_addr_i    (int_addr_i),
-        .jump_flag_o   (bru_jump_flag),
-        .jump_addr_o   (bru_jump_addr)
+        .sys_op_fence_i  (sys_op_fence_i),
+        .int_assert_i    (int_assert_i),
+        .int_addr_i      (int_addr_i),
+        .jump_flag_o     (bru_jump_flag),
+        .jump_addr_o     (bru_jump_addr)
     );
 
     // CSR处理单元模块例化
@@ -464,12 +465,12 @@ module exu (
     exu_muldiv_ctrl u_muldiv_ctrl (
         .clk           (clk),
         .rst_n         (rst_n),
-        .wb_ready    (muldiv_wb_ready_i),  // 使用MULDIV专用写回准备信号
-        .hazard_stall_i(0),         // 连接数据冒险暂停信号
+        .wb_ready      (muldiv_wb_ready_i),  // 使用MULDIV专用写回准备信号
+        .hazard_stall_i(0),                  // 连接数据冒险暂停信号
         .reg_waddr_i   (reg_waddr_i),
         .reg1_rdata_i  (reg1_rdata_i),
         .reg2_rdata_i  (reg2_rdata_i),
-        .commit_id_i (muldiv_commit_id_i), // 直接使用3位
+        .commit_id_i   (muldiv_commit_id_i), // 直接使用3位
 
         // 连接dispatch模块的译码信号
         .req_muldiv_i       (req_muldiv_i),
@@ -504,7 +505,7 @@ module exu (
         .reg_wdata_o        (muldiv_reg_wdata_o),
         .reg_we_o           (muldiv_reg_we_o),
         .reg_waddr_o        (muldiv_reg_waddr_o),
-        .commit_id_o        (muldiv_commit_id_o)    // 3位commit_id输出
+        .commit_id_o        (muldiv_commit_id_o)   // 3位commit_id输出
     );
 
     // 输出选择逻辑
