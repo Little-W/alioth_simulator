@@ -225,28 +225,17 @@ module cpu_top (
     wire exu_axi_rvalid;
     wire exu_axi_rready;
 
-    // 新增 BHT 回写接口信号
-    wire bht_update_valid;  // BHT更新有效
-    wire [`INST_ADDR_WIDTH-1:0] bht_update_pc;  // BHT更新的PC
-    wire bht_real_taken;  // 分支实际结果
-
     // IFU模块例化
     ifu u_ifu (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .jump_flag_i (ctrl_jump_flag_o),
-        .jump_addr_i (ctrl_jump_addr_o),
-        .stall_flag_i(ctrl_stall_flag_o),
-
-        // 连接 BHT 回写接口
-        .update_valid_i(bht_update_valid),
-        .update_pc_i   (bht_update_pc),
-        .real_taken_i  (bht_real_taken),
-
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .jump_flag_i      (ctrl_jump_flag_o),
+        .jump_addr_i      (ctrl_jump_addr_o),
+        .stall_flag_i     (ctrl_stall_flag_o),
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
-        .is_pred_branch_o (if_is_pred_branch_o),    // 连接预测分支信号输出
+        .is_pred_branch_o (if_is_pred_branch_o),  // 连接预测分支信号输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -322,26 +311,26 @@ module cpu_top (
 
     // idu模块例化 - 更新接口，移除长指令ID相关接口
     idu u_idu (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .inst_i          (if_inst_o),
-        .inst_addr_i     (if_inst_addr_o),
-        .stall_flag_i    (ctrl_stall_flag_o),
-        .is_pred_branch_i(if_is_pred_branch_o), // 连接预测分支信号输入
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .inst_i      (if_inst_o),
+        .inst_addr_i (if_inst_addr_o),
+        .stall_flag_i(ctrl_stall_flag_o),
+        .is_pred_branch_i(if_is_pred_branch_o),  // 连接预测分支信号输入
 
         .commit_valid_i(wbu_commit_valid_o),
         .commit_id_i   (wbu_commit_id_o),
 
-        .csr_raddr_o     (id_csr_raddr_o),
-        .inst_addr_o     (idu_inst_addr_o),
-        .reg_we_o        (idu_reg_we_o),
-        .reg_waddr_o     (idu_reg_waddr_o),
-        .reg1_raddr_o    (idu_reg1_raddr_o),
-        .reg2_raddr_o    (idu_reg2_raddr_o),
-        .csr_we_o        (idu_csr_we_o),
-        .csr_waddr_o     (idu_csr_waddr_o),
-        .dec_imm_o       (idu_dec_imm_o),
-        .dec_info_bus_o  (idu_dec_info_bus_o),
+        .csr_raddr_o   (id_csr_raddr_o),
+        .inst_addr_o   (idu_inst_addr_o),
+        .reg_we_o      (idu_reg_we_o),
+        .reg_waddr_o   (idu_reg_waddr_o),
+        .reg1_raddr_o  (idu_reg1_raddr_o),
+        .reg2_raddr_o  (idu_reg2_raddr_o),
+        .csr_we_o      (idu_csr_we_o),
+        .csr_waddr_o   (idu_csr_waddr_o),
+        .dec_imm_o     (idu_dec_imm_o),
+        .dec_info_bus_o(idu_dec_info_bus_o),
         .is_pred_branch_o(idu_is_pred_branch_o)  // 连接预测分支信号输出
     );
 
@@ -369,20 +358,20 @@ module cpu_top (
 
     // exu模块例化 - 直接从HDU接收长指令ID
     exu u_exu (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .inst_addr_i     (idu_inst_addr_o),
-        .reg_we_i        (idu_reg_we_o),
-        .reg_waddr_i     (idu_reg_waddr_o),
-        .csr_we_i        (idu_csr_we_o),
-        .csr_waddr_i     (idu_csr_waddr_o),
-        .csr_rdata_i     (csr_data_o),
-        .dec_info_bus_i  (idu_dec_info_bus_o),
-        .dec_imm_i       (idu_dec_imm_o),
-        .mem_rdata_i     (exu_mem_data_i),
-        .int_assert_i    (clint_int_assert_o),
-        .int_addr_i      (clint_int_addr_o),
-        .is_pred_branch_i(idu_is_pred_branch_o), // 连接预测分支信号输入
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .inst_addr_i   (idu_inst_addr_o),
+        .reg_we_i      (idu_reg_we_o),
+        .reg_waddr_i   (idu_reg_waddr_o),
+        .csr_we_i      (idu_csr_we_o),
+        .csr_waddr_i   (idu_csr_waddr_o),
+        .csr_rdata_i   (csr_data_o),
+        .dec_info_bus_i(idu_dec_info_bus_o),
+        .dec_imm_i     (idu_dec_imm_o),
+        .mem_rdata_i   (exu_mem_data_i),
+        .int_assert_i  (clint_int_assert_o),
+        .int_addr_i    (clint_int_addr_o),
+        .is_pred_branch_i(idu_is_pred_branch_o),  // 连接预测分支信号输入
 
         // 修改：直接从HDU获取长指令ID
         .inst_id_i(hdu_long_inst_id_o),
@@ -433,11 +422,6 @@ module cpu_top (
         .exu_op_ecall_o (exu_ecall_o),
         .exu_op_ebreak_o(exu_ebreak_o),
         .exu_op_mret_o  (exu_mret_o),
-
-        // BHT回写接口连接
-        .update_valid_o(bht_update_valid),
-        .update_pc_o   (bht_update_pc),
-        .real_taken_o  (bht_real_taken),
 
         // 添加AXI接口连接
         .M_AXI_AWID   (exu_axi_awid),
@@ -554,7 +538,7 @@ module cpu_top (
         .waddr_o        (clint_waddr_o),
         .raddr_o        (clint_raddr_o),
         .data_o         (clint_data_o),
-        .flush_flag_o   (clint_flush_flag_o),     // 连接flush信号
+        .flush_flag_o   (clint_flush_flag_o),  // 连接flush信号
         .stall_flag_o   (clint_stall_flag_o),
         .global_int_en_i(csr_global_int_en_o),
         .int_addr_o     (clint_int_addr_o),
