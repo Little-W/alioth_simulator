@@ -46,8 +46,6 @@ module exu (
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
     input wire csr_wb_ready_i,     // CSR写回握手信号
     input wire is_pred_branch_i,   // 添加预测分支指令标志输入
-    input wire is_pred_jalr_i,     // 添加预测JALR指令标志输入
-    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,  // 添加预测分支地址输入
 
     // from mem
     input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
@@ -481,7 +479,7 @@ module exu (
         .reg_waddr_o   (alu_reg_waddr)
     );
 
-    // 分支单元模块例化 - 添加新信号的连接
+    // 分支单元模块例化 - 保持不变
     exu_bru u_bru (
         .rst_n           (rst_n),
         .req_bjp_i       (req_bjp_o),
@@ -497,9 +495,7 @@ module exu (
         .bjp_op_bge_i    (bjp_op_bge_o),
         .bjp_op_bgeu_i   (bjp_op_bgeu_o),
         .bjp_op_jalr_i   (bjp_op_jalr_o),
-        .is_pred_branch_i(is_pred_branch_i),
-        .is_pred_jalr_i  (is_pred_jalr_i),     // 新增：连接预测JALR指令标志
-        .branch_addr_i   (branch_addr_i),      // 新增：连接预测分支地址
+        .is_pred_branch_i(is_pred_branch_i),  // 新增：预测分支指令标志输入
         .sys_op_fence_i  (sys_op_fence_o),
         .int_assert_i    (int_assert_i),
         .int_addr_i      (int_addr_i),

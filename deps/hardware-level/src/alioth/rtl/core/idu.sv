@@ -34,8 +34,6 @@ module idu (
     input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i, // 指令地址
     input wire                        is_pred_branch_i, // 添加预测分支指令标志输入
-    input wire                        is_pred_jalr_i,   // 添加预测JALR指令标志输入
-    input wire [`INST_ADDR_WIDTH-1:0] branch_addr_i,    // 添加预测分支地址输入
 
     // from ctrl
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
@@ -57,9 +55,7 @@ module idu (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
     output wire [                31:0] dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
-    output wire                        is_pred_branch_o, // 添加预测分支指令标志输出
-    output wire                        is_pred_jalr_o,   // 添加预测JALR指令标志输出
-    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o     // 添加预测分支地址输出
+    output wire                        is_pred_branch_o // 添加预测分支指令标志输出
 );
 
     // 内部连线，连接id和id_pipe
@@ -99,7 +95,7 @@ module idu (
         .csr_waddr_o   (id_csr_waddr)
     );
 
-    // 实例化idu_id_pipe模块 - 添加预测信号
+    // 实例化idu_id_pipe模块 - 添加预测分支信号
     idu_id_pipe u_idu_id_pipe (
         .clk  (clk),
         .rst_n(rst_n),
@@ -116,8 +112,6 @@ module idu (
         .dec_info_bus_i(id_dec_info_bus),
         .dec_imm_i     (id_dec_imm),
         .is_pred_branch_i(is_pred_branch_i),  // 添加预测分支信号输入
-        .is_pred_jalr_i  (is_pred_jalr_i),    // 添加预测JALR信号输入
-        .branch_addr_i   (branch_addr_i),     // 添加预测分支地址输入
 
         // from ctrl
         .stall_flag_i(stall_flag_i),
@@ -133,9 +127,7 @@ module idu (
         .csr_raddr_o   (csr_raddr_o),
         .dec_imm_o     (dec_imm_o),
         .dec_info_bus_o(dec_info_bus_o),
-        .is_pred_branch_o(is_pred_branch_o),  // 添加预测分支信号输出
-        .is_pred_jalr_o  (is_pred_jalr_o),    // 添加预测JALR信号输出
-        .branch_addr_o   (branch_addr_o)      // 添加预测分支地址输出
+        .is_pred_branch_o(is_pred_branch_o)  // 添加预测分支信号输出
     );
 
 endmodule
