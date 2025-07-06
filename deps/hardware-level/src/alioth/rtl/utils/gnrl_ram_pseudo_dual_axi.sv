@@ -28,7 +28,7 @@
 module gnrl_ram_pseudo_dual_axi #(
     parameter ADDR_WIDTH = 16,  // 地址宽度参数
     parameter DATA_WIDTH = 32,  // 数据宽度参数
-    parameter INIT_MEM = 1,           // 是否初始化内存，1表示初始化，0表示不初始化
+    parameter INIT_MEM = 1,  // 是否初始化内存，1表示初始化，0表示不初始化
     parameter INIT_FILE = "prog.mem",  // 初始化文件路径
 
     // AXI接口参数
@@ -96,17 +96,25 @@ module gnrl_ram_pseudo_dual_axi #(
     // 读FIFO相关信号定义
     reg [PTR_WIDTH-1:0] rfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] rfifo_wr_ptr;
-    reg [PTR_WIDTH:0] fifo_count;
-    reg [C_S_AXI_ADDR_WIDTH-1:0] fifo_addr[0:FIFO_DEPTH-1];
-    reg [C_S_AXI_ID_WIDTH-1:0] fifo_id[0:FIFO_DEPTH-1];  // 添加FIFO ID存储
+    reg [PTR_WIDTH:0] rd_fifo_count;
+    reg [C_S_AXI_ID_WIDTH-1:0] fifo_arid[0:FIFO_DEPTH-1];  // 添加FIFO ID存储
     wire [1:0] rd_fifo_op;
+
+    // 读数据FIFO相关信号
+    reg [PTR_WIDTH-1:0] rdata_fifo_rd_ptr;
+    reg [PTR_WIDTH-1:0] rdata_fifo_wr_ptr;
+    reg [PTR_WIDTH:0] rdata_fifo_count;
+    reg [C_S_AXI_DATA_WIDTH-1:0] rdata_fifo[0:FIFO_DEPTH-1];  // 读数据FIFO
+    reg [C_S_AXI_ID_WIDTH-1:0] rdata_fifo_rid[0:FIFO_DEPTH-1];  // 读数据对应的ID
+    reg rdata_fifo_last[0:FIFO_DEPTH-1];  // 读数据是否为最后一个
+    wire [1:0] rdata_fifo_op;
 
     // 写FIFO相关信号定义
     reg [PTR_WIDTH-1:0] wfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] wfifo_wr_ptr;
     reg [PTR_WIDTH:0] wr_fifo_count;
     reg [C_S_AXI_ADDR_WIDTH-1:0] wr_fifo_addr[0:FIFO_DEPTH-1];
-    reg  [  C_S_AXI_ID_WIDTH-1:0] wr_fifo_id       [0:FIFO_DEPTH-1]; // 添加写FIFO ID存储
+    reg [C_S_AXI_ID_WIDTH-1:0] wr_fifo_id[0:FIFO_DEPTH-1];  // 添加写FIFO ID存储
     wire [1:0] wr_fifo_op;
 
     // 读通道相关信号
@@ -116,6 +124,7 @@ module gnrl_ram_pseudo_dual_axi #(
     reg [1:0] axi_arburst;
     reg [C_S_AXI_ADDR_WIDTH-1:0] axi_araddr;
     reg axi_ar_flag;
+
     wire axi_rlast_signal;
 
     // 写通道相关信号
@@ -143,6 +152,7 @@ module gnrl_ram_pseudo_dual_axi #(
     wire [C_S_AXI_ADDR_WIDTH-1:0] aw_wrap_size;
     wire aw_wrap_en;
 
+    reg ram_data_valid;  // RAM数据有效标志
     // 计算地址增量（基于传输大小）
     assign addr_increment = (1 << ADDR_LSB);
 
@@ -166,45 +176,76 @@ module gnrl_ram_pseudo_dual_axi #(
         S_AXI_WVALID && S_AXI_WREADY     // 写数据输入有效且握手完成 - 弹出操作条件 [0]
     };
 
+    // 读数据FIFO操作控制: {push, pop}
+    assign rdata_fifo_op = {
+        (rdata_fifo_count < FIFO_DEPTH) && ram_data_valid &&
+         !S_AXI_RREADY && (rdata_fifo_count <= rd_fifo_count),  // 推入操作条件 [1]
+        S_AXI_RVALID && S_AXI_RREADY && rdata_fifo_count > 0  // 弹出操作条件 [0]
+    };
+
     // 读地址通道处理
     always @(posedge S_AXI_ACLK) begin
         if (!S_AXI_ARESETN) begin
-            rfifo_rd_ptr <= 0;
-            rfifo_wr_ptr <= 0;
-            fifo_count   <= 0;
+            rfifo_rd_ptr  <= 0;
+            rfifo_wr_ptr  <= 0;
+            rd_fifo_count <= 0;
         end else begin
             // 处理FIFO推入和弹出
             case (rd_fifo_op)
                 2'b10: begin  // 只推入
-                    fifo_addr[rfifo_wr_ptr] <= S_AXI_ARADDR;  // 保存读请求地址
-                    fifo_id[rfifo_wr_ptr] <= S_AXI_ARID;  // 保存读请求ID
-                    rfifo_wr_ptr <= rfifo_wr_ptr + 1'd1;  // 循环指针
-                    fifo_count <= fifo_count + 1'd1;
+                    fifo_arid[rfifo_wr_ptr] <= S_AXI_ARID;  // 保存读请求ID
+                    rfifo_wr_ptr            <= rfifo_wr_ptr + 1'd1;  // 循环指针
+                    rd_fifo_count           <= rd_fifo_count + 1'd1;
                 end
                 2'b01: begin  // 只弹出
-                    rfifo_rd_ptr <= rfifo_rd_ptr + 1'd1;  // 循环指针
-                    fifo_count   <= fifo_count - 1'd1;
+                    rfifo_rd_ptr  <= rfifo_rd_ptr + 1'd1;  // 循环指针
+                    rd_fifo_count <= rd_fifo_count - 1'd1;
                 end
                 2'b11: begin  // 同时推入和弹出
-                    fifo_addr[rfifo_wr_ptr] <= S_AXI_ARADDR;  // 保存读请求地址
-                    fifo_id[rfifo_wr_ptr] <= S_AXI_ARID;  // 保存读请求ID
-                    rfifo_wr_ptr <= rfifo_wr_ptr + 1'd1;
-                    rfifo_rd_ptr <= rfifo_rd_ptr + 1'd1;
+                    fifo_arid[rfifo_wr_ptr] <= S_AXI_ARID;  // 保存读请求ID
+                    rfifo_wr_ptr            <= rfifo_wr_ptr + 1'd1;
+                    rfifo_rd_ptr            <= rfifo_rd_ptr + 1'd1;
                     // fifo_count保持不变
                 end
                 default: begin  // 2'b00: 无操作
                     // 保持当前状态
                 end
             endcase
+        end
+    end
 
-            // 处理读传输计数
-            if (S_AXI_RVALID && S_AXI_RREADY) begin
-                if (axi_arlen_cntr < axi_arlen) begin
-                    // 同步更新FIFO中读指针位置的地址，确保burst传输中地址同步更新
-                    fifo_addr[rfifo_rd_ptr] <= axi_araddr;
-                    // ID在burst传输中保持不变，不需要更新
+    // 读数据FIFO处理逻辑
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN) begin
+            rdata_fifo_rd_ptr <= 0;
+            rdata_fifo_wr_ptr <= 0;
+            rdata_fifo_count  <= 0;
+        end else begin
+            // 处理FIFO推入和弹出
+            case (rdata_fifo_op)
+                2'b10: begin  // 只推入
+                    rdata_fifo[rdata_fifo_wr_ptr] <= ram_rdata;  // 保存RAM读取的数据
+                    rdata_fifo_last[rdata_fifo_wr_ptr] <= axi_rlast_signal;  // 保存是否为最后一个数据
+                    rdata_fifo_wr_ptr <= rdata_fifo_wr_ptr + 1'd1;  // 循环指针
+                    rdata_fifo_count <= rdata_fifo_count + 1'd1;
+                    rdata_fifo_rid[rdata_fifo_wr_ptr] <= fifo_arid[rfifo_rd_ptr];  // 保存对应的ID
                 end
-            end
+                2'b01: begin  // 只弹出
+                    rdata_fifo_rd_ptr <= rdata_fifo_rd_ptr + 1'd1;  // 循环指针
+                    rdata_fifo_count  <= rdata_fifo_count - 1'd1;
+                end
+                2'b11: begin  // 同时推入和弹出
+                    rdata_fifo_rid[rdata_fifo_wr_ptr] <= fifo_arid[rfifo_rd_ptr];  // 保存对应的ID
+                    rdata_fifo[rdata_fifo_wr_ptr] <= ram_rdata;  // 保存RAM读取的数据
+                    rdata_fifo_last[rdata_fifo_wr_ptr] <= axi_rlast_signal;  // 保存是否为最后一个数据
+                    rdata_fifo_wr_ptr <= rdata_fifo_wr_ptr + 1'd1;
+                    rdata_fifo_rd_ptr <= rdata_fifo_rd_ptr + 1'd1;
+                    // rdata_fifo_count保持不变
+                end
+                default: begin  // 2'b00: 无操作
+                    // 保持当前状态
+                end
+            endcase
         end
     end
 
@@ -273,15 +314,16 @@ module gnrl_ram_pseudo_dual_axi #(
     // 生成RLAST信号的逻辑，如果当前传输计数等于总长度，则表示这是最后一个数据
     assign axi_rlast_signal = (axi_arlen_cntr == axi_arlen) ? 1'b1 : 1'b0;
 
-    // AXI读数据通道信号 - 修改为FIFO不为空时始终有效
-    assign S_AXI_RVALID = (fifo_count > 0);
-    assign S_AXI_RID = fifo_id[rfifo_rd_ptr];  // 使用FIFO中保存的ID
+    // AXI读数据通道信号 - 修改为从数据FIFO读取
+    assign S_AXI_RVALID = (rd_fifo_count > 0);
+    assign S_AXI_RID = fifo_arid[rfifo_rd_ptr];
     assign S_AXI_RRESP = 2'b00;  // OKAY
-    assign S_AXI_RLAST = axi_rlast_signal;
+    assign S_AXI_RLAST = (rdata_fifo_count > 0) ? rdata_fifo_last[rdata_fifo_rd_ptr] : axi_rlast_signal;  // 使用FIFO中保存的最后一个标志
+    assign S_AXI_RDATA = (rdata_fifo_count > 0) ? rdata_fifo[rdata_fifo_rd_ptr] : ram_rdata;
 
     // 添加S_AXI_ARREADY的赋值逻辑
-    // 当FIFO未满且当前没有正在进行的BURST传输时才接受新的读请求
-    assign S_AXI_ARREADY = (fifo_count < FIFO_DEPTH) && S_AXI_RLAST;
+    // 当地址FIFO未满且当前没有正在进行的BURST传输时才接受新的读请求
+    assign S_AXI_ARREADY = (rd_fifo_count < FIFO_DEPTH) && (axi_arlen_cntr == axi_arlen);
 
     // 修改S_AXI_AWREADY的赋值逻辑，支持outstanding写入
     // 当写地址FIFO未满时才接受新的写请求
@@ -358,9 +400,9 @@ module gnrl_ram_pseudo_dual_axi #(
             case (wr_fifo_op)
                 2'b10: begin  // 只推入
                     wr_fifo_addr[wfifo_wr_ptr] <= S_AXI_AWADDR;  // 保存写请求地址
-                    wr_fifo_id[wfifo_wr_ptr] <= S_AXI_AWID;  // 保存写请求ID
-                    wfifo_wr_ptr <= wfifo_wr_ptr + 1'd1;  // 循环指针
-                    wr_fifo_count <= wr_fifo_count + 1'd1;
+                    wr_fifo_id[wfifo_wr_ptr]   <= S_AXI_AWID;  // 保存写请求ID
+                    wfifo_wr_ptr               <= wfifo_wr_ptr + 1'd1;  // 循环指针
+                    wr_fifo_count              <= wr_fifo_count + 1'd1;
                 end
                 2'b01: begin  // 只弹出
                     wfifo_rd_ptr  <= wfifo_rd_ptr + 1'd1;  // 循环指针
@@ -368,9 +410,9 @@ module gnrl_ram_pseudo_dual_axi #(
                 end
                 2'b11: begin  // 同时推入和弹出
                     wr_fifo_addr[wfifo_wr_ptr] <= S_AXI_AWADDR;  // 保存写请求地址
-                    wr_fifo_id[wfifo_wr_ptr] <= S_AXI_AWID;  // 保存写请求ID
-                    wfifo_wr_ptr <= wfifo_wr_ptr + 1'd1;
-                    wfifo_rd_ptr <= wfifo_rd_ptr + 1'd1;
+                    wr_fifo_id[wfifo_wr_ptr]   <= S_AXI_AWID;  // 保存写请求ID
+                    wfifo_wr_ptr               <= wfifo_wr_ptr + 1'd1;
+                    wfifo_rd_ptr               <= wfifo_rd_ptr + 1'd1;
                     // wr_fifo_count保持不变
                 end
                 default: begin  // 2'b00: 无操作
@@ -446,12 +488,20 @@ module gnrl_ram_pseudo_dual_axi #(
     // 其他情况使用FIFO中的地址
     assign ram_raddr = (S_AXI_ARVALID && S_AXI_ARREADY) ? 
                        S_AXI_ARADDR[ADDR_WIDTH-1:0] : 
-                       (axi_arlen > 0 && axi_arlen_cntr > 0) ? 
-                       axi_araddr[ADDR_WIDTH-1:0] : 
-                       fifo_addr[rfifo_rd_ptr][ADDR_WIDTH-1:0];
+                       axi_araddr[ADDR_WIDTH-1:0];
 
-    // 直接将RAM读取数据连接到AXI读数据通道
-    assign S_AXI_RDATA = ram_rdata;
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN) begin
+            ram_data_valid <= 1'b0;
+        end else begin
+            // 当有新的读请求时，设置数据有效标志
+            if (S_AXI_ARVALID && S_AXI_ARREADY || (axi_arlen > 0 && axi_arlen_cntr > 0)) begin
+                ram_data_valid <= 1'b1;
+            end else begin
+                ram_data_valid <= 1'b0;  // 清除数据有效标志
+            end
+        end
+    end
 
     // 实例化伪双端口RAM
     gnrl_ram_pseudo_dual #(
