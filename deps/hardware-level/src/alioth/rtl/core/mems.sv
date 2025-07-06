@@ -313,6 +313,53 @@ module mems #(
     wire perip_wready;
     wire perip_awready;
 
+    // 读响应FIFO寄存器
+    reg [C_AXI_ID_WIDTH-1:0] m0_rdata_rid[RDATA_FIFO_DEPTH-1:0];
+    reg [C_AXI_DATA_WIDTH-1:0] m0_rdata_rdata[RDATA_FIFO_DEPTH-1:0];
+    reg [1:0] m0_rdata_rresp[RDATA_FIFO_DEPTH-1:0];
+    reg m0_rdata_rlast[RDATA_FIFO_DEPTH-1:0];
+
+    // FIFO指针和控制信号
+    reg [RDATA_FIFO_ADDR_WIDTH-1:0] m0_rdata_wr_ptr;
+    reg [RDATA_FIFO_ADDR_WIDTH-1:0] m0_rdata_rd_ptr;
+    reg [RDATA_FIFO_ADDR_WIDTH:0] m0_rdata_count;  // 额外位用于区分满和空
+
+    wire m0_rdata_empty = (m0_rdata_count == 0);
+    wire m0_rdata_full = (m0_rdata_count == RDATA_FIFO_DEPTH);
+
+    // FIFO操作控制
+    wire m0_rdata_push = itcm_rvalid && m0_has_active_itcm_r && !m1_has_active_itcm_r &&
+                        ((!M0_AXI_RREADY && M1_AXI_ARVALID) || m0_rdata_count > 0);
+    wire m0_rdata_pop = !m0_rdata_empty && M0_AXI_RREADY;
+
+    // FIFO控制逻辑
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m0_rdata_wr_ptr <= 0;
+            m0_rdata_rd_ptr <= 0;
+            m0_rdata_count  <= 0;
+        end else begin
+            // 同时推入和弹出
+            if (m0_rdata_push && m0_rdata_pop) begin
+                m0_rdata_wr_ptr <= (m0_rdata_wr_ptr == RDATA_FIFO_DEPTH - 1) ? 0 : m0_rdata_wr_ptr + 1;
+                m0_rdata_rd_ptr <= (m0_rdata_rd_ptr == RDATA_FIFO_DEPTH - 1) ? 0 : m0_rdata_rd_ptr + 1;
+                // m0_rdata_count保持不变
+            end  // 只推入
+            else if (m0_rdata_push && !m0_rdata_full) begin
+                m0_rdata_rid[m0_rdata_wr_ptr] <= itcm_rid;
+                m0_rdata_rdata[m0_rdata_wr_ptr] <= itcm_rdata;
+                m0_rdata_rresp[m0_rdata_wr_ptr] <= itcm_rresp;
+                m0_rdata_rlast[m0_rdata_wr_ptr] <= itcm_rlast;
+                m0_rdata_wr_ptr <= (m0_rdata_wr_ptr == RDATA_FIFO_DEPTH - 1) ? 0 : m0_rdata_wr_ptr + 1;
+                m0_rdata_count <= m0_rdata_count + 1;
+            end  // 只弹出
+            else if (m0_rdata_pop) begin
+                m0_rdata_rd_ptr <= (m0_rdata_rd_ptr == RDATA_FIFO_DEPTH - 1) ? 0 : m0_rdata_rd_ptr + 1;
+                m0_rdata_count <= m0_rdata_count - 1;
+            end
+        end
+    end
+
     // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
     // M0和M1同时访问ITCM时的仲裁标志
     wire m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
@@ -349,7 +396,7 @@ module mems #(
     wire m1_select_perip_r = m1_has_active_perip_r || (!m1_has_active_itcm_r && m1_perip_ar_grant);
 
     // 读通道ready信号连接
-    wire m0_itcm_rready = m0_itcm_r_priority && M0_AXI_RREADY;
+    wire m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
     wire m1_itcm_rready = m1_itcm_r_priority && M1_AXI_RREADY;
     wire m1_perip_rready = m1_select_perip_r && M1_AXI_RREADY;
 
@@ -403,15 +450,22 @@ module mems #(
     assign perip_arprot = M1_AXI_ARPROT;
     assign perip_arvalid = m1_perip_grant ? M1_AXI_ARVALID : 1'b0;
 
+    // 为M0添加读响应FIFO - 用于缓存ITCM的读响应
+    // FIFO深度设置为8，足够缓存一般的突发传输
+    localparam RDATA_FIFO_DEPTH = 2;
+    localparam RDATA_FIFO_ADDR_WIDTH = $clog2(RDATA_FIFO_DEPTH);
+
     // 端口输出连接
     // 端口0连接
     assign M0_AXI_ARREADY = is_m0_itcm_r ? (itcm_arready && m0_itcm_ar_grant) : 1'b0;
-    assign M0_AXI_RID = itcm_rid;
-    assign M0_AXI_RDATA = itcm_rdata;
-    assign M0_AXI_RRESP = itcm_rresp;
-    assign M0_AXI_RLAST = itcm_rlast;
+    assign M0_AXI_RID = !m0_rdata_empty ? m0_rdata_rid[m0_rdata_rd_ptr] : itcm_rid;
+    assign M0_AXI_RDATA = !m0_rdata_empty ? m0_rdata_rdata[m0_rdata_rd_ptr] : itcm_rdata;
+    assign M0_AXI_RRESP = !m0_rdata_empty ? m0_rdata_rresp[m0_rdata_rd_ptr] : itcm_rresp;
+    assign M0_AXI_RLAST = !m0_rdata_empty ? m0_rdata_rlast[m0_rdata_rd_ptr] : itcm_rlast;
     assign M0_AXI_RUSER = 4'b0;
-    assign M0_AXI_RVALID = itcm_rvalid && m0_has_active_itcm_r;
+
+    // RVALID信号也需要考虑FIFO中的数据
+    assign M0_AXI_RVALID = !m0_rdata_empty || (itcm_rvalid && m0_has_active_itcm_r);
 
     // 端口1连接
     // 读地址通道
@@ -572,5 +626,6 @@ module mems #(
         .virtual_seg_output(virtual_seg_output),
         .virtual_led_output(virtual_led_output)
     );
+
 
 endmodule
