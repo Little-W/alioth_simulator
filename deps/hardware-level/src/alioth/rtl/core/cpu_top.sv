@@ -25,17 +25,17 @@
 `include "defines.svh"
 
 // alioth处理器核顶层模块
-module cpu_top (
-
+module cpu_top #(
+    parameter CLK_FREQ = 100000000
+) (
     input wire clk,
     input wire rst_n,
 
     // 外设相关引脚
-    input  wire         cnt_clk,            // 计数器时钟
-    input  wire [63:0]  virtual_sw_input,   // 虚拟开关输入
-    input  wire [7:0]   virtual_key_input,  // 虚拟按键输入
-    output wire [39:0]  virtual_seg_output, // 虚拟七段显示器输出
-    output wire [31:0]  virtual_led_output  // 虚拟LED输出
+    input  wire [63:0] virtual_sw_input,    // 虚拟开关输入
+    input  wire [ 7:0] virtual_key_input,   // 虚拟按键输入
+    output wire [39:0] virtual_seg_output,  // 虚拟七段显示器输出
+    output wire [31:0] virtual_led_output   // 虚拟LED输出
 );
 
     // pc_reg模块输出信号
@@ -77,7 +77,7 @@ module cpu_top (
     // CSR寄存器写数据信号
     wire [ `REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
     wire [ `REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
-    wire                        exu_csr_reg_we_o; // 新增：csr_reg_we信号线
+    wire                        exu_csr_reg_we_o;  // 新增：csr_reg_we信号线
 
     // EXU的Commit ID信号
     wire [`COMMIT_ID_WIDTH-1:0] exu_csr_commit_id_o;
@@ -375,22 +375,22 @@ module cpu_top (
 
     // csr模块例化 - 修改为从dispatch pipe获取CSR地址
     csr u_csr (
-        .clk(clk),
-        .rst_n(rst_n),
-        .we_i(wbu_csr_we_o),
-        .raddr_i(dispatch_pipe_csr_raddr_o),
-        .waddr_i(wbu_csr_waddr_o),
-        .data_i(wbu_csr_wdata_o),
-        .inst_valid_i(inst_valid),
-        .data_o(csr_data_o),
-        .global_int_en_o(csr_global_int_en_o),
-        .clint_we_i(clint_we_o),
-        .clint_raddr_i(clint_raddr_o),
-        .clint_waddr_i(clint_waddr_o),
-        .clint_data_i(clint_data_o),
-        .clint_data_o(csr_clint_data_o),
-        .clint_csr_mtvec(csr_clint_csr_mtvec),
-        .clint_csr_mepc(csr_clint_csr_mepc),
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .we_i             (wbu_csr_we_o),
+        .raddr_i          (dispatch_pipe_csr_raddr_o),
+        .waddr_i          (wbu_csr_waddr_o),
+        .data_i           (wbu_csr_wdata_o),
+        .inst_valid_i     (inst_valid),
+        .data_o           (csr_data_o),
+        .global_int_en_o  (csr_global_int_en_o),
+        .clint_we_i       (clint_we_o),
+        .clint_raddr_i    (clint_raddr_o),
+        .clint_waddr_i    (clint_waddr_o),
+        .clint_data_i     (clint_data_o),
+        .clint_data_o     (csr_clint_data_o),
+        .clint_csr_mtvec  (csr_clint_csr_mtvec),
+        .clint_csr_mepc   (csr_clint_csr_mepc),
         .clint_csr_mstatus(csr_clint_csr_mstatus)
     );
 
@@ -423,12 +423,12 @@ module cpu_top (
         .stall_flag_i(ctrl_stall_flag_o),
 
         // 输入译码信息
-        .dec_info_bus_i(idu_dec_info_bus_o),
-        .dec_imm_i     (idu_dec_imm_o),
-        .dec_pc_i      (idu_inst_addr_o),
-        .rs1_rdata_i   (regs_rdata1_o),
-        .rs2_rdata_i   (regs_rdata2_o),
-        .is_pred_branch_i(idu_is_pred_branch_o),  // 连接预测分支信号输入
+        .dec_info_bus_i  (idu_dec_info_bus_o),
+        .dec_imm_i       (idu_dec_imm_o),
+        .dec_pc_i        (idu_inst_addr_o),
+        .rs1_rdata_i     (regs_rdata1_o),
+        .rs2_rdata_i     (regs_rdata2_o),
+        .is_pred_branch_i(idu_is_pred_branch_o), // 连接预测分支信号输入
 
         // 寄存器访问信息 - 用于HDU冒险检测
         .reg_waddr_i (idu_reg_waddr_o),
@@ -523,13 +523,13 @@ module cpu_top (
         .mem_op_store_o (dispatch_mem_op_store),
         .mem_commit_id_o(dispatch_mem_commit_id),
 
-        .sys_op_nop_o   (dispatch_sys_op_nop),
-        .sys_op_mret_o  (dispatch_sys_op_mret),
-        .sys_op_ecall_o (dispatch_sys_op_ecall),
-        .sys_op_ebreak_o(dispatch_sys_op_ebreak),
-        .sys_op_fence_o (dispatch_sys_op_fence),
-        .sys_op_dret_o  (dispatch_sys_op_dret),
-        .is_pred_branch_o(dis_is_pred_branch_o)  // 连接预测分支信号输出
+        .sys_op_nop_o    (dispatch_sys_op_nop),
+        .sys_op_mret_o   (dispatch_sys_op_mret),
+        .sys_op_ecall_o  (dispatch_sys_op_ecall),
+        .sys_op_ebreak_o (dispatch_sys_op_ebreak),
+        .sys_op_fence_o  (dispatch_sys_op_fence),
+        .sys_op_dret_o   (dispatch_sys_op_dret),
+        .is_pred_branch_o(dis_is_pred_branch_o)     // 连接预测分支信号输出
     );
 
     // exu模块例化 - 修改commit_id相关连接
@@ -736,7 +736,7 @@ module cpu_top (
         // CSR对通用寄存器的写数据输入
         .csr_reg_wdata_i(exu_csr_reg_wdata_o),
         .csr_reg_waddr_i(exu_csr_reg_waddr_o),
-        .csr_reg_we_i   (exu_csr_reg_we_o), // 新增：csr_reg_we输入端口
+        .csr_reg_we_i   (exu_csr_reg_we_o),     // 新增：csr_reg_we输入端口
 
         .agu_reg_wdata_i(exu_agu_reg_wdata_o),
         .agu_reg_we_i   (exu_agu_reg_we_o),
@@ -792,6 +792,7 @@ module cpu_top (
 
     // mems模块例化
     mems #(
+        .CLK_FREQ        (CLK_FREQ),
         .ITCM_ADDR_WIDTH (`ITCM_ADDR_WIDTH),
         .DTCM_ADDR_WIDTH (`DTCM_ADDR_WIDTH),
         .DATA_WIDTH      (`BUS_DATA_WIDTH),
@@ -803,11 +804,10 @@ module cpu_top (
         .rst_n(rst_n),
 
         // 外设相关引脚
-        .cnt_clk            (cnt_clk),
-        .virtual_sw_input   (virtual_sw_input_r),    // 使用缓存后的信号
-        .virtual_key_input  (virtual_key_input_r),   // 使用缓存后的信号
-        .virtual_seg_output (virtual_seg_output_r),  // 输出到缓存信号
-        .virtual_led_output (virtual_led_output_r),  // 输出到缓存信号
+        .virtual_sw_input  (virtual_sw_input_r),    // 使用缓存后的信号
+        .virtual_key_input (virtual_key_input_r),   // 使用缓存后的信号
+        .virtual_seg_output(virtual_seg_output_r),  // 输出到缓存信号
+        .virtual_led_output(virtual_led_output_r),  // 输出到缓存信号
 
         // 端口0 - IFU指令获取接口 (M0)
         .M0_AXI_ARID   (ifu_axi_arid),
@@ -875,36 +875,44 @@ module cpu_top (
 
     // 外设输入缓存寄存器
     wire [63:0] virtual_sw_input_r;
-    wire [7:0]  virtual_key_input_r;
+    wire [ 7:0] virtual_key_input_r;
 
-    gnrl_dff #(.DW(64)) u_sw_input_dff (
-        .clk(clk),
+    gnrl_dff #(
+        .DW(64)
+    ) u_sw_input_dff (
+        .clk  (clk),
         .rst_n(rst_n),
-        .dnxt(virtual_sw_input),
-        .qout(virtual_sw_input_r)
+        .dnxt (virtual_sw_input),
+        .qout (virtual_sw_input_r)
     );
-    gnrl_dff #(.DW(8)) u_key_input_dff (
-        .clk(clk),
+    gnrl_dff #(
+        .DW(8)
+    ) u_key_input_dff (
+        .clk  (clk),
         .rst_n(rst_n),
-        .dnxt(virtual_key_input),
-        .qout(virtual_key_input_r)
+        .dnxt (virtual_key_input),
+        .qout (virtual_key_input_r)
     );
 
     // 外设输出缓存寄存器
     wire [39:0] virtual_seg_output_r;
     wire [31:0] virtual_led_output_r;
 
-    gnrl_dff #(.DW(40)) u_seg_output_dff (
-        .clk(clk),
+    gnrl_dff #(
+        .DW(40)
+    ) u_seg_output_dff (
+        .clk  (clk),
         .rst_n(rst_n),
-        .dnxt(virtual_seg_output_r),
-        .qout(virtual_seg_output)
+        .dnxt (virtual_seg_output_r),
+        .qout (virtual_seg_output)
     );
-    gnrl_dff #(.DW(32)) u_led_output_dff (
-        .clk(clk),
+    gnrl_dff #(
+        .DW(32)
+    ) u_led_output_dff (
+        .clk  (clk),
         .rst_n(rst_n),
-        .dnxt(virtual_led_output_r),
-        .qout(virtual_led_output)
+        .dnxt (virtual_led_output_r),
+        .qout (virtual_led_output)
     );
 
     // 定义原子操作忙信号 - 使用dispatch提供的HDU原子锁信号

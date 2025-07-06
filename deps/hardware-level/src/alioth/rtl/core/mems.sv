@@ -26,9 +26,10 @@
 
 // 内存模块，包含ITCM和DTCM
 module mems #(
-    parameter ITCM_ADDR_WIDTH = 16,  // ITCM地址宽度
-    parameter DTCM_ADDR_WIDTH = 16,  // DTCM地址宽度
-    parameter DATA_WIDTH      = 32,  // RAM数据宽度
+    parameter CLK_FREQ        = 50000000,  // 时钟频率
+    parameter ITCM_ADDR_WIDTH = 16,        // ITCM地址宽度
+    parameter DTCM_ADDR_WIDTH = 16,        // DTCM地址宽度
+    parameter DATA_WIDTH      = 32,        // RAM数据宽度
 
     // AXI接口参数
     parameter C_AXI_ID_WIDTH   = 2,   // AXI ID宽度
@@ -40,11 +41,10 @@ module mems #(
     input wire rst_n, // 复位信号（低有效）
 
     // 外设相关引脚
-    input  wire         cnt_clk,            // 计数器时钟
-    input  wire [63:0]  virtual_sw_input,   // 虚拟开关输入
-    input  wire [7:0]   virtual_key_input,  // 虚拟按键输入
-    output wire [39:0]  virtual_seg_output, // 虚拟七段显示器输出
-    output wire [31:0]  virtual_led_output, // 虚拟LED输出
+    input  wire [63:0] virtual_sw_input,    // 虚拟开关输入
+    input  wire [ 7:0] virtual_key_input,   // 虚拟按键输入
+    output wire [39:0] virtual_seg_output,  // 虚拟七段显示器输出
+    output wire [31:0] virtual_led_output,  // 虚拟LED输出
 
     // 端口0 - 只有读通道（指令获取）
     // AXI读地址通道
@@ -297,7 +297,7 @@ module mems #(
     wire                        perip_rready;
 
     // 处理读通道ready信号的连接
-    assign itcm_rready = m0_itcm_rready || m1_itcm_rready;
+    assign itcm_rready  = m0_itcm_rready || m1_itcm_rready;
     assign perip_rready = m1_perip_rready;
 
     // 写响应通道连接
@@ -510,6 +510,7 @@ module mems #(
 
     // 外设桥接AXI接口模块
     perip_bridge_axi #(
+        .CLK_FREQ          (CLK_FREQ),
         .ADDR_WIDTH        (DTCM_ADDR_WIDTH),
         .DATA_WIDTH        (DATA_WIDTH),
         .C_S_AXI_ID_WIDTH  (C_AXI_ID_WIDTH),
@@ -566,11 +567,10 @@ module mems #(
         .S_AXI_RREADY(perip_rready),
 
         // 外设相关引脚连接
-        .cnt_clk            (cnt_clk),
-        .virtual_sw_input   (virtual_sw_input),
-        .virtual_key_input  (virtual_key_input),
-        .virtual_seg_output (virtual_seg_output),
-        .virtual_led_output (virtual_led_output)
+        .virtual_sw_input  (virtual_sw_input),
+        .virtual_key_input (virtual_key_input),
+        .virtual_seg_output(virtual_seg_output),
+        .virtual_led_output(virtual_led_output)
     );
 
 endmodule

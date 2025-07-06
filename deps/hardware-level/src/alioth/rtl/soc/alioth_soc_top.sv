@@ -44,7 +44,6 @@ module alioth_soc_top (
         .rst_n(rst_n),
 
         // 外设相关引脚连接
-        .cnt_clk           (cnt_clk),
         .virtual_sw_input  (virtual_sw_input),
         .virtual_key_input (virtual_key_input),
         .virtual_seg_output(virtual_seg_output),

@@ -118,8 +118,10 @@ module perip_bridge #(
     );
 
     // counter rw
-    counter counter_inst (
-        .clk_fast   (clk),                                     // 使用高速时钟
+    counter #(
+        .CLK_FREQ(CLK_FREQ)
+    ) counter_inst (
+        .clk        (clk),                                     // 使用统一的时钟信号
         .rst        (rst),
         .perip_wdata(perip_wdata),
         .cnt_wen    (perip_wen & (perip_waddr == `CNT_ADDR)),

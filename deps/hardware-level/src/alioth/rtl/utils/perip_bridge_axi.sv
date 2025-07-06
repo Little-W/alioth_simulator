@@ -26,6 +26,7 @@
 
 // 带AXI接口的外设桥接模块
 module perip_bridge_axi #(
+    parameter CLK_FREQ = 50000000,  // 时钟频率参数
     parameter ADDR_WIDTH = 16,  // 地址宽度参数
     parameter DATA_WIDTH = 32,  // 数据宽度参数
 
@@ -84,11 +85,10 @@ module perip_bridge_axi #(
     input  wire                          S_AXI_RREADY,
 
     // 外设相关引脚
-    input  wire         cnt_clk,            // 计数器时钟
-    input  wire [63:0]  virtual_sw_input,   // 虚拟开关输入
-    input  wire [7:0]   virtual_key_input,  // 虚拟按键输入
-    output wire [39:0]  virtual_seg_output, // 虚拟七段显示器输出
-    output wire [31:0]  virtual_led_output  // 虚拟LED输出
+    input  wire [63:0] virtual_sw_input,    // 虚拟开关输入
+    input  wire [ 7:0] virtual_key_input,   // 虚拟按键输入
+    output wire [39:0] virtual_seg_output,  // 虚拟七段显示器输出
+    output wire [31:0] virtual_led_output   // 虚拟LED输出
 );
 
     // ADDR_LSB用于字节寻址转换为字寻址
@@ -111,7 +111,7 @@ module perip_bridge_axi #(
     reg [PTR_WIDTH-1:0] wfifo_wr_ptr;
     reg [PTR_WIDTH:0] wr_fifo_count;
     reg [C_S_AXI_ADDR_WIDTH-1:0] wr_fifo_addr[0:FIFO_DEPTH-1];
-    reg  [  C_S_AXI_ID_WIDTH-1:0] wr_fifo_id       [0:FIFO_DEPTH-1]; // 添加写FIFO ID存储
+    reg [C_S_AXI_ID_WIDTH-1:0] wr_fifo_id[0:FIFO_DEPTH-1];  // 添加写FIFO ID存储
     wire [1:0] wr_fifo_op;
 
     // 读通道相关信号
@@ -182,9 +182,9 @@ module perip_bridge_axi #(
             case (rd_fifo_op)
                 2'b10: begin  // 只推入
                     fifo_addr[rfifo_wr_ptr] <= S_AXI_ARADDR;  // 保存读请求地址
-                    fifo_id[rfifo_wr_ptr] <= S_AXI_ARID;  // 保存读请求ID
-                    rfifo_wr_ptr <= rfifo_wr_ptr + 1'd1;  // 循环指针
-                    fifo_count <= fifo_count + 1'd1;
+                    fifo_id[rfifo_wr_ptr]   <= S_AXI_ARID;  // 保存读请求ID
+                    rfifo_wr_ptr            <= rfifo_wr_ptr + 1'd1;  // 循环指针
+                    fifo_count              <= fifo_count + 1'd1;
                 end
                 2'b01: begin  // 只弹出
                     rfifo_rd_ptr <= rfifo_rd_ptr + 1'd1;  // 循环指针
@@ -192,9 +192,9 @@ module perip_bridge_axi #(
                 end
                 2'b11: begin  // 同时推入和弹出
                     fifo_addr[rfifo_wr_ptr] <= S_AXI_ARADDR;  // 保存读请求地址
-                    fifo_id[rfifo_wr_ptr] <= S_AXI_ARID;  // 保存读请求ID
-                    rfifo_wr_ptr <= rfifo_wr_ptr + 1'd1;
-                    rfifo_rd_ptr <= rfifo_rd_ptr + 1'd1;
+                    fifo_id[rfifo_wr_ptr]   <= S_AXI_ARID;  // 保存读请求ID
+                    rfifo_wr_ptr            <= rfifo_wr_ptr + 1'd1;
+                    rfifo_rd_ptr            <= rfifo_rd_ptr + 1'd1;
                     // fifo_count保持不变
                 end
                 default: begin  // 2'b00: 无操作
@@ -227,7 +227,7 @@ module perip_bridge_axi #(
             // 存储读请求信息
             if (S_AXI_ARVALID && S_AXI_ARREADY) begin
                 // 删除 axi_arvalid_r 的赋值
-                
+
                 // 保存burst信息用于后续访问
                 axi_ar_flag    <= 1'b1;
                 axi_arid_r     <= S_AXI_ARID;
@@ -281,21 +281,21 @@ module perip_bridge_axi #(
     assign axi_rlast_signal = (axi_arlen_cntr == axi_arlen) ? 1'b1 : 1'b0;
 
     // AXI读数据通道信号 - 修改为FIFO不为空时始终有效
-    assign S_AXI_RVALID = (fifo_count > 0);
-    assign S_AXI_RID = fifo_id[rfifo_rd_ptr];  // 使用FIFO中保存的ID
-    assign S_AXI_RRESP = 2'b00;  // OKAY
-    assign S_AXI_RLAST = axi_rlast_signal;
+    assign S_AXI_RVALID     = (fifo_count > 0);
+    assign S_AXI_RID        = fifo_id[rfifo_rd_ptr];  // 使用FIFO中保存的ID
+    assign S_AXI_RRESP      = 2'b00;  // OKAY
+    assign S_AXI_RLAST      = axi_rlast_signal;
 
     // 添加S_AXI_ARREADY的赋值逻辑
     // 当FIFO未满且当前没有正在进行的BURST传输时才接受新的读请求
-    assign S_AXI_ARREADY = (fifo_count < FIFO_DEPTH) && S_AXI_RLAST;
+    assign S_AXI_ARREADY    = (fifo_count < FIFO_DEPTH) && S_AXI_RLAST;
 
     // 修改S_AXI_AWREADY的赋值逻辑，支持outstanding写入
     // 当写地址FIFO未满时才接受新的写请求
-    assign S_AXI_AWREADY = (wr_fifo_count < FIFO_DEPTH);
+    assign S_AXI_AWREADY    = (wr_fifo_count < FIFO_DEPTH);
 
     // S_AXI_WREADY始终为1
-    assign S_AXI_WREADY = 1'b1;
+    assign S_AXI_WREADY     = 1'b1;
 
     // AXI写地址通道处理
     always @(posedge S_AXI_ACLK) begin
@@ -365,9 +365,9 @@ module perip_bridge_axi #(
             case (wr_fifo_op)
                 2'b10: begin  // 只推入
                     wr_fifo_addr[wfifo_wr_ptr] <= S_AXI_AWADDR;  // 保存写请求地址
-                    wr_fifo_id[wfifo_wr_ptr] <= S_AXI_AWID;  // 保存写请求ID
-                    wfifo_wr_ptr <= wfifo_wr_ptr + 1'd1;  // 循环指针
-                    wr_fifo_count <= wr_fifo_count + 1'd1;
+                    wr_fifo_id[wfifo_wr_ptr]   <= S_AXI_AWID;  // 保存写请求ID
+                    wfifo_wr_ptr               <= wfifo_wr_ptr + 1'd1;  // 循环指针
+                    wr_fifo_count              <= wr_fifo_count + 1'd1;
                 end
                 2'b01: begin  // 只弹出
                     wfifo_rd_ptr  <= wfifo_rd_ptr + 1'd1;  // 循环指针
@@ -375,9 +375,9 @@ module perip_bridge_axi #(
                 end
                 2'b11: begin  // 同时推入和弹出
                     wr_fifo_addr[wfifo_wr_ptr] <= S_AXI_AWADDR;  // 保存写请求地址
-                    wr_fifo_id[wfifo_wr_ptr] <= S_AXI_AWID;  // 保存写请求ID
-                    wfifo_wr_ptr <= wfifo_wr_ptr + 1'd1;
-                    wfifo_rd_ptr <= wfifo_rd_ptr + 1'd1;
+                    wr_fifo_id[wfifo_wr_ptr]   <= S_AXI_AWID;  // 保存写请求ID
+                    wfifo_wr_ptr               <= wfifo_wr_ptr + 1'd1;
+                    wfifo_rd_ptr               <= wfifo_rd_ptr + 1'd1;
                     // wr_fifo_count保持不变
                 end
                 default: begin  // 2'b00: 无操作
@@ -440,9 +440,7 @@ module perip_bridge_axi #(
     wire [31:0] perip_rdata;
 
     // 写逻辑连接
-    assign perip_waddr = (wr_fifo_count > 0) ? 
-                         wr_fifo_addr[wfifo_rd_ptr] : 
-                         S_AXI_AWADDR;
+    assign perip_waddr = (wr_fifo_count > 0) ? wr_fifo_addr[wfifo_rd_ptr] : S_AXI_AWADDR;
     assign perip_wdata = S_AXI_WDATA;
     assign perip_mask = S_AXI_WSTRB;
     assign perip_wen = (S_AXI_WVALID && S_AXI_WREADY) ? 1'b1 : 1'b0;
@@ -458,24 +456,25 @@ module perip_bridge_axi #(
     assign S_AXI_RDATA = perip_rdata;
 
     // 实例化perip_bridge
-    perip_bridge perip_bridge_inst (
+    perip_bridge #(
+        .CLK_FREQ(CLK_FREQ)
+    ) perip_bridge_inst (
         .clk(S_AXI_ACLK),
-        .cnt_clk(cnt_clk),
-        .rst(~S_AXI_ARESETN),  // 反转复位信号极性
+        .rst(~S_AXI_ARESETN), // 反转复位信号极性
 
         // 写端口
         .perip_waddr(perip_waddr),
         .perip_wdata(perip_wdata),
-        .perip_wen(perip_wen),
-        .perip_mask(perip_mask),
+        .perip_wen  (perip_wen),
+        .perip_mask (perip_mask),
 
         // 读端口
         .perip_raddr(perip_raddr),
         .perip_rdata(perip_rdata),
 
         // 外设IO接口
-        .virtual_sw_input(virtual_sw_input),
-        .virtual_key_input(virtual_key_input),
+        .virtual_sw_input  (virtual_sw_input),
+        .virtual_key_input (virtual_key_input),
         .virtual_seg_output(virtual_seg_output),
         .virtual_led_output(virtual_led_output)
     );
