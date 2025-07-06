@@ -411,7 +411,7 @@ module mems #(
     assign M0_AXI_RRESP = itcm_rresp;
     assign M0_AXI_RLAST = itcm_rlast;
     assign M0_AXI_RUSER = 4'b0;
-    assign M0_AXI_RVALID = itcm_rvalid && m0_itcm_r_outstanding_cnt > 0;
+    assign M0_AXI_RVALID = itcm_rvalid && m0_has_active_itcm_r;
 
     // 端口1连接
     // 读地址通道
@@ -419,13 +419,13 @@ module mems #(
                            (is_m1_perip_r && perip_arready && m1_perip_grant);
 
     // 读数据通道 - 根据活跃的事务选择源
-    assign M1_AXI_RID = (m1_itcm_r_outstanding_cnt > 0) ? itcm_rid : perip_rid;
-    assign M1_AXI_RDATA = (m1_itcm_r_outstanding_cnt > 0) ? itcm_rdata : perip_rdata;
-    assign M1_AXI_RRESP = (m1_itcm_r_outstanding_cnt > 0) ? itcm_rresp : perip_rresp;
-    assign M1_AXI_RLAST = (m1_itcm_r_outstanding_cnt > 0) ? itcm_rlast : perip_rlast;
+    assign M1_AXI_RID = m1_has_active_itcm_r ? itcm_rid : perip_rid;
+    assign M1_AXI_RDATA = m1_has_active_itcm_r ? itcm_rdata : perip_rdata;
+    assign M1_AXI_RRESP = m1_has_active_itcm_r ? itcm_rresp : perip_rresp;
+    assign M1_AXI_RLAST = m1_has_active_itcm_r ? itcm_rlast : perip_rlast;
     assign M1_AXI_RUSER = 4'b0;
-    assign M1_AXI_RVALID = (m1_itcm_r_outstanding_cnt > 0 && itcm_rvalid) || 
-                           (m1_perip_r_outstanding_cnt > 0 && perip_rvalid);
+    assign M1_AXI_RVALID = (m1_has_active_itcm_r && itcm_rvalid) || 
+                           (m1_has_active_perip_r && perip_rvalid);
 
     // 输出连接 - M1写通道
     // 写地址通道可以立即切换
