@@ -20,9 +20,10 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module perip_bridge (
+module perip_bridge #(
+    parameter CLK_FREQ = 50000000  // 时钟频率
+) (
     input logic clk,
-    input logic cnt_clk,
     input logic rst,
 
     // 写端口
@@ -46,7 +47,7 @@ module perip_bridge (
 
     logic [31:0] LED;
     logic [31:0] seg_wdata, cnt_rdata, mmio_rdata, dram_rdata;
-    logic [31:0] mmio_rdata_reg, cnt_rdata_reg; // 添加MMIO和计数器的寄存器
+    logic [31:0] mmio_rdata_reg, cnt_rdata_reg;  // 添加MMIO和计数器的寄存器
     logic [39:0] seg_output;
 
     // we don't care perip_mask in LED, SEG, SW & KEY, only care in DTCMDRAM
@@ -67,7 +68,7 @@ module perip_bridge (
             `SW1_ADDR: mmio_rdata = virtual_sw_input[63:32];
             `KEY_ADDR: mmio_rdata = {24'd0, virtual_key_input};
             `SEG_ADDR: mmio_rdata = seg_wdata;
-            default:  mmio_rdata = 32'hDEAD_BEEF;
+            default:   mmio_rdata = 32'hDEAD_BEEF;
         endcase
     end
 
@@ -75,10 +76,10 @@ module perip_bridge (
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
             mmio_rdata_reg <= 32'h0;
-            cnt_rdata_reg <= 32'h0;
+            cnt_rdata_reg  <= 32'h0;
         end else begin
             mmio_rdata_reg <= mmio_rdata;
-            cnt_rdata_reg <= cnt_rdata;
+            cnt_rdata_reg  <= cnt_rdata;
         end
     end
 
@@ -119,7 +120,6 @@ module perip_bridge (
     // counter rw
     counter counter_inst (
         .clk_fast   (clk),                                     // 使用高速时钟
-        .clk        (cnt_clk),
         .rst        (rst),
         .perip_wdata(perip_wdata),
         .cnt_wen    (perip_wen & (perip_waddr == `CNT_ADDR)),
