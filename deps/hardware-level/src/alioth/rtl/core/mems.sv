@@ -130,20 +130,26 @@ module mems #(
     wire [3:0] m1_itcm_w_outstanding_cnt;  // M1访问ITCM的写事务计数器
     wire [3:0] m1_dtcm_w_outstanding_cnt;  // M1访问DTCM的写事务计数器
 
+    wire m0_has_active_itcm_r = m0_itcm_r_outstanding_cnt > 0;  // M0有未完成的ITCM读事务
+    wire m1_has_active_itcm_r = m1_itcm_r_outstanding_cnt > 0;  // M1有未完成的ITCM读事务
+    wire m1_has_active_dtcm_r = m1_dtcm_r_outstanding_cnt > 0;  // M1有未完成的外设读事务
+    wire m1_has_active_itcm_w = m1_itcm_w_outstanding_cnt > 0;  // M1有未完成的ITCM写事务
+    wire m1_has_active_dtcm_w = m1_dtcm_w_outstanding_cnt > 0;  // M1有未完成的外设写事务
+
     // 事务跟踪信号
     wire m0_itcm_ar_trans = M0_AXI_ARVALID && M0_AXI_ARREADY && is_m0_itcm_r;
     wire m0_itcm_r_trans = M0_AXI_RVALID && M0_AXI_RREADY && M0_AXI_RLAST;
 
     wire m1_itcm_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_itcm_r;
     wire m1_dtcm_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_dtcm_r;
-    wire m1_itcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_itcm_r_outstanding_cnt > 0;
-    wire m1_dtcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_dtcm_r_outstanding_cnt > 0;
+    wire m1_itcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_has_active_itcm_r && !m1_dtcm_has_priority;
+    wire m1_dtcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_has_active_dtcm_r && m1_dtcm_has_priority;
 
     // 写事务信号
     wire m1_itcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_itcm_w;
     wire m1_dtcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_dtcm_w;
-    wire m1_itcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_itcm_w_outstanding_cnt > 0;
-    wire m1_dtcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_dtcm_w_outstanding_cnt > 0;
+    wire m1_itcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_itcm_w && !m1_has_active_dtcm_w;
+    wire m1_dtcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_dtcm_w;
 
     // 计数器下一值计算 - 使用与或逻辑实现并行
     // M0 ITCM读outstanding计数器
@@ -195,6 +201,32 @@ module mems #(
         ({4{m1_dtcm_w_inc}} & (m1_dtcm_w_outstanding_cnt + 4'd1)) |
         ({4{m1_dtcm_w_dec}} & (m1_dtcm_w_outstanding_cnt - 4'd1)) |
         ({4{m1_dtcm_w_keep}} & m1_dtcm_w_outstanding_cnt);
+
+    wire m0_has_active_itcm_r_nxt = m0_itcm_r_outstanding_cnt_nxt > 0;  // M0有未完成的ITCM读事务
+    wire m1_has_active_itcm_r_nxt = m1_itcm_r_outstanding_cnt_nxt > 0;  // M1有未完成的ITCM读事务
+    wire m1_has_active_dtcm_r_nxt = m1_dtcm_r_outstanding_cnt_nxt > 0;  // M1有未完成的外设读事务
+    wire m1_has_active_itcm_w_nxt = m1_itcm_w_outstanding_cnt_nxt > 0;  // M1有未完成的ITCM写事务
+    wire m1_has_active_dtcm_w_nxt = m1_dtcm_w_outstanding_cnt_nxt > 0;  // M1有未完成的外设写事务
+
+    // 添加优先级跟踪寄存器
+    reg  m1_dtcm_has_priority;  // 当为1时dtcm有优先权，为0时itcm有优先权
+
+    // 优先权切换逻辑 - 实现"谁先获得就保持到完成"的仲裁策略
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m1_dtcm_has_priority <= 1'b0;  // 复位时，优先权给ITCM（初始状态）
+        end else if (!m1_has_active_dtcm_r_nxt && !m1_has_active_itcm_r_nxt) begin
+            // 初始状态，优先权给ITCM
+            m1_dtcm_has_priority <= 1'b0;
+        end else if (m1_has_active_dtcm_r_nxt && !m1_has_active_itcm_r_nxt) begin
+            // DTCM有未完成事务，ITCM没有，优先权给DTCM
+            m1_dtcm_has_priority <= 1'b1;
+        end else if (!m1_has_active_dtcm_r_nxt && m1_has_active_itcm_r_nxt) begin
+            // ITCM有未完成事务，DTCM没有，优先权给ITCM
+            m1_dtcm_has_priority <= 1'b0;
+        end
+        // 其他情况（两者都有未完成事务）保持当前优先权不变
+    end
 
     // 使用gnrl_dfflr实例化计数器寄存器
     gnrl_dfflr #(
@@ -357,8 +389,7 @@ module mems #(
     // M0和M1同时访问ITCM时的仲裁标志
     wire m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
     wire m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求
-    wire m0_has_active_itcm_r = m0_itcm_r_outstanding_cnt > 0;  // M0有未完成的ITCM读事务
-    wire m1_has_active_itcm_r = m1_itcm_r_outstanding_cnt > 0;  // M1有未完成的ITCM读事务
+
 
     // 主机间仲裁逻辑：
     // 1. 如果一方有未完成事务，优先保证其完成
@@ -368,9 +399,8 @@ module mems #(
 
     wire m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
 
-    // ==================== 从机选择逻辑（M1对ITCM vs DTCM）====================
-    wire m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;  // M1有DTCM读请求
-    wire m1_has_active_dtcm_r = m1_dtcm_r_outstanding_cnt > 0;  // M1有未完成的DTCM读事务
+    // ==================== 从机选择逻辑（M1对ITCM vs 外设）====================
+    wire m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;  // M1有外设读请求
 
     // 地址通道可以立即切换
     wire m1_dtcm_ar_grant = m1_has_dtcm_ar_req;  // 地址通道授权可立即给DTCM
@@ -379,26 +409,23 @@ module mems #(
     // ==================== 读数据通道仲裁 ====================
     // 处理M0与M1对ITCM的读数据通道竞争
     wire m0_itcm_r_priority = m0_has_active_itcm_r;  // M0已有未完成事务时具有优先权
-    wire m1_itcm_r_priority = m1_has_active_itcm_r || 
+    wire m1_itcm_r_priority = m1_has_active_itcm_r ||
                              (!m0_has_active_itcm_r && m1_itcm_ar_grant); // M1已有未完成事务或M0无未完成事务且M1获得读地址授权时具有优先权
 
-    // 处理M1对ITCM与DTCM的读数据通道选择
-    // 优先级：1. 有未完成事务的存储区域 2. 无未完成事务时根据最近发出的地址请求
-    wire m1_select_itcm_r = m1_has_active_itcm_r || (!m1_has_active_dtcm_r && m1_itcm_ar_grant);
+    // 处理M1对ITCM与外设的读数据通道选择 - 基于优先权寄存器决定
+    // 谁有优先权，谁就获得读数据通道
+    wire m1_select_dtcm_r = m1_dtcm_has_priority && m1_has_active_dtcm_r;
+    wire m1_select_itcm_r = !m1_dtcm_has_priority && m1_has_active_itcm_r;
 
-    wire m1_select_dtcm_r = m1_has_active_dtcm_r || (!m1_has_active_itcm_r && m1_dtcm_ar_grant);
-
-    // 读通道ready信号连接
+    // 读通道ready信号连接 - 确保信号只连接到当前优先级对应的设备
     wire m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
-    wire m1_itcm_rready = m1_itcm_r_priority && M1_AXI_RREADY;
+    wire m1_itcm_rready = m1_select_itcm_r && M1_AXI_RREADY;
     wire m1_dtcm_rready = m1_select_dtcm_r && M1_AXI_RREADY;
 
     // ==================== 写事务仲裁逻辑 ====================
     // 写事务活动状态跟踪
     wire m1_has_itcm_aw_req = M1_AXI_AWVALID && is_m1_itcm_w;  // M1有ITCM写请求
-    wire m1_has_dtcm_aw_req = M1_AXI_AWVALID && is_m1_dtcm_w;  // M1有DTCM写请求
-    wire m1_has_active_itcm_w = m1_itcm_w_outstanding_cnt > 0;  // M1有未完成的ITCM写事务
-    wire m1_has_active_dtcm_w = m1_dtcm_w_outstanding_cnt > 0;  // M1有未完成的DTCM写事务
+    wire m1_has_dtcm_aw_req = M1_AXI_AWVALID && is_m1_dtcm_w;  // M1有外设写请求
 
     // 写地址通道授权
     wire m1_itcm_aw_grant = m1_has_itcm_aw_req;  // M1的ITCM写地址通道授权
@@ -465,14 +492,12 @@ module mems #(
     assign M1_AXI_ARREADY = (is_m1_itcm_r && itcm_arready && m1_itcm_ar_grant) || 
                            (is_m1_dtcm_r && dtcm_arready && m1_dtcm_grant);
 
-    // 读数据通道 - 根据活跃的事务选择源
-    assign M1_AXI_RID = m1_has_active_itcm_r ? itcm_rid : dtcm_rid;
-    assign M1_AXI_RDATA = m1_has_active_itcm_r ? itcm_rdata : dtcm_rdata;
-    assign M1_AXI_RRESP = m1_has_active_itcm_r ? itcm_rresp : dtcm_rresp;
-    assign M1_AXI_RLAST = m1_has_active_itcm_r ? itcm_rlast : dtcm_rlast;
-    assign M1_AXI_RUSER = 4'b0;
-    assign M1_AXI_RVALID = (m1_has_active_itcm_r && itcm_rvalid) || 
-                           (m1_has_active_dtcm_r && dtcm_rvalid);
+    // 读数据通道 - 基于优先级寄存器选择源
+    assign M1_AXI_RID = m1_select_dtcm_r ? dtcm_rid : m1_select_itcm_r ? itcm_rid : 0;
+    assign M1_AXI_RDATA = m1_select_dtcm_r ? dtcm_rdata : m1_select_itcm_r ? itcm_rdata : 0;
+    assign M1_AXI_RRESP = m1_select_dtcm_r ? dtcm_rresp : m1_select_itcm_r ? itcm_rresp : 0;
+    assign M1_AXI_RLAST = m1_select_dtcm_r ? dtcm_rlast : m1_select_itcm_r ? itcm_rlast : 0;
+    assign M1_AXI_RVALID = m1_select_dtcm_r ? dtcm_rvalid : m1_select_itcm_r ? itcm_rvalid : 1'b0;
 
     // 输出连接 - M1写通道
     // 写地址通道可以立即切换
