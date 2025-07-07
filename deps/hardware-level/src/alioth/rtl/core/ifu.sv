@@ -84,14 +84,14 @@ module ifu (
     wire stall_axi = (stall_flag_i != 0);  // AXI暂停信号
     wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
     wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
-    wire flush_flag = stall_flag_i[`CU_FLUSH] | branch_taken;
+    wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
     // 实例化静态分支预测单元
     sbpu u_sbpu (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_o),      // 指令内容
-        .inst_valid_i    (1),     // 指令有效信号
-        .pc_i            (inst_addr_o),      // 指令地址
+        .inst_i          (inst_data),      // 指令内容
+        .inst_valid_i    (inst_valid),     // 指令有效信号
+        .pc_i            (inst_addr),      // 指令地址
         .any_stall_i     (stall_axi),      // 流水线暂停信号
         .branch_taken_o  (branch_taken),   // 预测是否为分支
         .branch_addr_o   (branch_addr),    // 预测的分支地址
@@ -125,7 +125,7 @@ module ifu (
     );
 
     // 将内部信号连接到输出端口
-    assign is_pred_branch_o = is_pred_branch;
+    assign is_pred_branch_o = is_pred_branch_r;
 
     // 实例化AXI主机模块
     ifu_axi_master #(
