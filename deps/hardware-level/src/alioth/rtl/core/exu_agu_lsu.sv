@@ -188,10 +188,6 @@ module exu_agu_lsu #(
     reg  [               1:0] read_fifo_mem_addr_index[0:FIFO_DEPTH-1];
     reg  [`COMMIT_ID_WIDTH-1:0] read_fifo_commit_id     [0:FIFO_DEPTH-1];
 
-    // 写请求FIFO数组 - 改为reg类型
-    reg  [              31:0] write_fifo_data         [0:FIFO_DEPTH-1];
-    reg  [               3:0] write_fifo_strb         [0:FIFO_DEPTH-1];
-
     // 输出寄存器 - 改为reg类型
     reg  [              31:0] current_reg_wdata_r;
     reg                       reg_write_valid_r;
@@ -204,11 +200,30 @@ module exu_agu_lsu #(
     wire                        write_fifo_empty;
     wire                        write_fifo_full;
 
+    // 写地址 FIFO 结构
+    reg [FIFO_PTR_WIDTH-1:0] waddr_fifo_wr_ptr, waddr_fifo_rd_ptr;
+    reg [FIFO_DEPTH-1:0] waddr_fifo_valid;
+    reg [31:0] waddr_fifo_addr [0:FIFO_DEPTH-1];
+
+    // 写数据 FIFO 结构
+    reg [FIFO_PTR_WIDTH-1:0] wdata_fifo_wr_ptr, wdata_fifo_rd_ptr;
+    reg [FIFO_DEPTH-1:0] wdata_fifo_valid;
+    reg [31:0] wdata_fifo_data [0:FIFO_DEPTH-1];
+    reg [3:0] wdata_fifo_strb [0:FIFO_DEPTH-1];
+
+    // FIFO 状态信号
+    wire waddr_fifo_empty = (waddr_fifo_wr_ptr == waddr_fifo_rd_ptr) && (waddr_fifo_valid[waddr_fifo_rd_ptr] == 1'b0);
+    wire waddr_fifo_full = (waddr_fifo_wr_ptr == waddr_fifo_rd_ptr) && (waddr_fifo_valid[waddr_fifo_wr_ptr] == 1'b1);
+    wire wdata_fifo_empty = (wdata_fifo_wr_ptr == wdata_fifo_rd_ptr) && (wdata_fifo_valid[wdata_fifo_rd_ptr] == 1'b0);
+    wire wdata_fifo_full = (wdata_fifo_wr_ptr == wdata_fifo_rd_ptr) && (wdata_fifo_valid[wdata_fifo_wr_ptr] == 1'b1);
+
     // FIFO状态计算
     assign read_fifo_empty = (read_fifo_wr_ptr == read_fifo_rd_ptr) && (read_fifo_valid[read_fifo_rd_ptr] == 1'b0);
     assign read_fifo_full = (read_fifo_wr_ptr == read_fifo_rd_ptr) && (read_fifo_valid[read_fifo_wr_ptr] == 1'b1);
-    assign write_fifo_empty = (write_fifo_wr_ptr == write_fifo_rd_ptr) && (write_fifo_valid[write_fifo_rd_ptr] == 1'b0);
-    assign write_fifo_full = (write_fifo_wr_ptr == write_fifo_rd_ptr) && (write_fifo_valid[write_fifo_wr_ptr] == 1'b1);
+
+    // 更新旧FIFO状态信号，基于新的分离FIFO状态
+    assign write_fifo_empty = waddr_fifo_empty && wdata_fifo_empty;  // 两个FIFO都为空
+    assign write_fifo_full = waddr_fifo_full || wdata_fifo_full;     // 任一FIFO已满
 
     // 生成请求有效信号
     assign read_req_valid = valid_op && is_load_op;
@@ -227,9 +242,11 @@ module exu_agu_lsu #(
     wire read_stall;
     wire write_stall;
     assign read_stall  = read_req_valid & (read_fifo_full | ~M_AXI_ARREADY);
-    assign write_stall = write_req_valid & (write_fifo_full | ~M_AXI_AWREADY);
+    // 更新写阻塞信号 - 当任一新写FIFO已满时阻塞
+    assign write_stall = write_req_valid & (waddr_fifo_full | wdata_fifo_full | ~M_AXI_AWREADY);
     assign mem_stall_o = read_stall | write_stall;
-    assign mem_busy_o  = !write_fifo_empty;
+    // 更新忙碌信号 - 当任一写FIFO非空时表示忙碌
+    assign mem_busy_o  = !waddr_fifo_empty || !wdata_fifo_empty;
 
     // FIFO控制信号
     // 读FIFO写控制信号
@@ -259,6 +276,7 @@ module exu_agu_lsu #(
     // 写控制信号逻辑
     assign axi_bready = 1'b1;  // 始终准备接收写响应
 
+    // 以下旧的FIFO控制逻辑可以保留，但实际上已不再使用
     // 写FIFO写入使能 - 当地址握手成功但数据握手失败时
     assign write_fifo_wr_en = write_req_valid & M_AXI_AWREADY & ~M_AXI_WREADY & ~write_fifo_full;
     assign write_fifo_wr_ptr_nxt = (write_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
@@ -389,11 +407,6 @@ module exu_agu_lsu #(
     assign mem_wdata = ({32{valid_op & mem_op_sb_i}} & sb_data) |
                        ({32{valid_op & mem_op_sh_i}} & sh_data) |
                        ({32{valid_op & mem_op_sw_i}} & sw_data);
-
-    // 从FIFO获取或直接使用的写数据
-    wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : mem_wdata;
-    wire [ 3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask;
-
 
     // 使用always块替换gnrl_dfflr实例
     // read_fifo_wr_ptr寄存器
@@ -559,69 +572,116 @@ module exu_agu_lsu #(
         end
     endgenerate
 
-    // 实现写FIFO的有效位数组和数据
-    generate
-        for (genvar i = 0; i < FIFO_DEPTH; i = i + 1) begin : write_fifo_valid_gen
-            wire write_fifo_valid_set = write_fifo_wr_en & (write_fifo_wr_ptr == i);
-            wire write_fifo_valid_clear = write_fifo_rd_en & (write_fifo_rd_ptr == i);
-            wire write_fifo_valid_nxt = (write_fifo_valid_set | (write_fifo_valid[i] & ~write_fifo_valid_clear));
+    // 写事务 FIFO 重构 - 分为地址 FIFO 和数据 FIFO
 
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
-                    write_fifo_valid[i] <= 1'b0;
-                end else if (write_fifo_valid_set | write_fifo_valid_clear) begin
-                    write_fifo_valid[i] <= write_fifo_valid_nxt;
-                end
-            end
+    // FIFO 操作信号
+    wire waddr_push = write_req_valid && !waddr_fifo_full;
+    wire waddr_pop = !waddr_fifo_empty && M_AXI_AWREADY;
+    wire [1:0] waddr_fifo_op = {waddr_push, waddr_pop};
 
-            // 写数据和掩码
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
-                    write_fifo_data[i] <= 32'b0;
-                end else if (write_fifo_valid_set) begin
-                    write_fifo_data[i] <= mem_wdata;
-                end
-            end
+    wire wdata_push = write_req_valid && !wdata_fifo_full;
+    wire wdata_pop = !wdata_fifo_empty && M_AXI_WREADY;
+    wire [1:0] wdata_fifo_op = {wdata_push, wdata_pop};
 
-            always_ff @(posedge clk or negedge rst_n) begin
-                if (!rst_n) begin
-                    write_fifo_strb[i] <= 4'b0;
-                end else if (write_fifo_valid_set) begin
-                    write_fifo_strb[i] <= mem_wmask;
-                end
+    // 地址 FIFO 控制逻辑
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            waddr_fifo_wr_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+            waddr_fifo_rd_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+            for (int i = 0; i < FIFO_DEPTH; i++) begin
+                waddr_fifo_valid[i] <= 1'b0;
             end
+        end else begin
+            // 处理 FIFO 推入和弹出
+            case (waddr_fifo_op)
+                2'b10: begin  // 只推入
+                    waddr_fifo_addr[waddr_fifo_wr_ptr] <= mem_addr;
+                    waddr_fifo_valid[waddr_fifo_wr_ptr] <= 1'b1;
+                    waddr_fifo_wr_ptr <= (waddr_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                end
+                2'b01: begin  // 只弹出
+                    waddr_fifo_valid[waddr_fifo_rd_ptr] <= 1'b0;
+                    waddr_fifo_rd_ptr <= (waddr_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                end
+                2'b11: begin  // 同时推入和弹出
+                    waddr_fifo_addr[waddr_fifo_wr_ptr] <= mem_addr;
+                    waddr_fifo_valid[waddr_fifo_wr_ptr] <= 1'b1;
+                    waddr_fifo_valid[waddr_fifo_rd_ptr] <= 1'b0;
+                    waddr_fifo_wr_ptr <= (waddr_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                    waddr_fifo_rd_ptr <= (waddr_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                end
+                default: begin  // 2'b00: 无操作
+                    // 保持当前状态
+                end
+            endcase
         end
-    endgenerate
+    end
 
-    // AXI接口信号赋值 - 使用与之前相同的逻辑
+    // 数据 FIFO 控制逻辑
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            wdata_fifo_wr_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+            wdata_fifo_rd_ptr <= {FIFO_PTR_WIDTH{1'b0}};
+            for (int i = 0; i < FIFO_DEPTH; i++) begin
+                wdata_fifo_valid[i] <= 1'b0;
+            end
+        end else begin
+            // 处理 FIFO 推入和弹出
+            case (wdata_fifo_op)
+                2'b10: begin  // 只推入
+                    wdata_fifo_data[wdata_fifo_wr_ptr] <= mem_wdata;
+                    wdata_fifo_strb[wdata_fifo_wr_ptr] <= mem_wmask;
+                    wdata_fifo_valid[wdata_fifo_wr_ptr] <= 1'b1;
+                    wdata_fifo_wr_ptr <= (wdata_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                end
+                2'b01: begin  // 只弹出
+                    wdata_fifo_valid[wdata_fifo_rd_ptr] <= 1'b0;
+                    wdata_fifo_rd_ptr <= (wdata_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                end
+                2'b11: begin  // 同时推入和弹出
+                    wdata_fifo_data[wdata_fifo_wr_ptr] <= mem_wdata;
+                    wdata_fifo_strb[wdata_fifo_wr_ptr] <= mem_wmask;
+                    wdata_fifo_valid[wdata_fifo_wr_ptr] <= 1'b1;
+                    wdata_fifo_valid[wdata_fifo_rd_ptr] <= 1'b0;
+                    wdata_fifo_wr_ptr <= (wdata_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                    wdata_fifo_rd_ptr <= (wdata_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                end
+                default: begin  // 2'b00: 无操作
+                    // 保持当前状态
+                end
+            endcase
+        end
+    end
+
+    // AXI 接口信号直接连接到 FIFO
     // 写地址通道
-    assign M_AXI_AWID    = 'b0;  // AWID固定为0,使用顺序Outstanding
-    assign M_AXI_AWADDR  = mem_addr;
+    assign M_AXI_AWID    = 'b0;  // AWID 固定为 0, 使用顺序 Outstanding
+    assign M_AXI_AWADDR  = waddr_fifo_addr[waddr_fifo_rd_ptr];
     assign M_AXI_AWLEN   = 8'b0;  // 单次传输
-    assign M_AXI_AWSIZE  = 3'b010;  // 4字节
+    assign M_AXI_AWSIZE  = 3'b010;  // 4 字节
     assign M_AXI_AWBURST = 2'b01;  // INCR
     assign M_AXI_AWLOCK  = 1'b0;
     assign M_AXI_AWCACHE = 4'b0010;
     assign M_AXI_AWPROT  = 3'h0;
     assign M_AXI_AWQOS   = 4'h0;
     assign M_AXI_AWUSER  = 'b1;
-    assign M_AXI_AWVALID = write_req_valid;  // 只在有写请求时有效
+    assign M_AXI_AWVALID = !waddr_fifo_empty;  // 只在地址 FIFO 非空时有效
 
     // 写数据通道
-    assign M_AXI_WDATA   = mem_wdata_out;
-    assign M_AXI_WSTRB   = mem_wmask_out;
-    assign M_AXI_WLAST   = 1'b1;  // 每次写入一组数据，Burst长度为1
+    assign M_AXI_WDATA   = wdata_fifo_data[wdata_fifo_rd_ptr];
+    assign M_AXI_WSTRB   = wdata_fifo_strb[wdata_fifo_rd_ptr];
+    assign M_AXI_WLAST   = 1'b1;  // 每次写入一组数据，Burst 长度为 1
     assign M_AXI_WUSER   = 'b0;
-    assign M_AXI_WVALID  = write_req_valid || !write_fifo_empty;
+    assign M_AXI_WVALID  = !wdata_fifo_empty;  // 只在数据 FIFO 非空时有效
 
     // 写响应通道
-    assign M_AXI_BREADY  = axi_bready;
+    assign M_AXI_BREADY  = 1'b1;  // 始终准备接收响应
 
     // 读地址通道
-    assign M_AXI_ARID    = 'b0;  // ARID固定为0,使用顺序Outstanding
+    assign M_AXI_ARID    = 'b0;  // ARID 固定为 0, 使用顺序 Outstanding
     assign M_AXI_ARADDR  = mem_addr;
     assign M_AXI_ARLEN   = 8'b0;  // 单次传输
-    assign M_AXI_ARSIZE  = 3'b010;  // 4字节
+    assign M_AXI_ARSIZE  = 3'b010;  // 4 字节
     assign M_AXI_ARBURST = 2'b01;  // INCR
     assign M_AXI_ARLOCK  = 1'b0;
     assign M_AXI_ARCACHE = 4'b0010;
