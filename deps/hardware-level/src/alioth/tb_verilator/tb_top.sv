@@ -146,7 +146,7 @@ module tb_top (
             // Reset logic
         end else begin
 `ifndef NO_TIMEOUT
-            if (current_cycle[26] == 1'b1) begin
+            if (current_cycle[20] == 1'b1) begin
                 // 新增：超时退出前打印IPC等性能信息
                 real ipc = (current_instructions > 0 && current_cycle > 0) ? 
                           (current_instructions * 1.0) / current_cycle : 0.0;

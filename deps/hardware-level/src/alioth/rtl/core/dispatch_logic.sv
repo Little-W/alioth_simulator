@@ -30,21 +30,20 @@ module dispatch_logic (
     input wire [`DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [              31:0] dec_imm_i,
     input wire [              31:0] dec_pc_i,
-    input wire [              31:0] rs1_rdata_i,
-    input wire [              31:0] rs2_rdata_i,
+
 
     // dispatch to ALU
     output wire                     req_alu_o,
-    output wire [             31:0] alu_op1_o,
-    output wire [             31:0] alu_op2_o,
     output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
+    
+    // ALU操作数计算中间信号输出
+    output wire alu_op1_pc_o,
+    output wire alu_op1_zero_o,
+    output wire alu_op2_imm_o,
 
     // dispatch to Bru
     output wire        req_bjp_o,
-    output wire [31:0] bjp_op1_o,
-    output wire [31:0] bjp_op2_o,
-    output wire [31:0] bjp_jump_op1_o,
-    output wire [31:0] bjp_jump_op2_o,
+    output wire        bjp_op1_rs1_o,
     output wire        bjp_op_jump_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
@@ -56,8 +55,6 @@ module dispatch_logic (
 
     // dispatch to MULDIV
     output wire        req_muldiv_o,
-    output wire [31:0] muldiv_op1_o,
-    output wire [31:0] muldiv_op2_o,
     output wire        muldiv_op_mul_o,
     output wire        muldiv_op_mulh_o,
     output wire        muldiv_op_mulhsu_o,
@@ -71,7 +68,7 @@ module dispatch_logic (
 
     // dispatch to CSR
     output wire        req_csr_o,
-    output wire [31:0] csr_op1_o,
+    output wire        csr_rs1imm_o,
     output wire [31:0] csr_addr_o,
     output wire        csr_csrrw_o,
     output wire        csr_csrrs_o,
@@ -79,9 +76,6 @@ module dispatch_logic (
 
     // dispatch to MEM
     output wire        req_mem_o,
-    output wire [31:0] mem_op1_o,
-    output wire [31:0] mem_op2_o,
-    output wire [31:0] mem_rs2_data_o,
     output wire        mem_op_lb_o,
     output wire        mem_op_lh_o,
     output wire        mem_op_lw_o,
@@ -112,13 +106,13 @@ module dispatch_logic (
     // ALU op1
     wire alu_op1_pc = alu_info[`DECINFO_ALU_OP1PC];  // 使用PC作为操作数1 (AUIPC指令)
     wire alu_op1_zero = alu_info[`DECINFO_ALU_LUI];  // 使用0作为操作数1 (LUI指令)
-    wire [31:0] alu_op1 = (alu_op1_pc | bjp_op_jump_o) ? dec_pc_i : alu_op1_zero ? 32'h0 : rs1_rdata_i;
-    assign alu_op1_o = (op_alu | bjp_op_jump_o) ? alu_op1 : 32'h0;  // ALU指令的操作数1
+    assign alu_op1_pc_o = alu_op1_pc;
+    assign alu_op1_zero_o = alu_op1_zero;
+
 
     // ALU op2
     wire alu_op2_imm = alu_info[`DECINFO_ALU_OP2IMM];  // 使用立即数作为操作数2 (I型指令、LUI、AUIPC)
-    wire [31:0] alu_op2 = alu_op2_imm ? dec_imm_i : rs2_rdata_i;
-    assign alu_op2_o = bjp_op_jump_o ? 32'h4 : op_alu ? alu_op2 : 32'h0;
+    assign alu_op2_imm_o = alu_op2_imm;
 
     assign alu_op_info_o = {
         bjp_op_jump_o,  // ALU_OP_JUMP
@@ -141,10 +135,6 @@ module dispatch_logic (
     // MULDIV info
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
     wire [`DECINFO_WIDTH-1:0] muldiv_info = {`DECINFO_WIDTH{op_muldiv}} & dec_info_bus_i;
-    // MULDIV op1
-    assign muldiv_op1_o        = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
-    // MULDIV op2
-    assign muldiv_op2_o        = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
     assign muldiv_op_mul_o     = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
     assign muldiv_op_mulh_o    = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
     assign muldiv_op_mulhu_o   = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
@@ -158,19 +148,13 @@ module dispatch_logic (
     assign muldiv_op_div_all_o = muldiv_info[`DECINFO_MULDIV_OP_DIV];  // 所有除法指令
     assign req_muldiv_o        = op_muldiv;
 
-    // Bru info
+    // BJP info
 
     wire op_bjp = (disp_info_grp == `DECINFO_GRP_BJP);
     wire [`DECINFO_WIDTH-1:0] bjp_info = {`DECINFO_WIDTH{op_bjp}} & dec_info_bus_i;
-    // BJP op1
+    // BJP op1中间量
     wire bjp_op1_rs1 = bjp_info[`DECINFO_BJP_OP1RS1];  // 使用rs1寄存器作为跳转基地址 (JALR指令)
-    wire [31:0] bjp_op1 = bjp_op1_rs1 ? rs1_rdata_i : dec_pc_i;
-    assign bjp_jump_op1_o = (sys_op_fence_o | op_bjp) ? bjp_op1 : 32'h0;
-    // BJP op2
-    wire [31:0] bjp_op2 = dec_imm_i;  // 使用立即数作为跳转偏移量
-    assign bjp_jump_op2_o = (sys_op_fence_o) ? 32'h4 : op_bjp ? bjp_op2 : 32'h0;
-    assign bjp_op1_o      = op_bjp ? rs1_rdata_i : 32'h0;  // 用于分支指令的比较操作数1
-    assign bjp_op2_o      = op_bjp ? rs2_rdata_i : 32'h0;  // 用于分支指令的比较操作数2
+    assign bjp_op1_rs1_o = bjp_op1_rs1;
     assign bjp_op_jump_o  = bjp_info[`DECINFO_BJP_JUMP];  // JAL/JALR指令
     assign bjp_op_beq_o   = bjp_info[`DECINFO_BJP_BEQ];  // BEQ指令
     assign bjp_op_bne_o   = bjp_info[`DECINFO_BJP_BNE];  // BNE指令
@@ -185,10 +169,8 @@ module dispatch_logic (
 
     wire op_csr = (disp_info_grp == `DECINFO_GRP_CSR);
     wire [`DECINFO_WIDTH-1:0] csr_info = {`DECINFO_WIDTH{op_csr}} & dec_info_bus_i;
-    // CSR op1
     wire csr_rs1imm = csr_info[`DECINFO_CSR_RS1IMM];  // 使用立即数作为操作数 (CSRxxI指令)
-    wire [31:0] csr_rs1 = csr_rs1imm ? dec_imm_i : rs1_rdata_i;
-    assign csr_op1_o   = op_csr ? csr_rs1 : 32'h0;
+    assign csr_rs1imm_o = csr_rs1imm;
     assign csr_addr_o  = {{20{1'b0}}, csr_info[`DECINFO_CSR_CSRADDR]};  // CSR地址
     assign csr_csrrw_o = csr_info[`DECINFO_CSR_CSRRW];  // CSRRW/CSRRWI指令
     assign csr_csrrs_o = csr_info[`DECINFO_CSR_CSRRS];  // CSRRS/CSRRSI指令
@@ -209,9 +191,6 @@ module dispatch_logic (
     assign mem_op_sw_o    = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
     assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
     assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];  // 所有存储指令
-    assign mem_op1_o      = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
-    assign mem_op2_o      = op_mem ? dec_imm_i : 32'h0;  // 偏移量 (立即数)
-    assign mem_rs2_data_o = op_mem ? rs2_rdata_i : 32'h0;  // 存储指令的数据 (rs2)
     assign req_mem_o      = op_mem;
 
     // SYS info

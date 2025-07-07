@@ -39,6 +39,7 @@ module hdu (
     // 长指令完成信号
     input wire                        commit_valid_i,  // 长指令执行完成有效信号
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // 执行完成的长指令ID
+    input wire [`CU_BUS_WIDTH-1:0]    stall_flag_i,       // 流水线暂停标志
 
     // 控制信号
     output wire hazard_stall_o,  // 暂停流水线信号
@@ -53,6 +54,9 @@ module hdu (
     // 冒险检测信号
     reg raw_hazard;  // 读后写冒险
     reg waw_hazard;  // 写后写冒险
+    reg [`COMMIT_ID_WIDTH-1:0] hazrd_id ;  // 冒险的FIFO ID
+    reg [`COMMIT_ID_WIDTH-1:0] hazrd_id_next; // 冒险的FIFO ID
+    reg stall_next = 0; // 下一个周期的暂停信号
     wire hazard;  // 总冒险信号
 
     // 寄存器为x0时不需要检测冒险（x0永远为0）
@@ -65,7 +69,8 @@ module hdu (
         // 默认无冒险
         raw_hazard = 1'b0;
         waw_hazard = 1'b0;
-
+        hazrd_id = 0; // 初始化冒险ID
+        
         // 检查FIFO中的每个有效表项
         for (int i = 0; i < 4; i = i + 1) begin
             if (fifo_valid[i]) begin
@@ -75,11 +80,13 @@ module hdu (
                     if (((rs1_check && new_inst_rs1_addr == fifo_rd_addr[i]) || 
                     (rs2_check && new_inst_rs2_addr == fifo_rd_addr[i]))) begin
                         raw_hazard = 1'b1;
+                        hazrd_id = i; // 记录冒险的FIFO ID
                     end
 
                     // WAW冒险：新指令写入的寄存器是FIFO中长指令的目标寄存器
                     if (rd_check && new_inst_rd_addr == fifo_rd_addr[i]) begin
                         waw_hazard = 1'b1;
+                        hazrd_id = i; // 记录冒险的FIFO ID
                     end
                 end
             end
@@ -88,10 +95,24 @@ module hdu (
 
     // 只有在有新指令且存在冒险时才暂停流水线
     assign hazard = (raw_hazard || waw_hazard);
-    assign hazard_stall_o = hazard;
+
+always @(posedge clk or negedge rst_n) begin
+    // hazrd_id_next <= hazrd_id; // 更新冒险ID
+    if (~rst_n) begin
+        stall_next <= 1'b0;
+    end else if (!stall_next && !stall_flag_i[`CU_STALL_DISPATCH] && hazard) begin
+        hazrd_id_next <= hazrd_id;
+        stall_next <= 1'b1;
+    end else if (stall_next && commit_valid_i && (commit_id_i == hazrd_id_next)) begin
+        stall_next <= 1'b0;
+        hazrd_id_next <= 0; // 清除冒险ID
+    end
+end
+
+    assign hazard_stall_o = stall_next;
 
     // 为新的长指令分配ID - 使用assign语句
-    assign commit_id_o = (new_long_inst_valid && ~hazard) ? 
+    assign commit_id_o = (new_long_inst_valid && ~stall_next) ? 
         ( ~fifo_valid[0] ? 0 :
           ~fifo_valid[1] ? 1 :
           ~fifo_valid[2] ? 2 :
@@ -112,7 +133,7 @@ module hdu (
             end
 
             // 添加新的长指令到FIFO
-            if (new_long_inst_valid && ~hazard) begin
+            if (new_long_inst_valid && ~stall_next) begin
                 // 使用组合逻辑分配的ID更新FIFO
                 fifo_valid[commit_id_o]   <= 1'b1;
                 fifo_rd_addr[commit_id_o] <= new_inst_rd_addr;

@@ -34,6 +34,8 @@ module dispatch_pipe (
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
+
+
     // 新增：额外的信号直接从IDU传递
     input wire                       reg_we_i,
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -42,23 +44,24 @@ module dispatch_pipe (
     input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
     input wire [               31:0] dec_imm_i,
     input wire [ `DECINFO_WIDTH-1:0] dec_info_bus_i,
-    // 新增：寄存rs1/rs2数据
-    input wire [31:0] rs1_rdata_i,
-    input wire [31:0] rs2_rdata_i,
+
     input wire        is_pred_branch_i, // 新增：预测分支信号输入
+    input wire        stall_hdu_i, // hdu暂停信号
+    // 新增：寄存器地址输入
+    input wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_i,
+    input wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_i,
 
     // ALU输入端口
     input wire                     req_alu_i,
-    input wire [             31:0] alu_op1_i,
-    input wire [             31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
+    
+    // ALU操作数计算中间信号输入
+    input wire alu_op1_pc_i,
+    input wire alu_op1_zero_i,
+    input wire alu_op2_imm_i,
 
     // BJP输入端口
     input wire        req_bjp_i,
-    input wire [31:0] bjp_op1_i,
-    input wire [31:0] bjp_op2_i,
-    input wire [31:0] bjp_jump_op1_i,
-    input wire [31:0] bjp_jump_op2_i,
     input wire        bjp_op_jump_i,
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
@@ -67,11 +70,10 @@ module dispatch_pipe (
     input wire        bjp_op_bge_i,
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,
+    input wire        bjp_op1_rs1_i,
 
     // MULDIV输入端口
     input wire                        req_muldiv_i,
-    input wire [                31:0] muldiv_op1_i,
-    input wire [                31:0] muldiv_op2_i,
     input wire                        muldiv_op_mul_i,
     input wire                        muldiv_op_mulh_i,
     input wire                        muldiv_op_mulhsu_i,
@@ -85,7 +87,7 @@ module dispatch_pipe (
 
     // CSR输入端口
     input wire        req_csr_i,
-    input wire [31:0] csr_op1_i,
+    input wire        csr_rs1imm_i,
     input wire [31:0] csr_addr_i,
     input wire        csr_csrrw_i,
     input wire        csr_csrrs_i,
@@ -93,9 +95,6 @@ module dispatch_pipe (
 
     // MEM输入端口
     input wire                        req_mem_i,
-    input wire [                31:0] mem_op1_i,
-    input wire [                31:0] mem_op2_i,
-    input wire [                31:0] mem_rs2_data_i,
     input wire                        mem_op_lb_i,
     input wire                        mem_op_lh_i,
     input wire                        mem_op_lw_i,
@@ -127,22 +126,23 @@ module dispatch_pipe (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,
     output wire [               31:0] dec_imm_o,
     output wire [ `DECINFO_WIDTH-1:0] dec_info_bus_o,
-    // 新增：寄存rs1/rs2数据
-    output wire [31:0] rs1_rdata_o,
-    output wire [31:0] rs2_rdata_o,
+
+    // 新增：寄存器地址输出
+    output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,
+    output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,
 
     // ALU输出端口
     output wire                     req_alu_o,
-    output wire [             31:0] alu_op1_o,
-    output wire [             31:0] alu_op2_o,
     output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
+    
+    // ALU操作数计算中间信号输出
+    output wire alu_op1_pc_o,
+    output wire alu_op1_zero_o,
+    output wire alu_op2_imm_o,
+
 
     // BJP输出端口
     output wire        req_bjp_o,
-    output wire [31:0] bjp_op1_o,
-    output wire [31:0] bjp_op2_o,
-    output wire [31:0] bjp_jump_op1_o,
-    output wire [31:0] bjp_jump_op2_o,
     output wire        bjp_op_jump_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
@@ -151,11 +151,10 @@ module dispatch_pipe (
     output wire        bjp_op_bge_o,
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
+    output wire        bjp_op1_rs1_o,
 
     // MULDIV输出端口
     output wire                        req_muldiv_o,
-    output wire [                31:0] muldiv_op1_o,
-    output wire [                31:0] muldiv_op2_o,
     output wire                        muldiv_op_mul_o,
     output wire                        muldiv_op_mulh_o,
     output wire                        muldiv_op_mulhsu_o,
@@ -169,7 +168,7 @@ module dispatch_pipe (
 
     // CSR输出端口
     output wire        req_csr_o,
-    output wire [31:0] csr_op1_o,
+    output wire        csr_rs1imm_o,
     output wire [31:0] csr_addr_o,
     output wire        csr_csrrw_o,
     output wire        csr_csrrs_o,
@@ -177,9 +176,6 @@ module dispatch_pipe (
 
     // MEM输出端口
     output wire                        req_mem_o,
-    output wire [                31:0] mem_op1_o,
-    output wire [                31:0] mem_op2_o,
-    output wire [                31:0] mem_rs2_data_o,
     output wire                        mem_op_lb_o,
     output wire                        mem_op_lh_o,
     output wire                        mem_op_lw_o,
@@ -191,6 +187,10 @@ module dispatch_pipe (
     output wire                        mem_op_load_o,
     output wire                        mem_op_store_o,
 
+
+
+
+
     // SYS输出端口
     output wire sys_op_nop_o,
     output wire sys_op_mret_o,
@@ -201,8 +201,8 @@ module dispatch_pipe (
     output wire is_pred_branch_o // 新增：预测分支信号输出
 );
 
-    wire                        flush_en = |stall_flag_i;
-    wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
+    wire                        flush_en = stall_flag_i[`CU_FLUSH];
+    wire                        stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器
@@ -323,29 +323,8 @@ module dispatch_pipe (
         req_alu_dnxt,
         req_alu
     );
-    assign req_alu_o = req_alu;
+    assign req_alu_o = stall_hdu_i ? 1'b0 : req_alu;
 
-    wire [31:0] alu_op1_dnxt = flush_en ? `ZeroWord : alu_op1_i;
-    wire [31:0] alu_op1;
-    gnrl_dfflr #(32) alu_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        alu_op1_dnxt,
-        alu_op1
-    );
-    assign alu_op1_o = alu_op1;
-
-    wire [31:0] alu_op2_dnxt = flush_en ? `ZeroWord : alu_op2_i;
-    wire [31:0] alu_op2;
-    gnrl_dfflr #(32) alu_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        alu_op2_dnxt,
-        alu_op2
-    );
-    assign alu_op2_o = alu_op2;
 
     wire [`ALU_OP_WIDTH-1:0] alu_op_info_dnxt = flush_en ? {`ALU_OP_WIDTH{1'b0}} : alu_op_info_i;
     wire [`ALU_OP_WIDTH-1:0] alu_op_info;
@@ -358,6 +337,40 @@ module dispatch_pipe (
     );
     assign alu_op_info_o = alu_op_info;
 
+    // ALU操作数计算中间信号寄存
+    wire alu_op1_pc_dnxt = flush_en ? 1'b0 : alu_op1_pc_i;
+    wire alu_op1_pc;
+    gnrl_dfflr #(1) alu_op1_pc_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_op1_pc_dnxt,
+        alu_op1_pc
+    );
+    assign alu_op1_pc_o = alu_op1_pc;
+
+    wire alu_op1_zero_dnxt = flush_en ? 1'b0 : alu_op1_zero_i;
+    wire alu_op1_zero;
+    gnrl_dfflr #(1) alu_op1_zero_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_op1_zero_dnxt,
+        alu_op1_zero
+    );
+    assign alu_op1_zero_o = alu_op1_zero;
+
+    wire alu_op2_imm_dnxt = flush_en ? 1'b0 : alu_op2_imm_i;
+    wire alu_op2_imm;
+    gnrl_dfflr #(1) alu_op2_imm_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_op2_imm_dnxt,
+        alu_op2_imm
+    );
+    assign alu_op2_imm_o = alu_op2_imm;
+
     // BJP信号寄存
     wire req_bjp_dnxt = flush_en ? 1'b0 : req_bjp_i;
     wire req_bjp;
@@ -368,51 +381,8 @@ module dispatch_pipe (
         req_bjp_dnxt,
         req_bjp
     );
-    assign req_bjp_o = req_bjp;
+    assign req_bjp_o = stall_hdu_i ? 1'b0 : req_bjp;
 
-    wire [31:0] bjp_op1_dnxt = flush_en ? `ZeroWord : bjp_op1_i;
-    wire [31:0] bjp_op1;
-    gnrl_dfflr #(32) bjp_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        bjp_op1_dnxt,
-        bjp_op1
-    );
-    assign bjp_op1_o = bjp_op1;
-
-    wire [31:0] bjp_op2_dnxt = flush_en ? `ZeroWord : bjp_op2_i;
-    wire [31:0] bjp_op2;
-    gnrl_dfflr #(32) bjp_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        bjp_op2_dnxt,
-        bjp_op2
-    );
-    assign bjp_op2_o = bjp_op2;
-
-    wire [31:0] bjp_jump_op1_dnxt = flush_en ? `ZeroWord : bjp_jump_op1_i;
-    wire [31:0] bjp_jump_op1;
-    gnrl_dfflr #(32) bjp_jump_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        bjp_jump_op1_dnxt,
-        bjp_jump_op1
-    );
-    assign bjp_jump_op1_o = bjp_jump_op1;
-
-    wire [31:0] bjp_jump_op2_dnxt = flush_en ? `ZeroWord : bjp_jump_op2_i;
-    wire [31:0] bjp_jump_op2;
-    gnrl_dfflr #(32) bjp_jump_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        bjp_jump_op2_dnxt,
-        bjp_jump_op2
-    );
-    assign bjp_jump_op2_o = bjp_jump_op2;
 
     wire bjp_op_jump_dnxt = flush_en ? 1'b0 : bjp_op_jump_i;
     wire bjp_op_jump;
@@ -502,6 +472,17 @@ module dispatch_pipe (
     );
     assign bjp_op_jalr_o = bjp_op_jalr;
 
+    wire bjp_op1_rs1_dnxt = flush_en ? 1'b0 : bjp_op1_rs1_i;
+    wire bjp_op1_rs1;
+    gnrl_dfflr #(1) bjp_op1_rs1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op1_rs1_dnxt,
+        bjp_op1_rs1
+    );
+    assign bjp_op1_rs1_o = bjp_op1_rs1;
+
     // MULDIV信号寄存
     wire req_muldiv_dnxt = flush_en ? 1'b0 : req_muldiv_i;
     wire req_muldiv;
@@ -512,29 +493,7 @@ module dispatch_pipe (
         req_muldiv_dnxt,
         req_muldiv
     );
-    assign req_muldiv_o = req_muldiv;
-
-    wire [31:0] muldiv_op1_dnxt = flush_en ? `ZeroWord : muldiv_op1_i;
-    wire [31:0] muldiv_op1;
-    gnrl_dfflr #(32) muldiv_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        muldiv_op1_dnxt,
-        muldiv_op1
-    );
-    assign muldiv_op1_o = muldiv_op1;
-
-    wire [31:0] muldiv_op2_dnxt = flush_en ? `ZeroWord : muldiv_op2_i;
-    wire [31:0] muldiv_op2;
-    gnrl_dfflr #(32) muldiv_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        muldiv_op2_dnxt,
-        muldiv_op2
-    );
-    assign muldiv_op2_o = muldiv_op2;
+    assign req_muldiv_o = stall_hdu_i ? 1'b0 : req_muldiv;
 
     wire muldiv_op_mul_dnxt = flush_en ? 1'b0 : muldiv_op_mul_i;
     wire muldiv_op_mul;
@@ -656,18 +615,19 @@ module dispatch_pipe (
         req_csr_dnxt,
         req_csr
     );
-    assign req_csr_o = req_csr;
+    assign req_csr_o = stall_hdu_i ? 1'b0 : req_csr;
 
-    wire [31:0] csr_op1_dnxt = flush_en ? `ZeroWord : csr_op1_i;
-    wire [31:0] csr_op1;
-    gnrl_dfflr #(32) csr_op1_ff (
+    wire csr_rs1imm_dnxt = flush_en ? 1'b0 : csr_rs1imm_i;
+    wire csr_rs1imm;
+    gnrl_dfflr #(1) csr_rs1imm_ff (
         clk,
         rst_n,
         reg_update_en,
-        csr_op1_dnxt,
-        csr_op1
+        csr_rs1imm_dnxt,
+        csr_rs1imm
     );
-    assign csr_op1_o = csr_op1;
+    assign csr_rs1imm_o = csr_rs1imm;
+
 
     wire [31:0] csr_addr_dnxt = flush_en ? `ZeroWord : csr_addr_i;
     wire [31:0] csr_addr;
@@ -723,40 +683,8 @@ module dispatch_pipe (
         req_mem_dnxt,
         req_mem
     );
-    assign req_mem_o = req_mem;
+    assign req_mem_o = stall_hdu_i ? 1'b0 : req_mem;
 
-    wire [31:0] mem_op1_dnxt = flush_en ? `ZeroWord : mem_op1_i;
-    wire [31:0] mem_op1;
-    gnrl_dfflr #(32) mem_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op1_dnxt,
-        mem_op1
-    );
-    assign mem_op1_o = mem_op1;
-
-    wire [31:0] mem_op2_dnxt = flush_en ? `ZeroWord : mem_op2_i;
-    wire [31:0] mem_op2;
-    gnrl_dfflr #(32) mem_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op2_dnxt,
-        mem_op2
-    );
-    assign mem_op2_o = mem_op2;
-
-    wire [31:0] mem_rs2_data_dnxt = flush_en ? `ZeroWord : mem_rs2_data_i;
-    wire [31:0] mem_rs2_data;
-    gnrl_dfflr #(32) mem_rs2_data_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_rs2_data_dnxt,
-        mem_rs2_data
-    );
-    assign mem_rs2_data_o = mem_rs2_data;
 
     wire mem_op_lb_dnxt = flush_en ? 1'b0 : mem_op_lb_i;
     wire mem_op_lb;
@@ -935,30 +863,6 @@ module dispatch_pipe (
     );
     assign sys_op_dret_o = sys_op_dret;
 
-    // 新增：rs1_rdata寄存器
-    wire [31:0] rs1_rdata_dnxt = flush_en ? 32'b0 : rs1_rdata_i;
-    wire [31:0] rs1_rdata;
-    gnrl_dfflr #(32) rs1_rdata_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        rs1_rdata_dnxt,
-        rs1_rdata
-    );
-    assign rs1_rdata_o = rs1_rdata;
-
-    // 新增：rs2_rdata寄存器
-    wire [31:0] rs2_rdata_dnxt = flush_en ? 32'b0 : rs2_rdata_i;
-    wire [31:0] rs2_rdata;
-    gnrl_dfflr #(32) rs2_rdata_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        rs2_rdata_dnxt,
-        rs2_rdata
-    );
-    assign rs2_rdata_o = rs2_rdata;
-
     // 新增：预测分支信号寄存器
     wire is_pred_branch_dnxt = flush_en ? 1'b0 : is_pred_branch_i;
     wire is_pred_branch;
@@ -970,5 +874,29 @@ module dispatch_pipe (
         is_pred_branch
     );
     assign is_pred_branch_o = is_pred_branch;
+
+    // 新增：寄存器地址寄存器
+    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_dnxt = flush_en ? {`REG_ADDR_WIDTH{1'b0}} : reg1_raddr_i;
+    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr;
+    gnrl_dfflr #(`REG_ADDR_WIDTH) reg1_raddr_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        reg1_raddr_dnxt,
+        reg1_raddr
+    );
+    assign reg1_raddr_o = reg1_raddr;
+
+    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_dnxt = flush_en ? {`REG_ADDR_WIDTH{1'b0}} : reg2_raddr_i;
+    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr;
+    gnrl_dfflr #(`REG_ADDR_WIDTH) reg2_raddr_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        reg2_raddr_dnxt,
+        reg2_raddr
+    );
+    assign reg2_raddr_o = reg2_raddr;
+
 
 endmodule

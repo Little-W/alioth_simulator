@@ -82,16 +82,12 @@ module gpr (
     // 如果读地址为零寄存器，则返回零
     // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
     // 否则返回寄存器值
-    assign rdata1_o = (raddr1_i == `ZeroReg) ? `ZeroWord :
-                      ((raddr1_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
-                      regs[raddr1_i];
+    assign rdata1_o = (raddr1_i == `ZeroReg) ? `ZeroWord : regs[raddr1_i];
 
     // 读寄存器2
     // 如果读地址为零寄存器，则返回零
     // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
     // 否则返回寄存器值
-    assign rdata2_o = (raddr2_i == `ZeroReg) ? `ZeroWord :
-                      ((raddr2_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
-                      regs[raddr2_i];
+    assign rdata2_o = (raddr2_i == `ZeroReg) ? `ZeroWord : regs[raddr2_i];
 
 endmodule

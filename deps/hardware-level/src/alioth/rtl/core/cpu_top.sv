@@ -153,6 +153,8 @@ module cpu_top #(
     // 添加缺少的信号声明
     wire                        wbu_commit_valid_o;
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_commit_id_o;
+    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_from_dispatch;
+    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_from_dispatch;
 
     // 给dispatch和HDU的译码信息
     wire                        inst_valid = (ctrl_stall_flag_o == 0);
@@ -367,9 +369,9 @@ module cpu_top #(
         .we_i    (wbu_reg_we_o),
         .waddr_i (wbu_reg_waddr_o),
         .wdata_i (wbu_reg_wdata_o),
-        .raddr1_i(idu_reg1_raddr_o),
+        .raddr1_i(reg1_raddr_from_dispatch),
         .rdata1_o(regs_rdata1_o),
-        .raddr2_i(idu_reg2_raddr_o),
+        .raddr2_i(reg2_raddr_from_dispatch),
         .rdata2_o(regs_rdata2_o)
     );
 
@@ -529,7 +531,9 @@ module cpu_top #(
         .sys_op_ebreak_o (dispatch_sys_op_ebreak),
         .sys_op_fence_o  (dispatch_sys_op_fence),
         .sys_op_dret_o   (dispatch_sys_op_dret),
-        .is_pred_branch_o(dis_is_pred_branch_o)     // 连接预测分支信号输出
+        .is_pred_branch_o(dis_is_pred_branch_o),     // 连接预测分支信号输出
+        .reg1_raddr_o    (reg1_raddr_from_dispatch),  // 新增：寄存器地址输出
+        .reg2_raddr_o    (reg2_raddr_from_dispatch)   // 新增：寄存器地址输出
     );
 
     // exu模块例化 - 修改commit_id相关连接
