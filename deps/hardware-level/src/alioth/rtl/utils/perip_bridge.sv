@@ -128,13 +128,22 @@ module perip_bridge #(
         .perip_rdata(cnt_rdata)
     );
 
+    // 打一拍的perip_raddr
+    logic [31:0] perip_raddr_q;
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst)
+            perip_raddr_q <= 32'b0;
+        else
+            perip_raddr_q <= perip_raddr;
+    end
+
     // 直接使用各个数据源，不需要总的寄存器
-    assign perip_rdata = {32{perip_raddr == `SW0_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr == `SW1_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr == `KEY_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr == `SEG_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr >= DTCM_ADDR_START && perip_raddr < DTCM_ADDR_END}} & dram_rdata |
-                         {32{perip_raddr == `CNT_ADDR}} & cnt_rdata_reg;
+    assign perip_rdata = {32{perip_raddr_q == `SW0_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr_q == `SW1_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr_q == `KEY_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr_q == `SEG_ADDR}} & mmio_rdata_reg |
+                         {32{perip_raddr_q >= DTCM_ADDR_START && perip_raddr_q < DTCM_ADDR_END}} & dram_rdata |
+                         {32{perip_raddr_q == `CNT_ADDR}} & cnt_rdata_reg;
 
     assign virtual_led_output = LED;
     assign virtual_seg_output = seg_output;
