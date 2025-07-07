@@ -233,20 +233,17 @@ module cpu_top (
 
     // dispatch to MEM
     wire                        dispatch_req_mem;
-    wire [                31:0] dispatch_mem_op1;
-    wire [                31:0] dispatch_mem_op2;
-    wire [                31:0] dispatch_mem_rs2_data;
     wire                        dispatch_mem_op_lb;
     wire                        dispatch_mem_op_lh;
     wire                        dispatch_mem_op_lw;
     wire                        dispatch_mem_op_lbu;
     wire                        dispatch_mem_op_lhu;
-    wire                        dispatch_mem_op_sb;
-    wire                        dispatch_mem_op_sh;
-    wire                        dispatch_mem_op_sw;
     wire                        dispatch_mem_op_load;
     wire                        dispatch_mem_op_store;
     wire [                 1:0] dispatch_mem_commit_id;
+    wire [                31:0] dispatch_mem_addr;
+    wire [                31:0] dispatch_mem_wdata;
+    wire [                 3:0] dispatch_mem_wmask;
 
     // dispatch to SYS
     wire                        dispatch_sys_op_nop;
@@ -258,7 +255,6 @@ module cpu_top (
 
     wire [                31:0] dispatch_rs1_rdata;
     wire [                31:0] dispatch_rs2_rdata;
-
 
     // AXI接口信号 - EXU
     wire [   `BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
@@ -501,22 +497,18 @@ module cpu_top (
         .csr_csrrs_o(dispatch_csr_csrrs),
         .csr_csrrc_o(dispatch_csr_csrrc),
 
-        .req_mem_o      (dispatch_req_mem),
-        .mem_op1_o      (dispatch_mem_op1),
-        .mem_op2_o      (dispatch_mem_op2),
-        .mem_rs2_data_o (dispatch_mem_rs2_data),
-        .mem_op_lb_o    (dispatch_mem_op_lb),
-        .mem_op_lh_o    (dispatch_mem_op_lh),
-        .mem_op_lw_o    (dispatch_mem_op_lw),
-        .mem_op_lbu_o   (dispatch_mem_op_lbu),
-        .mem_op_lhu_o   (dispatch_mem_op_lhu),
-        .mem_op_sb_o    (dispatch_mem_op_sb),
-        .mem_op_sh_o    (dispatch_mem_op_sh),
-        .mem_op_sw_o    (dispatch_mem_op_sw),
-        .mem_op_load_o  (dispatch_mem_op_load),
-        .mem_op_store_o (dispatch_mem_op_store),
-        .mem_commit_id_o(dispatch_mem_commit_id),
-
+        .req_mem_o       (dispatch_req_mem),
+        .mem_op_lb_o     (dispatch_mem_op_lb),
+        .mem_op_lh_o     (dispatch_mem_op_lh),
+        .mem_op_lw_o     (dispatch_mem_op_lw),
+        .mem_op_lbu_o    (dispatch_mem_op_lbu),
+        .mem_op_lhu_o    (dispatch_mem_op_lhu),
+        .mem_op_load_o   (dispatch_mem_op_load),
+        .mem_op_store_o  (dispatch_mem_op_store),
+        .mem_commit_id_o (dispatch_mem_commit_id),
+        .mem_addr_o      (dispatch_mem_addr),
+        .mem_wmask_o     (dispatch_mem_wmask),
+        .mem_wdata_o     (dispatch_mem_wdata),
         .sys_op_nop_o   (dispatch_sys_op_nop),
         .sys_op_mret_o  (dispatch_sys_op_mret),
         .sys_op_ecall_o (dispatch_sys_op_ecall),
@@ -599,20 +591,17 @@ module cpu_top (
         .csr_csrrc_i(dispatch_csr_csrrc),
 
         .req_mem_i      (dispatch_req_mem),
-        .mem_op1_i      (dispatch_mem_op1),
-        .mem_op2_i      (dispatch_mem_op2),
-        .mem_rs2_data_i (dispatch_mem_rs2_data),
         .mem_op_lb_i    (dispatch_mem_op_lb),
         .mem_op_lh_i    (dispatch_mem_op_lh),
         .mem_op_lw_i    (dispatch_mem_op_lw),
         .mem_op_lbu_i   (dispatch_mem_op_lbu),
         .mem_op_lhu_i   (dispatch_mem_op_lhu),
-        .mem_op_sb_i    (dispatch_mem_op_sb),
-        .mem_op_sh_i    (dispatch_mem_op_sh),
-        .mem_op_sw_i    (dispatch_mem_op_sw),
         .mem_op_load_i  (dispatch_mem_op_load),
         .mem_op_store_i (dispatch_mem_op_store),
         .mem_commit_id_i(dispatch_mem_commit_id),
+        .mem_addr_i     (dispatch_mem_addr),
+        .mem_wdata_i    (dispatch_mem_wdata),
+        .mem_wmask_i    (dispatch_mem_wmask),
 
         .sys_op_nop_i   (dispatch_sys_op_nop),
         .sys_op_mret_i  (dispatch_sys_op_mret),

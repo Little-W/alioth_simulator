@@ -104,20 +104,18 @@ module exu (
 
     // dispatch to MEM
     input wire                        req_mem_i,
-    input wire [                31:0] mem_op1_i,
-    input wire [                31:0] mem_op2_i,
-    input wire [                31:0] mem_rs2_data_i,
     input wire                        mem_op_lb_i,
     input wire                        mem_op_lh_i,
     input wire                        mem_op_lw_i,
     input wire                        mem_op_lbu_i,
     input wire                        mem_op_lhu_i,
-    input wire                        mem_op_sb_i,
-    input wire                        mem_op_sh_i,
-    input wire                        mem_op_sw_i,
     input wire                        mem_op_load_i,
     input wire                        mem_op_store_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
+    // 新增：直接访存信号
+    input wire [31:0] mem_addr_i,
+    input wire [31:0] mem_wdata_i,
+    input wire [3:0]  mem_wmask_i,
 
     // dispatch to SYS
     input wire sys_op_nop_i,
@@ -312,7 +310,7 @@ module exu (
     );
 
     // 地址生成单元模块例化 
-    exu_agu_lsu #(
+    exu_lsu #(
         .C_M_AXI_ID_WIDTH  (`BUS_ID_WIDTH),
         .C_M_AXI_DATA_WIDTH(`BUS_DATA_WIDTH),
         .C_M_AXI_ADDR_WIDTH(`BUS_ADDR_WIDTH)
@@ -320,20 +318,17 @@ module exu (
         .clk           (clk),
         .rst_n         (rst_n),
         .req_mem_i     (req_mem_i),
-        .mem_op1_i     (mem_op1_i),
-        .mem_op2_i     (mem_op2_i),
-        .mem_rs2_data_i(mem_rs2_data_i),
         .mem_op_lb_i   (mem_op_lb_i),
         .mem_op_lh_i   (mem_op_lh_i),
         .mem_op_lw_i   (mem_op_lw_i),
         .mem_op_lbu_i  (mem_op_lbu_i),
         .mem_op_lhu_i  (mem_op_lhu_i),
-        .mem_op_sb_i   (mem_op_sb_i),
-        .mem_op_sh_i   (mem_op_sh_i),
-        .mem_op_sw_i   (mem_op_sw_i),
         .mem_op_load_i (mem_op_load_i),
         .mem_op_store_i(mem_op_store_i),
         .rd_addr_i     (reg_waddr_i),
+        .mem_addr_i    (mem_addr_i),
+        .mem_wdata_i   (mem_wdata_i),
+        .mem_wmask_i   (mem_wmask_i),
         .commit_id_i   (mem_commit_id),
         .int_assert_i  (int_assert_i),
         .mem_stall_o   (mem_stall_o),

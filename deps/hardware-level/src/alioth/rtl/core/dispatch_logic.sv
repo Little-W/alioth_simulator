@@ -79,19 +79,18 @@ module dispatch_logic (
 
     // dispatch to MEM
     output wire        req_mem_o,
-    output wire [31:0] mem_op1_o,
-    output wire [31:0] mem_op2_o,
-    output wire [31:0] mem_rs2_data_o,
     output wire        mem_op_lb_o,
     output wire        mem_op_lh_o,
     output wire        mem_op_lw_o,
     output wire        mem_op_lbu_o,
     output wire        mem_op_lhu_o,
-    output wire        mem_op_sb_o,
-    output wire        mem_op_sh_o,
-    output wire        mem_op_sw_o,
     output wire        mem_op_load_o,
     output wire        mem_op_store_o,
+
+    // 直接计算的内存地址和掩码/数据
+    output wire [31:0] mem_addr_o,
+    output wire [ 3:0] mem_wmask_o,
+    output wire [31:0] mem_wdata_o,
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -199,20 +198,86 @@ module dispatch_logic (
 
     wire                      op_mem = (disp_info_grp == `DECINFO_GRP_MEM);
     wire [`DECINFO_WIDTH-1:0] mem_info = {`DECINFO_WIDTH{op_mem}} & dec_info_bus_i;
-    assign mem_op_lb_o    = mem_info[`DECINFO_MEM_LB];  // LB指令：符号位扩展的字节加载
-    assign mem_op_lh_o    = mem_info[`DECINFO_MEM_LH];  // LH指令：符号位扩展的半字加载
-    assign mem_op_lw_o    = mem_info[`DECINFO_MEM_LW];  // LW指令：加载一个字
-    assign mem_op_lbu_o   = mem_info[`DECINFO_MEM_LBU];  // LBU指令：无符号字节加载
-    assign mem_op_lhu_o   = mem_info[`DECINFO_MEM_LHU];  // LHU指令：无符号半字加载
-    assign mem_op_sb_o    = mem_info[`DECINFO_MEM_SB];  // SB指令：存储一个字节
-    assign mem_op_sh_o    = mem_info[`DECINFO_MEM_SH];  // SH指令：存储一个半字
-    assign mem_op_sw_o    = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
-    assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
+    
+    // 这些信号不再是输出，但内部仍然需要使用
+    wire mem_op_lb = mem_info[`DECINFO_MEM_LB];  // LB指令：符号位扩展的字节加载
+    wire mem_op_lh = mem_info[`DECINFO_MEM_LH];  // LH指令：符号位扩展的半字加载
+    wire mem_op_lw = mem_info[`DECINFO_MEM_LW];  // LW指令：加载一个字
+    wire mem_op_lbu = mem_info[`DECINFO_MEM_LBU];  // LBU指令：无符号字节加载
+    wire mem_op_lhu = mem_info[`DECINFO_MEM_LHU];  // LHU指令：无符号半字加载
+    wire mem_op_sb = mem_info[`DECINFO_MEM_SB];  // SB指令：存储一个字节
+    wire mem_op_sh = mem_info[`DECINFO_MEM_SH];  // SH指令：存储一个半字
+    wire mem_op_sw = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
+    
+    // 这些信号仍然作为输出
+    assign mem_op_lb_o = mem_op_lb;
+    assign mem_op_lh_o = mem_op_lh;
+    assign mem_op_lw_o = mem_op_lw;
+    assign mem_op_lbu_o = mem_op_lbu;
+    assign mem_op_lhu_o = mem_op_lhu;
+    assign mem_op_load_o = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
     assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];  // 所有存储指令
-    assign mem_op1_o      = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
-    assign mem_op2_o      = op_mem ? dec_imm_i : 32'h0;  // 偏移量 (立即数)
-    assign mem_rs2_data_o = op_mem ? rs2_rdata_i : 32'h0;  // 存储指令的数据 (rs2)
-    assign req_mem_o      = op_mem;
+    
+    // 内部信号，不再作为输出
+    wire [31:0] mem_op1 = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
+    wire [31:0] mem_op2 = op_mem ? dec_imm_i : 32'h0;  // 偏移量 (立即数)
+    wire [31:0] mem_rs2_data = op_mem ? rs2_rdata_i : 32'h0;  // 存储指令的数据 (rs2)
+    
+    assign req_mem_o = op_mem;
+
+    // 直接计算内存地址
+    wire [31:0] mem_addr = rs1_rdata_i + dec_imm_i;
+    wire [ 1:0] mem_addr_index = mem_addr[1:0];  // 地址低两位用于字节选择
+    wire        valid_op = op_mem;  // 仅在内存操作有效时计算
+
+    // 存储操作的掩码和数据计算
+    // 字节存储掩码和数据
+    wire [ 3:0] sb_mask;
+    wire [31:0] sb_data;
+
+    assign sb_mask = ({4{mem_addr_index == 2'b00}} & 4'b0001) |
+                     ({4{mem_addr_index == 2'b01}} & 4'b0010) |
+                     ({4{mem_addr_index == 2'b10}} & 4'b0100) |
+                     ({4{mem_addr_index == 2'b11}} & 4'b1000);
+
+    assign sb_data = ({32{mem_addr_index == 2'b00}} & {24'b0, rs2_rdata_i[7:0]}) |
+                     ({32{mem_addr_index == 2'b01}} & {16'b0, rs2_rdata_i[7:0], 8'b0}) |
+                     ({32{mem_addr_index == 2'b10}} & {8'b0, rs2_rdata_i[7:0], 16'b0}) |
+                     ({32{mem_addr_index == 2'b11}} & {rs2_rdata_i[7:0], 24'b0});
+
+    // 半字存储掩码和数据
+    wire [ 3:0] sh_mask;
+    wire [31:0] sh_data;
+
+    assign sh_mask = ({4{mem_addr_index[1] == 1'b0}} & 4'b0011) | 
+                     ({4{mem_addr_index[1] == 1'b1}} & 4'b1100);
+
+    assign sh_data = ({32{mem_addr_index[1] == 1'b0}} & {16'b0, rs2_rdata_i[15:0]}) |
+                     ({32{mem_addr_index[1] == 1'b1}} & {rs2_rdata_i[15:0], 16'b0});
+
+    // 字存储掩码和数据
+    wire [ 3:0] sw_mask;
+    wire [31:0] sw_data;
+
+    assign sw_mask = 4'b1111;
+    assign sw_data = rs2_rdata_i;
+
+    // 并行选择最终的存储掩码和数据
+    wire [ 3:0] mem_wmask;
+    wire [31:0] mem_wdata;
+
+    assign mem_wmask = ({4{valid_op & mem_op_sb}} & sb_mask) |
+                       ({4{valid_op & mem_op_sh}} & sh_mask) |
+                       ({4{valid_op & mem_op_sw}} & sw_mask);
+
+    assign mem_wdata = ({32{valid_op & mem_op_sb}} & sb_data) |
+                       ({32{valid_op & mem_op_sh}} & sh_data) |
+                       ({32{valid_op & mem_op_sw}} & sw_data);
+
+    // 输出计算结果
+    assign mem_addr_o = mem_addr;
+    assign mem_wmask_o = mem_wmask;
+    assign mem_wdata_o = mem_wdata;
 
     // SYS info
 

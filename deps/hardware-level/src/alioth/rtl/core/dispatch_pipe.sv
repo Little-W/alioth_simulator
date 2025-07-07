@@ -93,19 +93,19 @@ module dispatch_pipe (
 
     // MEM输入端口
     input wire                        req_mem_i,
-    input wire [                31:0] mem_op1_i,
-    input wire [                31:0] mem_op2_i,
-    input wire [                31:0] mem_rs2_data_i,
+    // 删除不再需要的输入信号
     input wire                        mem_op_lb_i,
     input wire                        mem_op_lh_i,
     input wire                        mem_op_lw_i,
     input wire                        mem_op_lbu_i,
     input wire                        mem_op_lhu_i,
-    input wire                        mem_op_sb_i,
-    input wire                        mem_op_sh_i,
-    input wire                        mem_op_sw_i,
     input wire                        mem_op_load_i,
     input wire                        mem_op_store_i,
+    
+    // 直接计算的内存地址和掩码/数据输入
+    input wire [31:0] mem_addr_i,
+    input wire [3:0]  mem_wmask_i,
+    input wire [31:0] mem_wdata_i,
 
     // SYS输入端口
     input wire sys_op_nop_i,
@@ -177,19 +177,18 @@ module dispatch_pipe (
 
     // MEM输出端口
     output wire                        req_mem_o,
-    output wire [                31:0] mem_op1_o,
-    output wire [                31:0] mem_op2_o,
-    output wire [                31:0] mem_rs2_data_o,
     output wire                        mem_op_lb_o,
     output wire                        mem_op_lh_o,
     output wire                        mem_op_lw_o,
     output wire                        mem_op_lbu_o,
     output wire                        mem_op_lhu_o,
-    output wire                        mem_op_sb_o,
-    output wire                        mem_op_sh_o,
-    output wire                        mem_op_sw_o,
     output wire                        mem_op_load_o,
     output wire                        mem_op_store_o,
+    
+    // 保留这些计算好的内存地址和掩码/数据输出
+    output wire [31:0] mem_addr_o,
+    output wire [3:0]  mem_wmask_o,
+    output wire [31:0] mem_wdata_o,
 
     // SYS输出端口
     output wire sys_op_nop_o,
@@ -725,39 +724,6 @@ module dispatch_pipe (
     );
     assign req_mem_o = req_mem;
 
-    wire [31:0] mem_op1_dnxt = flush_en ? `ZeroWord : mem_op1_i;
-    wire [31:0] mem_op1;
-    gnrl_dfflr #(32) mem_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op1_dnxt,
-        mem_op1
-    );
-    assign mem_op1_o = mem_op1;
-
-    wire [31:0] mem_op2_dnxt = flush_en ? `ZeroWord : mem_op2_i;
-    wire [31:0] mem_op2;
-    gnrl_dfflr #(32) mem_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op2_dnxt,
-        mem_op2
-    );
-    assign mem_op2_o = mem_op2;
-
-    wire [31:0] mem_rs2_data_dnxt = flush_en ? `ZeroWord : mem_rs2_data_i;
-    wire [31:0] mem_rs2_data;
-    gnrl_dfflr #(32) mem_rs2_data_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_rs2_data_dnxt,
-        mem_rs2_data
-    );
-    assign mem_rs2_data_o = mem_rs2_data;
-
     wire mem_op_lb_dnxt = flush_en ? 1'b0 : mem_op_lb_i;
     wire mem_op_lb;
     gnrl_dfflr #(1) mem_op_lb_ff (
@@ -812,39 +778,6 @@ module dispatch_pipe (
         mem_op_lhu
     );
     assign mem_op_lhu_o = mem_op_lhu;
-
-    wire mem_op_sb_dnxt = flush_en ? 1'b0 : mem_op_sb_i;
-    wire mem_op_sb;
-    gnrl_dfflr #(1) mem_op_sb_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op_sb_dnxt,
-        mem_op_sb
-    );
-    assign mem_op_sb_o = mem_op_sb;
-
-    wire mem_op_sh_dnxt = flush_en ? 1'b0 : mem_op_sh_i;
-    wire mem_op_sh;
-    gnrl_dfflr #(1) mem_op_sh_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op_sh_dnxt,
-        mem_op_sh
-    );
-    assign mem_op_sh_o = mem_op_sh;
-
-    wire mem_op_sw_dnxt = flush_en ? 1'b0 : mem_op_sw_i;
-    wire mem_op_sw;
-    gnrl_dfflr #(1) mem_op_sw_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_op_sw_dnxt,
-        mem_op_sw
-    );
-    assign mem_op_sw_o = mem_op_sw;
 
     wire mem_op_load_dnxt = flush_en ? 1'b0 : mem_op_load_i;
     wire mem_op_load;
@@ -971,4 +904,39 @@ module dispatch_pipe (
     );
     assign is_pred_branch_o = is_pred_branch;
 
+    // 新增：内存地址寄存器
+    wire [31:0] mem_addr_dnxt = flush_en ? `ZeroWord : mem_addr_i;
+    wire [31:0] mem_addr;
+    gnrl_dfflr #(32) mem_addr_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_addr_dnxt,
+        mem_addr
+    );
+    assign mem_addr_o = mem_addr;
+
+    // 新增：内存写掩码寄存器
+    wire [3:0] mem_wmask_dnxt = flush_en ? 4'b0 : mem_wmask_i;
+    wire [3:0] mem_wmask;
+    gnrl_dfflr #(4) mem_wmask_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_wmask_dnxt,
+        mem_wmask
+    );
+    assign mem_wmask_o = mem_wmask;
+
+    // 新增：内存写数据寄存器
+    wire [31:0] mem_wdata_dnxt = flush_en ? `ZeroWord : mem_wdata_i;
+    wire [31:0] mem_wdata;
+    gnrl_dfflr #(32) mem_wdata_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_wdata_dnxt,
+        mem_wdata
+    );
+    assign mem_wdata_o = mem_wdata;
 endmodule

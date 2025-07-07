@@ -25,7 +25,7 @@
 `include "defines.svh"
 
 // 地址生成单元 - 处理内存访问和相关寄存器操作
-module exu_agu_lsu #(
+module exu_lsu #(
     // AXI接口参数
     parameter C_M_AXI_ID_WIDTH     = 2,
     parameter C_M_AXI_ADDR_WIDTH   = 32,
@@ -40,20 +40,20 @@ module exu_agu_lsu #(
     input wire rst_n,
 
     input wire        req_mem_i,
-    input wire [31:0] mem_op1_i,
-    input wire [31:0] mem_op2_i,
-    input wire [31:0] mem_rs2_data_i,
     input wire        mem_op_lb_i,
     input wire        mem_op_lh_i,
     input wire        mem_op_lw_i,
     input wire        mem_op_lbu_i,
     input wire        mem_op_lhu_i,
-    input wire        mem_op_sb_i,
-    input wire        mem_op_sh_i,
-    input wire        mem_op_sw_i,
+
     input wire        mem_op_load_i,
     input wire        mem_op_store_i,
     input wire [ 4:0] rd_addr_i,
+
+    // 新增的输入信号，直接提供写数据相关信号
+    input wire [31:0] mem_addr_i,
+    input wire [31:0] mem_wdata_i,
+    input wire [ 3:0] mem_wmask_i,
 
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
@@ -128,14 +128,11 @@ module exu_agu_lsu #(
 );
     // 内部信号定义
     wire [ 1:0] mem_addr_index;
-    wire [31:0] mem_addr;
     wire        valid_op;  // 有效操作信号（无中断且有内存请求）
 
     // 添加之前隐式声明的信号
     wire        read_req_valid;
     wire        write_req_valid;
-    wire [ 3:0] mem_wmask;
-    wire [31:0] mem_wdata;
 
     // 直接使用输入的load和store信号
     wire        is_load_op = mem_op_load_i;
@@ -219,8 +216,7 @@ module exu_agu_lsu #(
     assign same_cycle_response = (read_fifo_empty & M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID & axi_rready);
 
     // 基本信号计算
-    assign mem_addr = mem_op1_i + mem_op2_i;
-    assign mem_addr_index = mem_addr[1:0];
+    assign mem_addr_index = mem_addr_i[1:0];
     assign valid_op = req_mem_i & (int_assert_i != `INT_ASSERT);
 
     // 访存阻塞信号
@@ -349,51 +345,9 @@ module exu_agu_lsu #(
            ({32{curr_mem_op_lhu}} & lhu_data) |
            ({32{curr_mem_op_lw}} & lw_data);
 
-    // 存储操作的掩码和数据 - 使用并行与或逻辑
-    // 字节存储掩码和数据
-    wire [3:0] sb_mask;
-    wire [31:0] sb_data;
-
-    assign sb_mask = ({4{mem_addr_index == 2'b00}} & 4'b0001) |
-                     ({4{mem_addr_index == 2'b01}} & 4'b0010) |
-                     ({4{mem_addr_index == 2'b10}} & 4'b0100) |
-                     ({4{mem_addr_index == 2'b11}} & 4'b1000);
-
-    assign sb_data = ({32{mem_addr_index == 2'b00}} & {24'b0, mem_rs2_data_i[7:0]}) |
-                     ({32{mem_addr_index == 2'b01}} & {16'b0, mem_rs2_data_i[7:0], 8'b0}) |
-                     ({32{mem_addr_index == 2'b10}} & {8'b0, mem_rs2_data_i[7:0], 16'b0}) |
-                     ({32{mem_addr_index == 2'b11}} & {mem_rs2_data_i[7:0], 24'b0});
-
-    // 半字存储掩码和数据
-    wire [ 3:0] sh_mask;
-    wire [31:0] sh_data;
-
-    assign sh_mask = ({4{mem_addr_index[1] == 1'b0}} & 4'b0011) | 
-                     ({4{mem_addr_index[1] == 1'b1}} & 4'b1100);
-
-    assign sh_data = ({32{mem_addr_index[1] == 1'b0}} & {16'b0, mem_rs2_data_i[15:0]}) |
-                     ({32{mem_addr_index[1] == 1'b1}} & {mem_rs2_data_i[15:0], 16'b0});
-
-    // 字存储掩码和数据
-    wire [ 3:0] sw_mask;
-    wire [31:0] sw_data;
-
-    assign sw_mask = 4'b1111;
-    assign sw_data = mem_rs2_data_i;
-
-    // 并行选择最终的存储掩码和数据
-    assign mem_wmask = ({4{valid_op & mem_op_sb_i}} & sb_mask) |
-                       ({4{valid_op & mem_op_sh_i}} & sh_mask) |
-                       ({4{valid_op & mem_op_sw_i}} & sw_mask);
-
-    assign mem_wdata = ({32{valid_op & mem_op_sb_i}} & sb_data) |
-                       ({32{valid_op & mem_op_sh_i}} & sh_data) |
-                       ({32{valid_op & mem_op_sw_i}} & sw_data);
-
-    // 从FIFO获取或直接使用的写数据
-    wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : mem_wdata;
-    wire [ 3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask;
-
+    // 从FIFO获取或直接使用的写数据 - 使用新的输入信号
+    wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : mem_wdata_i;
+    wire [ 3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask_i;
 
     // 使用always块替换gnrl_dfflr实例
     // read_fifo_wr_ptr寄存器
@@ -579,7 +533,7 @@ module exu_agu_lsu #(
                 if (!rst_n) begin
                     write_fifo_data[i] <= 32'b0;
                 end else if (write_fifo_valid_set) begin
-                    write_fifo_data[i] <= mem_wdata;
+                    write_fifo_data[i] <= mem_wdata_i;
                 end
             end
 
@@ -587,16 +541,16 @@ module exu_agu_lsu #(
                 if (!rst_n) begin
                     write_fifo_strb[i] <= 4'b0;
                 end else if (write_fifo_valid_set) begin
-                    write_fifo_strb[i] <= mem_wmask;
+                    write_fifo_strb[i] <= mem_wmask_i;
                 end
             end
         end
     endgenerate
 
-    // AXI接口信号赋值 - 使用与之前相同的逻辑
-    // 写地址通道
-    assign M_AXI_AWID    = 'b0;  // AWID固定为0,使用顺序Outstanding
-    assign M_AXI_AWADDR  = mem_addr;
+    // AXI接口信号赋值
+    // 写地址通道 - 使用新的地址输入
+    assign M_AXI_AWID    = 'b0;
+    assign M_AXI_AWADDR  = mem_addr_i;
     assign M_AXI_AWLEN   = 8'b0;  // 单次传输
     assign M_AXI_AWSIZE  = 3'b010;  // 4字节
     assign M_AXI_AWBURST = 2'b01;  // INCR
@@ -617,9 +571,9 @@ module exu_agu_lsu #(
     // 写响应通道
     assign M_AXI_BREADY  = axi_bready;
 
-    // 读地址通道
+    // 读地址通道 - 使用新的地址输入
     assign M_AXI_ARID    = 'b0;  // ARID固定为0,使用顺序Outstanding
-    assign M_AXI_ARADDR  = mem_addr;
+    assign M_AXI_ARADDR  = mem_addr_i;
     assign M_AXI_ARLEN   = 8'b0;  // 单次传输
     assign M_AXI_ARSIZE  = 3'b010;  // 4字节
     assign M_AXI_ARBURST = 2'b01;  // INCR
