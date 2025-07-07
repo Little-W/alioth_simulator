@@ -53,10 +53,20 @@ module dispatch_pipe (
     input wire [             31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
 
-    // 分支相关信号输入
-    input wire        branch_cond_i,    // 分支条件满足标志
-    input wire        pred_rollback_i,  // 预测回退标志
-    input wire [31:0] bjp_adder_result_i, // 直接计算的跳转地址
+    // BJP输入端口
+    input wire        req_bjp_i,
+    input wire [31:0] bjp_op1_i,
+    input wire [31:0] bjp_op2_i,
+    input wire [31:0] bjp_jump_op1_i,
+    input wire [31:0] bjp_jump_op2_i,
+    input wire        bjp_op_jump_i,
+    input wire        bjp_op_beq_i,
+    input wire        bjp_op_bne_i,
+    input wire        bjp_op_blt_i,
+    input wire        bjp_op_bltu_i,
+    input wire        bjp_op_bge_i,
+    input wire        bjp_op_bgeu_i,
+    input wire        bjp_op_jalr_i,
 
     // MULDIV输入端口
     input wire                        req_muldiv_i,
@@ -127,10 +137,20 @@ module dispatch_pipe (
     output wire [             31:0] alu_op2_o,
     output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
 
-    // 分支相关信号输出端口
-    output wire        branch_cond_o,    // 分支条件满足标志
-    output wire        pred_rollback_o,  // 预测回退标志
-    output wire [31:0] bjp_adder_result_o, // 直接计算的跳转地址
+    // BJP输出端口
+    output wire        req_bjp_o,
+    output wire [31:0] bjp_op1_o,
+    output wire [31:0] bjp_op2_o,
+    output wire [31:0] bjp_jump_op1_o,
+    output wire [31:0] bjp_jump_op2_o,
+    output wire        bjp_op_jump_o,
+    output wire        bjp_op_beq_o,
+    output wire        bjp_op_bne_o,
+    output wire        bjp_op_blt_o,
+    output wire        bjp_op_bltu_o,
+    output wire        bjp_op_bge_o,
+    output wire        bjp_op_bgeu_o,
+    output wire        bjp_op_jalr_o,
 
     // MULDIV输出端口
     output wire                        req_muldiv_o,
@@ -337,41 +357,149 @@ module dispatch_pipe (
     );
     assign alu_op_info_o = alu_op_info;
 
-    // 新增：分支条件满足标志寄存器
-    wire branch_cond_dnxt = flush_en ? 1'b0 : branch_cond_i;
-    wire branch_cond;
-    gnrl_dfflr #(1) branch_cond_ff (
+    // BJP信号寄存
+    wire req_bjp_dnxt = flush_en ? 1'b0 : req_bjp_i;
+    wire req_bjp;
+    gnrl_dfflr #(1) req_bjp_ff (
         clk,
         rst_n,
         reg_update_en,
-        branch_cond_dnxt,
-        branch_cond
+        req_bjp_dnxt,
+        req_bjp
     );
-    assign branch_cond_o = branch_cond;
+    assign req_bjp_o = req_bjp;
 
-    // 新增：预测回退标志寄存器
-    wire pred_rollback_dnxt = flush_en ? 1'b0 : pred_rollback_i;
-    wire pred_rollback;
-    gnrl_dfflr #(1) pred_rollback_ff (
+    wire [31:0] bjp_op1_dnxt = flush_en ? `ZeroWord : bjp_op1_i;
+    wire [31:0] bjp_op1;
+    gnrl_dfflr #(32) bjp_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        pred_rollback_dnxt,
-        pred_rollback
+        bjp_op1_dnxt,
+        bjp_op1
     );
-    assign pred_rollback_o = pred_rollback;
+    assign bjp_op1_o = bjp_op1;
 
-    // 新增：跳转地址计算结果寄存器
-    wire [31:0] bjp_adder_result_dnxt = flush_en ? `ZeroWord : bjp_adder_result_i;
-    wire [31:0] bjp_adder_result;
-    gnrl_dfflr #(32) bjp_adder_result_ff (
+    wire [31:0] bjp_op2_dnxt = flush_en ? `ZeroWord : bjp_op2_i;
+    wire [31:0] bjp_op2;
+    gnrl_dfflr #(32) bjp_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        bjp_adder_result_dnxt,
-        bjp_adder_result
+        bjp_op2_dnxt,
+        bjp_op2
     );
-    assign bjp_adder_result_o = bjp_adder_result;
+    assign bjp_op2_o = bjp_op2;
+
+    wire [31:0] bjp_jump_op1_dnxt = flush_en ? `ZeroWord : bjp_jump_op1_i;
+    wire [31:0] bjp_jump_op1;
+    gnrl_dfflr #(32) bjp_jump_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_jump_op1_dnxt,
+        bjp_jump_op1
+    );
+    assign bjp_jump_op1_o = bjp_jump_op1;
+
+    wire [31:0] bjp_jump_op2_dnxt = flush_en ? `ZeroWord : bjp_jump_op2_i;
+    wire [31:0] bjp_jump_op2;
+    gnrl_dfflr #(32) bjp_jump_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_jump_op2_dnxt,
+        bjp_jump_op2
+    );
+    assign bjp_jump_op2_o = bjp_jump_op2;
+
+    wire bjp_op_jump_dnxt = flush_en ? 1'b0 : bjp_op_jump_i;
+    wire bjp_op_jump;
+    gnrl_dfflr #(1) bjp_op_jump_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_jump_dnxt,
+        bjp_op_jump
+    );
+    assign bjp_op_jump_o = bjp_op_jump;
+
+    wire bjp_op_beq_dnxt = flush_en ? 1'b0 : bjp_op_beq_i;
+    wire bjp_op_beq;
+    gnrl_dfflr #(1) bjp_op_beq_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_beq_dnxt,
+        bjp_op_beq
+    );
+    assign bjp_op_beq_o = bjp_op_beq;
+
+    wire bjp_op_bne_dnxt = flush_en ? 1'b0 : bjp_op_bne_i;
+    wire bjp_op_bne;
+    gnrl_dfflr #(1) bjp_op_bne_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_bne_dnxt,
+        bjp_op_bne
+    );
+    assign bjp_op_bne_o = bjp_op_bne;
+
+    wire bjp_op_blt_dnxt = flush_en ? 1'b0 : bjp_op_blt_i;
+    wire bjp_op_blt;
+    gnrl_dfflr #(1) bjp_op_blt_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_blt_dnxt,
+        bjp_op_blt
+    );
+    assign bjp_op_blt_o = bjp_op_blt;
+
+    wire bjp_op_bltu_dnxt = flush_en ? 1'b0 : bjp_op_bltu_i;
+    wire bjp_op_bltu;
+    gnrl_dfflr #(1) bjp_op_bltu_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_bltu_dnxt,
+        bjp_op_bltu
+    );
+    assign bjp_op_bltu_o = bjp_op_bltu;
+
+    wire bjp_op_bge_dnxt = flush_en ? 1'b0 : bjp_op_bge_i;
+    wire bjp_op_bge;
+    gnrl_dfflr #(1) bjp_op_bge_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_bge_dnxt,
+        bjp_op_bge
+    );
+    assign bjp_op_bge_o = bjp_op_bge;
+
+    wire bjp_op_bgeu_dnxt = flush_en ? 1'b0 : bjp_op_bgeu_i;
+    wire bjp_op_bgeu;
+    gnrl_dfflr #(1) bjp_op_bgeu_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_bgeu_dnxt,
+        bjp_op_bgeu
+    );
+    assign bjp_op_bgeu_o = bjp_op_bgeu;
+
+    wire bjp_op_jalr_dnxt = flush_en ? 1'b0 : bjp_op_jalr_i;
+    wire bjp_op_jalr;
+    gnrl_dfflr #(1) bjp_op_jalr_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        bjp_op_jalr_dnxt,
+        bjp_op_jalr
+    );
+    assign bjp_op_jalr_o = bjp_op_jalr;
 
     // MULDIV信号寄存
     wire req_muldiv_dnxt = flush_en ? 1'b0 : req_muldiv_i;

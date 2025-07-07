@@ -79,10 +79,20 @@ module dispatch (
     output wire [             31:0] alu_op2_o,
     output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
 
-    // dispatch to BRU
-    output wire        branch_cond_o,
-    output wire        pred_rollback_o,
-    output wire [31:0] bjp_adder_result_o,
+    // dispatch to Bru
+    output wire        req_bjp_o,
+    output wire [31:0] bjp_op1_o,
+    output wire [31:0] bjp_op2_o,
+    output wire [31:0] bjp_jump_op1_o,
+    output wire [31:0] bjp_jump_op2_o,
+    output wire        bjp_op_jump_o,
+    output wire        bjp_op_beq_o,
+    output wire        bjp_op_bne_o,
+    output wire        bjp_op_blt_o,
+    output wire        bjp_op_bltu_o,
+    output wire        bjp_op_bge_o,
+    output wire        bjp_op_bgeu_o,
+    output wire        bjp_op_jalr_o,
 
     // dispatch to MULDIV
     output wire                        req_muldiv_o,
@@ -147,6 +157,20 @@ module dispatch (
     wire [                31:0] logic_alu_op2;
     wire [   `ALU_OP_WIDTH-1:0] logic_alu_op_info;
 
+    wire                        logic_req_bjp;
+    wire [                31:0] logic_bjp_op1;
+    wire [                31:0] logic_bjp_op2;
+    wire [                31:0] logic_bjp_jump_op1;
+    wire [                31:0] logic_bjp_jump_op2;
+    wire                        logic_bjp_op_jump;
+    wire                        logic_bjp_op_beq;
+    wire                        logic_bjp_op_bne;
+    wire                        logic_bjp_op_blt;
+    wire                        logic_bjp_op_bltu;
+    wire                        logic_bjp_op_bge;
+    wire                        logic_bjp_op_bgeu;
+    wire                        logic_bjp_op_jalr;
+
     wire                        logic_req_muldiv;
     wire [                31:0] logic_muldiv_op1;
     wire [                31:0] logic_muldiv_op2;
@@ -192,14 +216,9 @@ module dispatch (
     wire                        logic_sys_op_fence;
     wire                        logic_sys_op_dret;
 
-    // BRU预计算信号内部连接
-    wire                        logic_branch_cond;  // 分支条件满足标志
-    wire                        logic_pred_rollback;  // 预测回退标志
-    wire [                31:0] logic_bjp_adder_result;  // 直接计算的跳转地址
 
     assign mem_commit_id_o    = commit_id_o;  // 将HDU的commit_id输出到MEM模块
     assign muldiv_commit_id_o = commit_id_o;
-
     // 实例化HDU模块
     hdu u_hdu (
         .clk                  (clk),
@@ -218,18 +237,32 @@ module dispatch (
 
     // 实例化dispatch_logic模块
     dispatch_logic u_dispatch_logic (
-        .dec_info_bus_i  (dec_info_bus_i),
-        .dec_imm_i       (dec_imm_i),
-        .dec_pc_i        (dec_pc_i),
-        .rs1_rdata_i     (rs1_rdata_i),
-        .rs2_rdata_i     (rs2_rdata_i),
-        .is_pred_branch_i(is_pred_branch_i), // 连接预测分支信号输入
+        .dec_info_bus_i(dec_info_bus_i),
+        .dec_imm_i     (dec_imm_i),
+        .dec_pc_i      (dec_pc_i),
+        .rs1_rdata_i   (rs1_rdata_i),
+        .rs2_rdata_i   (rs2_rdata_i),
 
         // ALU信号
         .req_alu_o    (logic_req_alu),
         .alu_op1_o    (logic_alu_op1),
         .alu_op2_o    (logic_alu_op2),
         .alu_op_info_o(logic_alu_op_info),
+
+        // BJP信号
+        .req_bjp_o     (logic_req_bjp),
+        .bjp_op1_o     (logic_bjp_op1),
+        .bjp_op2_o     (logic_bjp_op2),
+        .bjp_jump_op1_o(logic_bjp_jump_op1),
+        .bjp_jump_op2_o(logic_bjp_jump_op2),
+        .bjp_op_jump_o (logic_bjp_op_jump),
+        .bjp_op_beq_o  (logic_bjp_op_beq),
+        .bjp_op_bne_o  (logic_bjp_op_bne),
+        .bjp_op_blt_o  (logic_bjp_op_blt),
+        .bjp_op_bltu_o (logic_bjp_op_bltu),
+        .bjp_op_bge_o  (logic_bjp_op_bge),
+        .bjp_op_bgeu_o (logic_bjp_op_bgeu),
+        .bjp_op_jalr_o (logic_bjp_op_jalr),
 
         // MULDIV信号
         .req_muldiv_o       (logic_req_muldiv),
@@ -274,12 +307,7 @@ module dispatch (
         .sys_op_ecall_o (logic_sys_op_ecall),
         .sys_op_ebreak_o(logic_sys_op_ebreak),
         .sys_op_fence_o (logic_sys_op_fence),
-        .sys_op_dret_o  (logic_sys_op_dret),
-
-        // 新增：BRU预计算信号输出
-        .branch_cond_o     (logic_branch_cond),
-        .pred_rollback_o   (logic_pred_rollback),
-        .bjp_adder_result_o(logic_bjp_adder_result)
+        .sys_op_dret_o  (logic_sys_op_dret)
     );
 
     // 实例化dispatch_pipe模块
@@ -311,9 +339,19 @@ module dispatch (
         .alu_op_info_i(logic_alu_op_info),
 
         // BJP信号输入
-        .branch_cond_i     (logic_branch_cond),
-        .pred_rollback_i   (logic_pred_rollback),
-        .bjp_adder_result_i(logic_bjp_adder_result),
+        .req_bjp_i     (logic_req_bjp),
+        .bjp_op1_i     (logic_bjp_op1),
+        .bjp_op2_i     (logic_bjp_op2),
+        .bjp_jump_op1_i(logic_bjp_jump_op1),
+        .bjp_jump_op2_i(logic_bjp_jump_op2),
+        .bjp_op_jump_i (logic_bjp_op_jump),
+        .bjp_op_beq_i  (logic_bjp_op_beq),
+        .bjp_op_bne_i  (logic_bjp_op_bne),
+        .bjp_op_blt_i  (logic_bjp_op_blt),
+        .bjp_op_bltu_i (logic_bjp_op_bltu),
+        .bjp_op_bge_i  (logic_bjp_op_bge),
+        .bjp_op_bgeu_i (logic_bjp_op_bgeu),
+        .bjp_op_jalr_i (logic_bjp_op_jalr),
 
         // MULDIV信号输入
         .req_muldiv_i       (logic_req_muldiv),
@@ -381,10 +419,19 @@ module dispatch (
         .alu_op_info_o(alu_op_info_o),
 
         // BJP信号输出
-        .branch_cond_o     (branch_cond_o),       // 连接预测分支条件信号输出
-        .pred_rollback_o   (pred_rollback_o),     // 连接预测分
-        .bjp_adder_result_o(bjp_adder_result_o),  // 连接BJP加法器结果输出
-        .is_pred_branch_o  (is_pred_branch_o),    // 连接预测分支信号输出
+        .req_bjp_o     (req_bjp_o),
+        .bjp_op1_o     (bjp_op1_o),
+        .bjp_op2_o     (bjp_op2_o),
+        .bjp_jump_op1_o(bjp_jump_op1_o),
+        .bjp_jump_op2_o(bjp_jump_op2_o),
+        .bjp_op_jump_o (bjp_op_jump_o),
+        .bjp_op_beq_o  (bjp_op_beq_o),
+        .bjp_op_bne_o  (bjp_op_bne_o),
+        .bjp_op_blt_o  (bjp_op_blt_o),
+        .bjp_op_bltu_o (bjp_op_bltu_o),
+        .bjp_op_bge_o  (bjp_op_bge_o),
+        .bjp_op_bgeu_o (bjp_op_bgeu_o),
+        .bjp_op_jalr_o (bjp_op_jalr_o),
 
         // MULDIV信号输出
         .req_muldiv_o       (req_muldiv_o),
@@ -423,12 +470,13 @@ module dispatch (
         .mem_wdata_o   (mem_wdata_o),
 
         // SYS信号输出
-        .sys_op_nop_o   (sys_op_nop_o),
-        .sys_op_mret_o  (sys_op_mret_o),
-        .sys_op_ecall_o (sys_op_ecall_o),
-        .sys_op_ebreak_o(sys_op_ebreak_o),
-        .sys_op_fence_o (sys_op_fence_o),
-        .sys_op_dret_o  (sys_op_dret_o)
+        .sys_op_nop_o    (sys_op_nop_o),
+        .sys_op_mret_o   (sys_op_mret_o),
+        .sys_op_ecall_o  (sys_op_ecall_o),
+        .sys_op_ebreak_o (sys_op_ebreak_o),
+        .sys_op_fence_o  (sys_op_fence_o),
+        .sys_op_dret_o   (sys_op_dret_o),
+        .is_pred_branch_o(is_pred_branch_o)  // 连接预测分支信号输出
     );
 
 endmodule
