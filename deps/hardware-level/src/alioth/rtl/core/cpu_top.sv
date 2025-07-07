@@ -188,21 +188,6 @@ module cpu_top #(
     wire                        dispatch_req_alu;
     wire [   `ALU_OP_WIDTH-1:0] dispatch_alu_op_info;
 
-    // dispatch to Bru
-    wire                        dispatch_req_bjp;
-    wire [                31:0] dispatch_bjp_op1;
-    wire [                31:0] dispatch_bjp_op2;
-    wire [                31:0] dispatch_bjp_jump_op1;
-    wire [                31:0] dispatch_bjp_jump_op2;
-    wire                        dispatch_bjp_op_jump;
-    wire                        dispatch_bjp_op_beq;
-    wire                        dispatch_bjp_op_bne;
-    wire                        dispatch_bjp_op_blt;
-    wire                        dispatch_bjp_op_bltu;
-    wire                        dispatch_bjp_op_bge;
-    wire                        dispatch_bjp_op_bgeu;
-    wire                        dispatch_bjp_op_jalr;
-
     // dispatch to MULDIV
     wire                        dispatch_req_muldiv;
     wire [                31:0] dispatch_muldiv_op1;
@@ -412,6 +397,11 @@ module cpu_top #(
         .is_pred_branch_o(idu_is_pred_branch_o)  // 连接预测分支信号输出
     );
 
+    // 新增：dispatch到exu的BRU相关信号
+    wire dispatch_branch_cond;
+    wire dispatch_pred_rollback;
+    wire [31:0] dispatch_bjp_adder_result;
+
     // 添加dispatch模块例化 - 修改增加新的接口
     dispatch u_dispatch (
         .clk         (clk),
@@ -467,20 +457,10 @@ module cpu_top #(
         .alu_op2_o    (dispatch_alu_op2),
         .alu_op_info_o(dispatch_alu_op_info),
 
-        .req_bjp_o     (dispatch_req_bjp),
-        .bjp_op1_o     (dispatch_bjp_op1),
-        .bjp_op2_o     (dispatch_bjp_op2),
-        .bjp_jump_op1_o(dispatch_bjp_jump_op1),
-        .bjp_jump_op2_o(dispatch_bjp_jump_op2),
-        .bjp_op_jump_o (dispatch_bjp_op_jump),
-        .bjp_op_beq_o  (dispatch_bjp_op_beq),
-        .bjp_op_bne_o  (dispatch_bjp_op_bne),
-        .bjp_op_blt_o  (dispatch_bjp_op_blt),
-        .bjp_op_bltu_o (dispatch_bjp_op_bltu),
-        .bjp_op_bge_o  (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_o (dispatch_bjp_op_jalr),
-
+        // 新增：BRU相关信号连线
+        .branch_cond_o      (dispatch_branch_cond),
+        .pred_rollback_o    (dispatch_pred_rollback),
+        .bjp_adder_result_o (dispatch_bjp_adder_result),
         .req_muldiv_o       (dispatch_req_muldiv),
         .muldiv_op1_o       (dispatch_muldiv_op1),
         .muldiv_op2_o       (dispatch_muldiv_op2),
@@ -560,19 +540,10 @@ module cpu_top #(
         .alu_op2_i    (dispatch_alu_op2),
         .alu_op_info_i(dispatch_alu_op_info),
 
-        .req_bjp_i     (dispatch_req_bjp),
-        .bjp_op1_i     (dispatch_bjp_op1),
-        .bjp_op2_i     (dispatch_bjp_op2),
-        .bjp_jump_op1_i(dispatch_bjp_jump_op1),
-        .bjp_jump_op2_i(dispatch_bjp_jump_op2),
-        .bjp_op_jump_i (dispatch_bjp_op_jump),
-        .bjp_op_beq_i  (dispatch_bjp_op_beq),
-        .bjp_op_bne_i  (dispatch_bjp_op_bne),
-        .bjp_op_blt_i  (dispatch_bjp_op_blt),
-        .bjp_op_bltu_i (dispatch_bjp_op_bltu),
-        .bjp_op_bge_i  (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_i (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_i (dispatch_bjp_op_jalr),
+        // 新增：BRU相关信号连线
+        .branch_cond_i      (dispatch_branch_cond),
+        .pred_rollback_i    (dispatch_pred_rollback),
+        .bjp_adder_result_i (dispatch_bjp_adder_result),
 
         .req_muldiv_i       (dispatch_req_muldiv),
         .muldiv_op1_i       (dispatch_muldiv_op1),

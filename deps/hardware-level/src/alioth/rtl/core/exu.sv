@@ -64,19 +64,9 @@ module exu (
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
 
     // dispatch to BJP
-    input wire        req_bjp_i,
-    input wire [31:0] bjp_op1_i,
-    input wire [31:0] bjp_op2_i,
-    input wire [31:0] bjp_jump_op1_i,
-    input wire [31:0] bjp_jump_op2_i,
-    input wire        bjp_op_jump_i,
-    input wire        bjp_op_beq_i,
-    input wire        bjp_op_bne_i,
-    input wire        bjp_op_blt_i,
-    input wire        bjp_op_bltu_i,
-    input wire        bjp_op_bge_i,
-    input wire        bjp_op_bgeu_i,
-    input wire        bjp_op_jalr_i,
+    input wire        branch_cond_i,
+    input wire        pred_rollback_i,
+    input wire [31:0] bjp_adder_result_i,
 
     // dispatch to MULDIV
     input wire                        req_muldiv_i,
@@ -113,9 +103,9 @@ module exu (
     input wire                        mem_op_store_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
     // 新增：直接访存信号
-    input wire [31:0] mem_addr_i,
-    input wire [31:0] mem_wdata_i,
-    input wire [3:0]  mem_wmask_i,
+    input wire [                31:0] mem_addr_i,
+    input wire [                31:0] mem_wdata_i,
+    input wire [                 3:0] mem_wmask_i,
 
     // dispatch to SYS
     input wire sys_op_nop_i,
@@ -406,26 +396,15 @@ module exu (
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
-        .rst_n           (rst_n),
-        .req_bjp_i       (req_bjp_i),
-        .bjp_op1_i       (bjp_op1_i),
-        .bjp_op2_i       (bjp_op2_i),
-        .bjp_jump_op1_i  (bjp_jump_op1_i),
-        .bjp_jump_op2_i  (bjp_jump_op2_i),
-        .bjp_op_jump_i   (bjp_op_jump_i),
-        .bjp_op_beq_i    (bjp_op_beq_i),
-        .bjp_op_bne_i    (bjp_op_bne_i),
-        .bjp_op_blt_i    (bjp_op_blt_i),
-        .bjp_op_bltu_i   (bjp_op_bltu_i),
-        .bjp_op_bge_i    (bjp_op_bge_i),
-        .bjp_op_bgeu_i   (bjp_op_bgeu_i),
-        .bjp_op_jalr_i   (bjp_op_jalr_i),
-        .is_pred_branch_i(is_pred_branch_i),  // 新增：预测分支指令标志输入
-        .sys_op_fence_i  (sys_op_fence_i),
-        .int_assert_i    (int_assert_i),
-        .int_addr_i      (int_addr_i),
-        .jump_flag_o     (bru_jump_flag),
-        .jump_addr_o     (bru_jump_addr)
+        .is_pred_branch_i  (is_pred_branch_i),
+        .branch_cond_i     (branch_cond_i),
+        .pred_rollback_i   (pred_rollback_i),
+        .bjp_adder_result_i(bjp_adder_result_i),
+        .sys_op_fence_i    (sys_op_fence_i),
+        .int_assert_i      (int_assert_i),
+        .int_addr_i        (int_addr_i),
+        .jump_flag_o       (bru_jump_flag),
+        .jump_addr_o       (bru_jump_addr)
     );
 
     // CSR处理单元模块例化
