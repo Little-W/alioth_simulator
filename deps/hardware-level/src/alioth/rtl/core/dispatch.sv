@@ -36,7 +36,7 @@ module dispatch (
     input wire [`INST_ADDR_WIDTH-1:0] dec_pc_i,
     input wire [ `REG_DATA_WIDTH-1:0] rs1_rdata_i,
     input wire [ `REG_DATA_WIDTH-1:0] rs2_rdata_i,
-    input wire is_pred_branch_i, // 新增：预测分支信号输入
+    input wire                        is_pred_branch_i, // 新增：预测分支信号输入
 
     // 寄存器写入信息 - 用于HDU检测冒险
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -70,8 +70,8 @@ module dispatch (
     output wire [                31:0] pipe_dec_imm_o,
     output wire [  `DECINFO_WIDTH-1:0] pipe_dec_info_bus_o,
     // 新增：寄存rs1/rs2数据
-    output wire [31:0] pipe_rs1_rdata_o,
-    output wire [31:0] pipe_rs2_rdata_o,
+    output wire [                31:0] pipe_rs1_rdata_o,
+    output wire [                31:0] pipe_rs2_rdata_o,
 
     // dispatch to ALU
     output wire                     req_alu_o,
@@ -120,20 +120,17 @@ module dispatch (
 
     // dispatch to MEM
     output wire                        req_mem_o,
-    output wire [                31:0] mem_op1_o,
-    output wire [                31:0] mem_op2_o,
-    output wire [                31:0] mem_rs2_data_o,
     output wire                        mem_op_lb_o,
     output wire                        mem_op_lh_o,
     output wire                        mem_op_lw_o,
     output wire                        mem_op_lbu_o,
     output wire                        mem_op_lhu_o,
-    output wire                        mem_op_sb_o,
-    output wire                        mem_op_sh_o,
-    output wire                        mem_op_sw_o,
     output wire                        mem_op_load_o,
     output wire                        mem_op_store_o,
     output wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_o,
+    output wire [                31:0] mem_addr_o,
+    output wire [                 3:0] mem_wmask_o,
+    output wire [                31:0] mem_wdata_o,
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -142,12 +139,17 @@ module dispatch (
     output wire sys_op_ebreak_o,
     output wire sys_op_fence_o,
     output wire sys_op_dret_o,
-    output wire is_pred_branch_o // 新增：预测分支信号输出
+    output wire is_pred_branch_o  // 新增：预测分支信号输出
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id;
+
+    // 新增：用于连接dispatch_logic输出到dispatch_pipe输入的内部地址、掩码和数据信号
+    wire [                31:0] logic_mem_addr;
+    wire [                 3:0] logic_mem_wmask;
+    wire [                31:0] logic_mem_wdata;
 
     // 用于连接dispatch_logic输出到dispatch_pipe输入的内部信号
     wire                        logic_req_alu;
@@ -215,7 +217,7 @@ module dispatch (
     wire                        logic_sys_op_dret;
 
 
-    assign mem_commit_id_o = commit_id_o; // 将HDU的commit_id输出到MEM模块
+    assign mem_commit_id_o    = commit_id_o;  // 将HDU的commit_id输出到MEM模块
     assign muldiv_commit_id_o = commit_id_o;
     // 实例化HDU模块
     hdu u_hdu (
@@ -286,20 +288,18 @@ module dispatch (
         .csr_csrrc_o(logic_csr_csrrc),
 
         // MEM信号
-        .req_mem_o      (logic_req_mem),
-        .mem_op1_o      (logic_mem_op1),
-        .mem_op2_o      (logic_mem_op2),
-        .mem_rs2_data_o (logic_mem_rs2_data),
-        .mem_op_lb_o    (logic_mem_op_lb),
-        .mem_op_lh_o    (logic_mem_op_lh),
-        .mem_op_lw_o    (logic_mem_op_lw),
-        .mem_op_lbu_o   (logic_mem_op_lbu),
-        .mem_op_lhu_o   (logic_mem_op_lhu),
-        .mem_op_sb_o    (logic_mem_op_sb),
-        .mem_op_sh_o    (logic_mem_op_sh),
-        .mem_op_sw_o    (logic_mem_op_sw),
-        .mem_op_load_o  (logic_mem_op_load),
-        .mem_op_store_o (logic_mem_op_store),
+        .req_mem_o     (logic_req_mem),
+        .mem_op_lb_o   (logic_mem_op_lb),
+        .mem_op_lh_o   (logic_mem_op_lh),
+        .mem_op_lw_o   (logic_mem_op_lw),
+        .mem_op_lbu_o  (logic_mem_op_lbu),
+        .mem_op_lhu_o  (logic_mem_op_lhu),
+        .mem_op_load_o (logic_mem_op_load),
+        .mem_op_store_o(logic_mem_op_store),
+        // 新增：直接计算的内存地址和掩码/数据
+        .mem_addr_o    (logic_mem_addr),
+        .mem_wmask_o   (logic_mem_wmask),
+        .mem_wdata_o   (logic_mem_wdata),
 
         // SYS信号
         .sys_op_nop_o   (logic_sys_op_nop),
@@ -320,16 +320,16 @@ module dispatch (
         .commit_id_i(hdu_long_inst_id), // 从HDU获取长指令ID
 
         // 新增：额外的IDU信号输入
-        .reg_we_i      (reg_we_i),
-        .reg_waddr_i   (reg_waddr_i),
-        .csr_we_i      (csr_we_i),
-        .csr_waddr_i   (csr_waddr_i),
-        .csr_raddr_i   (csr_raddr_i),
-        .dec_imm_i     (dec_imm_i),
-        .dec_info_bus_i(dec_info_bus_i),
+        .reg_we_i        (reg_we_i),
+        .reg_waddr_i     (reg_waddr_i),
+        .csr_we_i        (csr_we_i),
+        .csr_waddr_i     (csr_waddr_i),
+        .csr_raddr_i     (csr_raddr_i),
+        .dec_imm_i       (dec_imm_i),
+        .dec_info_bus_i  (dec_info_bus_i),
         // 新增：寄存rs1/rs2数据
-        .rs1_rdata_i   (rs1_rdata_i),
-        .rs2_rdata_i   (rs2_rdata_i),
+        .rs1_rdata_i     (rs1_rdata_i),
+        .rs2_rdata_i     (rs2_rdata_i),
         .is_pred_branch_i(is_pred_branch_i), // 连接预测分支信号输入
 
         // ALU信号输入
@@ -377,20 +377,17 @@ module dispatch (
         .csr_csrrc_i(logic_csr_csrrc),
 
         // MEM信号输入
-        .req_mem_i      (logic_req_mem),
-        .mem_op1_i      (logic_mem_op1),
-        .mem_op2_i      (logic_mem_op2),
-        .mem_rs2_data_i (logic_mem_rs2_data),
-        .mem_op_lb_i    (logic_mem_op_lb),
-        .mem_op_lh_i    (logic_mem_op_lh),
-        .mem_op_lw_i    (logic_mem_op_lw),
-        .mem_op_lbu_i   (logic_mem_op_lbu),
-        .mem_op_lhu_i   (logic_mem_op_lhu),
-        .mem_op_sb_i    (logic_mem_op_sb),
-        .mem_op_sh_i    (logic_mem_op_sh),
-        .mem_op_sw_i    (logic_mem_op_sw),
-        .mem_op_load_i  (logic_mem_op_load),
-        .mem_op_store_i (logic_mem_op_store),
+        .req_mem_i     (logic_req_mem),
+        .mem_op_lb_i   (logic_mem_op_lb),
+        .mem_op_lh_i   (logic_mem_op_lh),
+        .mem_op_lw_i   (logic_mem_op_lw),
+        .mem_op_lbu_i  (logic_mem_op_lbu),
+        .mem_op_lhu_i  (logic_mem_op_lhu),
+        .mem_op_load_i (logic_mem_op_load),
+        .mem_op_store_i(logic_mem_op_store),
+        .mem_addr_i    (logic_mem_addr),
+        .mem_wmask_i   (logic_mem_wmask),
+        .mem_wdata_i   (logic_mem_wdata),
 
         // SYS信号输入
         .sys_op_nop_i   (logic_sys_op_nop),
@@ -460,28 +457,25 @@ module dispatch (
         .csr_csrrc_o(csr_csrrc_o),
 
         // MEM信号输出
-        .req_mem_o      (req_mem_o),
-        .mem_op1_o      (mem_op1_o),
-        .mem_op2_o      (mem_op2_o),
-        .mem_rs2_data_o (mem_rs2_data_o),
-        .mem_op_lb_o    (mem_op_lb_o),
-        .mem_op_lh_o    (mem_op_lh_o),
-        .mem_op_lw_o    (mem_op_lw_o),
-        .mem_op_lbu_o   (mem_op_lbu_o),
-        .mem_op_lhu_o   (mem_op_lhu_o),
-        .mem_op_sb_o    (mem_op_sb_o),
-        .mem_op_sh_o    (mem_op_sh_o),
-        .mem_op_sw_o    (mem_op_sw_o),
-        .mem_op_load_o  (mem_op_load_o),
-        .mem_op_store_o (mem_op_store_o),
+        .req_mem_o     (req_mem_o),
+        .mem_op_lb_o   (mem_op_lb_o),
+        .mem_op_lh_o   (mem_op_lh_o),
+        .mem_op_lw_o   (mem_op_lw_o),
+        .mem_op_lbu_o  (mem_op_lbu_o),
+        .mem_op_lhu_o  (mem_op_lhu_o),
+        .mem_op_load_o (mem_op_load_o),
+        .mem_op_store_o(mem_op_store_o),
+        .mem_addr_o    (mem_addr_o),
+        .mem_wmask_o   (mem_wmask_o),
+        .mem_wdata_o   (mem_wdata_o),
 
         // SYS信号输出
-        .sys_op_nop_o   (sys_op_nop_o),
-        .sys_op_mret_o  (sys_op_mret_o),
-        .sys_op_ecall_o (sys_op_ecall_o),
-        .sys_op_ebreak_o(sys_op_ebreak_o),
-        .sys_op_fence_o (sys_op_fence_o),
-        .sys_op_dret_o  (sys_op_dret_o),
+        .sys_op_nop_o    (sys_op_nop_o),
+        .sys_op_mret_o   (sys_op_mret_o),
+        .sys_op_ecall_o  (sys_op_ecall_o),
+        .sys_op_ebreak_o (sys_op_ebreak_o),
+        .sys_op_fence_o  (sys_op_fence_o),
+        .sys_op_dret_o   (sys_op_dret_o),
         .is_pred_branch_o(is_pred_branch_o)  // 连接预测分支信号输出
     );
 
