@@ -46,8 +46,7 @@ module perip_bridge #(
     localparam DTCM_ADDR_END = `DTCM_BASE_ADDR + `DTCM_SIZE - 1;
 
     logic [31:0] LED;
-    logic [31:0] seg_wdata, cnt_rdata, mmio_rdata, dram_rdata;
-    logic [31:0] mmio_rdata_reg, cnt_rdata_reg;  // 添加MMIO和计数器的寄存器
+    logic [31:0] seg_wdata, cnt_rdata, dram_rdata;
     logic [39:0] seg_output;
 
     // we don't care perip_mask in LED, SEG, SW & KEY, only care in DTCMDRAM
@@ -58,28 +57,6 @@ module perip_bridge #(
                 `LED_ADDR: LED <= perip_wdata;
                 `SEG_ADDR: seg_wdata <= perip_wdata;
             endcase
-        end
-    end
-
-    // read process: in one cycle
-    always_comb begin
-        case (perip_raddr)
-            `SW0_ADDR: mmio_rdata = virtual_sw_input[31:0];
-            `SW1_ADDR: mmio_rdata = virtual_sw_input[63:32];
-            `KEY_ADDR: mmio_rdata = {24'd0, virtual_key_input};
-            `SEG_ADDR: mmio_rdata = seg_wdata;
-            default:   mmio_rdata = 32'hDEAD_BEEF;
-        endcase
-    end
-
-    // 添加MMIO和计数器数据的寄存器
-    always_ff @(posedge clk or posedge rst) begin
-        if (rst) begin
-            mmio_rdata_reg <= 32'h0;
-            cnt_rdata_reg  <= 32'h0;
-        end else begin
-            mmio_rdata_reg <= mmio_rdata;
-            cnt_rdata_reg  <= cnt_rdata;
         end
     end
 
@@ -129,21 +106,36 @@ module perip_bridge #(
     );
 
     // 打一拍的perip_raddr
-    logic [31:0] perip_raddr_q;
+    logic is_dtcm_addr_q;  // 新增1位变量用于寄存条件
+
     always_ff @(posedge clk or posedge rst) begin
-        if (rst)
-            perip_raddr_q <= 32'b0;
-        else
-            perip_raddr_q <= perip_raddr;
+        if (rst) begin
+            is_dtcm_addr_q <= 1'b0;  // 初始化为0
+        end else begin
+            is_dtcm_addr_q <= (perip_raddr >= DTCM_ADDR_START && perip_raddr < DTCM_ADDR_END);  // 寄存条件
+        end
     end
 
-    // 直接使用各个数据源，不需要总的寄存器
-    assign perip_rdata = {32{perip_raddr_q == `SW0_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr_q == `SW1_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr_q == `KEY_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr_q == `SEG_ADDR}} & mmio_rdata_reg |
-                         {32{perip_raddr_q >= DTCM_ADDR_START && perip_raddr_q < DTCM_ADDR_END}} & dram_rdata |
-                         {32{perip_raddr_q == `CNT_ADDR}} & cnt_rdata_reg;
+    // 添加寄存器用于存储异步读取数据
+    logic [31:0] async_rdata_reg;
+
+    // 异步读取数据存入寄存器
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            async_rdata_reg <= 32'h0;
+        end else begin
+            case (perip_raddr)
+                `SW0_ADDR: async_rdata_reg <= virtual_sw_input[31:0];
+                `SW1_ADDR: async_rdata_reg <= virtual_sw_input[63:32];
+                `KEY_ADDR: async_rdata_reg <= {24'd0, virtual_key_input};
+                `SEG_ADDR: async_rdata_reg <= seg_wdata;
+                `CNT_ADDR: async_rdata_reg <= cnt_rdata;
+                default:   async_rdata_reg <= 32'hDEAD_BEEF;
+            endcase
+        end
+    end
+
+    assign perip_rdata        = is_dtcm_addr_q ? dram_rdata : async_rdata_reg;
 
     assign virtual_led_output = LED;
     assign virtual_seg_output = seg_output;
