@@ -21,7 +21,7 @@
 
 
 module twin_top #(
-    parameter CLK_FREQ = 100000000
+    parameter CLK_FREQ_MHZ = 100
 )(
     input  wire i_clk,           // 新增时钟输入端口
     input  wire rst_n,           // 新增复位输入端口
@@ -31,6 +31,7 @@ module twin_top #(
     output wire [39:0] virtual_seg
 );
 
+localparam CLK_FREQ = CLK_FREQ_MHZ * 1000000;
 wire [7:0] virtual_key;
 wire [63:0] virtual_sw;
 
