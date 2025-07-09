@@ -409,10 +409,13 @@ module gnrl_ram_pseudo_dual_axi #(
                     wr_fifo_count <= wr_fifo_count - 1'd1;
                 end
                 2'b11: begin  // 同时推入和弹出
-                    wr_fifo_addr[wfifo_wr_ptr] <= S_AXI_AWADDR;  // 保存写请求地址
-                    wr_fifo_id[wfifo_wr_ptr]   <= S_AXI_AWID;  // 保存写请求ID
-                    wfifo_wr_ptr               <= wfifo_wr_ptr + 1'd1;
-                    wfifo_rd_ptr               <= wfifo_rd_ptr + 1'd1;
+                    if (wr_fifo_count > 0) begin
+                        // 仅当FIFO有数据时才进行推入操作
+                        wr_fifo_addr[wfifo_wr_ptr] <= S_AXI_AWADDR;  // 保存写请求地址
+                        wr_fifo_id[wfifo_wr_ptr]   <= S_AXI_AWID;  // 保存写请求ID
+                        wfifo_wr_ptr               <= wfifo_wr_ptr + 1'd1;
+                        wfifo_rd_ptr               <= wfifo_rd_ptr + 1'd1;
+                    end
                     // wr_fifo_count保持不变
                 end
                 default: begin  // 2'b00: 无操作
