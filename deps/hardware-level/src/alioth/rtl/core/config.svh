@@ -1,6 +1,6 @@
 // 内存和地址配置
-`define ITCM_ADDR_WIDTH 16  // ITCM地址宽度，16位对应64KB
-`define DTCM_ADDR_WIDTH 16  // DTCM地址宽度，16位对应64KB
+`define ITCM_ADDR_WIDTH 14  // ITCM地址宽度，14位对应16KB
+`define DTCM_ADDR_WIDTH 18  // DTCM地址宽度，18位对应256KB
 `define PERIP_BRIDGE_ADDR_WIDTH 22 // 外设桥地址宽度
 
 `define PC_RESET_ADDR 32'h8000_0000
