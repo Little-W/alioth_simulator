@@ -61,7 +61,9 @@ module perip_bridge #(
     end
 
     // seg driver
-    display_seg seg_driver (
+    display_seg #(
+        .CLK_FREQ(CLK_FREQ)
+    ) seg_driver (
         .clk (clk),
         .rst (rst),
         .s   (seg_wdata),
