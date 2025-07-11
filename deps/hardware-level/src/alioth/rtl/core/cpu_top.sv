@@ -156,6 +156,7 @@ module cpu_top #(
 
     // 给dispatch和HDU的译码信息
     wire                        inst_valid = (ctrl_stall_flag_o == 0);
+    wire                        inst_exu_valid = (ctrl_stall_flag_o == 0) && (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
@@ -377,7 +378,7 @@ module cpu_top #(
         .raddr_i          (dispatch_pipe_csr_raddr_o),
         .waddr_i          (wbu_csr_waddr_o),
         .data_i           (wbu_csr_wdata_o),
-        .inst_valid_i     (inst_valid),
+        .inst_valid_i     (inst_exu_valid),
         .data_o           (csr_data_o),
         .global_int_en_o  (csr_global_int_en_o),
         .clint_we_i       (clint_we_o),
