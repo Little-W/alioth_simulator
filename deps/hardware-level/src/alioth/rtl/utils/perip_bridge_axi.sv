@@ -101,14 +101,14 @@ module perip_bridge_axi #(
     // 读FIFO相关信号定义
     reg [PTR_WIDTH-1:0] rfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] rfifo_wr_ptr;
-    reg [PTR_WIDTH:0] rd_fifo_count;
+    reg [PTR_WIDTH-1:0] rd_fifo_count;
     reg [C_S_AXI_ID_WIDTH-1:0] fifo_arid[0:FIFO_DEPTH-1];  // 添加FIFO ID存储
     wire [1:0] rd_fifo_op;
 
     // 读数据FIFO相关信号
     reg [PTR_WIDTH-1:0] rdata_fifo_rd_ptr;
     reg [PTR_WIDTH-1:0] rdata_fifo_wr_ptr;
-    reg [PTR_WIDTH:0] rdata_fifo_count;
+    reg [PTR_WIDTH-1:0] rdata_fifo_count;
     reg [C_S_AXI_DATA_WIDTH-1:0] rdata_fifo[0:FIFO_DEPTH-1];  // 读数据FIFO
     reg [C_S_AXI_ID_WIDTH-1:0] rdata_fifo_rid[0:FIFO_DEPTH-1];  // 读数据对应的ID
     reg rdata_fifo_last[0:FIFO_DEPTH-1];  // 读数据是否为最后一个
@@ -117,7 +117,7 @@ module perip_bridge_axi #(
     // 写FIFO相关信号定义
     reg [PTR_WIDTH-1:0] wfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] wfifo_wr_ptr;
-    reg [PTR_WIDTH:0] wr_fifo_count;
+    reg [PTR_WIDTH-1:0] wr_fifo_count;
     reg [C_S_AXI_ADDR_WIDTH-1:0] wr_fifo_addr[0:FIFO_DEPTH-1];
     reg [C_S_AXI_ID_WIDTH-1:0] wr_fifo_id[0:FIFO_DEPTH-1];  // 添加写FIFO ID存储
     wire [1:0] wr_fifo_op;
@@ -158,12 +158,12 @@ module perip_bridge_axi #(
     wire aw_wrap_en;
 
     // RAM接口信号
-    wire [    C_S_AXI_ADDR_WIDTH-1:0] perip_waddr;
-    wire [    C_S_AXI_ADDR_WIDTH-1:0] perip_raddr;
-    wire [    C_S_AXI_DATA_WIDTH-1:0] perip_wdata;
+    wire [C_S_AXI_ADDR_WIDTH-1:0] perip_waddr;
+    wire [C_S_AXI_ADDR_WIDTH-1:0] perip_raddr;
+    wire [C_S_AXI_DATA_WIDTH-1:0] perip_wdata;
     wire [(C_S_AXI_DATA_WIDTH/8)-1:0] perip_we_mask;
-    wire                              perip_we;
-    wire [    C_S_AXI_DATA_WIDTH-1:0] perip_rdata;
+    wire perip_we;
+    wire [C_S_AXI_DATA_WIDTH-1:0] perip_rdata;
 
     reg perip_data_valid;  // RAM数据有效标志
     // 计算地址增量（基于传输大小）
@@ -191,7 +191,7 @@ module perip_bridge_axi #(
 
     // 读数据FIFO操作控制: {push, pop}
     assign rdata_fifo_op = {
-        (rdata_fifo_count < FIFO_DEPTH) && perip_data_valid &&
+        (rdata_fifo_count < FIFO_DEPTH-1) && perip_data_valid &&
          !S_AXI_RREADY && (rdata_fifo_count <= rd_fifo_count),  // 推入操作条件 [1]
         S_AXI_RVALID && S_AXI_RREADY && rdata_fifo_count > 0  // 弹出操作条件 [0]
     };
@@ -336,11 +336,11 @@ module perip_bridge_axi #(
 
     // 添加S_AXI_ARREADY的赋值逻辑
     // 当地址FIFO未满且当前没有正在进行的BURST传输时才接受新的读请求
-    assign S_AXI_ARREADY = (rd_fifo_count < FIFO_DEPTH) && (axi_arlen_cntr == axi_arlen);
+    assign S_AXI_ARREADY = (rd_fifo_count < FIFO_DEPTH - 1) && (axi_arlen_cntr == axi_arlen);
 
     // 修改S_AXI_AWREADY的赋值逻辑，支持outstanding写入
     // 当写地址FIFO未满时才接受新的写请求
-    assign S_AXI_AWREADY = (wr_fifo_count < FIFO_DEPTH);
+    assign S_AXI_AWREADY = (wr_fifo_count < FIFO_DEPTH - 1);
 
     // S_AXI_WREADY始终为1
     assign S_AXI_WREADY = 1'b1;
@@ -477,9 +477,9 @@ module perip_bridge_axi #(
         end
     end
 
-    assign S_AXI_BVALID = bvalid;
-    assign S_AXI_BID    = bvalid_id;
-    assign S_AXI_BRESP  = 2'b00;  // OKAY
+    assign S_AXI_BVALID  = bvalid;
+    assign S_AXI_BID     = bvalid_id;
+    assign S_AXI_BRESP   = 2'b00;  // OKAY
 
     // 写逻辑连接
     assign perip_waddr   = (wr_fifo_count > 0) ? wr_fifo_addr[wfifo_rd_ptr] : S_AXI_AWADDR;
