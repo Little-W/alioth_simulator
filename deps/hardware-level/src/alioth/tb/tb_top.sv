@@ -9,15 +9,26 @@
 // 宏定义控制寄存器调试输出
 // `define DEBUG_DISPLAY_REGS 1
 
+// 宏定义控制PC监控输出
+`define DEBUG_PC_MONITOR 1
+
 // ToHost程序地址,用于监控测试是否结束
-`define PC_WRITE_TOHOST 32'h00000040
+`define PC_WRITE_TOHOST 32'h80000040
+
+// 添加监控的PC地址范围 - 修改为新的程序段
+`define PC_MONITOR_START 32'h80000334
+`define PC_MONITOR_END 32'h80000388
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
+`define DTCM alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.ram_inst
+`define seg_ori_data alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.seg_wdata
+`define cnt_start alioth_soc_top_0.u_cpu_top.u_mems.perip_bridge_axi_inst.perip_bridge_inst.counter_inst.start
 
-module tb_top;
-    // 定义信号
-    reg  clk;
-    reg  rst_n;
+module tb_top ();
+
+    // 内部时钟和复位信号生成
+    reg clk;
+    reg rst_n;
 
     // JTAG接口信号
     reg  tck_i;
@@ -25,13 +36,30 @@ module tb_top;
     reg  tdi_i;
     wire tdo_o;
 
-    // 生成50MHz时钟信号
-    always #10 clk = ~clk;
+    // 时钟生成 - 100MHz时钟 (周期10ns)
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;  // 每5ns翻转一次，生成10ns周期的时钟
+    end
+
+    // 复位信号生成
+    initial begin
+        rst_n = 0;
+        #100;  // 复位持续100ns
+        rst_n = 1;
+    end
+
+    // JTAG信号初始化
+    initial begin
+        tck_i = 0;
+        tms_i = 0;
+        tdi_i = 0;
+    end
 
     // 通用寄存器访问 - 仅用于错误信息显示
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
+    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_idu.u_idu_id_pipe.inst_addr_o;
     wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.mcycle[31:0];
     wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
 
@@ -39,30 +67,75 @@ module tb_top;
     reg     [8*300:1] testcase;
     integer           dumpwave;
 
-    // 计算ITCM的深度和字节大小
+    // 计算ITCM和DTCM的深度和字节大小
     localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数
     localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 4;  // 总字节数
+    localparam DTCM_DEPTH = (1 << (`DTCM_ADDR_WIDTH - 2));  // DTCM中的字数
+    localparam DTCM_BYTE_SIZE = DTCM_DEPTH * 4;  // 总字节数
 
-    // 创建与ITCM容量相同的临时字节数组
-    reg [7:0] prog_mem[0:ITCM_BYTE_SIZE-1];  // 注意数组声明顺序调整
-    integer i;
+    // 创建与ITCM和DTCM容量相同的临时字节数组
+    reg     [ 7:0] itcm_prog_mem                                       [0:ITCM_BYTE_SIZE-1];
+    reg     [ 7:0] dtcm_prog_mem                                       [0:DTCM_BYTE_SIZE-1];
+    integer        i;
 
     // 添加PC监控变量
-    reg [31:0] pc_write_to_host_cnt;
-    reg [31:0] pc_write_to_host_cycle;
-    reg pc_write_to_host_flag;
-    reg [31:0] last_pc;  // 保留用于监测PC变化
+    reg     [31:0] pc_write_to_host_cnt;
+    reg     [31:0] pc_write_to_host_cycle;
+    reg            pc_write_to_host_flag;
+    reg     [31:0] last_pc;  // 保留用于监测PC变化
+
+    // 添加PC范围监控变量
+    reg     [31:0] last_monitored_pc;
+    reg     [31:0] pc_monitor_counter;
+    reg            in_monitor_range;  // 标记是否在监控范围内
 
     // 不再自己维护周期和指令计数，直接从CSR获取
-    wire [31:0] current_cycle = csr_cycle[31:0];
-    wire [31:0] current_instructions = csr_instret[31:0];
+    wire    [31:0] current_cycle = csr_cycle[31:0];
+    wire    [31:0] current_instructions = csr_instret[31:0];
 
     // 周期计数器 - 简化为只更新last_pc
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            last_pc <= 32'b0;
+            last_pc            <= 32'b0;
+            last_monitored_pc  <= 32'b0;
+            pc_monitor_counter <= 32'b0;
+            in_monitor_range   <= 1'b0;
         end else begin
             last_pc <= pc;  // 仍然保留PC变化监测，用于触发to_host判断
+
+`ifdef DEBUG_PC_MONITOR
+            // PC范围监控逻辑 - 只在指定范围内报告
+            if (pc >= `PC_MONITOR_START && pc <= `PC_MONITOR_END) begin
+                // 进入监控范围
+                if (!in_monitor_range) begin
+                    $display(
+                        "[PC_MONITOR] Entering monitored code section at PC: 0x%08x, Cycle: %d",
+                        pc, current_cycle);
+                    in_monitor_range <= 1'b1;
+                end
+
+                // 每当PC在监控范围内且发生变化时输出信息
+                if (pc != last_monitored_pc) begin
+                    $display("[PC_MONITOR] Cycle: %d, PC: 0x%08x, Instruction: %d", current_cycle,
+                             pc, current_instructions);
+                    last_monitored_pc  <= pc;
+                    pc_monitor_counter <= pc_monitor_counter + 1;
+                    // 新增：打印所有通用寄存器
+                    for (r = 0; r < 32; r = r + 1)
+                        $display("[PC_MONITOR] x%2d = 0x%08x", r, alioth_soc_top_0.u_cpu_top.u_gpr.regs[r]);
+                end
+            end else begin
+                // 离开监控范围
+                if (in_monitor_range) begin
+                    $display("[PC_MONITOR] Exiting monitored code section at PC: 0x%08x, Cycle: %d",
+                             pc, current_cycle);
+                    $display("[PC_MONITOR] Total instructions in monitored section: %d",
+                             pc_monitor_counter);
+                    in_monitor_range <= 1'b0;
+                end
+                last_monitored_pc <= 32'b0;  // 重置监控PC
+            end
+`endif
         end
     end
 
@@ -83,6 +156,8 @@ module tb_top;
             pc_write_to_host_cnt   = 32'b0;
             pc_write_to_host_flag  = 1'b0;
             pc_write_to_host_cycle = 32'b0;
+            pc_monitor_counter <= 32'b0;  // 使用非阻塞赋值，与其他地方保持一致
+            in_monitor_range   <= 1'b0;  // 使用非阻塞赋值，与其他地方保持一致
         end
     end
 
@@ -92,7 +167,27 @@ module tb_top;
             // Reset logic
         end else begin
 `ifndef NO_TIMEOUT
-            if (current_cycle[20] == 1'b1) begin
+            if (current_cycle[26] == 1'b1) begin
+                // 新增：超时退出前打印IPC等性能信息
+                real ipc = (current_instructions > 0 && current_cycle > 0) ? 
+                          (current_instructions * 1.0) / current_cycle : 0.0;
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~ TIMEOUT ~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+                $write("~TESTCASE: ");
+                display_testcase_name();
+                $display("~");
+`ifdef DEBUG_PC_MONITOR
+                $display("~~~~~~~Total monitored PC changes: %d ~~~~~~~~~~~~~~", pc_monitor_counter);
+`endif
+                $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", current_cycle);
+                $display("~~~~~~~~~~Total instructions executed: %d ~~~~~~~~~~~~~",
+                         current_instructions);
+                $display("~~~~~~~~~~~~~~~~~~ IPC value: %.4f ~~~~~~~~~~~~~~~~~~", ipc);
+                $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
+                $display("~~~~~~~~~~~~~~~Final PC position: 0x%08x ~~~~~~~~~~~~~~", pc);
+                $display("PERF_METRIC: CYCLES=%-d INSTS=%-d IPC=%.4f", current_cycle,
+                         current_instructions, ipc);
                 $display("Time Out !!!");
                 $finish;
             end
@@ -102,26 +197,11 @@ module tb_top;
 
     // 测试用例解析
     initial begin
-        // 初始化信号
-        clk                    = 0;
-        rst_n                  = 0;
-        tck_i                  = 0;
-        tms_i                  = 0;
-        tdi_i                  = 0;
-
-        // 初始化监控变量
-        pc_write_to_host_cnt   = 0;
-        pc_write_to_host_flag  = 0;
-        pc_write_to_host_cycle = 0;
-
-        // 波形转储
-        if ($value$plusargs("dumpwave=%d", dumpwave) && dumpwave != 0) begin
-            $dumpfile("tb_top.vcd");
-            $dumpvars(0, tb_top);
-            $display("Dump waveform to VCD file enabled");
-        end
-
         $display("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+`ifdef DEBUG_PC_MONITOR
+        $display("PC Monitor enabled for range: 0x%08x - 0x%08x", `PC_MONITOR_START,
+                 `PC_MONITOR_END);
+`endif
         if ($value$plusargs("itcm_init=%s", testcase)) begin
             // 只输出有效的testcase内容
             display_testcase_name();
@@ -131,27 +211,46 @@ module tb_top;
             $finish;
         end
 
-        // 从.verilog文件中读取字节数据
-        $readmemh({testcase, ".verilog"}, prog_mem);
-
-        // 复位保持一段时间
-        #100;
-
-        // 处理小端序格式并更新到新的ITCM存储位置
-        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
-            `ITCM.mem_r[i] = {prog_mem[i*4+3], prog_mem[i*4+2], prog_mem[i*4+1], prog_mem[i*4+0]};
+        // 初始化内存数组
+        for (i = 0; i < ITCM_BYTE_SIZE; i = i + 1) begin
+            itcm_prog_mem[i] = 8'h00;
+        end
+        for (i = 0; i < DTCM_BYTE_SIZE; i = i + 1) begin
+            dtcm_prog_mem[i] = 8'h00;
         end
 
-        $display("Successfully loaded instructions to ITCM");
+        // 从分割后的.verilog文件中读取字节数据
+        $readmemh({testcase, "_itcm.verilog"}, itcm_prog_mem);
+        $readmemh({testcase, "_dtcm.verilog"}, dtcm_prog_mem);
+
+        // 处理小端序格式并更新到ITCM
+        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
+            `ITCM.mem_r[i] = {
+                itcm_prog_mem[i*4+3],
+                itcm_prog_mem[i*4+2],
+                itcm_prog_mem[i*4+1],
+                itcm_prog_mem[i*4+0]
+            };
+        end
+
+        // 处理小端序格式并更新到DTCM
+        for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个字
+            `DTCM.mem_r[i] = {
+                dtcm_prog_mem[i*4+3],
+                dtcm_prog_mem[i*4+2],
+                dtcm_prog_mem[i*4+1],
+                dtcm_prog_mem[i*4+0]
+            };
+        end
+
+        $display("Successfully loaded instructions to ITCM and data to DTCM");
         $display("ITCM 0x00: %h", `ITCM.mem_r[0]);
         $display("ITCM 0x01: %h", `ITCM.mem_r[1]);
         $display("ITCM 0x02: %h", `ITCM.mem_r[2]);
         $display("ITCM 0x03: %h", `ITCM.mem_r[3]);
         $display("ITCM 0x04: %h", `ITCM.mem_r[4]);
-
-        // 释放复位
-        #100;
-        rst_n = 1;
+        $display("DTCM 0x00: %h", `DTCM.mem_r[0]);
+        $display("DTCM 0x01: %h", `DTCM.mem_r[1]);
     end
 
     // 对pc_write_to_host_cnt的变化进行监控
@@ -170,6 +269,9 @@ module tb_top;
             $write("~TESTCASE: ");
             display_testcase_name();
             $display("~");
+`ifdef DEBUG_PC_MONITOR
+            $display("~~~~~~~Total monitored PC changes: %d ~~~~~~~~~~~~~~", pc_monitor_counter);
+`endif
             $display("~~~~~~~~~~~~~~Total cycle_count value: %d ~~~~~~~~~~~~~", current_cycle);
             $display("~~~~~The test ending reached at cycle: %d ~~~~~~~~~~~~~",
                      pc_write_to_host_cycle);
@@ -177,6 +279,8 @@ module tb_top;
                      current_instructions);
             $display("~~~~~~~~~~~~~~~~~~ IPC value: %.4f ~~~~~~~~~~~~~~~~~~", ipc);
             $display("~~~~~~~~~~~~~~~The final x3 Reg value: %d ~~~~~~~~~~~~~", x3);
+            // 添加最终PC位置的报告
+            $display("~~~~~~~~~~~~~~~Final PC position: 0x%08x ~~~~~~~~~~~~~~", pc);
             $display("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
 
             if (x3 == 1) begin
@@ -241,30 +345,71 @@ module tb_top;
         end
     endtask
 
-    /*
-`ifdef JTAGVPI
-    wire jtag_TDI;
-    wire jtag_TDO;
-    wire jtag_TCK;
-    wire jtag_TMS;
-    assign jtag_TDI = tdi_i;
-    assign tdo_o    = jtag_TDO;
-    assign jtag_TCK = tck_i;
-    assign jtag_TMS = tms_i;
-`else
-    wire jtag_TDI = 1'b0;
-    wire jtag_TDO;
-    wire jtag_TCK = 1'b0;
-    wire jtag_TMS = 1'b0;
-    wire jtag_TRST = 1'b0;
-`endif
-    */
+    reg clk_slow;
 
+    always @(posedge clk) begin
+        // 生成一个慢时钟信号，频率为原始时钟的1/2
+        clk_slow <= ~clk_slow;
+    end
     // 实例化顶层模块
+    // 声明LED输出信号并连接
+    wire [31:0] virtual_led;  // 假设LED输出是8位宽
+
     alioth_soc_top alioth_soc_top_0 (
         .clk  (clk),
-        .rst_n(rst_n)
+        .rst_n(rst_n),
+
+        // 外设引脚连接
+        .cnt_clk           (clk_slow),
+        .virtual_sw_input  (),
+        .virtual_key_input (),
+        .virtual_seg_output(),
+        .virtual_led_output(virtual_led)  // 连接LED输出
     );
+
+    // LED监控 - 添加监控逻辑检测LED输出变化
+    reg [31:0] last_led_value;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_led_value <= 0;
+        end else begin
+            if (virtual_led !== last_led_value) begin
+                $display("[LED_MONITOR] Cycle: %d, LED value changed: 0x%02x -> 0x%02x",
+                         current_cycle, last_led_value, virtual_led);
+                last_led_value <= virtual_led;
+            end
+        end
+    end
+
+    // SEG显示监控 - 添加监控逻辑检测段码显示数据变化
+    reg [31:0] last_seg_value;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_seg_value <= 32'h0;
+        end else begin
+            if (`seg_ori_data !== last_seg_value) begin
+                $display("[SEG_MONITOR] Cycle: %d, SEG value changed: 0x%08x -> 0x%08x",
+                         current_cycle, last_seg_value, `seg_ori_data);
+                last_seg_value <= `seg_ori_data;
+            end
+        end
+    end
+
+    // 监控cnt_start信号变化
+    reg last_cnt_start;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_cnt_start <= 0;
+        end else begin
+            if (`cnt_start !== last_cnt_start) begin
+                $display("[CNT_START_MONITOR] Cycle: %d, cnt_start changed: %b -> %b",
+                         current_cycle, last_cnt_start, `cnt_start);
+                last_cnt_start <= `cnt_start;
+            end
+        end
+    end
 
     // 添加可选的寄存器调试输出功能
 `ifdef DEBUG_DISPLAY_REGS
