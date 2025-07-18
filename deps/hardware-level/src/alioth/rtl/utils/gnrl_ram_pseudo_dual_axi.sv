@@ -178,8 +178,8 @@ module gnrl_ram_pseudo_dual_axi #(
 
     // 读数据FIFO操作控制: {push, pop}
     assign rdata_fifo_op = {
-        (rdata_fifo_count < FIFO_DEPTH - 1) && ram_data_valid &&
-         !S_AXI_RREADY && (rdata_fifo_count <= rd_fifo_count),  // 推入操作条件 [1]
+        ram_data_valid && (rdata_fifo_count <= rd_fifo_count) &&
+         (!S_AXI_RREADY || rdata_fifo_count > 0) ,  // 推入操作条件 [1]
         S_AXI_RVALID && S_AXI_RREADY && rdata_fifo_count > 0  // 弹出操作条件 [0]
     };
 
@@ -315,7 +315,7 @@ module gnrl_ram_pseudo_dual_axi #(
     assign axi_rlast_signal = (axi_arlen_cntr == axi_arlen) ? 1'b1 : 1'b0;
 
     // AXI读数据通道信号 - 修改为从数据FIFO读取
-    assign S_AXI_RVALID = (rd_fifo_count > 0);
+    assign S_AXI_RVALID = (rdata_fifo_count > 0) || ram_data_valid;
     assign S_AXI_RID = fifo_arid[rfifo_rd_ptr];
     assign S_AXI_RRESP = 2'b00;  // OKAY
     assign S_AXI_RLAST = (rdata_fifo_count > 0) ? rdata_fifo_last[rdata_fifo_rd_ptr] : axi_rlast_signal;  // 使用FIFO中保存的最后一个标志
