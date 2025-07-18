@@ -35,10 +35,10 @@ module ifu_axi_master #(
     input wire rst_n,
 
     // 控制信号
-    input  wire                        stall_axi_i,        // 无法接受新的指令(Flush或者Stall)
-    input  wire                        jump_flag_i,       // 跳转标志信号
-    input  wire [`INST_ADDR_WIDTH-1:0] pc_i,              // PC指针
-    output wire                        read_resp_error_o, // 读响应错误信号
+    input wire stall_axi_i,  // 无法接受新的指令(Flush或者Stall)
+    input wire jump_flag_i,  // 跳转标志信号
+    input wire [`INST_ADDR_WIDTH-1:0] pc_i,  // PC指针
+    output wire read_resp_error_o,  // 读响应错误信号
 
     // 新增输出
     output wire [`INST_DATA_WIDTH-1:0] inst_data_o,   // 指令数据输出
@@ -70,6 +70,7 @@ module ifu_axi_master #(
     output wire                          M_AXI_RREADY
 );
 
+    localparam FIFO_DEPTH = 4;  // FIFO深度参数化
     // AXI参数定义
     localparam C_M_AXI_BURST_LEN = 1;  // 突发长度为1，每次只读取一条指令
 
@@ -78,10 +79,10 @@ module ifu_axi_master #(
     reg [C_M_AXI_ID_WIDTH-1:0] arid_reg;  // ARID寄存器
 
     // 循环FIFO实现 - 只保存地址
-    reg [`INST_ADDR_WIDTH-1:0] fifo_addr[0:3];  // 两级FIFO地址
-    reg [0:0] rd_ptr;  // 读指针
-    reg [0:0] wr_ptr;  // 写指针
-    reg [1:0] fifo_count;  // FIFO中数据数量
+    reg [`INST_ADDR_WIDTH-1:0] fifo_addr[0:FIFO_DEPTH-1];  // 参数化FIFO地址
+    reg [$clog2(FIFO_DEPTH)-1:0] rd_ptr;  // 读指针
+    reg [$clog2(FIFO_DEPTH)-1:0] wr_ptr;  // 写指针
+    reg [$clog2(FIFO_DEPTH):0] fifo_count;  // FIFO中数据数量
     wire fifo_empty;  // FIFO为空标志
     wire fifo_full;  // FIFO已满标志
 
@@ -96,7 +97,7 @@ module ifu_axi_master #(
 
     // FIFO状态信号
     assign fifo_empty      = (fifo_count == 0);
-    assign fifo_full       = (fifo_count == 3);
+    assign fifo_full       = (fifo_count == FIFO_DEPTH);
 
     // RID匹配检查
     assign rid_match       = (M_AXI_RID == arid_reg);
@@ -166,16 +167,20 @@ module ifu_axi_master #(
                     2'b10: begin  // 只推入
                         fifo_addr[wr_ptr] <= M_AXI_ARADDR;  // 仅保存地址
                         wr_ptr            <= wr_ptr + 1'd1;  // 循环指针
-                        fifo_count        <= fifo_count + 1'd1;
+                        if (wr_ptr == FIFO_DEPTH - 1) wr_ptr <= 0;  // 循环回到0
+                        fifo_count <= fifo_count + 1'd1;
                     end
                     2'b01: begin  // 只弹出
-                        rd_ptr     <= rd_ptr + 1'd1;  // 循环指针
+                        rd_ptr <= rd_ptr + 1'd1;  // 循环指针
+                        if (rd_ptr == FIFO_DEPTH - 1) rd_ptr <= 0;  // 循环回到0
                         fifo_count <= fifo_count - 1'd1;
                     end
                     2'b11: begin  // 同时推入和弹出
                         fifo_addr[wr_ptr] <= M_AXI_ARADDR;  // 仅保存地址
                         wr_ptr            <= wr_ptr + 1'd1;
-                        rd_ptr            <= rd_ptr + 1'd1;
+                        if (wr_ptr == FIFO_DEPTH - 1) wr_ptr <= 0;  // 循环回到0
+                        rd_ptr <= rd_ptr + 1'd1;
+                        if (rd_ptr == FIFO_DEPTH - 1) rd_ptr <= 0;  // 循环回到0
                         // fifo_count保持不变
                     end
                     default: begin  // 2'b00: 无操作
