@@ -1,6 +1,6 @@
-/*         
+/*
  The MIT License (MIT)
-
+ 
  Copyright © 2025 Yusen Wang @yusen.w@qq.com
                                                                          
  Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -337,3 +337,11 @@
 `define MISA_X_SUPPORT   1'b0  // 非标准扩展
 `define MISA_Y_SUPPORT   1'b0  // 保留
 `define MISA_Z_SUPPORT   1'b0  // 保留
+
+
+//flash boot
+`ifdef FLASH_BOOT
+`define CPU_RESET_ADDR       32'h01000000                   // CPU复位地址
+`else
+`define CPU_RESET_ADDR       32'h00000000                   // CPU复位地址
+`endif
