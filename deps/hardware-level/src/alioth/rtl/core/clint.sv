@@ -28,20 +28,6 @@
 module clint (
 
 
-<<<<<<< Updated upstream
-    // from id
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
-
-    // from ex
-    input wire                        jump_flag_i,
-    input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
-    input wire                        atom_opt_busy_i, // 原子操作忙标志
-
-    // 添加系统操作输入端口
-    input wire sys_op_ecall_i,
-    input wire sys_op_ebreak_i,
-    input wire sys_op_mret_i,
-=======
         input wire clk,
         input wire rst_n,
         input wire int_req_i,    //外部中断请求
@@ -58,20 +44,12 @@ module clint (
         input wire                        jump_flag_i,
         input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
         input wire                        atom_opt_busy_i,  // 原子操作忙标志
->>>>>>> Stashed changes
 
         // 添加系统操作输入端口
         input wire sys_op_ecall_i,
         input wire sys_op_ebreak_i,
         input wire sys_op_mret_i,
 
-<<<<<<< Updated upstream
-    // from csr_reg
-    input wire [`REG_DATA_WIDTH-1:0] data_i,
-    input wire [`REG_DATA_WIDTH-1:0] csr_mtvec,
-    input wire [`REG_DATA_WIDTH-1:0] csr_mepc,
-    input wire [`REG_DATA_WIDTH-1:0] csr_mstatus,
-=======
         //新增系统操作
         input wire sys_op_executed_i, // 新增执行完成信号
         input wire sys_op_dret_i,      // 新增调试返回信号**
@@ -117,17 +95,10 @@ module clint (
 
     wire interrupt_req_valid;
 
->>>>>>> Stashed changes
 
     assign interrupt_req_valid = inst_valid_i &int_req_i &
            ((int_id_i != int_id_now) | (~in_irq_context_now));
 
-<<<<<<< Updated upstream
-    // to ctrl
-    output wire flush_flag_o,  // 用于刷新流水线
-    output wire stall_flag_o,  // 用于暂停流水线
-=======
->>>>>>> Stashed changes
 
     assign int_or_exception_req   = (interrupt_req_valid & global_int_en_i & (~debug_mode_q)) | sys_op_req;
     assign int_or_exception_cause = sys_op_req ? cause : (32'h8 + {24'h0, int_id_i});
@@ -166,13 +137,10 @@ module clint (
     reg [`INST_ADDR_WIDTH-1:0] inst_addr;  // 保存的指令地址
     reg [                31:0] cause;  // 中断原因代码
 
-<<<<<<< Updated upstream
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时冲刷流水线
     assign flush_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE));
     assign stall_flag_o = ((sys_op_ecall_i || sys_op_ebreak_i) & atom_opt_busy_i);
-=======
     wire trigger_matching;
->>>>>>> Stashed changes
 
     gen_ticks_sync #(
                        .DP(5),
@@ -205,29 +173,6 @@ module clint (
     // 中断状态机时序逻辑
     always @(*) begin
         if (~rst_n) begin
-<<<<<<< Updated upstream
-            int_state = S_INT_IDLE;
-        end else if ((sys_op_ecall_i || sys_op_ebreak_i) && atom_opt_busy_i == 1'b0) begin
-            int_state = S_INT_SYNC_ASSERT;
-        end else if (sys_op_mret_i) begin
-            int_state = S_INT_MRET;
-        end else begin
-            int_state = S_INT_IDLE;
-        end
-    end
-
-    // CSR写状态机的状态转换逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            csr_state <= S_CSR_IDLE;
-        end else begin
-            case (csr_state)
-                S_CSR_IDLE: begin
-                    if (int_state == S_INT_SYNC_ASSERT) begin
-                        csr_state <= S_CSR_MEPC;
-                    end else if (int_state == S_INT_MRET) begin
-                        csr_state <= S_CSR_MSTATUS_MRET;
-=======
             int_state_next = S_INT_IDLE;
         end
         else begin
@@ -241,7 +186,6 @@ module clint (
                     end
                     else begin
                         int_state_next = S_INT_IDLE;
->>>>>>> Stashed changes
                     end
                 end
                 S_INT_SYNC_ASSERT: begin
@@ -256,394 +200,305 @@ module clint (
                         int_state_next = S_INT_IDLE;
                     end
 
-<<<<<<< Updated upstream
-    // 中断原因寄存器更新逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            cause <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-            if (sys_op_ecall_i) begin
-                cause <= 32'd11;
-            end else if (sys_op_ebreak_i) begin
-                cause <= 32'd3;
-            end else begin
-                cause <= 32'd10;
-            end
-        end
-    end
-
-    // 保存指令地址寄存器更新逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            inst_addr <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-            if (jump_flag_i == `JumpEnable) begin
-                inst_addr <= jump_addr_i - 4'h4;
-            end else begin
-                inst_addr <= inst_addr_i;
-            end
-        end
-    end
-
-    // CSR写使能、写地址和写数据逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            we_o    <= `WriteDisable;
-            waddr_o <= `ZeroWord;
-            data_o  <= `ZeroWord;
-        end else begin
-            case (csr_state)
-                S_CSR_MEPC: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MEPC};
-                    data_o  <= inst_addr;
-                end
-                S_CSR_MSTATUS: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
-                end
-                S_CSR_MCAUSE: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MCAUSE};
-                    data_o  <= cause;
-                end
-                S_CSR_MSTATUS_MRET: begin
-                    we_o    <= `WriteEnable;
-                    waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]};
-                end
-                default: begin
-                    we_o <= `WriteDisable;
-                end
-            endcase
-        end
-    end
-
-    // 中断断言信号和中断地址逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            int_assert_o <= `INT_DEASSERT;
-            int_addr_o   <= `ZeroWord;
-        end else begin
-            case (csr_state)
-                S_CSR_MCAUSE: begin
-                    int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mtvec;
-                end
-                S_CSR_MSTATUS_MRET: begin
-                    int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mepc;
-                end
-                default: begin
-                    int_assert_o <= `INT_DEASSERT;
-                end
-            endcase
-        end
-    end
-
-    // 读地址寄存器更新逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (~rst_n) begin
-            raddr_o <= `ZeroWord;
-        end else begin
-            raddr_o <= `ZeroWord;
-=======
-                endcase
-            end
-        end
-        // 内部中断异常原因寄存器更新逻辑
-        always @(posedge clk or negedge rst_n) begin
-            if (~rst_n) begin
-                cause = `ZeroWord;
-                sys_op_req = 1'b0; // 默认不设置系统操作请求
-            end
-            else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-                if (sys_op_ecall_i ) begin
-                    cause = INT_CAUSE_ECALL;
-                    sys_op_req = 1'b1; // 设置系统操作请求
-                end
-                else if (sys_op_ebreak_i ) begin//******ebreak与debug相关
-                    cause = INT_CAUSE_EBREAK;
-                    sys_op_req = 1'b1; // 设置系统操作请求
-                end
-                else if (sys_op_mret_i) begin
-                    cause = INT_CAUSE_MRET;//与系统异常无相关性
-                end
-                else begin
-                    cause = `ZeroWord; // 默认无异常
-                    sys_op_req = 1'b0; // 不设置系统操作请求
-                end
-            end
->>>>>>> Stashed changes
-        end
-
-        // 中断断言信号和中断地址逻辑
-        always @(posedge clk or negedge rst_n) begin
-            if (~rst_n) begin
-                int_assert_o_next = `INT_DEASSERT;
-                int_addr_o_next   = `ZeroWord;
-            end
-            else begin
-                case (csr_state)
-                    S_ASSERT: begin
-                        int_assert_o_next = `INT_ASSERT;
-                        // 这里根据实际情况选择断言地址
-                        if (int_state == S_INT_MRET)
-                            int_addr_o_next = csr_mepc;
-                        else
-                            int_addr_o_next = csr_mtvec;
-                    end
-                    default: begin
-                        int_assert_o_next = `INT_DEASSERT;
-                        int_addr_o_next   = `ZeroWord;
-                    end
-                endcase
-            end
-        end
-
-        // CSR写状态机的状态转换逻辑
-        always @(posedge clk or negedge rst_n) begin
-            if (~rst_n) begin
-                csr_state_next = S_CSR_IDLE;
-            end
-            else begin
-                case (csr_state)
-                    S_CSR_IDLE: begin
-                        if (int_state == S_INT_SYNC_ASSERT) begin
-                            csr_state_next = S_CSR_MEPC;
+                    <<<<<<< Updated upstream
+                    // 中断原因寄存器更新逻辑
+                    always @(posedge clk or negedge rst_n) begin
+                        if (~rst_n) begin
+                            cause <= `ZeroWord;
                         end
-                        else if (int_state == S_INT_MRET) begin
-                            csr_state_next = S_CSR_MSTATUS_MRET;
-                        end
-                        else begin
-                            csr_state_next = S_CSR_IDLE;
-                        end
-                    end
-                    S_CSR_MEPC: begin
-                        csr_state_next = S_CSR_MSTATUS;
-                    end
-                    S_CSR_MSTATUS: begin
-                        csr_state_next = S_CSR_MCAUSE;
-                    end
-                    S_CSR_MCAUSE: begin
-                        csr_state_next = S_ASSERT; // 写完mcause后进入断言状态
-                    end
-                    S_CSR_MSTATUS_MRET: begin
-                        csr_state_next = S_ASSERT; // mret写完后进入断言状态
-                    end
-                    S_ASSERT: begin
-                        csr_state_next = S_CSR_IDLE; // 断言后回到空闲
-                    end
-                    S_DCSR: begin
-                        csr_state_next = S_ASSERT; // DCSR处理后回到同步断言状态
-                    end
-                    default: begin
-                        csr_state_next = S_CSR_IDLE;
-                    end
-                endcase
-            end
-        end
-
-
-        // 保存指令地址寄存器更新逻辑
-        always @(posedge clk or negedge rst_n) begin
-            if (~rst_n) begin
-                inst_addr_next = `ZeroWord;
-            end
-            else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-                if (jump_flag_i == `JumpEnable) begin
-                    inst_addr_next = jump_addr_i - 4'h4;
-                end
-                else begin
-                    inst_addr_next = inst_addr_i;
-                end
-            end
-        end
-
-        // CSR写使能、写地址和写数据逻辑
-        always @(posedge clk or negedge rst_n) begin
-            if (~rst_n) begin
-                we_o_next    = `WriteDisable;
-                waddr_o_next = `ZeroWord;
-                data_o_next  = `ZeroWord;
-                int_addr_o_next = `ZeroWord;
-                return_addr_o_next = `ZeroWord;
-                int_id_next = int_id_now; // 初始化中断ID寄存器
-                in_irq_context_next = in_irq_context_now; // 初始化中断上下文状态
-                debug_mode_next = debug_mode_now; // 初始化debug模式状态
-                trigger_match_next = trigger_match_now; // 初始化触发匹配状态
-            end
-            else begin
-                case (csr_state)
-                    S_CSR_IDLE: begin
-                        if (int_or_exception_req & (!debug_mode_now)) begin
-                            we_o_next    = `WriteEnable;
-                            waddr_o_next = {20'h0, `CSR_MCAUSE};
-                            data_o_next  = int_or_exception_cause;
-                            int_addr_o_next = csr_mtvec; // 设置中断地址为mtvec寄存器
-                            return_addr_o_next = inst_addr_i; // 保存返回地址
-                            int_id_next = int_id_i; // 保存中断ID
-                            in_irq_context_next = 1'b1; // 进入中断上下文
-                        end
-                        else if (debug_mode_req) begin
-                            debug_mode_next = 1'b1; // 进入调试模式
-                            if (enter_debug_cause_debugger_req |
-                                    enter_debug_cause_single_step |
-                                    enter_debug_cause_trigger |
-                                    enter_debug_cause_reset_halt) begin
-                                we_o_next    = `WriteEnable;
-                                waddr_o_next = {20'h0, `CSR_DPC};
-                                data_o_next  = enter_debug_cause_reset_halt ? (`CPU_RESET_ADDR) : inst_addr_i;
-                                // when run openocd compliance test, use it.
-                                // openocd compliance test bug: It report test fail when the reset address is 0x0:
-                                // "NDMRESET should move DPC to reset value."
-                                //csr_wdata = enter_debug_cause_reset_halt ? (`CPU_RESET_ADDR + 4'h4) : inst_addr_i;
+                        else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+                            if (sys_op_ecall_i) begin
+                                cause <= 32'd11;
                             end
-                            if (enter_debug_cause_trigger) begin
-                                trigger_match_next = 1'b1;
-                            end
-                            int_addr_o_next = debug_halt_addr_i; // 设置调试中断地址    *****还未更改
-                            if (enter_debug_cause_ebreak) begin
-                                int_state_next = S_INT_SYNC_ASSERT; // 进入同步中断状态
+                            else if (sys_op_ebreak_i) begin
+                                cause <= 32'd3;
                             end
                             else begin
-                                int_state_next = S_DCSR; // 进入调试CSR状态*****
+                                cause <= 32'd10;
                             end
                         end
-                        else if (sys_op_mret_i) begin
-                            in_irq_context_next = 1'b0; // 退出中断上下文
-                            we_o_next    = `WriteEnable;
-                            waddr_o_next = {20'h0, `CSR_MSTATUS};//*************
-                            data_o_next  = {csr_mstatus[31:4], 1'b1, csr_mstatus[2:0]};
-                            int_addr_o_next = csr_mepc; // 设置中断地址为mepc寄存器
-                            int_state_next = S_INT_SYNC_ASSERT; // 进入断言状态*****
-
-                            else if (inst_dret_i) begin
-                                int_addr_o_next = csr_dpc_i; // 设置调试返回地址为dpc寄存器
-                                int_state_d = S_INT_SYNC_ASSERT; // 进入断言状态
-                                debug_mode_d = 1'b0; // 退出调试模式
-                                trigger_match_d = 1'b0; // 退出触发匹配状态
-                            end
-
-
-                            S_CSR_MEPC: begin
-                                we_o_next    = `WriteEnable;
-                                waddr_o_next = {20'h0, `CSR_MEPC};
-                                //data_o_next  = inst_addr;
-                                data_o_next = return_addr_d; // 使用保存的返回地址
-                            end
-                            S_CSR_MSTATUS: begin
-                                we_o_next    = `WriteEnable;
-                                waddr_o_next = {20'h0, `CSR_MSTATUS};
-                                data_o_next  = {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
-
-                            end
-                            S_CSR_MCAUSE: begin
-                                we_o_next    = `WriteEnable;
-                                waddr_o_next = {20'h0, `CSR_MCAUSE};
-                                data_o_next  = cause;
-                            end
-                            S_CSR_MSTATUS_MRET: begin
-                                we_o_next    = `WriteEnable;
-                                waddr_o_next = {20'h0, `CSR_MSTATUS};
-                                data_o_next  = {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]};
-                            end
-                            S_DCSR: begin
-                                we_o_next    = `WriteEnable;
-                                waddr_o_next = {20'h0, `CSR_DCSR};
-                                data_o_next  =  {csr_dcsr_i[31:9], dcsr_cause_now, csr_dcsr_i[5:0]}; // 保留原有的DCSR寄存器状态
-                            end
-                            S_ASSERT: begin
-                                we_o_next = `WriteDisable;
-                            end
-
-                            default: begin
-                                we_o_next = `WriteDisable;
-                            end
-                        endcase
                     end
-                end
 
-
-                //debug模式状态机
-                reg enter_debug_cause_debugger_req;
-                reg enter_debug_cause_single_step;
-                reg enter_debug_cause_ebreak;
-                reg enter_debug_cause_reset_halt;
-                reg enter_debug_cause_trigger;
-                reg[2:0] dcsr_cause_next, dcsr_cause_now;
-
-                always @ (*) begin
-                    enter_debug_cause_debugger_req = 1'b0;
-                    enter_debug_cause_single_step = 1'b0;
-                    enter_debug_cause_ebreak = 1'b0;
-                    enter_debug_cause_reset_halt = 1'b0;
-                    enter_debug_cause_trigger = 1'b0;
-                    dcsr_cause_next = `DCSR_CAUSE_NONE;
-
-                    if (trigger_match_i
-                            & inst_valid_i & (~trigger_matching)) begin
-                        enter_debug_cause_trigger = 1'b1;
-                        dcsr_cause_next = `DCSR_CAUSE_TRIGGER;
+                    // 保存指令地址寄存器更新逻辑
+                    always @(posedge clk or negedge rst_n) begin
+                        if (~rst_n) begin
+                            inst_addr <= `ZeroWord;
+                        end
+                        else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+                            if (jump_flag_i == `JumpEnable) begin
+                                inst_addr <= jump_addr_i - 4'h4;
+                            end
+                            else begin
+                            end
+                        end
+                        >>>>>>> Stashed changes
                     end
-                    else if (sys_op_ebreak_i & inst_valid_i) begin
-                        enter_debug_cause_ebreak = 1'b1;
-                        dcsr_cause_next = `DCSR_CAUSE_EBREAK;
-                    end
-                    else if ((inst_addr_i == `CPU_RESET_ADDR) & inst_valid_i & debug_req_i) begin
-                        enter_debug_cause_reset_halt = 1'b1;
-                        dcsr_cause_next = `DCSR_CAUSE_HALT;
-                    end
-                    else if ((~debug_mode_now) & debug_req_i & inst_valid_i) begin
-                        enter_debug_cause_debugger_req = 1'b1;
-                        dcsr_cause_next = `DCSR_CAUSE_DBGREQ;
-                    end
-                    else if ((~debug_mode_now) & csr_dcsr_i[2] & inst_valid_i & sys_op_executed_i) begin
-                        enter_debug_cause_single_step = 1'b1;
-                        dcsr_cause_next = `DCSR_CAUSE_STEP;
-                    end
-                end
 
-                wire debug_mode_req = enter_debug_cause_debugger_req |
-                     enter_debug_cause_single_step |
-                     enter_debug_cause_reset_halt |
-                     enter_debug_cause_trigger |
-                     enter_debug_cause_ebreak;
+                    // 中断断言信号和中断地址逻辑
+                    always @(posedge clk or negedge rst_n) begin
+                        if (~rst_n) begin
+                            int_assert_o_next = `INT_DEASSERT;
+                            int_addr_o_next   = `ZeroWord;
+                        end
+                        else begin
+                            case (csr_state)
+                                S_ASSERT: begin
+                                    int_assert_o_next = `INT_ASSERT;
+                                    // 这里根据实际情况选择断言地址
+                                    if (int_state == S_INT_MRET)
+                                        int_addr_o_next = csr_mepc;
+                                    else
+                                        int_addr_o_next = csr_mtvec;
+                                end
+                                default: begin
+                                    int_assert_o_next = `INT_DEASSERT;
+                                    int_addr_o_next   = `ZeroWord;
+                                end
+                            endcase
+                        end
+
+                        // CSR写状态机的状态转换逻辑
+                        always @(posedge clk or negedge rst_n) begin
+                            if (~rst_n) begin
+                                csr_state_next = S_CSR_IDLE;
+                            end
+                            else begin
+                                case (csr_state)
+                                    S_CSR_IDLE: begin
+                                        if (int_state == S_INT_SYNC_ASSERT) begin
+                                            csr_state_next = S_CSR_MEPC;
+                                        end
+                                        else if (int_state == S_INT_MRET) begin
+                                            csr_state_next = S_CSR_MSTATUS_MRET;
+                                        end
+                                        else begin
+                                            csr_state_next = S_CSR_IDLE;
+                                        end
+                                    end
+                                    S_CSR_MEPC: begin
+                                        csr_state_next = S_CSR_MSTATUS;
+                                    end
+                                    S_CSR_MSTATUS: begin
+                                        csr_state_next = S_CSR_MCAUSE;
+                                    end
+                                    S_CSR_MCAUSE: begin
+                                        csr_state_next = S_ASSERT; // 写完mcause后进入断言状态
+                                    end
+                                    S_CSR_MSTATUS_MRET: begin
+                                        csr_state_next = S_ASSERT; // mret写完后进入断言状态
+                                    end
+                                    S_ASSERT: begin
+                                        csr_state_next = S_CSR_IDLE; // 断言后回到空闲
+                                    end
+                                    S_DCSR: begin
+                                        csr_state_next = S_ASSERT; // DCSR处理后回到同步断言状态
+                                    end
+                                    default: begin
+                                        csr_state_next = S_CSR_IDLE;
+                                    end
+                                endcase
+                            end
+                        end
 
 
-                // 读地址寄存器更新逻辑
-                always @(posedge clk or negedge rst_n) begin
-                    if (~rst_n) begin
-                        raddr_o <= `ZeroWord;
-                        int_state    <= S_INT_IDLE;
-                        csr_state    <= S_CSR_IDLE;
-                        inst_addr    <= `ZeroWord;
-                        int_addr_o   <= `ZeroWord;
-                        int_assert_o <= `INT_DEASSERT;
-                        we_o         <= `WriteDisable;
-                        waddr_o      <= `ZeroWord;
-                        data_o       <= `ZeroWord;
-                        int_id_now     <= 8'h0;
-                        debug_mode_now <= 1'b0; // 初始化debug模式为非调试状态
-                        dcsr_cause_now <= `DCSR_CAUSE_NONE; // 初始化dcsr寄存器的原因代码
-                        trigger_match_now <= 1'b0; // 初始化触发器匹配状态
-                    end
-                    else begin
-                        raddr_o      <= `ZeroWord;
-                        int_state    <= int_state_next;
-                        csr_state    <= csr_state_next;
-                        inst_addr    <= inst_addr_next;
-                        int_addr_o   <= int_addr_o_next;
-                        int_assert_o <= int_assert_o_next;
-                        we_o         <= we_o_next;
-                        waddr_o      <= waddr_o_next;
-                        data_o       <= data_o_next;
-                        int_id_now     <= int_id_i; // 更新中断ID寄存器
-                        debug_mode_now <= debug_mode_next; // 更新debug模式状态
-                        dcsr_cause_now <= dcsr_cause_next; // 更新dcsr寄存器的原因代码
-                        trigger_match_now <= trigger_match_next; // 更新触发器匹配状态
-                    end
-                end
+                        // 保存指令地址寄存器更新逻辑
+                        always @(posedge clk or negedge rst_n) begin
+                            if (~rst_n) begin
+                                inst_addr_next = `ZeroWord;
+                            end
+                            else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+                                if (jump_flag_i == `JumpEnable) begin
+                                    inst_addr_next = jump_addr_i - 4'h4;
+                                end
+                                else begin
+                                    inst_addr_next = inst_addr_i;
+                                end
+                            end
+                        end
 
-            endmodule
+                        // CSR写使能、写地址和写数据逻辑
+                        always @(posedge clk or negedge rst_n) begin
+                            if (~rst_n) begin
+                                we_o_next    = `WriteDisable;
+                                waddr_o_next = `ZeroWord;
+                                data_o_next  = `ZeroWord;
+                                int_addr_o_next = `ZeroWord;
+                                return_addr_o_next = `ZeroWord;
+                                int_id_next = int_id_now; // 初始化中断ID寄存器
+                                in_irq_context_next = in_irq_context_now; // 初始化中断上下文状态
+                                debug_mode_next = debug_mode_now; // 初始化debug模式状态
+                                trigger_match_next = trigger_match_now; // 初始化触发匹配状态
+                            end
+                            else begin
+                                case (csr_state)
+                                    S_CSR_IDLE: begin
+                                        if (int_or_exception_req & (!debug_mode_now)) begin
+                                            we_o_next    = `WriteEnable;
+                                            waddr_o_next = {20'h0, `CSR_MCAUSE};
+                                            data_o_next  = int_or_exception_cause;
+                                            int_addr_o_next = csr_mtvec; // 设置中断地址为mtvec寄存器
+                                            return_addr_o_next = inst_addr_i; // 保存返回地址
+                                            int_id_next = int_id_i; // 保存中断ID
+                                            in_irq_context_next = 1'b1; // 进入中断上下文
+                                        end
+                                        else if (debug_mode_req) begin
+                                            debug_mode_next = 1'b1; // 进入调试模式
+                                            if (enter_debug_cause_debugger_req |
+                                                    enter_debug_cause_single_step |
+                                                    enter_debug_cause_trigger |
+                                                    enter_debug_cause_reset_halt) begin
+                                                we_o_next    = `WriteEnable;
+                                                waddr_o_next = {20'h0, `CSR_DPC};
+                                                data_o_next  = enter_debug_cause_reset_halt ? (`CPU_RESET_ADDR) : inst_addr_i;
+                                                // when run openocd compliance test, use it.
+                                                // openocd compliance test bug: It report test fail when the reset address is 0x0:
+                                                // "NDMRESET should move DPC to reset value."
+                                                //csr_wdata = enter_debug_cause_reset_halt ? (`CPU_RESET_ADDR + 4'h4) : inst_addr_i;
+                                            end
+                                            if (enter_debug_cause_trigger) begin
+                                                trigger_match_next = 1'b1;
+                                            end
+                                            int_addr_o_next = debug_halt_addr_i; // 设置调试中断地址    *****还未更改
+                                            if (enter_debug_cause_ebreak) begin
+                                                int_state_next = S_INT_SYNC_ASSERT; // 进入同步中断状态
+                                            end
+                                            else begin
+                                                int_state_next = S_DCSR; // 进入调试CSR状态*****
+                                            end
+                                        end
+                                        else if (sys_op_mret_i) begin
+                                            in_irq_context_next = 1'b0; // 退出中断上下文
+                                            we_o_next    = `WriteEnable;
+                                            waddr_o_next = {20'h0, `CSR_MSTATUS};//*************
+                                            data_o_next  = {csr_mstatus[31:4], 1'b1, csr_mstatus[2:0]};
+                                            int_addr_o_next = csr_mepc; // 设置中断地址为mepc寄存器
+                                            int_state_next = S_INT_SYNC_ASSERT; // 进入断言状态*****
+
+                                            else if (inst_dret_i) begin
+                                                int_addr_o_next = csr_dpc_i; // 设置调试返回地址为dpc寄存器
+                                                int_state_d = S_INT_SYNC_ASSERT; // 进入断言状态
+                                                debug_mode_d = 1'b0; // 退出调试模式
+                                                trigger_match_d = 1'b0; // 退出触发匹配状态
+                                            end
+
+
+                                            S_CSR_MEPC: begin
+                                                we_o_next    = `WriteEnable;
+                                                waddr_o_next = {20'h0, `CSR_MEPC};
+                                                //data_o_next  = inst_addr;
+                                                data_o_next = return_addr_d; // 使用保存的返回地址
+                                            end
+                                            S_CSR_MSTATUS: begin
+                                                we_o_next    = `WriteEnable;
+                                                waddr_o_next = {20'h0, `CSR_MSTATUS};
+                                                data_o_next  = {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
+
+                                            end
+                                            S_CSR_MCAUSE: begin
+                                                we_o_next    = `WriteEnable;
+                                                waddr_o_next = {20'h0, `CSR_MCAUSE};
+                                                data_o_next  = cause;
+                                            end
+                                            S_CSR_MSTATUS_MRET: begin
+                                                we_o_next    = `WriteEnable;
+                                                waddr_o_next = {20'h0, `CSR_MSTATUS};
+                                                data_o_next  = {csr_mstatus[31:4], csr_mstatus[7], csr_mstatus[2:0]};
+                                            end
+                                            S_DCSR: begin
+                                                we_o_next    = `WriteEnable;
+                                                waddr_o_next = {20'h0, `CSR_DCSR};
+                                                data_o_next  =  {csr_dcsr_i[31:9], dcsr_cause_now, csr_dcsr_i[5:0]}; // 保留原有的DCSR寄存器状态
+                                            end
+                                            S_ASSERT: begin
+                                                we_o_next = `WriteDisable;
+                                            end
+
+                                            default: begin
+                                                we_o_next = `WriteDisable;
+                                            end
+                                        endcase
+                                    end
+                                end
+
+
+                                //debug模式状态机
+                                reg enter_debug_cause_debugger_req;
+                                reg enter_debug_cause_single_step;
+                                reg enter_debug_cause_ebreak;
+                                reg enter_debug_cause_reset_halt;
+                                reg enter_debug_cause_trigger;
+                                reg[2:0] dcsr_cause_next, dcsr_cause_now;
+
+                                always @ (*) begin
+                                    enter_debug_cause_debugger_req = 1'b0;
+                                    enter_debug_cause_single_step = 1'b0;
+                                    enter_debug_cause_ebreak = 1'b0;
+                                    enter_debug_cause_reset_halt = 1'b0;
+                                    enter_debug_cause_trigger = 1'b0;
+                                    dcsr_cause_next = `DCSR_CAUSE_NONE;
+
+                                    if (trigger_match_i
+                                            & inst_valid_i & (~trigger_matching)) begin
+                                        enter_debug_cause_trigger = 1'b1;
+                                        dcsr_cause_next = `DCSR_CAUSE_TRIGGER;
+                                    end
+                                    else if (sys_op_ebreak_i & inst_valid_i) begin
+                                        enter_debug_cause_ebreak = 1'b1;
+                                        dcsr_cause_next = `DCSR_CAUSE_EBREAK;
+                                    end
+                                    else if ((inst_addr_i == `CPU_RESET_ADDR) & inst_valid_i & debug_req_i) begin
+                                        enter_debug_cause_reset_halt = 1'b1;
+                                        dcsr_cause_next = `DCSR_CAUSE_HALT;
+                                    end
+                                    else if ((~debug_mode_now) & debug_req_i & inst_valid_i) begin
+                                        enter_debug_cause_debugger_req = 1'b1;
+                                        dcsr_cause_next = `DCSR_CAUSE_DBGREQ;
+                                    end
+                                    else if ((~debug_mode_now) & csr_dcsr_i[2] & inst_valid_i & sys_op_executed_i) begin
+                                        enter_debug_cause_single_step = 1'b1;
+                                        dcsr_cause_next = `DCSR_CAUSE_STEP;
+                                    end
+                                end
+
+                                wire debug_mode_req = enter_debug_cause_debugger_req |
+                                enter_debug_cause_single_step |
+                                enter_debug_cause_reset_halt |
+                                enter_debug_cause_trigger |
+                                enter_debug_cause_ebreak;
+
+
+                                // 读地址寄存器更新逻辑
+                                always @(posedge clk or negedge rst_n) begin
+                                    if (~rst_n) begin
+                                        raddr_o <= `ZeroWord;
+                                        int_state    <= S_INT_IDLE;
+                                        csr_state    <= S_CSR_IDLE;
+                                        inst_addr    <= `ZeroWord;
+                                        int_addr_o   <= `ZeroWord;
+                                        int_assert_o <= `INT_DEASSERT;
+                                        we_o         <= `WriteDisable;
+                                        waddr_o      <= `ZeroWord;
+                                        data_o       <= `ZeroWord;
+                                        int_id_now     <= 8'h0;
+                                        debug_mode_now <= 1'b0; // 初始化debug模式为非调试状态
+                                        dcsr_cause_now <= `DCSR_CAUSE_NONE; // 初始化dcsr寄存器的原因代码
+                                        trigger_match_now <= 1'b0; // 初始化触发器匹配状态
+                                    end
+                                    else begin
+                                        raddr_o      <= `ZeroWord;
+                                        int_state    <= int_state_next;
+                                        csr_state    <= csr_state_next;
+                                        inst_addr    <= inst_addr_next;
+                                        int_addr_o   <= int_addr_o_next;
+                                        int_assert_o <= int_assert_o_next;
+                                        we_o         <= we_o_next;
+                                        waddr_o      <= waddr_o_next;
+                                        data_o       <= data_o_next;
+                                        int_id_now     <= int_id_i; // 更新中断ID寄存器
+                                        debug_mode_now <= debug_mode_next; // 更新debug模式状态
+                                        dcsr_cause_now <= dcsr_cause_next; // 更新dcsr寄存器的原因代码
+                                        trigger_match_now <= trigger_match_next; // 更新触发器匹配状态
+                                    end
+                                end
+
+                            endmodule

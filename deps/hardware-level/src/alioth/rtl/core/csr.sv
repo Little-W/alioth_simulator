@@ -30,19 +30,6 @@ module csr (
         input wire clk,
         input wire rst_n,
 
-<<<<<<< Updated upstream
-    // form ex
-    input wire                       we_i,     // ex模块写寄存器标志
-    input wire [`BUS_ADDR_WIDTH-1:0] raddr_i,  // ex模块读寄存器地址
-    input wire [`BUS_ADDR_WIDTH-1:0] waddr_i,  // ex模块写寄存器地址
-    input wire [`REG_DATA_WIDTH-1:0] data_i,   // ex模块写寄存器数据
-
-    // from clint
-    input wire                       clint_we_i,     // clint模块写寄存器标志
-    input wire [`BUS_ADDR_WIDTH-1:0] clint_raddr_i,  // clint模块读寄存器地址
-    input wire [`BUS_ADDR_WIDTH-1:0] clint_waddr_i,  // clint模块写寄存器地址
-    input wire [`REG_DATA_WIDTH-1:0] clint_data_i,   // clint模块写寄存器数据
-=======
         // form ex
         input wire                       we_i,     // ex模块写寄存器标志
         input wire [`BUS_ADDR_WIDTH-1:0] raddr_i,  // ex模块读寄存器地址
@@ -58,7 +45,6 @@ module csr (
         input wire inst_valid_i,  // 指令有效信号
 
         output wire global_int_en_o,  // 全局中断使能标志
->>>>>>> Stashed changes
 
         // to clint
         output wire [`REG_DATA_WIDTH-1:0] clint_data_o,      // clint模块读寄存器数据
@@ -71,20 +57,16 @@ module csr (
         // to ex
         output wire [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
 
-<<<<<<< Updated upstream
-    // to clint
-    output wire [`REG_DATA_WIDTH-1:0] clint_data_o,      // clint模块读寄存器数据
-    output wire [`REG_DATA_WIDTH-1:0] clint_csr_mtvec,   // mtvec
-    output wire [`REG_DATA_WIDTH-1:0] clint_csr_mepc,    // mepc
-    output wire [`REG_DATA_WIDTH-1:0] clint_csr_mstatus, // mstatus
+        // to clint
+        output wire [`REG_DATA_WIDTH-1:0] clint_data_o,      // clint模块读寄存器数据
+        output wire [`REG_DATA_WIDTH-1:0] clint_csr_mtvec,   // mtvec
+        output wire [`REG_DATA_WIDTH-1:0] clint_csr_mepc,    // mepc
+        output wire [`REG_DATA_WIDTH-1:0] clint_csr_mstatus, // mstatus
 
-    // to ex
-    output wire [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
+        // to ex
+        output wire [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
 
-);
-=======
     );
->>>>>>> Stashed changes
 
     // 基本CSR寄存器
     wire [`DOUBLE_REG_WIDTH-1:0] mcycle;  // 改名为mcycle
@@ -214,17 +196,17 @@ module csr (
     assign clint_csr_mtvec = mtvec;
     assign clint_csr_mepc = mepc;
     assign clint_csr_mstatus = mstatus;
-<<<<<<< Updated upstream
-=======
+    <<<<<<< Updated upstream
+     =======
 
-    //新增输出
-    assign clint_csr_mie = mie;  // mie寄存器
->>>>>>> Stashed changes
+     //新增输出
+     assign clint_csr_mie = mie;  // mie寄存器
+    >>>>>>> Stashed changes
 
-    // mcycle counter
-    // 复位撤销后就一直计数，但现在还要考虑写操作
-    assign mcycle_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCYCLE) ||
-           (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCYCLE);
+     // mcycle counter
+     // 复位撤销后就一直计数，但现在还要考虑写操作
+     assign mcycle_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCYCLE) ||
+     (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCYCLE);
     assign mcycleh_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCYCLEH) ||
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCYCLEH);
 
@@ -338,8 +320,7 @@ module csr (
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCOUNTEREN);
     assign mcounteren_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCOUNTEREN) ? data_i : clint_data_i;
 
-<<<<<<< Updated upstream
-=======
+
 
     //调试模式
     assign dpc_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DPC) ||
@@ -356,8 +337,6 @@ module csr (
 
     assign dscratch1_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DSCRATCH1) ||
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_DSCRATCH1);
-    assign dscratch1_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_DSCRATCH1) ? data_i : clint_data_i;
-
     // 监管者模式
     assign sstatus_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_SSTATUS) ||
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_SSTATUS);
@@ -428,7 +407,7 @@ module csr (
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_UIP);
     assign uip_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_UIP) ? data_i : clint_data_i;
 
->>>>>>> Stashed changes
+
     // 硬件性能监控计数器
     assign hpmcounter3_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_HPMCOUNTER3) ||
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_HPMCOUNTER3);
@@ -446,7 +425,6 @@ module csr (
            (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_HPMCOUNTER6);
     assign hpmcounter6_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_HPMCOUNTER6) ? data_i : clint_data_i;
 
-    // 使用带使能信号的D触发器实现CSR寄存器
     // 原有寄存器
     gnrl_dfflr #(
                    .DW(`REG_DATA_WIDTH)
@@ -541,16 +519,7 @@ module csr (
                );
 
     gnrl_dfflr #(
-<<<<<<< Updated upstream
-        .DW(`REG_DATA_WIDTH)
-    ) mhartid_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (mhartid_we),
-        .dnxt (mhartid_next),
-        .qout (mhartid)
-    );
-=======
+
                    .DW(`REG_DATA_WIDTH)
                ) mhartid_dfflr (
                    .clk  (clk),
@@ -558,17 +527,6 @@ module csr (
                    .lden (mhartid_we),
                    .dnxt (mhartid_next),
                    .qout (mhartid)
-               );
->>>>>>> Stashed changes
-
-    gnrl_dfflr #(
-                   .DW(`REG_DATA_WIDTH)
-               ) medeleg_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (medeleg_we),
-                   .dnxt (medeleg_next),
-                   .qout (medeleg)
                );
 
     gnrl_dfflr #(
@@ -581,28 +539,27 @@ module csr (
                    .qout (mideleg)
                );
 
-    gnrl_dfflr #(
-                   .DW(`REG_DATA_WIDTH)
-               ) mip_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (mip_we),
-                   .dnxt (mip_next),
-                   .qout (mip)
-               );
+    .DW(`REG_DATA_WIDTH)
+       ) mip_dfflr (
+           .clk  (clk),
+           .rst_n(rst_n),
+           .lden (mip_we),
+           .dnxt (mip_next),
+           .qout (mip)
+       );
 
     gnrl_dfflr #(
-                   .DW(`REG_DATA_WIDTH)
-               ) mtval_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (mtval_we),
-                   .dnxt (mtval_next),
-                   .qout (mtval)
-               );
+        .DW(`REG_DATA_WIDTH)
+    ) mtval_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (mtval_we),
+        .dnxt (mtval_next),
+        .qout (mtval)
+    );
 
     gnrl_dfflr #(
-<<<<<<< Updated upstream
+
         .DW(`REG_DATA_WIDTH)
     ) mcounteren_dfflr (
         .clk  (clk),
@@ -611,50 +568,41 @@ module csr (
         .dnxt (mcounteren_next),
         .qout (mcounteren)
     );
-=======
-                   .DW(`REG_DATA_WIDTH)
-               ) mcounteren_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (mcounteren_we),
-                   .dnxt (mcounteren_next),
-                   .qout (mcounteren)
-               );
->>>>>>> Stashed changes
+
 
     // 硬件性能监控计数器
     gnrl_dfflr #(
-                   .DW(`REG_DATA_WIDTH)
-               ) hpmcounter3_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (hpmcounter3_we),
-                   .dnxt (hpmcounter3_next),
-                   .qout (hpmcounter3)
-               );
+        .DW(`REG_DATA_WIDTH)
+    ) hpmcounter3_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (hpmcounter3_we),
+        .dnxt (hpmcounter3_next),
+        .qout (hpmcounter3)
+    );
 
     gnrl_dfflr #(
-                   .DW(`REG_DATA_WIDTH)
-               ) hpmcounter4_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (hpmcounter4_we),
-                   .dnxt (hpmcounter4_next),
-                   .qout (hpmcounter4)
-               );
+        .DW(`REG_DATA_WIDTH)
+    ) hpmcounter4_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (hpmcounter4_we),
+        .dnxt (hpmcounter4_next),
+        .qout (hpmcounter4)
+    );
 
     gnrl_dfflr #(
-                   .DW(`REG_DATA_WIDTH)
-               ) hpmcounter5_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (hpmcounter5_we),
-                   .dnxt (hpmcounter5_next),
-                   .qout (hpmcounter5)
-               );
+        .DW(`REG_DATA_WIDTH)
+    ) hpmcounter5_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (hpmcounter5_we),
+        .dnxt (hpmcounter5_next),
+        .qout (hpmcounter5)
+    );
 
     gnrl_dfflr #(
-<<<<<<< Updated upstream
+
         .DW(`REG_DATA_WIDTH)
     ) hpmcounter6_dfflr (
         .clk  (clk),
@@ -666,156 +614,74 @@ module csr (
 
     // ex模块读CSR寄存器
     assign data_o = ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) ? data_i :
-        // 更新性能计数器读取的CSR地址名称
-        (raddr_i[11:0] == `CSR_MCYCLE || raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-                   (raddr_i[11:0] == `CSR_MCYCLEH || raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-                   (raddr_i[11:0] == `CSR_MINSTRET || raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                   (raddr_i[11:0] == `CSR_MINSTRETH || raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-                   (raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
-                   (raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
-                   (raddr_i[11:0] == `CSR_MEPC) ? mepc :
-                   (raddr_i[11:0] == `CSR_MIE) ? mie :
-                   (raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
-                   (raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
-        // 机器模式寄存器
-        (raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
-                   (raddr_i[11:0] == `CSR_MARCHID) ? marchid :
-                   (raddr_i[11:0] == `CSR_MIMPID) ? mimpid :
-                   (raddr_i[11:0] == `CSR_MHARTID) ? mhartid :
-                   (raddr_i[11:0] == `CSR_MISA) ? misa :
-                   (raddr_i[11:0] == `CSR_MEDELEG) ? medeleg :
-                   (raddr_i[11:0] == `CSR_MIDELEG) ? mideleg :
-                   (raddr_i[11:0] == `CSR_MIP) ? mip :
-                   (raddr_i[11:0] == `CSR_MTVAL) ? mtval :
-                   (raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
-        // 性能计数器
-        (raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
-                   (raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
-                   (raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                   (raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-        // 硬件性能监控计数器
-        (raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
-                   (raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
-                   (raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
-                   (raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
-                   `ZeroWord;
+    // 更新性能计数器读取的CSR地址名称
+    (raddr_i[11:0] == `CSR_MCYCLE || raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
+    (raddr_i[11:0] == `CSR_MCYCLEH || raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
+    (raddr_i[11:0] == `CSR_MINSTRET || raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
+    (raddr_i[11:0] == `CSR_MINSTRETH || raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+    (raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
+    (raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
+    (raddr_i[11:0] == `CSR_MEPC) ? mepc :
+    (raddr_i[11:0] == `CSR_MIE) ? mie :
+    (raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
+    (raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
+    // 机器模式寄存器
+    (raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
+    (raddr_i[11:0] == `CSR_MARCHID) ? marchid :
+    (raddr_i[11:0] == `CSR_MIMPID) ? mimpid :
+    (raddr_i[11:0] == `CSR_MHARTID) ? mhartid :
+    (raddr_i[11:0] == `CSR_MISA) ? misa :
+    (raddr_i[11:0] == `CSR_MEDELEG) ? medeleg :
+    (raddr_i[11:0] == `CSR_MIDELEG) ? mideleg :
+    (raddr_i[11:0] == `CSR_MIP) ? mip :
+    (raddr_i[11:0] == `CSR_MTVAL) ? mtval :
+    (raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
+    // 性能计数器
+    (raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
+    (raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
+    (raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
+    (raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+    // 硬件性能监控计数器
+    (raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
+    (raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
+    (raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
+    (raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
+    `ZeroWord;
 
     // clint模块读CSR寄存器
     assign clint_data_o = ((clint_waddr_i[11:0] == clint_raddr_i[11:0]) && (clint_we_i == `WriteEnable)) ? clint_data_i :
-        // 更新性能计数器读取的CSR地址名称
-        (clint_raddr_i[11:0] == `CSR_MCYCLE || clint_raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_MCYCLEH || clint_raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRET || clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRETH || clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-                         (clint_raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
-                         (clint_raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
-                         (clint_raddr_i[11:0] == `CSR_MEPC) ? mepc :
-                         (clint_raddr_i[11:0] == `CSR_MIE) ? mie :
-                         (clint_raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
-                         (clint_raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
-        // 机器模式寄存器
-        (clint_raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
-                         (clint_raddr_i[11:0] == `CSR_MARCHID) ? marchid :
-                         (clint_raddr_i[11:0] == `CSR_MIMPID) ? mimpid :
-                         (clint_raddr_i[11:0] == `CSR_MHARTID) ? mhartid :
-                         (clint_raddr_i[11:0] == `CSR_MISA) ? misa :
-                         (clint_raddr_i[11:0] == `CSR_MEDELEG) ? medeleg :
-                         (clint_raddr_i[11:0] == `CSR_MIDELEG) ? mideleg :
-                         (clint_raddr_i[11:0] == `CSR_MIP) ? mip :
-                         (clint_raddr_i[11:0] == `CSR_MTVAL) ? mtval :
-                         (clint_raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
-        // 性能计数器
-        (clint_raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-        // 硬件性能监控计数器
-        (clint_raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
-                         (clint_raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
-                         (clint_raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
-                         (clint_raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
-                         `ZeroWord;
-=======
-                   .DW(`REG_DATA_WIDTH)
-               ) hpmcounter6_dfflr (
-                   .clk  (clk),
-                   .rst_n(rst_n),
-                   .lden (hpmcounter6_we),
-                   .dnxt (hpmcounter6_next),
-                   .qout (hpmcounter6)
-               );
+    // 更新性能计数器读取的CSR地址名称
+    (clint_raddr_i[11:0] == `CSR_MCYCLE || clint_raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
+    (clint_raddr_i[11:0] == `CSR_MCYCLEH || clint_raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
+    (clint_raddr_i[11:0] == `CSR_MINSTRET || clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
+    (clint_raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
+    (clint_raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
+    (clint_raddr_i[11:0] == `CSR_MEPC) ? mepc :
+    (clint_raddr_i[11:0] == `CSR_MIE) ? mie :
+    (clint_raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
+    (clint_raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
+    // 机器模式寄存器
+    (clint_raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
+    (clint_raddr_i[11:0] == `CSR_MARCHID) ? marchid :
+    (clint_raddr_i[11:0] == `CSR_MIMPID) ? mimpid :
+    (clint_raddr_i[11:0] == `CSR_MHARTID) ? mhartid :
+    (clint_raddr_i[11:0] == `CSR_MISA) ? misa :
+    (clint_raddr_i[11:0] == `CSR_MEDELEG) ? medeleg :
+    (clint_raddr_i[11:0] == `CSR_MIDELEG) ? mideleg :
+    (clint_raddr_i[11:0] == `CSR_MIP) ? mip :
+    (clint_raddr_i[11:0] == `CSR_MTVAL) ? mtval :
+    (clint_raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
+    // 性能计数器
+    (clint_raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
+    (clint_raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
+    (clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
+    (clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+    // 硬件性能监控计数器
+    (clint_raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
+    (clint_raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
+    (clint_raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
+    (clint_raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
+    `ZeroWord;
 
-    // ex模块读CSR寄存器
-    assign data_o = ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) ? data_i :
-           // 更新性能计数器读取的CSR地址名称
-           (raddr_i[11:0] == `CSR_MCYCLE || raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-           (raddr_i[11:0] == `CSR_MCYCLEH || raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-           (raddr_i[11:0] == `CSR_MINSTRET || raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-           (raddr_i[11:0] == `CSR_MINSTRETH || raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-           (raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
-           (raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
-           (raddr_i[11:0] == `CSR_MEPC) ? mepc :
-           (raddr_i[11:0] == `CSR_MIE) ? mie :
-           (raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
-           (raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
-           // 机器模式寄存器
-           (raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
-           (raddr_i[11:0] == `CSR_MARCHID) ? marchid :
-           (raddr_i[11:0] == `CSR_MIMPID) ? mimpid :
-           (raddr_i[11:0] == `CSR_MHARTID) ? mhartid :
-           (raddr_i[11:0] == `CSR_MISA) ? misa :
-           (raddr_i[11:0] == `CSR_MEDELEG) ? medeleg :
-           (raddr_i[11:0] == `CSR_MIDELEG) ? mideleg :
-           (raddr_i[11:0] == `CSR_MIP) ? mip :
-           (raddr_i[11:0] == `CSR_MTVAL) ? mtval :
-           (raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
-           // 性能计数器
-           (raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
-           (raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
-           (raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-           (raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-           // 硬件性能监控计数器
-           (raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
-           (raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
-           (raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
-           (raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
-           `ZeroWord;
-
-    // clint模块读CSR寄存器
-    assign clint_data_o = ((clint_waddr_i[11:0] == clint_raddr_i[11:0]) && (clint_we_i == `WriteEnable)) ? clint_data_i :
-           // 更新性能计数器读取的CSR地址名称
-           (clint_raddr_i[11:0] == `CSR_MCYCLE || clint_raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-           (clint_raddr_i[11:0] == `CSR_MCYCLEH || clint_raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-           (clint_raddr_i[11:0] == `CSR_MINSTRET || clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-           (clint_raddr_i[11:0] == `CSR_MINSTRETH || clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-           (clint_raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
-           (clint_raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
-           (clint_raddr_i[11:0] == `CSR_MEPC) ? mepc :
-           (clint_raddr_i[11:0] == `CSR_MIE) ? mie :
-           (clint_raddr_i[11:0] == `CSR_MSTATUS) ? mstatus :
-           (clint_raddr_i[11:0] == `CSR_MSCRATCH) ? mscratch :
-           // 机器模式寄存器
-           (clint_raddr_i[11:0] == `CSR_MVENDORID) ? mvendorid :
-           (clint_raddr_i[11:0] == `CSR_MARCHID) ? marchid :
-           (clint_raddr_i[11:0] == `CSR_MIMPID) ? mimpid :
-           (clint_raddr_i[11:0] == `CSR_MHARTID) ? mhartid :
-           (clint_raddr_i[11:0] == `CSR_MISA) ? misa :
-           (clint_raddr_i[11:0] == `CSR_MEDELEG) ? medeleg :
-           (clint_raddr_i[11:0] == `CSR_MIDELEG) ? mideleg :
-           (clint_raddr_i[11:0] == `CSR_MIP) ? mip :
-           (clint_raddr_i[11:0] == `CSR_MTVAL) ? mtval :
-           (clint_raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
-           // 性能计数器
-           (clint_raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
-           (clint_raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
-           (clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-           (clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
-           // 硬件性能监控计数器
-           (clint_raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
-           (clint_raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
-           (clint_raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
-           (clint_raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
-           `ZeroWord;
->>>>>>> Stashed changes
 
 endmodule
