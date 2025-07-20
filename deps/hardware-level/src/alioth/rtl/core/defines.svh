@@ -346,13 +346,11 @@
 `define CPU_RESET_ADDR       32'h00000000                   // CPU复位地址
 `endif
 
-`define DCSR_CAUSE_STEP         3'h4
-`define DCSR_CAUSE_DBGREQ       3'h3
-`define DCSR_CAUSE_EBREAK       3'h1
-`define DCSR_CAUSE_HALT         3'h5
-`define DCSR_CAUSE_TRIGGER      3'h2
+`define DCSR_CAUSE_STEP         'h4
+`define DCSR_CAUSE_DBGREQ       'h3
+`define DCSR_CAUSE_EBREAK       'h1
+`define DCSR_CAUSE_HALT         'h5
+`define DCSR_CAUSE_TRIGGER      'h2
+`define DCSR_CAUSE_NONE         'h0
 
-parameter int unsigned DEBUG_HALT_ADDR      = 32'h10000800,
-          parameter int unsigned DEBUG_EXCEPTION_ADDR = 32'h10000808,
-          parameter bit          BranchPredictor      = 1'b1,
-          parameter bit          TRACE_ENABLE         = 1'b0
+`define DEBUG_HALT_ADDR      32'h10000800

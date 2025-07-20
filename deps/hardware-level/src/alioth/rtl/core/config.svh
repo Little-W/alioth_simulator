@@ -29,9 +29,3 @@
 `define REG_NUM 32
 `define COMMIT_ID_WIDTH 2
 
-`define DCSR_CAUSE_STEP         3'h4
-`define DCSR_CAUSE_DBGREQ       3'h3
-`define DCSR_CAUSE_EBREAK       3'h1
-`define DCSR_CAUSE_HALT         3'h5
-`define DCSR_CAUSE_TRIGGER      3'h2
-
