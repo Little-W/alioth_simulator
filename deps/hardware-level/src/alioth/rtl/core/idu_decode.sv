@@ -311,7 +311,13 @@ module idu_decode (
     assign csr_we_o = insr_type_cstr;
     assign csr_raddr_o = csr_we_o ? inst[31:20] : `ZeroWord;
 
+    // 增加对slli非法移位量的检测
+    wire slli_illegal_shamt = opcode_0010011 & funct3_001 & funct7_0000001;
+
     // 增加非法指令检测输出
-    assign illegal_inst_o = (dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) && inst_valid_i;
+    assign illegal_inst_o = (
+        ((dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) && inst_valid_i)
+        || slli_illegal_shamt
+    );
 
 endmodule
