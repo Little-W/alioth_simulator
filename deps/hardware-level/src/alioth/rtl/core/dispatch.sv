@@ -30,6 +30,9 @@ module dispatch (
     input wire                     rst_n,
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
+    // 新增：指令有效信号输入
+    input wire inst_valid_i,
+
     // 输入译码信息总线和立即数
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
@@ -61,6 +64,8 @@ module dispatch (
     output wire                        long_inst_atom_lock_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
     output wire [`INST_ADDR_WIDTH-1:0] pipe_inst_addr_o,
+    // 新增：指令有效信号输出
+    output wire                        pipe_inst_valid_o,
     // 新增：向其他模块输出的额外信号
     output wire                        pipe_reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] pipe_reg_waddr_o,
@@ -316,8 +321,10 @@ module dispatch (
         .rst_n       (rst_n),
         .stall_flag_i(stall_flag_i),
 
-        .inst_addr_i(dec_pc_i),
-        .commit_id_i(hdu_long_inst_id), // 从HDU获取长指令ID
+        // 新增：连接指令有效信号
+        .inst_valid_i(inst_valid_i),
+        .inst_addr_i (dec_pc_i),
+        .commit_id_i (hdu_long_inst_id), // 从HDU获取长指令ID
 
         // 新增：额外的IDU信号输入
         .reg_we_i        (reg_we_i),
@@ -398,19 +405,21 @@ module dispatch (
         .sys_op_dret_i  (logic_sys_op_dret),
 
         // 指令地址和ID输出
-        .inst_addr_o   (pipe_inst_addr_o),
-        .commit_id_o   (commit_id_o),
+        .inst_addr_o      (pipe_inst_addr_o),
+        .commit_id_o      (commit_id_o),
+        // 新增：连接指令有效信号输出
+        .inst_valid_o(pipe_inst_valid_o),
         // 新增：额外的IDU信号输出
-        .reg_we_o      (pipe_reg_we_o),
-        .reg_waddr_o   (pipe_reg_waddr_o),
-        .csr_we_o      (pipe_csr_we_o),
-        .csr_waddr_o   (pipe_csr_waddr_o),
-        .csr_raddr_o   (pipe_csr_raddr_o),
-        .dec_imm_o     (pipe_dec_imm_o),
-        .dec_info_bus_o(pipe_dec_info_bus_o),
+        .reg_we_o         (pipe_reg_we_o),
+        .reg_waddr_o      (pipe_reg_waddr_o),
+        .csr_we_o         (pipe_csr_we_o),
+        .csr_waddr_o      (pipe_csr_waddr_o),
+        .csr_raddr_o      (pipe_csr_raddr_o),
+        .dec_imm_o        (pipe_dec_imm_o),
+        .dec_info_bus_o   (pipe_dec_info_bus_o),
         // 新增：寄存rs1/rs2数据
-        .rs1_rdata_o   (pipe_rs1_rdata_o),
-        .rs2_rdata_o   (pipe_rs2_rdata_o),
+        .rs1_rdata_o      (pipe_rs1_rdata_o),
+        .rs2_rdata_o      (pipe_rs2_rdata_o),
 
         // ALU信号输出
         .req_alu_o    (req_alu_o),

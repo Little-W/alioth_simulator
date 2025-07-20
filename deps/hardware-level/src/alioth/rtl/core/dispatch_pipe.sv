@@ -30,6 +30,9 @@ module dispatch_pipe (
     input wire                     rst_n,
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
+    // 新增：指令有效信号输入
+    input wire                     inst_valid_i,
+
     // 指令信息输入端口
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
@@ -118,6 +121,8 @@ module dispatch_pipe (
     // 指令信息输出端口
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
+    // 新增：指令有效信号输出
+    output wire                        inst_valid_o,
 
     // 新增：额外的信号输出到其他模块
     output wire                       reg_we_o,
@@ -939,4 +944,16 @@ module dispatch_pipe (
         mem_wdata
     );
     assign mem_wdata_o = mem_wdata;
+
+    // 新增：指令有效信号寄存器
+    wire inst_valid_dnxt = flush_en ? 1'b0 : inst_valid_i;
+    wire inst_valid;
+    gnrl_dfflr #(1) inst_valid_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_valid_dnxt,
+        inst_valid
+    );
+    assign inst_valid_o = inst_valid;
 endmodule

@@ -148,9 +148,16 @@ module cpu_top (
     wire wbu_commit_valid_o;
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_commit_id_o;
 
+    // inst_valid相关信号定义
+    wire if_inst_valid_o;  // IFU输出指令有效信号
+    wire idu_inst_valid_o;  // IDU输出指令有效信号
+    wire dispatch_pipe_inst_valid_o;  // dispatch输出流水线指令有效信号
+    wire idu_illegal_inst_o;  // IDU输出非法指令信号
+    wire [`INST_DATA_WIDTH-1:0] idu_inst_o;  // IDU输出非法指令内容
+
     // 给dispatch和HDU的译码信息
     wire inst_valid = (ctrl_stall_flag_o == 0);
-    wire                        inst_exu_valid = (ctrl_stall_flag_o == 0) && (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    wire inst_exu_valid = (ctrl_stall_flag_o == 0) && (dispatch_pipe_inst_valid_o);
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
@@ -312,6 +319,7 @@ module cpu_top (
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
         .is_pred_branch_o (if_is_pred_branch_o),    // 连接预测分支信号输出
+        .inst_valid_o     (if_inst_valid_o),        // 添加指令有效信号输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -392,7 +400,8 @@ module cpu_top (
         .inst_i          (if_inst_o),
         .inst_addr_i     (if_inst_addr_o),
         .stall_flag_i    (ctrl_stall_flag_o),
-        .is_pred_branch_i(if_is_pred_branch_o), // 连接预测分支信号输入
+        .is_pred_branch_i(if_is_pred_branch_o),  // 连接预测分支信号输入
+        .inst_valid_i    (if_inst_valid_o),      // 添加指令有效信号输入
 
         .csr_raddr_o     (idu_csr_raddr_o),
         .inst_addr_o     (idu_inst_addr_o),
@@ -404,7 +413,10 @@ module cpu_top (
         .csr_waddr_o     (idu_csr_waddr_o),
         .dec_imm_o       (idu_dec_imm_o),
         .dec_info_bus_o  (idu_dec_info_bus_o),
-        .is_pred_branch_o(idu_is_pred_branch_o)  // 连接预测分支信号输出
+        .is_pred_branch_o(idu_is_pred_branch_o),  // 连接预测分支信号输出
+        .inst_valid_o    (idu_inst_valid_o),      // 添加指令有效信号输出
+        .illegal_inst_o  (idu_illegal_inst_o),
+        .inst_o          (idu_inst_o)             // 添加非法指令值输出
     );
 
     // 添加dispatch模块例化 - 修改增加新的接口
@@ -412,6 +424,7 @@ module cpu_top (
         .clk         (clk),
         .rst_n       (rst_n),
         .stall_flag_i(ctrl_stall_flag_o),
+        .inst_valid_i(idu_inst_valid_o),
 
         // 输入译码信息
         .dec_info_bus_i  (idu_dec_info_bus_o),
@@ -443,6 +456,8 @@ module cpu_top (
         .hazard_stall_o       (dispatch_stall_flag_o),
         .long_inst_atom_lock_o(dispatch_long_inst_atom_lock_o),
         .commit_id_o          (dispatch_commit_id_o),
+
+        .pipe_inst_valid_o(dispatch_pipe_inst_valid_o),
 
         // 新增：额外的流水线寄存输出信号
         .pipe_reg_we_o      (dispatch_pipe_reg_we_o),
@@ -755,9 +770,12 @@ module cpu_top (
         .atom_opt_busy_i(atom_opt_busy),
 
         // 连接系统操作信号
-        .sys_op_ecall_i (exu_ecall_o),
-        .sys_op_ebreak_i(exu_ebreak_o),
-        .sys_op_mret_i  (exu_mret_o),
+        .sys_op_ecall_i    (exu_ecall_o),
+        .sys_op_ebreak_i   (exu_ebreak_o),
+        .sys_op_mret_i     (exu_mret_o),
+        .illegal_inst_i    (idu_illegal_inst_o),  // 连接非法指令信号
+        .illegal_inst_pc_i (idu_inst_addr_o),     // 连接非法指令地址
+        .illegal_inst_val_i(idu_inst_o),          // 连接非法指令值
 
         .data_i         (csr_clint_data_o),
         .csr_mtvec      (csr_clint_csr_mtvec),

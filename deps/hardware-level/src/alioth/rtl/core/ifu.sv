@@ -40,6 +40,7 @@ module ifu (
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,        // 指令地址
     output wire                        read_resp_error_o,  // AXI读响应错误信号
     output wire                        is_pred_branch_o,   // 添加预测分支指令标志输出
+    output wire                        inst_valid_o,        // 添加指令有效信号输出
 
     // AXI接口
     // AXI读地址通道
@@ -121,7 +122,8 @@ module ifu (
         .stall_i         (stall_if),         // 连接IF阶段暂停信号
         .inst_o          (inst_o),           // 指令输出
         .inst_addr_o     (inst_addr_o),      // 指令地址输出
-        .is_pred_branch_o(is_pred_branch_r)  // 连接预测分支信号输出
+        .is_pred_branch_o(is_pred_branch_r), // 连接预测分支信号输出
+        .inst_valid_o    (inst_valid_o)      // 连接指令有效信号输出
     );
 
     // 将内部信号连接到输出端口

@@ -30,31 +30,37 @@ module idu_id_pipe (
     input wire                        clk,
     input wire                        rst_n,
     // 输入
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,     // 指令地址
-    input wire                        reg_we_i,        // 写通用寄存器标志
-    input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,     // 写通用寄存器地址
-    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,    // 读通用寄存器1地址
-    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,    // 读通用寄存器2地址
-    input wire                        csr_we_i,        // 写CSR寄存器标志
-    input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,     // 写CSR寄存器地址
-    input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,     // 读CSR寄存器地址
+    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,       // 指令地址
+    input wire                        reg_we_i,          // 写通用寄存器标志
+    input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,       // 写通用寄存器地址
+    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,      // 读通用寄存器1地址
+    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,      // 读通用寄存器2地址
+    input wire                        csr_we_i,          // 写CSR寄存器标志
+    input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,       // 写CSR寄存器地址
+    input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,       // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
-    input wire                        is_pred_branch_i, // 添加预测分支指令标志输入
+    input wire                        is_pred_branch_i,  // 添加预测分支指令标志输入
+    input wire                        inst_valid_i,      // 新增：指令有效输入
+    input wire                        illegal_inst_i,    // 新增：非法指令输入
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,            // 新增：指令内容输入
 
-    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,    // 指令地址
-    output wire                        reg_we_o,       // 写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,    // 写通用寄存器地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,   // 读通用寄存器1地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,   // 读通用寄存器2地址
-    output wire                        csr_we_o,       // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,    // 写CSR寄存器地址
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,    // 读CSR寄存器地址
-    output wire [                31:0] dec_imm_o,      // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o, // 译码信息总线
-    output wire                        is_pred_branch_o  // 添加预测分支指令标志输出
+    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
+    output wire                        reg_we_o,          // 写通用寄存器标志
+    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,       // 写通用寄存器地址
+    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,      // 读通用寄存器1地址
+    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,      // 读通用寄存器2地址
+    output wire                        csr_we_o,          // 写CSR寄存器标志
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,       // 写CSR寄存器地址
+    output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,       // 读CSR寄存器地址
+    output wire [                31:0] dec_imm_o,         // 立即数
+    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,    // 译码信息总线
+    output wire                        is_pred_branch_o,  // 添加预测分支指令标志输出
+    output wire                        inst_valid_o,      // 新增：指令有效输出
+    output wire                        illegal_inst_o,     // 新增：非法指令输出
+    output wire [`INST_DATA_WIDTH-1:0] inst_o             // 新增：指令内容输出
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -186,5 +192,41 @@ module idu_id_pipe (
         is_pred_branch
     );
     assign is_pred_branch_o = is_pred_branch;
+
+    // 指令有效信号传递
+    wire inst_valid_dnxt = flush_en ? 1'b0 : inst_valid_i;
+    wire inst_valid;
+    gnrl_dfflr #(1) inst_valid_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_valid_dnxt,
+        inst_valid
+    );
+    assign inst_valid_o = inst_valid;
+
+    // 非法指令信号传递
+    wire illegal_inst_dnxt = flush_en ? 1'b0 : illegal_inst_i;
+    wire illegal_inst;
+    gnrl_dfflr #(1) illegal_inst_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        illegal_inst_dnxt,
+        illegal_inst
+    );
+    assign illegal_inst_o = illegal_inst;
+
+    // 指令内容传递
+    wire [`INST_DATA_WIDTH-1:0] inst_dnxt = inst_i;
+    wire [`INST_DATA_WIDTH-1:0] inst;
+    gnrl_dfflr #(`INST_DATA_WIDTH) inst_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_dnxt,
+        inst
+    );
+    assign inst_o = inst;
 
 endmodule

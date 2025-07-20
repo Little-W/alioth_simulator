@@ -20,6 +20,7 @@ RVTEST_CODE_BEGIN
 bad2:
   .word 0
   j fail
+  j pass
 
   # Skip the rest of the test if S-mode is not present.
   li t0, MSTATUS_MPP

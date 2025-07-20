@@ -40,14 +40,15 @@ module ifu_pipe (
 
     output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o, // 指令地址
-    output wire                        is_pred_branch_o  // 输出到ID/EXU的预测分支标志
+    output wire                        is_pred_branch_o,  // 输出到ID/EXU的预测分支标志
+    output wire                        inst_valid_o       // 输出指令有效信号
 );
 
     // 直接使用flush_flag_i，不再寄存
     wire                        flush_en = flush_flag_i;
 
     // 在指令无效或冲刷信号有效时，选择填充0作为寄存器输入
-    wire [`INST_DATA_WIDTH-1:0] inst_selected = (flush_en || !inst_valid_i) ? `INST_NONE : inst_i;
+    wire [`INST_DATA_WIDTH-1:0] inst_selected = (flush_en || !inst_valid_i) ? `INST_NOP : inst_i;
 
     // 储存指令内容
     wire [`INST_DATA_WIDTH-1:0] inst_r;
@@ -85,5 +86,16 @@ module ifu_pipe (
         .qout (is_pred_branch_r)
     );
     assign is_pred_branch_o = is_pred_branch_r;
+
+    // 寄存指令有效信号
+    wire inst_valid_r;
+    gnrl_dfflr #(1) inst_valid_ff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (!stall_i),       // 当stall_i为1时不更新
+        .dnxt (flush_en ? 1'b0 : inst_valid_i),
+        .qout (inst_valid_r)
+    );
+    assign inst_valid_o = inst_valid_r;
 
 endmodule
