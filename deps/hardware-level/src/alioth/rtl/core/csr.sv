@@ -58,7 +58,9 @@ module csr (
 );
 
     // 基本CSR寄存器
-    wire [`DOUBLE_REG_WIDTH-1:0] mcycle;  // 改名为mcycle
+    // 将64位计数器改为32位高低两个寄存器
+    wire [`REG_DATA_WIDTH-1:0] mcycle;  // 低32位
+    wire [`REG_DATA_WIDTH-1:0] mcycleh;  // 高32位
     wire [`REG_DATA_WIDTH-1:0] mtvec;
     wire [`REG_DATA_WIDTH-1:0] mcause;
     wire [`REG_DATA_WIDTH-1:0] mepc;
@@ -109,8 +111,10 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mcounteren;  // 计数器使能寄存器
 
     // 性能计数器
-    wire [`DOUBLE_REG_WIDTH-1:0] minstret;  // 改名为minstret
-    wire [`DOUBLE_REG_WIDTH-1:0] time_val;  // 实时时钟
+    wire [`REG_DATA_WIDTH-1:0] minstret;  // 低32位
+    wire [`REG_DATA_WIDTH-1:0] minstreth;  // 高32位
+    wire [`REG_DATA_WIDTH-1:0] time_val;  // 低32位
+    wire [`REG_DATA_WIDTH-1:0] timeh_val;  // 高32位
 
     // 硬件性能监控计数器
     wire [`REG_DATA_WIDTH-1:0] hpmcounter3;
@@ -125,7 +129,8 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mie_next;
     wire [`REG_DATA_WIDTH-1:0] mstatus_next;
     wire [`REG_DATA_WIDTH-1:0] mscratch_next;
-    wire [`DOUBLE_REG_WIDTH-1:0] mcycle_next;  // 改名为mcycle_next
+    wire [`REG_DATA_WIDTH-1:0] mcycle_next;
+    wire [`REG_DATA_WIDTH-1:0] mcycleh_next;
 
     // 机器模式
     wire [`REG_DATA_WIDTH-1:0] mvendorid_next;
@@ -140,8 +145,10 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mcounteren_next;
 
     // 性能计数器
-    wire [`DOUBLE_REG_WIDTH-1:0] minstret_next;  // 改名为minstret_next
-    wire [`DOUBLE_REG_WIDTH-1:0] time_next;
+    wire [`REG_DATA_WIDTH-1:0] minstret_next;
+    wire [`REG_DATA_WIDTH-1:0] minstreth_next;
+    wire [`REG_DATA_WIDTH-1:0] time_next;
+    wire [`REG_DATA_WIDTH-1:0] timeh_next;
 
     // 硬件性能监控计数器
     wire [`REG_DATA_WIDTH-1:0] hpmcounter3_next;
@@ -193,10 +200,18 @@ module csr (
     assign mcycleh_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MCYCLEH) || 
                         (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MCYCLEH);
 
-    // 如果有写操作，则更新对应的值，否则自增
-    assign mcycle_next = mcycle_we ? {mcycle[63:32], (we_i == `WriteEnable ? data_i : clint_data_i)} :
-                        mcycleh_we ? {(we_i == `WriteEnable ? data_i : clint_data_i), mcycle[31:0]} :
-                        mcycle + 1'b1;
+    // 检测低32位溢出产生进位
+    wire mcycle_carry;
+    assign mcycle_carry = (mcycle == 32'hffffffff) ? 1'b1 : 1'b0;
+
+    // 低32位寄存器更新
+    assign mcycle_next = mcycle_we ? (we_i == `WriteEnable ? data_i : clint_data_i) : 
+                                    (mcycle + 1'b1);
+
+    // 高32位寄存器更新，考虑写操作和进位
+    assign mcycleh_next = mcycleh_we
+        ? ((we_i == `WriteEnable ? data_i : clint_data_i) + (mcycle_carry ? 1'b1 : 1'b0))
+        : (mcycle_carry ? mcycleh + 1'b1 : mcycleh);
 
     // 指令完成计数器，可写入
     assign minstret_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MINSTRET) || 
@@ -204,21 +219,46 @@ module csr (
     assign minstreth_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_MINSTRETH) || 
                           (clint_we_i == `WriteEnable && clint_waddr_i[11:0] == `CSR_MINSTRETH);
 
-    // 如果有写操作，则更新对应的值，否则根据指令有效判断是否自增
-    assign minstret_next = minstret_we ? {minstret[63:32], (we_i == `WriteEnable ? data_i : clint_data_i)} :
-                          minstreth_we ? {(we_i == `WriteEnable ? data_i : clint_data_i), minstret[31:0]} :
-                          inst_valid_i ? minstret + 1'b1 : minstret;
+    // 检测低32位溢出产生进位
+    wire minstret_carry;
+    assign minstret_carry = inst_valid_i && (minstret == 32'hffffffff) ? 1'b1 : 1'b0;
+
+    // 低32位寄存器更新
+    assign minstret_next = minstret_we ? (we_i == `WriteEnable ? data_i : clint_data_i) :
+                                        (inst_valid_i ? minstret + 1'b1 : minstret);
+
+    // 高32位寄存器更新，考虑写操作和进位
+    assign minstreth_next = minstreth_we
+        ? ((we_i == `WriteEnable ? data_i : clint_data_i) + (minstret_carry ? 1'b1 : 1'b0))
+        : (minstret_carry ? minstreth + 1'b1 : minstreth);
 
     // 实时时钟，每个周期自增
+    wire time_carry;
+    assign time_carry = (time_val == 32'hffffffff) ? 1'b1 : 1'b0;
+
+    // 时钟低32位更新
     assign time_next = time_val + 1'b1;
 
+    // 时钟高32位更新，考虑进位
+    assign timeh_next = timeh_val + (time_carry ? 1'b1 : 1'b0);
+
+    // 替换64位寄存器的D触发器为两个32位D触发器
     gnrl_dff #(
-        .DW(`DOUBLE_REG_WIDTH)
+        .DW(`REG_DATA_WIDTH)
     ) mcycle_dff (
         .clk  (clk),
         .rst_n(rst_n),
         .dnxt (mcycle_next),
         .qout (mcycle)
+    );
+
+    gnrl_dff #(
+        .DW(`REG_DATA_WIDTH)
+    ) mcycleh_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (mcycleh_next),
+        .qout (mcycleh)
     );
 
     gnrl_dff #(
@@ -232,11 +272,29 @@ module csr (
 
     gnrl_dff #(
         .DW(`DOUBLE_REG_WIDTH)
+    ) minstreth_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (minstreth_next),
+        .qout (minstreth)
+    );
+
+    gnrl_dff #(
+        .DW(`REG_DATA_WIDTH)
     ) time_dff (
         .clk  (clk),
         .rst_n(rst_n),
         .dnxt (time_next),
         .qout (time_val)
+    );
+
+    gnrl_dff #(
+        .DW(`REG_DATA_WIDTH)
+    ) timeh_dff (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .dnxt (timeh_next),
+        .qout (timeh_val)
     );
 
     // 计算寄存器写使能信号和下一个值
@@ -517,11 +575,11 @@ module csr (
 
     // ex模块读CSR寄存器
     assign data_o = ((waddr_i[11:0] == raddr_i[11:0]) && (we_i == `WriteEnable)) ? data_i :
-        // 更新性能计数器读取的CSR地址名称
-        (raddr_i[11:0] == `CSR_MCYCLE || raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-                   (raddr_i[11:0] == `CSR_MCYCLEH || raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-                   (raddr_i[11:0] == `CSR_MINSTRET || raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                   (raddr_i[11:0] == `CSR_MINSTRETH || raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+        // 更新读取寄存器逻辑，使用单独的32位寄存器
+        (raddr_i[11:0] == `CSR_MCYCLE) ? mcycle :
+                   (raddr_i[11:0] == `CSR_MCYCLEH) ? mcycleh :
+                   (raddr_i[11:0] == `CSR_MINSTRET) ? minstret :
+                   (raddr_i[11:0] == `CSR_MINSTRETH) ? minstreth :
                    (raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
                    (raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
                    (raddr_i[11:0] == `CSR_MEPC) ? mepc :
@@ -540,10 +598,7 @@ module csr (
                    (raddr_i[11:0] == `CSR_MTVAL) ? mtval :
                    (raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
         // 性能计数器
-        (raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
-                   (raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
-                   (raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                   (raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+        (raddr_i[11:0] == `CSR_TIME) ? time_val : (raddr_i[11:0] == `CSR_TIMEH) ? timeh_val :
         // 硬件性能监控计数器
         (raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
                    (raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
@@ -553,11 +608,11 @@ module csr (
 
     // clint模块读CSR寄存器
     assign clint_data_o = ((clint_waddr_i[11:0] == clint_raddr_i[11:0]) && (clint_we_i == `WriteEnable)) ? clint_data_i :
-        // 更新性能计数器读取的CSR地址名称
-        (clint_raddr_i[11:0] == `CSR_MCYCLE || clint_raddr_i[11:0] == `CSR_MCYCLE) ? mcycle[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_MCYCLEH || clint_raddr_i[11:0] == `CSR_MCYCLEH) ? mcycle[63:32] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRET || clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRETH || clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+        // 更新读取寄存器逻辑，使用单独的32位寄存器
+        (clint_raddr_i[11:0] == `CSR_MCYCLE) ? mcycle :
+                         (clint_raddr_i[11:0] == `CSR_MCYCLEH) ? mcycleh :
+                         (clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret :
+                         (clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstreth :
                          (clint_raddr_i[11:0] == `CSR_MTVEC) ? mtvec :
                          (clint_raddr_i[11:0] == `CSR_MCAUSE) ? mcause :
                          (clint_raddr_i[11:0] == `CSR_MEPC) ? mepc :
@@ -576,10 +631,8 @@ module csr (
                          (clint_raddr_i[11:0] == `CSR_MTVAL) ? mtval :
                          (clint_raddr_i[11:0] == `CSR_MCOUNTEREN) ? mcounteren :
         // 性能计数器
-        (clint_raddr_i[11:0] == `CSR_TIME) ? time_val[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_TIMEH) ? time_val[63:32] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRET) ? minstret[31:0] :
-                         (clint_raddr_i[11:0] == `CSR_MINSTRETH) ? minstret[63:32] :
+        (clint_raddr_i[11:0] == `CSR_TIME) ? time_val :
+                         (clint_raddr_i[11:0] == `CSR_TIMEH) ? timeh_val :
         // 硬件性能监控计数器
         (clint_raddr_i[11:0] == `CSR_HPMCOUNTER3) ? hpmcounter3 :
                          (clint_raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
