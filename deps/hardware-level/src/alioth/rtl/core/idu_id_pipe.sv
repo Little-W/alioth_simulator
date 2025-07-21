@@ -218,7 +218,7 @@ module idu_id_pipe (
     assign illegal_inst_o = illegal_inst;
 
     // 指令内容传递
-    wire [`INST_DATA_WIDTH-1:0] inst_dnxt = inst_i;
+    wire [`INST_DATA_WIDTH-1:0] inst_dnxt = flush_en ? `ZeroWord : inst_i;
     wire [`INST_DATA_WIDTH-1:0] inst;
     gnrl_dfflr #(`INST_DATA_WIDTH) inst_ff (
         clk,

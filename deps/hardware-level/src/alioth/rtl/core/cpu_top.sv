@@ -156,6 +156,8 @@ module cpu_top (
     wire [`INST_DATA_WIDTH-1:0] idu_inst_o;  // IDU输出非法指令内容
     wire dispatch_misaligned_load_o;  // dispatch输出misaligned load信号
     wire dispatch_misaligned_store_o;  // dispatch输出misaligned store信号
+    wire dispatch_illegal_inst_o;  // dispatch输出非法指令信号
+    wire misaligned_fetch_o;  // EXU输出misaligned fetch信号
 
     // 给dispatch和HDU的译码信息
     wire inst_valid = (ctrl_stall_flag_o == 0);
@@ -428,10 +430,11 @@ module cpu_top (
 
     // 添加dispatch模块例化 - 修改增加新的接口
     dispatch u_dispatch (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .stall_flag_i(ctrl_stall_flag_o),
-        .inst_valid_i(idu_inst_valid_o),
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .stall_flag_i  (ctrl_stall_flag_o),
+        .inst_valid_i  (idu_inst_valid_o),
+        .illegal_inst_i(idu_illegal_inst_o),
 
         // 输入译码信息
         .dec_info_bus_i  (idu_dec_info_bus_o),
@@ -540,9 +543,10 @@ module cpu_top (
         .sys_op_ebreak_o   (dispatch_sys_op_ebreak),
         .sys_op_fence_o    (dispatch_sys_op_fence),
         .sys_op_dret_o     (dispatch_sys_op_dret),
-        .is_pred_branch_o  (dis_is_pred_branch_o),        // 连接预测分支信号输出
+        .is_pred_branch_o  (dis_is_pred_branch_o),         // 连接预测分支信号输出
         .misaligned_load_o (dispatch_misaligned_load_o),
-        .misaligned_store_o(dispatch_misaligned_store_o)
+        .misaligned_store_o(dispatch_misaligned_store_o),
+        .illegal_inst_o    (dispatch_illegal_inst_o)       // 连接IDU的非法指令输出
 
     );
 
@@ -676,7 +680,8 @@ module cpu_top (
         .exu_op_ebreak_o(exu_ebreak_o),
         .exu_op_mret_o  (exu_mret_o),
 
-        .jalr_executed_o(exu_jalr_executed_o),  // 新增JALR执行信号输出
+        .jalr_executed_o   (exu_jalr_executed_o),  // 新增JALR执行信号输出
+        .misaligned_fetch_o(misaligned_fetch_o),   // 新增misaligned fetch信号输出
 
         // 添加AXI接口连接 - 保持不变
         .M_AXI_AWID   (exu_axi_awid),
@@ -787,13 +792,14 @@ module cpu_top (
         .sys_op_ecall_i    (exu_ecall_o),
         .sys_op_ebreak_i   (exu_ebreak_o),
         .sys_op_mret_i     (exu_mret_o),
-        .illegal_inst_i    (idu_illegal_inst_o),           // 连接非法指令信号
-        .illegal_inst_pc_i (idu_inst_addr_o),              // 连接非法指令地址
-        .illegal_inst_val_i(idu_inst_o),                   // 连接非法指令值
+        .illegal_inst_i    (dispatch_illegal_inst_o),           // 连接非法指令信号
+        .illegal_inst_pc_i (dispatch_inst_addr_o),              // 连接非法指令地址
+        .illegal_inst_val_i(dispatch_inst_o),                   // 连接非法指令值
         .misaligned_load_i (dispatch_misaligned_load_o),
         .misaligned_store_i(dispatch_misaligned_store_o),
         .ex_exception_pc_i (dispatch_inst_addr_o),         // 连接异常指令地址
         .ex_exception_val_i(dispatch_inst_o),              // 连接异常指令值
+        .misaligned_fetch_i(misaligned_fetch_o),           // misaligned fetch信号输入
 
         .data_i         (csr_clint_data_o),
         .csr_mtvec      (csr_clint_csr_mtvec),

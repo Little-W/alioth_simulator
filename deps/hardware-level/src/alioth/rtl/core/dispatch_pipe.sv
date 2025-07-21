@@ -50,6 +50,8 @@ module dispatch_pipe (
     input wire [               31:0] rs1_rdata_i,
     input wire [               31:0] rs2_rdata_i,
     input wire                       is_pred_branch_i, // 新增：预测分支信号输入
+    // 新增：非法指令信号输入
+    input wire                       illegal_inst_i,
 
     // ALU输入端口
     input wire                     req_alu_i,
@@ -212,7 +214,9 @@ module dispatch_pipe (
     output wire sys_op_ebreak_o,
     output wire sys_op_fence_o,
     output wire sys_op_dret_o,
-    output wire is_pred_branch_o  // 新增：预测分支信号输出
+    output wire is_pred_branch_o,  // 新增：预测分支信号输出
+    // 新增：非法指令信号输出
+    output wire illegal_inst_o
 );
 
     wire                        flush_en = |stall_flag_i;
@@ -1001,5 +1005,17 @@ module dispatch_pipe (
         inst
     );
     assign inst_o = inst;
+
+    // 新增：非法指令流水线寄存器
+    wire illegal_inst_dnxt = flush_en ? 1'b0 : illegal_inst_i;
+    wire illegal_inst;
+    gnrl_dfflr #(1) illegal_inst_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        illegal_inst_dnxt,
+        illegal_inst
+    );
+    assign illegal_inst_o = illegal_inst;
 
 endmodule

@@ -173,6 +173,8 @@ module exu (
 
     // 新增JALR执行信号输出
     output wire jalr_executed_o,
+    // misaligned_fetch信号输出
+    output wire misaligned_fetch_o,
 
     // AXI接口 - 新增
     output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
@@ -287,6 +289,10 @@ module exu (
 
     wire                        bru_jalr_executed;
 
+    // 新增：misaligned_fetch信号连线
+    wire                        misaligned_fetch_bru;
+    // wire misaligned_fetch_alu; // 目前ALU不产生该信号，仅作为输入
+
     // 除法器模块例化
     exu_div u_div (
         .clk       (clk),
@@ -389,48 +395,52 @@ module exu (
 
     // 算术逻辑单元模块例化
     exu_alu u_alu (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .req_alu_i     (req_alu_i),
-        .hazard_stall_i(hazard_stall_i),   // 来自HDU的冒险暂停信号
-        .alu_op1_i     (alu_op1_i),
-        .alu_op2_i     (alu_op2_i),
-        .alu_op_info_i (alu_op_info_i),
-        .alu_rd_i      (reg_waddr_i),
-        .commit_id_i   (commit_id_i),
-        .wb_ready_i    (alu_wb_ready_i),
-        .reg_we_i      (reg_we_i),
-        .alu_stall_o   (alu_stall),
-        .int_assert_i  (int_assert_i),
-        .result_o      (alu_reg_wdata_o),
-        .reg_we_o      (alu_reg_we_o),
-        .reg_waddr_o   (alu_reg_waddr_o),
-        .commit_id_o   (alu_commit_id_o)
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .req_alu_i         (req_alu_i),
+        .hazard_stall_i    (hazard_stall_i),        // 来自HDU的冒险暂停信号
+        .alu_op1_i         (alu_op1_i),
+        .alu_op2_i         (alu_op2_i),
+        .alu_op_info_i     (alu_op_info_i),
+        .alu_rd_i          (reg_waddr_i),
+        .commit_id_i       (commit_id_i),
+        .wb_ready_i        (alu_wb_ready_i),
+        .reg_we_i          (reg_we_i),
+        .alu_stall_o       (alu_stall),
+        .int_assert_i      (int_assert_i),
+        // 新增：连接misaligned_fetch信号
+        .misaligned_fetch_i(misaligned_fetch_bru),
+        .result_o          (alu_reg_wdata_o),
+        .reg_we_o          (alu_reg_we_o),
+        .reg_waddr_o       (alu_reg_waddr_o),
+        .commit_id_o       (alu_commit_id_o)
     );
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
-        .rst_n           (rst_n),
-        .req_bjp_i       (req_bjp_i),
-        .bjp_op1_i       (bjp_op1_i),
-        .bjp_op2_i       (bjp_op2_i),
-        .bjp_jump_op1_i  (bjp_jump_op1_i),
-        .bjp_jump_op2_i  (bjp_jump_op2_i),
-        .bjp_op_jump_i   (bjp_op_jump_i),
-        .bjp_op_beq_i    (bjp_op_beq_i),
-        .bjp_op_bne_i    (bjp_op_bne_i),
-        .bjp_op_blt_i    (bjp_op_blt_i),
-        .bjp_op_bltu_i   (bjp_op_bltu_i),
-        .bjp_op_bge_i    (bjp_op_bge_i),
-        .bjp_op_bgeu_i   (bjp_op_bgeu_i),
-        .bjp_op_jalr_i   (bjp_op_jalr_i),
-        .is_pred_branch_i(is_pred_branch_i),  // 新增：预测分支指令标志输入
-        .sys_op_fence_i  (sys_op_fence_i),
-        .int_assert_i    (int_assert_i),
-        .int_addr_i      (int_addr_i),
-        .jump_flag_o     (bru_jump_flag),
-        .jump_addr_o     (bru_jump_addr),
-        .jalr_executed_o (bru_jalr_executed)  // 新增JALR执行信号连线
+        .rst_n             (rst_n),
+        .req_bjp_i         (req_bjp_i),
+        .bjp_op1_i         (bjp_op1_i),
+        .bjp_op2_i         (bjp_op2_i),
+        .bjp_jump_op1_i    (bjp_jump_op1_i),
+        .bjp_jump_op2_i    (bjp_jump_op2_i),
+        .bjp_op_jump_i     (bjp_op_jump_i),
+        .bjp_op_beq_i      (bjp_op_beq_i),
+        .bjp_op_bne_i      (bjp_op_bne_i),
+        .bjp_op_blt_i      (bjp_op_blt_i),
+        .bjp_op_bltu_i     (bjp_op_bltu_i),
+        .bjp_op_bge_i      (bjp_op_bge_i),
+        .bjp_op_bgeu_i     (bjp_op_bgeu_i),
+        .bjp_op_jalr_i     (bjp_op_jalr_i),
+        .is_pred_branch_i  (is_pred_branch_i),     // 新增：预测分支指令标志输入
+        .sys_op_fence_i    (sys_op_fence_i),
+        .int_assert_i      (int_assert_i),
+        .int_addr_i        (int_addr_i),
+        .jump_flag_o       (bru_jump_flag),
+        .jump_addr_o       (bru_jump_addr),
+        .jalr_executed_o   (bru_jalr_executed),
+        // 新增：连接misaligned_fetch信号
+        .misaligned_fetch_o(misaligned_fetch_bru)
     );
 
     // CSR处理单元模块例化
@@ -523,5 +533,8 @@ module exu (
 
     // 新增JALR执行信号输出
     assign jalr_executed_o = bru_jalr_executed;
+
+    // 新增：misaligned_fetch信号输出
+    assign misaligned_fetch_o = misaligned_fetch_bru;
 
 endmodule

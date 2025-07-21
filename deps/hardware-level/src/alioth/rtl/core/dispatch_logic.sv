@@ -78,14 +78,14 @@ module dispatch_logic (
     output wire        csr_csrrc_o,
 
     // dispatch to MEM
-    output wire        req_mem_o,
-    output wire        mem_op_lb_o,
-    output wire        mem_op_lh_o,
-    output wire        mem_op_lw_o,
-    output wire        mem_op_lbu_o,
-    output wire        mem_op_lhu_o,
-    output wire        mem_op_load_o,
-    output wire        mem_op_store_o,
+    output wire req_mem_o,
+    output wire mem_op_lb_o,
+    output wire mem_op_lh_o,
+    output wire mem_op_lw_o,
+    output wire mem_op_lbu_o,
+    output wire mem_op_lhu_o,
+    output wire mem_op_load_o,
+    output wire mem_op_store_o,
 
     // 直接计算的内存地址和掩码/数据
     output wire [31:0] mem_addr_o,
@@ -199,9 +199,9 @@ module dispatch_logic (
 
     // MEM info
 
-    wire                      op_mem = (disp_info_grp == `DECINFO_GRP_MEM);
+    wire op_mem = (disp_info_grp == `DECINFO_GRP_MEM);
     wire [`DECINFO_WIDTH-1:0] mem_info = {`DECINFO_WIDTH{op_mem}} & dec_info_bus_i;
-    
+
     // 这些信号不再是输出，但内部仍然需要使用
     wire mem_op_lb = mem_info[`DECINFO_MEM_LB];  // LB指令：符号位扩展的字节加载
     wire mem_op_lh = mem_info[`DECINFO_MEM_LH];  // LH指令：符号位扩展的半字加载
@@ -211,21 +211,21 @@ module dispatch_logic (
     wire mem_op_sb = mem_info[`DECINFO_MEM_SB];  // SB指令：存储一个字节
     wire mem_op_sh = mem_info[`DECINFO_MEM_SH];  // SH指令：存储一个半字
     wire mem_op_sw = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
-    
+
     // 这些信号仍然作为输出
-    assign mem_op_lb_o = mem_op_lb;
-    assign mem_op_lh_o = mem_op_lh;
-    assign mem_op_lw_o = mem_op_lw;
-    assign mem_op_lbu_o = mem_op_lbu;
-    assign mem_op_lhu_o = mem_op_lhu;
-    assign mem_op_load_o = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
+    assign mem_op_lb_o    = mem_op_lb;
+    assign mem_op_lh_o    = mem_op_lh;
+    assign mem_op_lw_o    = mem_op_lw;
+    assign mem_op_lbu_o   = mem_op_lbu;
+    assign mem_op_lhu_o   = mem_op_lhu;
+    assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
     assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];  // 所有存储指令
-    
+
     // 内部信号，不再作为输出
     wire [31:0] mem_op1 = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
     wire [31:0] mem_op2 = op_mem ? dec_imm_i : 32'h0;  // 偏移量 (立即数)
     wire [31:0] mem_rs2_data = op_mem ? rs2_rdata_i : 32'h0;  // 存储指令的数据 (rs2)
-    
+
     assign req_mem_o = op_mem;
 
     // 直接计算内存地址

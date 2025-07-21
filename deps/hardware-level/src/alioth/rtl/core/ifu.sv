@@ -31,9 +31,9 @@ module ifu (
     input wire rst_n,
 
     // 来自控制模块
-    input wire                        jump_flag_i,  // 跳转标志
-    input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
-    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
+    input wire                        jump_flag_i,     // 跳转标志
+    input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,     // 跳转地址
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,    // 流水线暂停标志
     input wire                        jalr_executed_i, // 新增JALR执行信号输入
 
     // 输出到ID阶段的信息
@@ -84,8 +84,10 @@ module ifu (
     wire jump_flag = jump_flag_i | branch_taken;  // 跳转标志
     wire [`INST_ADDR_WIDTH-1:0] jump_addr = jump_flag_i ? jump_addr_i : branch_addr;  // 跳转地址
 
+    wire pc_misaligned;  // 新增：PC非对齐信号
+
     wire axi_pc_stall;
-    wire stall_axi = (stall_flag_i != 0);  // AXI暂停信号
+    wire stall_axi = (stall_flag_i != 0) | pc_misaligned;  // AXI暂停信号，增加pc_misaligned
     wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
     wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
@@ -93,26 +95,27 @@ module ifu (
     sbpu u_sbpu (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_data),      // 指令内容
-        .inst_valid_i    (inst_valid),     // 指令有效信号
-        .pc_i            (inst_addr),      // 指令地址
-        .any_stall_i     (stall_axi),      // 流水线暂停信号
-        .jalr_executed_i (jalr_executed_i),// 新增JALR执行信号输入
-        .branch_taken_o  (branch_taken),   // 预测是否为分支
-        .branch_addr_o   (branch_addr),    // 预测的分支地址
-        .is_pred_branch_o(is_pred_branch), // 当前指令是否为预测分支
-        .wait_for_jalr_o (wait_for_jalr)   // JALR等待信号输出
+        .inst_i          (inst_data),        // 指令内容
+        .inst_valid_i    (inst_valid),       // 指令有效信号
+        .pc_i            (inst_addr),        // 指令地址
+        .any_stall_i     (stall_axi),        // 流水线暂停信号
+        .jalr_executed_i (jalr_executed_i),  // 新增JALR执行信号输入
+        .branch_taken_o  (branch_taken),     // 预测是否为分支
+        .branch_addr_o   (branch_addr),      // 预测的分支地址
+        .is_pred_branch_o(is_pred_branch),   // 当前指令是否为预测分支
+        .wait_for_jalr_o (wait_for_jalr)     // JALR等待信号输出
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
     ifu_ifetch u_ifu_ifetch (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .jump_flag_i  (jump_flag),      // 使用合并后的跳转标志
-        .jump_addr_i  (jump_addr),      // 使用合并后的跳转地址
-        .stall_pc_i   (stall_pc),
-        .axi_arready_i(M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
-        .pc_o         (pc)              // PC输出
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .jump_flag_i       (jump_flag),      // 使用合并后的跳转标志
+        .jump_addr_i       (jump_addr),      // 使用合并后的跳转地址
+        .stall_pc_i        (stall_pc),
+        .axi_arready_i     (M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
+        .pc_o              (pc),             // PC输出
+        .pc_misaligned_o(pc_misaligned)   // 新增：连接PC非对齐信号
     );
 
     // 实例化ifu_pipe模块

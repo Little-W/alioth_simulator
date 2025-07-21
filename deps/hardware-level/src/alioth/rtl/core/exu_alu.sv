@@ -45,6 +45,9 @@ module exu_alu (
     // 中断信号
     input wire int_assert_i,
 
+    // 新增：misaligned_fetch输入信号
+    input wire misaligned_fetch_i,
+
     // 结果输出
     output wire [ `REG_DATA_WIDTH-1:0] result_o,
     output wire                        reg_we_o,
@@ -225,10 +228,11 @@ module exu_alu (
         ({32{op_lui}} & lui_res);
 
     // 所有算术逻辑操作都需要写回寄存器
+    // 如果misaligned_fetch_i为1，则忽略op_jump
     wire alu_r_we = !(int_assert_i == `INT_ASSERT) && (req_alu_i | op_jump) && reg_we_i;
 
     // 目标寄存器地址逻辑
-    wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : alu_rd_i;
+    wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT || misaligned_fetch_i) ? 5'b0 : alu_rd_i;
 
     // 握手信号控制逻辑
     wire update_output = (wb_ready_i | ~reg_we_o);

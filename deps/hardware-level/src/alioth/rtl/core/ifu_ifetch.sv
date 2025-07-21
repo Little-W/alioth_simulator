@@ -35,8 +35,9 @@ module ifu_ifetch (
     input wire                        stall_pc_i,    // PC暂停信号
     input wire                        axi_arready_i, // AXI读地址通道准备好信号
 
-    output wire [`INST_ADDR_WIDTH-1:0] pc_o  // PC指针
-
+    output wire [`INST_ADDR_WIDTH-1:0] pc_o,  // PC指针
+    // 新增输出：非对齐取指信号
+    output wire pc_misaligned_o
 );
 
     // 下一个PC值
@@ -50,6 +51,9 @@ module ifu_ifetch (
         (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
         (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
         pc_o + 4'h4;  // 地址加4
+
+    // 非对齐判断：PC最低两位不为0即为非对齐
+    assign pc_misaligned_o = |pc_o[1:0];
 
     // 使用gnrl_dff模块实现PC寄存器
     gnrl_dff #(

@@ -32,6 +32,8 @@ module dispatch (
 
     // 指令有效信号输入
     input wire inst_valid_i,
+    // 新增：非法指令信号输入
+    input wire illegal_inst_i,
 
     // 输入译码信息总线和立即数
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
@@ -148,8 +150,10 @@ module dispatch (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o, // 预测分支信号输出
 
-    output wire misaligned_load_o,  // 未对齐加载异常信号输出
-    output wire misaligned_store_o  // 未对齐存储异常信号输出
+    output wire misaligned_load_o,   // 未对齐加载异常信号输出
+    output wire misaligned_store_o,  // 未对齐存储异常信号输出
+    // 新增：非法指令信号输出
+    output wire illegal_inst_o
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
@@ -349,7 +353,9 @@ module dispatch (
         // 寄存rs1/rs2数据
         .rs1_rdata_i     (rs1_rdata_i),
         .rs2_rdata_i     (rs2_rdata_i),
-        .is_pred_branch_i(is_pred_branch_i), // 连接预测分支信号输入
+        .is_pred_branch_i(is_pred_branch_i),  // 连接预测分支信号输入
+        // 新增：非法指令信号输入
+        .illegal_inst_i  (illegal_inst_i),
 
         // ALU信号输入
         .req_alu_i    (logic_req_alu),
@@ -503,7 +509,8 @@ module dispatch (
         .sys_op_dret_o     (sys_op_dret_o),
         .is_pred_branch_o  (is_pred_branch_o),   // 连接预测分支信号输出
         .misaligned_load_o (misaligned_load_o),
-        .misaligned_store_o(misaligned_store_o)
+        .misaligned_store_o(misaligned_store_o),
+        .illegal_inst_o(illegal_inst_o) // 新增：非法指令信号输出
     );
 
 endmodule
