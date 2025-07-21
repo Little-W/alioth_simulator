@@ -311,6 +311,9 @@ module cpu_top (
     wire exu_axi_rvalid;
     wire exu_axi_rready;
 
+    // 新增JALR执行信号连线
+    wire exu_jalr_executed_o;
+
     // IFU模块例化
     ifu u_ifu (
         .clk              (clk),
@@ -318,6 +321,7 @@ module cpu_top (
         .jump_flag_i      (ctrl_jump_flag_o),
         .jump_addr_i      (ctrl_jump_addr_o),
         .stall_flag_i     (ctrl_stall_flag_o),
+        .jalr_executed_i  (exu_jalr_executed_o),    // 新增连接
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
@@ -671,6 +675,8 @@ module cpu_top (
         .exu_op_ecall_o (exu_ecall_o),
         .exu_op_ebreak_o(exu_ebreak_o),
         .exu_op_mret_o  (exu_mret_o),
+
+        .jalr_executed_o(exu_jalr_executed_o),  // 新增JALR执行信号输出
 
         // 添加AXI接口连接 - 保持不变
         .M_AXI_AWID   (exu_axi_awid),

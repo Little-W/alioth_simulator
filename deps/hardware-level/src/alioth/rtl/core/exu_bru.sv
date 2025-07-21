@@ -49,7 +49,9 @@ module exu_bru (
 
     // 跳转输出
     output wire                        jump_flag_o,
-    output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o
+    output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
+    // 新增JALR执行信号
+    output wire                        jalr_executed_o
 );
     // 内部信号
     wire        op1_eq_op2;
@@ -80,6 +82,9 @@ module exu_bru (
         (bjp_op_bgeu_i &  op1_ge_op2_unsigned) |
         bjp_op_jalr_i
     );
+
+    // JALR执行信号
+    assign jalr_executed_o = req_bjp_i & bjp_op_jalr_i;
 
     // 简化跳转标志判断，增加预测回退条件
     assign jump_flag_o = int_assert_i | (branch_cond & ~is_pred_branch_i) | sys_op_fence_i | pred_rollback;
