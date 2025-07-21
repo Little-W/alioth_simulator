@@ -77,7 +77,7 @@ module cpu_top (
     wire [`COMMIT_ID_WIDTH-1:0] exu_csr_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_alu_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_muldiv_commit_id_o;
-    wire [`COMMIT_ID_WIDTH-1:0] exu_agu_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] exu_lsu_commit_id_o;
 
     // EXU到WBU的数据通路信号
     wire [`REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
@@ -88,9 +88,9 @@ module cpu_top (
     wire exu_muldiv_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_muldiv_reg_waddr_o;
 
-    wire [`REG_DATA_WIDTH-1:0] exu_agu_reg_wdata_o;
-    wire exu_agu_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] exu_agu_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_lsu_reg_wdata_o;
+    wire exu_lsu_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_lsu_reg_waddr_o;
 
     // wbu输出信号
     wire [`REG_DATA_WIDTH-1:0] wbu_reg_wdata_o;
@@ -151,13 +151,15 @@ module cpu_top (
     // inst_valid相关信号定义
     wire if_inst_valid_o;  // IFU输出指令有效信号
     wire idu_inst_valid_o;  // IDU输出指令有效信号
-    wire dispatch_pipe_inst_valid_o;  // dispatch输出流水线指令有效信号
+    wire dispatch_inst_valid_o;  // dispatch输出流水线指令有效信号
     wire idu_illegal_inst_o;  // IDU输出非法指令信号
     wire [`INST_DATA_WIDTH-1:0] idu_inst_o;  // IDU输出非法指令内容
+    wire dispatch_misaligned_load_o;  // dispatch输出misaligned load信号
+    wire dispatch_misaligned_store_o;  // dispatch输出misaligned store信号
 
     // 给dispatch和HDU的译码信息
     wire inst_valid = (ctrl_stall_flag_o == 0);
-    wire inst_exu_valid = (ctrl_stall_flag_o == 0) && (dispatch_pipe_inst_valid_o);
+    wire inst_exu_valid = (ctrl_stall_flag_o == 0) && (dispatch_inst_valid_o);
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
@@ -230,14 +232,15 @@ module cpu_top (
     wire dispatch_csr_csrrc;
 
     wire [`BUS_ADDR_WIDTH-1:0] idu_csr_raddr_o;
-    wire dispatch_pipe_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] dispatch_pipe_reg_waddr_o;
-    wire dispatch_pipe_csr_we_o;
-    wire [`BUS_ADDR_WIDTH-1:0] dispatch_pipe_csr_waddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] dispatch_pipe_csr_raddr_o;
-    wire [31:0] dispatch_pipe_dec_imm_o;
-    wire [`DECINFO_WIDTH-1:0] dispatch_pipe_dec_info_bus_o;
-    wire [`INST_ADDR_WIDTH-1:0] pipe_inst_addr;
+    wire dispatch_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_reg_waddr_o;
+    wire dispatch_csr_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] dispatch_csr_waddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] dispatch_csr_raddr_o;
+    wire [31:0] dispatch_dec_imm_o;
+    wire [`DECINFO_WIDTH-1:0] dispatch_dec_info_bus_o;
+    wire [`INST_ADDR_WIDTH-1:0] dispatch_inst_addr_o;
+    wire [`INST_DATA_WIDTH-1:0] dispatch_inst_o;  // 新增：指令内容输出
 
     // dispatch to MEM
     wire dispatch_req_mem;
@@ -377,7 +380,7 @@ module cpu_top (
         .clk              (clk),
         .rst_n            (rst_n),
         .we_i             (wbu_csr_we_o),
-        .raddr_i          (dispatch_pipe_csr_raddr_o),
+        .raddr_i          (dispatch_csr_raddr_o),
         .waddr_i          (wbu_csr_waddr_o),
         .data_i           (wbu_csr_wdata_o),
         .inst_valid_i     (inst_exu_valid),
@@ -430,6 +433,7 @@ module cpu_top (
         .dec_info_bus_i  (idu_dec_info_bus_o),
         .dec_imm_i       (idu_dec_imm_o),
         .dec_pc_i        (idu_inst_addr_o),
+        .inst_i          (idu_inst_o),
         .rs1_rdata_i     (regs_rdata1_o),
         .rs2_rdata_i     (regs_rdata2_o),
         .is_pred_branch_i(idu_is_pred_branch_o), // 连接预测分支信号输入
@@ -457,17 +461,18 @@ module cpu_top (
         .long_inst_atom_lock_o(dispatch_long_inst_atom_lock_o),
         .commit_id_o          (dispatch_commit_id_o),
 
-        .pipe_inst_valid_o(dispatch_pipe_inst_valid_o),
+        .pipe_inst_valid_o(dispatch_inst_valid_o),
 
         // 新增：额外的流水线寄存输出信号
-        .pipe_reg_we_o      (dispatch_pipe_reg_we_o),
-        .pipe_reg_waddr_o   (dispatch_pipe_reg_waddr_o),
-        .pipe_csr_we_o      (dispatch_pipe_csr_we_o),
-        .pipe_csr_waddr_o   (dispatch_pipe_csr_waddr_o),
-        .pipe_csr_raddr_o   (dispatch_pipe_csr_raddr_o),
-        .pipe_dec_imm_o     (dispatch_pipe_dec_imm_o),
-        .pipe_dec_info_bus_o(dispatch_pipe_dec_info_bus_o),
-        .pipe_inst_addr_o   (pipe_inst_addr),
+        .pipe_reg_we_o      (dispatch_reg_we_o),
+        .pipe_reg_waddr_o   (dispatch_reg_waddr_o),
+        .pipe_csr_we_o      (dispatch_csr_we_o),
+        .pipe_csr_waddr_o   (dispatch_csr_waddr_o),
+        .pipe_csr_raddr_o   (dispatch_csr_raddr_o),
+        .pipe_dec_imm_o     (dispatch_dec_imm_o),
+        .pipe_dec_info_bus_o(dispatch_dec_info_bus_o),
+        .pipe_inst_addr_o   (dispatch_inst_addr_o),
+        .pipe_inst_o        (dispatch_inst_o),
         .pipe_rs1_rdata_o   (dispatch_rs1_rdata),
         .pipe_rs2_rdata_o   (dispatch_rs2_rdata),
 
@@ -513,39 +518,42 @@ module cpu_top (
         .csr_csrrs_o(dispatch_csr_csrrs),
         .csr_csrrc_o(dispatch_csr_csrrc),
 
-        .req_mem_o       (dispatch_req_mem),
-        .mem_op_lb_o     (dispatch_mem_op_lb),
-        .mem_op_lh_o     (dispatch_mem_op_lh),
-        .mem_op_lw_o     (dispatch_mem_op_lw),
-        .mem_op_lbu_o    (dispatch_mem_op_lbu),
-        .mem_op_lhu_o    (dispatch_mem_op_lhu),
-        .mem_op_load_o   (dispatch_mem_op_load),
-        .mem_op_store_o  (dispatch_mem_op_store),
-        .mem_commit_id_o (dispatch_mem_commit_id),
-        .mem_addr_o      (dispatch_mem_addr),
-        .mem_wmask_o     (dispatch_mem_wmask),
-        .mem_wdata_o     (dispatch_mem_wdata),
-        .sys_op_nop_o    (dispatch_sys_op_nop),
-        .sys_op_mret_o   (dispatch_sys_op_mret),
-        .sys_op_ecall_o  (dispatch_sys_op_ecall),
-        .sys_op_ebreak_o (dispatch_sys_op_ebreak),
-        .sys_op_fence_o  (dispatch_sys_op_fence),
-        .sys_op_dret_o   (dispatch_sys_op_dret),
-        .is_pred_branch_o(dis_is_pred_branch_o)     // 连接预测分支信号输出
+        .req_mem_o         (dispatch_req_mem),
+        .mem_op_lb_o       (dispatch_mem_op_lb),
+        .mem_op_lh_o       (dispatch_mem_op_lh),
+        .mem_op_lw_o       (dispatch_mem_op_lw),
+        .mem_op_lbu_o      (dispatch_mem_op_lbu),
+        .mem_op_lhu_o      (dispatch_mem_op_lhu),
+        .mem_op_load_o     (dispatch_mem_op_load),
+        .mem_op_store_o    (dispatch_mem_op_store),
+        .mem_commit_id_o   (dispatch_mem_commit_id),
+        .mem_addr_o        (dispatch_mem_addr),
+        .mem_wmask_o       (dispatch_mem_wmask),
+        .mem_wdata_o       (dispatch_mem_wdata),
+        .sys_op_nop_o      (dispatch_sys_op_nop),
+        .sys_op_mret_o     (dispatch_sys_op_mret),
+        .sys_op_ecall_o    (dispatch_sys_op_ecall),
+        .sys_op_ebreak_o   (dispatch_sys_op_ebreak),
+        .sys_op_fence_o    (dispatch_sys_op_fence),
+        .sys_op_dret_o     (dispatch_sys_op_dret),
+        .is_pred_branch_o  (dis_is_pred_branch_o),        // 连接预测分支信号输出
+        .misaligned_load_o (dispatch_misaligned_load_o),
+        .misaligned_store_o(dispatch_misaligned_store_o)
+
     );
 
     // exu模块例化 - 修改commit_id相关连接
     exu u_exu (
         .clk(clk),
         .rst_n(rst_n),
-        .inst_addr_i(pipe_inst_addr),  // 从dispatch pipe获取指令地址
-        .reg_we_i(dispatch_pipe_reg_we_o),  // 修改为从dispatch pipe获取寄存器写使能
-        .reg_waddr_i   (dispatch_pipe_reg_waddr_o),        // 修改为从dispatch pipe获取寄存器写地址
-        .csr_we_i(dispatch_pipe_csr_we_o),  // 修改为从dispatch pipe获取CSR写使能
-        .csr_waddr_i(dispatch_pipe_csr_waddr_o),  // 修改为从dispatch pipe获取CSR写地址
+        .inst_addr_i(dispatch_inst_addr_o),  // 从dispatch pipe获取指令地址
+        .reg_we_i(dispatch_reg_we_o),  // 修改为从dispatch pipe获取寄存器写使能
+        .reg_waddr_i(dispatch_reg_waddr_o),  // 修改为从dispatch pipe获取寄存器写地址
+        .csr_we_i(dispatch_csr_we_o),  // 修改为从dispatch pipe获取CSR写使能
+        .csr_waddr_i(dispatch_csr_waddr_o),  // 修改为从dispatch pipe获取CSR写地址
         .csr_rdata_i(csr_data_o),
-        .dec_info_bus_i(dispatch_pipe_dec_info_bus_o),     // 修改为从dispatch pipe获取译码信息总线
-        .dec_imm_i(dispatch_pipe_dec_imm_o),  // 修改为从dispatch pipe获取立即数
+        .dec_info_bus_i(dispatch_dec_info_bus_o),     // 修改为从dispatch pipe获取译码信息总线
+        .dec_imm_i(dispatch_dec_imm_o),  // 修改为从dispatch pipe获取立即数
         .mem_rdata_i(exu_mem_data_i),
         .int_assert_i(clint_int_assert_o),
         .int_addr_i(clint_int_addr_o),
@@ -639,10 +647,10 @@ module cpu_top (
         .muldiv_reg_waddr_o(exu_muldiv_reg_waddr_o),
         .muldiv_commit_id_o(exu_muldiv_commit_id_o),
 
-        .agu_reg_wdata_o(exu_agu_reg_wdata_o),
-        .agu_reg_we_o   (exu_agu_reg_we_o),
-        .agu_reg_waddr_o(exu_agu_reg_waddr_o),
-        .agu_commit_id_o(exu_agu_commit_id_o),
+        .lsu_reg_wdata_o(exu_lsu_reg_wdata_o),
+        .lsu_reg_we_o   (exu_lsu_reg_we_o),
+        .lsu_reg_waddr_o(exu_lsu_reg_waddr_o),
+        .lsu_commit_id_o(exu_lsu_commit_id_o),
 
         // 连接CSR寄存器写数据信号
         .csr_reg_wdata_o(exu_csr_reg_wdata_o),
@@ -737,12 +745,12 @@ module cpu_top (
         .csr_reg_waddr_i(exu_csr_reg_waddr_o),
         .csr_reg_we_i   (exu_csr_reg_we_o),     // 新增：csr_reg_we输入端口
 
-        .agu_reg_wdata_i(exu_agu_reg_wdata_o),
-        .agu_reg_we_i   (exu_agu_reg_we_o),
-        .agu_reg_waddr_i(exu_agu_reg_waddr_o),
-        .agu_commit_id_i(exu_agu_commit_id_o),  // 直接使用全宽度
+        .lsu_reg_wdata_i(exu_lsu_reg_wdata_o),
+        .lsu_reg_we_i   (exu_lsu_reg_we_o),
+        .lsu_reg_waddr_i(exu_lsu_reg_waddr_o),
+        .lsu_commit_id_i(exu_lsu_commit_id_o),  // 直接使用全宽度
 
-        .idu_reg_waddr_i(dispatch_pipe_reg_waddr_o), // 修改为从dispatch pipe获取IDU寄存器写地址
+        .idu_reg_waddr_i(dispatch_reg_waddr_o), // 修改为从dispatch pipe获取IDU寄存器写地址
 
         .int_assert_i(clint_int_assert_o),
 
@@ -763,7 +771,7 @@ module cpu_top (
     clint u_clint (
         .clk            (clk),
         .rst_n          (rst_n),
-        .inst_addr_i    (pipe_inst_addr),     // 修改为从dispatch pipe获取指令地址
+        .inst_addr_i    (dispatch_inst_addr_o),  // 修改为从dispatch pipe获取指令地址
         .jump_flag_i    (exu_jump_flag_o),
         .jump_addr_i    (exu_jump_addr_o),
         .stall_flag_i   (ctrl_stall_flag_o),
@@ -773,9 +781,13 @@ module cpu_top (
         .sys_op_ecall_i    (exu_ecall_o),
         .sys_op_ebreak_i   (exu_ebreak_o),
         .sys_op_mret_i     (exu_mret_o),
-        .illegal_inst_i    (idu_illegal_inst_o),  // 连接非法指令信号
-        .illegal_inst_pc_i (idu_inst_addr_o),     // 连接非法指令地址
-        .illegal_inst_val_i(idu_inst_o),          // 连接非法指令值
+        .illegal_inst_i    (idu_illegal_inst_o),           // 连接非法指令信号
+        .illegal_inst_pc_i (idu_inst_addr_o),              // 连接非法指令地址
+        .illegal_inst_val_i(idu_inst_o),                   // 连接非法指令值
+        .misaligned_load_i (dispatch_misaligned_load_o),
+        .misaligned_store_i(dispatch_misaligned_store_o),
+        .ex_exception_pc_i (dispatch_inst_addr_o),         // 连接异常指令地址
+        .ex_exception_val_i(dispatch_inst_o),              // 连接异常指令值
 
         .data_i         (csr_clint_data_o),
         .csr_mtvec      (csr_clint_csr_mtvec),

@@ -98,8 +98,11 @@ module dispatch_logic (
     output wire sys_op_ecall_o,
     output wire sys_op_ebreak_o,
     output wire sys_op_fence_o,
-    output wire sys_op_dret_o
+    output wire sys_op_dret_o,
 
+    // 新增：未对齐访存异常输出
+    output wire misaligned_load_o,
+    output wire misaligned_store_o
 );
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
@@ -278,6 +281,23 @@ module dispatch_logic (
     assign mem_addr_o = mem_addr;
     assign mem_wmask_o = mem_wmask;
     assign mem_wdata_o = mem_wdata;
+
+    // 地址对齐检测逻辑
+    wire is_word_access = mem_op_lw | mem_op_sw;  // lw/sw
+    wire is_half_access = mem_op_lh | mem_op_lhu | mem_op_sh;  // lh/lhu/sh
+    wire is_byte_access = mem_op_lb | mem_op_lbu | mem_op_sb;  // lb/lbu/sb
+
+    // load对齐检测
+    assign misaligned_load_o  = mem_op_load_o  & (
+        (mem_op_lw  && (mem_addr[1:0] != 2'b00)) ||
+        ((mem_op_lh | mem_op_lhu) && (mem_addr[0] != 1'b0))
+    );
+
+    // store对齐检测
+    assign misaligned_store_o = mem_op_store_o & (
+        (mem_op_sw && (mem_addr[1:0] != 2'b00)) ||
+        (mem_op_sh && (mem_addr[0] != 1'b0))
+    );
 
     // SYS info
 

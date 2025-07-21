@@ -31,7 +31,8 @@ module dispatch_pipe (
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     // 新增：指令有效信号输入
-    input wire                     inst_valid_i,
+    input wire inst_valid_i,
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
 
     // 指令信息输入端口
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -46,9 +47,9 @@ module dispatch_pipe (
     input wire [               31:0] dec_imm_i,
     input wire [ `DECINFO_WIDTH-1:0] dec_info_bus_i,
     // 新增：寄存rs1/rs2数据
-    input wire [31:0] rs1_rdata_i,
-    input wire [31:0] rs2_rdata_i,
-    input wire        is_pred_branch_i, // 新增：预测分支信号输入
+    input wire [               31:0] rs1_rdata_i,
+    input wire [               31:0] rs2_rdata_i,
+    input wire                       is_pred_branch_i, // 新增：预测分支信号输入
 
     // ALU输入端口
     input wire                     req_alu_i,
@@ -72,19 +73,19 @@ module dispatch_pipe (
     input wire        bjp_op_jalr_i,
 
     // MULDIV输入端口
-    input wire                        req_muldiv_i,
-    input wire [                31:0] muldiv_op1_i,
-    input wire [                31:0] muldiv_op2_i,
-    input wire                        muldiv_op_mul_i,
-    input wire                        muldiv_op_mulh_i,
-    input wire                        muldiv_op_mulhsu_i,
-    input wire                        muldiv_op_mulhu_i,
-    input wire                        muldiv_op_div_i,
-    input wire                        muldiv_op_divu_i,
-    input wire                        muldiv_op_rem_i,
-    input wire                        muldiv_op_remu_i,
-    input wire                        muldiv_op_mul_all_i,
-    input wire                        muldiv_op_div_all_i,
+    input wire        req_muldiv_i,
+    input wire [31:0] muldiv_op1_i,
+    input wire [31:0] muldiv_op2_i,
+    input wire        muldiv_op_mul_i,
+    input wire        muldiv_op_mulh_i,
+    input wire        muldiv_op_mulhsu_i,
+    input wire        muldiv_op_mulhu_i,
+    input wire        muldiv_op_div_i,
+    input wire        muldiv_op_divu_i,
+    input wire        muldiv_op_rem_i,
+    input wire        muldiv_op_remu_i,
+    input wire        muldiv_op_mul_all_i,
+    input wire        muldiv_op_div_all_i,
 
     // CSR输入端口
     input wire        req_csr_i,
@@ -95,20 +96,24 @@ module dispatch_pipe (
     input wire        csr_csrrc_i,
 
     // MEM输入端口
-    input wire                        req_mem_i,
+    input wire req_mem_i,
     // 删除不再需要的输入信号
-    input wire                        mem_op_lb_i,
-    input wire                        mem_op_lh_i,
-    input wire                        mem_op_lw_i,
-    input wire                        mem_op_lbu_i,
-    input wire                        mem_op_lhu_i,
-    input wire                        mem_op_load_i,
-    input wire                        mem_op_store_i,
-    
+    input wire mem_op_lb_i,
+    input wire mem_op_lh_i,
+    input wire mem_op_lw_i,
+    input wire mem_op_lbu_i,
+    input wire mem_op_lhu_i,
+    input wire mem_op_load_i,
+    input wire mem_op_store_i,
+
     // 直接计算的内存地址和掩码/数据输入
     input wire [31:0] mem_addr_i,
-    input wire [3:0]  mem_wmask_i,
+    input wire [ 3:0] mem_wmask_i,
     input wire [31:0] mem_wdata_i,
+
+    // 新增：未对齐访存异常输入
+    input wire misaligned_load_i,
+    input wire misaligned_store_i,
 
     // SYS输入端口
     input wire sys_op_nop_i,
@@ -123,6 +128,7 @@ module dispatch_pipe (
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
     // 新增：指令有效信号输出
     output wire                        inst_valid_o,
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
 
     // 新增：额外的信号输出到其他模块
     output wire                       reg_we_o,
@@ -133,8 +139,8 @@ module dispatch_pipe (
     output wire [               31:0] dec_imm_o,
     output wire [ `DECINFO_WIDTH-1:0] dec_info_bus_o,
     // 新增：寄存rs1/rs2数据
-    output wire [31:0] rs1_rdata_o,
-    output wire [31:0] rs2_rdata_o,
+    output wire [               31:0] rs1_rdata_o,
+    output wire [               31:0] rs2_rdata_o,
 
     // ALU输出端口
     output wire                     req_alu_o,
@@ -158,19 +164,19 @@ module dispatch_pipe (
     output wire        bjp_op_jalr_o,
 
     // MULDIV输出端口
-    output wire                        req_muldiv_o,
-    output wire [                31:0] muldiv_op1_o,
-    output wire [                31:0] muldiv_op2_o,
-    output wire                        muldiv_op_mul_o,
-    output wire                        muldiv_op_mulh_o,
-    output wire                        muldiv_op_mulhsu_o,
-    output wire                        muldiv_op_mulhu_o,
-    output wire                        muldiv_op_div_o,
-    output wire                        muldiv_op_divu_o,
-    output wire                        muldiv_op_rem_o,
-    output wire                        muldiv_op_remu_o,
-    output wire                        muldiv_op_mul_all_o,
-    output wire                        muldiv_op_div_all_o,
+    output wire        req_muldiv_o,
+    output wire [31:0] muldiv_op1_o,
+    output wire [31:0] muldiv_op2_o,
+    output wire        muldiv_op_mul_o,
+    output wire        muldiv_op_mulh_o,
+    output wire        muldiv_op_mulhsu_o,
+    output wire        muldiv_op_mulhu_o,
+    output wire        muldiv_op_div_o,
+    output wire        muldiv_op_divu_o,
+    output wire        muldiv_op_rem_o,
+    output wire        muldiv_op_remu_o,
+    output wire        muldiv_op_mul_all_o,
+    output wire        muldiv_op_div_all_o,
 
     // CSR输出端口
     output wire        req_csr_o,
@@ -181,19 +187,23 @@ module dispatch_pipe (
     output wire        csr_csrrc_o,
 
     // MEM输出端口
-    output wire                        req_mem_o,
-    output wire                        mem_op_lb_o,
-    output wire                        mem_op_lh_o,
-    output wire                        mem_op_lw_o,
-    output wire                        mem_op_lbu_o,
-    output wire                        mem_op_lhu_o,
-    output wire                        mem_op_load_o,
-    output wire                        mem_op_store_o,
-    
+    output wire req_mem_o,
+    output wire mem_op_lb_o,
+    output wire mem_op_lh_o,
+    output wire mem_op_lw_o,
+    output wire mem_op_lbu_o,
+    output wire mem_op_lhu_o,
+    output wire mem_op_load_o,
+    output wire mem_op_store_o,
+
     // 保留这些计算好的内存地址和掩码/数据输出
     output wire [31:0] mem_addr_o,
-    output wire [3:0]  mem_wmask_o,
+    output wire [ 3:0] mem_wmask_o,
     output wire [31:0] mem_wdata_o,
+
+    // 新增：未对齐访存异常输出
+    output wire misaligned_load_o,
+    output wire misaligned_store_o,
 
     // SYS输出端口
     output wire sys_op_nop_o,
@@ -202,7 +212,7 @@ module dispatch_pipe (
     output wire sys_op_ebreak_o,
     output wire sys_op_fence_o,
     output wire sys_op_dret_o,
-    output wire is_pred_branch_o // 新增：预测分支信号输出
+    output wire is_pred_branch_o  // 新增：预测分支信号输出
 );
 
     wire                        flush_en = |stall_flag_i;
@@ -956,4 +966,40 @@ module dispatch_pipe (
         inst_valid
     );
     assign inst_valid_o = inst_valid;
+
+    // 新增：未对齐访存异常流水线寄存器
+    wire misaligned_load_dnxt = flush_en ? 1'b0 : misaligned_load_i;
+    wire misaligned_load;
+    gnrl_dfflr #(1) misaligned_load_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        misaligned_load_dnxt,
+        misaligned_load
+    );
+    assign misaligned_load_o = misaligned_load;
+
+    wire misaligned_store_dnxt = flush_en ? 1'b0 : misaligned_store_i;
+    wire misaligned_store;
+    gnrl_dfflr #(1) misaligned_store_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        misaligned_store_dnxt,
+        misaligned_store
+    );
+    assign misaligned_store_o = misaligned_store;
+
+    // 新增：指令内容流水线寄存器
+    wire [31:0] inst_dnxt = flush_en ? 32'b0 : inst_i;
+    wire [31:0] inst;
+    gnrl_dfflr #(32) inst_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_dnxt,
+        inst
+    );
+    assign inst_o = inst;
+
 endmodule

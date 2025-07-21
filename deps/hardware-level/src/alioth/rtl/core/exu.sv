@@ -139,10 +139,10 @@ module exu (
     output wire [ `REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id_o,
 
-    output wire [ `REG_DATA_WIDTH-1:0] agu_reg_wdata_o,
-    output wire                        agu_reg_we_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] agu_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] agu_commit_id_o,
+    output wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_o,
+    output wire                        lsu_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_o,
 
     // CSR寄存器写数据输出
     output wire [ `REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
@@ -259,10 +259,10 @@ module exu (
     wire                        alu_reg_we;
     wire [ `REG_ADDR_WIDTH-1:0] alu_reg_waddr;
 
-    wire [ `REG_DATA_WIDTH-1:0] agu_reg_wdata;
-    wire                        agu_reg_we;
-    wire [ `REG_ADDR_WIDTH-1:0] agu_reg_waddr;
-    wire [`COMMIT_ID_WIDTH-1:0] agu_commit_id;
+    wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata;
+    wire                        lsu_reg_we;
+    wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id;
 
     wire                        bru_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] bru_jump_addr;
@@ -314,7 +314,7 @@ module exu (
         .C_M_AXI_ID_WIDTH  (`BUS_ID_WIDTH),
         .C_M_AXI_DATA_WIDTH(`BUS_DATA_WIDTH),
         .C_M_AXI_ADDR_WIDTH(`BUS_ADDR_WIDTH)
-    ) u_agu_lsu (
+    ) u_lsu_lsu (
         .clk           (clk),
         .rst_n         (rst_n),
         .req_mem_i     (req_mem_i),
@@ -333,10 +333,10 @@ module exu (
         .int_assert_i  (int_assert_i),
         .mem_stall_o   (mem_stall_o),
         .mem_busy_o    (mem_store_busy_o),
-        .reg_wdata_o   (agu_reg_wdata_o),
-        .reg_we_o      (agu_reg_we_o),
-        .reg_waddr_o   (agu_reg_waddr_o),
-        .commit_id_o   (agu_commit_id_o),
+        .reg_wdata_o   (lsu_reg_wdata_o),
+        .reg_we_o      (lsu_reg_we_o),
+        .reg_waddr_o   (lsu_reg_waddr_o),
+        .commit_id_o   (lsu_commit_id_o),
 
         // AXI接口连接
         .M_AXI_AWID   (M_AXI_AWID),

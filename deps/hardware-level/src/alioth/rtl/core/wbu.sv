@@ -55,11 +55,11 @@ module wbu (
     input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_i,  // 保留寄存器写地址输入
     input wire                       csr_reg_we_i,     // 新增：csr写回使能输入
 
-    // 来自EXU的AGU/LSU数据
-    input wire [ `REG_DATA_WIDTH-1:0] agu_reg_wdata_i,
-    input wire                        agu_reg_we_i,
-    input wire [ `REG_ADDR_WIDTH-1:0] agu_reg_waddr_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] agu_commit_id_i,  // LSU指令ID，修改为3位
+    // 来自EXU的lsu/LSU数据
+    input wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_i,
+    input wire                        lsu_reg_we_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_i,  // LSU指令ID，修改为3位
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
 
@@ -82,15 +82,15 @@ module wbu (
 );
 
     // 确定各单元活动状态
-    wire agu_active = agu_reg_we_i;
+    wire lsu_active = lsu_reg_we_i;
     wire muldiv_active = muldiv_reg_we_i;
     wire csr_active = csr_reg_we_i;
     wire alu_active = alu_reg_we_i;
 
     // 根据优先级判断冲突
-    wire muldiv_conflict = agu_active && muldiv_active;
-    wire csr_conflict = (agu_active || muldiv_active) && csr_active && (~csr_reg_we_i);
-    wire alu_conflict = (agu_active || muldiv_active || csr_active) && alu_active;
+    wire muldiv_conflict = lsu_active && muldiv_active;
+    wire csr_conflict = (lsu_active || muldiv_active) && csr_active && (~csr_reg_we_i);
+    wire alu_conflict = (lsu_active || muldiv_active || csr_active) && alu_active;
 
     // 各单元ready信号，当无冲突或者是最高优先级时为1
     assign muldiv_ready_o = !muldiv_conflict;
@@ -98,26 +98,26 @@ module wbu (
     assign alu_ready_o    = !alu_conflict;
 
     // 定义各单元的最终使能信号
-    wire agu_en = agu_active;
+    wire lsu_en = lsu_active;
     wire muldiv_en = muldiv_active && !muldiv_conflict;
     wire csr_en = csr_active && !csr_conflict;
     wire alu_en = alu_active && !alu_conflict;
-    wire idu_en = !agu_en && !muldiv_en && !csr_en && !alu_en;
+    wire idu_en = !lsu_en && !muldiv_en && !csr_en && !alu_en;
 
     // 最终生效的写信号
-    wire reg_we_effective = (int_assert_i != `INT_ASSERT) && (agu_en || muldiv_en || csr_en || alu_en);
+    wire reg_we_effective = (int_assert_i != `INT_ASSERT) && (lsu_en || muldiv_en || csr_en || alu_en);
 
     // 写数据和地址多路选择器，使用与或逻辑实现
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
 
     // 使用与或结构简化数据选择逻辑
-    assign reg_wdata_r = ({`REG_DATA_WIDTH{agu_en}} & agu_reg_wdata_i) |
+    assign reg_wdata_r = ({`REG_DATA_WIDTH{lsu_en}} & lsu_reg_wdata_i) |
                         ({`REG_DATA_WIDTH{muldiv_en}} & muldiv_reg_wdata_i) |
                         ({`REG_DATA_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_wdata_i) | // 仅当csr_reg_we_i有效时写回
         ({`REG_DATA_WIDTH{alu_en}} & alu_reg_wdata_i);
 
-    assign reg_waddr_r = ({`REG_ADDR_WIDTH{agu_en}} & agu_reg_waddr_i) |
+    assign reg_waddr_r = ({`REG_ADDR_WIDTH{lsu_en}} & lsu_reg_waddr_i) |
                         ({`REG_ADDR_WIDTH{muldiv_en}} & muldiv_reg_waddr_i) |
                         ({`REG_ADDR_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_waddr_i) | // 仅当csr_reg_we_i有效时写回
         ({`REG_ADDR_WIDTH{alu_en}} & alu_reg_waddr_i) |
@@ -134,8 +134,8 @@ module wbu (
     assign csr_waddr_o = csr_waddr_i;
 
     // 长指令完成信号（对接hazard_detection）
-    assign commit_valid_o = (muldiv_active || agu_active || alu_active || csr_active) && (int_assert_i != `INT_ASSERT);
-    assign commit_id_o = agu_active ? agu_commit_id_i : 
+    assign commit_valid_o = (muldiv_active || lsu_active || alu_active || csr_active) && (int_assert_i != `INT_ASSERT);
+    assign commit_id_o = lsu_active ? lsu_commit_id_i : 
                         muldiv_active ? muldiv_commit_id_i :
                         csr_active ? csr_commit_id_i :
                         alu_commit_id_i;

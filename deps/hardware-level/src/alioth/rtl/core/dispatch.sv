@@ -30,16 +30,17 @@ module dispatch (
     input wire                     rst_n,
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
-    // 新增：指令有效信号输入
+    // 指令有效信号输入
     input wire inst_valid_i,
 
     // 输入译码信息总线和立即数
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     input wire [`INST_ADDR_WIDTH-1:0] dec_pc_i,
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,
     input wire [ `REG_DATA_WIDTH-1:0] rs1_rdata_i,
     input wire [ `REG_DATA_WIDTH-1:0] rs2_rdata_i,
-    input wire                        is_pred_branch_i, // 新增：预测分支信号输入
+    input wire                        is_pred_branch_i,
 
     // 寄存器写入信息 - 用于HDU检测冒险
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -47,7 +48,7 @@ module dispatch (
     input wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_i,
     input wire                       reg_we_i,
 
-    // 新增：从IDU接收额外的CSR信号
+    // 从IDU接收额外的CSR信号
     input wire                       csr_we_i,
     input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
     input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
@@ -64,9 +65,10 @@ module dispatch (
     output wire                        long_inst_atom_lock_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
     output wire [`INST_ADDR_WIDTH-1:0] pipe_inst_addr_o,
-    // 新增：指令有效信号输出
+    output wire [`INST_DATA_WIDTH-1:0] pipe_inst_o,
+    // 指令有效信号输出
     output wire                        pipe_inst_valid_o,
-    // 新增：向其他模块输出的额外信号
+    // 向其他模块输出的额外信号
     output wire                        pipe_reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] pipe_reg_waddr_o,
     output wire                        pipe_csr_we_o,
@@ -74,7 +76,7 @@ module dispatch (
     output wire [ `BUS_ADDR_WIDTH-1:0] pipe_csr_raddr_o,
     output wire [                31:0] pipe_dec_imm_o,
     output wire [  `DECINFO_WIDTH-1:0] pipe_dec_info_bus_o,
-    // 新增：寄存rs1/rs2数据
+    // 寄存rs1/rs2数据
     output wire [                31:0] pipe_rs1_rdata_o,
     output wire [                31:0] pipe_rs2_rdata_o,
 
@@ -144,14 +146,17 @@ module dispatch (
     output wire sys_op_ebreak_o,
     output wire sys_op_fence_o,
     output wire sys_op_dret_o,
-    output wire is_pred_branch_o  // 新增：预测分支信号输出
+    output wire is_pred_branch_o, // 预测分支信号输出
+
+    output wire misaligned_load_o,  // 未对齐加载异常信号输出
+    output wire misaligned_store_o  // 未对齐存储异常信号输出
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id;
 
-    // 新增：用于连接dispatch_logic输出到dispatch_pipe输入的内部地址、掩码和数据信号
+    // 用于连接dispatch_logic输出到dispatch_pipe输入的内部地址、掩码和数据信号
     wire [                31:0] logic_mem_addr;
     wire [                 3:0] logic_mem_wmask;
     wire [                31:0] logic_mem_wdata;
@@ -221,6 +226,9 @@ module dispatch (
     wire                        logic_sys_op_fence;
     wire                        logic_sys_op_dret;
 
+    // 未对齐访存异常信号
+    wire                        logic_misaligned_load;
+    wire                        logic_misaligned_store;
 
     assign mem_commit_id_o    = commit_id_o;  // 将HDU的commit_id输出到MEM模块
     assign muldiv_commit_id_o = commit_id_o;
@@ -301,7 +309,7 @@ module dispatch (
         .mem_op_lhu_o  (logic_mem_op_lhu),
         .mem_op_load_o (logic_mem_op_load),
         .mem_op_store_o(logic_mem_op_store),
-        // 新增：直接计算的内存地址和掩码/数据
+        // 直接计算的内存地址和掩码/数据
         .mem_addr_o    (logic_mem_addr),
         .mem_wmask_o   (logic_mem_wmask),
         .mem_wdata_o   (logic_mem_wdata),
@@ -312,7 +320,11 @@ module dispatch (
         .sys_op_ecall_o (logic_sys_op_ecall),
         .sys_op_ebreak_o(logic_sys_op_ebreak),
         .sys_op_fence_o (logic_sys_op_fence),
-        .sys_op_dret_o  (logic_sys_op_dret)
+        .sys_op_dret_o  (logic_sys_op_dret),
+
+        // 未对齐访存异常信号
+        .misaligned_load_o (logic_misaligned_load),
+        .misaligned_store_o(logic_misaligned_store)
     );
 
     // 实例化dispatch_pipe模块
@@ -321,12 +333,12 @@ module dispatch (
         .rst_n       (rst_n),
         .stall_flag_i(stall_flag_i),
 
-        // 新增：连接指令有效信号
         .inst_valid_i(inst_valid_i),
         .inst_addr_i (dec_pc_i),
-        .commit_id_i (hdu_long_inst_id), // 从HDU获取长指令ID
+        .inst_i      (inst_i),
+        .commit_id_i (hdu_long_inst_id),
 
-        // 新增：额外的IDU信号输入
+        // 额外的IDU信号输入
         .reg_we_i        (reg_we_i),
         .reg_waddr_i     (reg_waddr_i),
         .csr_we_i        (csr_we_i),
@@ -334,7 +346,7 @@ module dispatch (
         .csr_raddr_i     (csr_raddr_i),
         .dec_imm_i       (dec_imm_i),
         .dec_info_bus_i  (dec_info_bus_i),
-        // 新增：寄存rs1/rs2数据
+        // 寄存rs1/rs2数据
         .rs1_rdata_i     (rs1_rdata_i),
         .rs2_rdata_i     (rs2_rdata_i),
         .is_pred_branch_i(is_pred_branch_i), // 连接预测分支信号输入
@@ -404,22 +416,26 @@ module dispatch (
         .sys_op_fence_i (logic_sys_op_fence),
         .sys_op_dret_i  (logic_sys_op_dret),
 
+        // 未对齐访存异常信号
+        .misaligned_load_i (logic_misaligned_load),
+        .misaligned_store_i(logic_misaligned_store),
+
         // 指令地址和ID输出
-        .inst_addr_o      (pipe_inst_addr_o),
-        .commit_id_o      (commit_id_o),
-        // 新增：连接指令有效信号输出
-        .inst_valid_o(pipe_inst_valid_o),
-        // 新增：额外的IDU信号输出
-        .reg_we_o         (pipe_reg_we_o),
-        .reg_waddr_o      (pipe_reg_waddr_o),
-        .csr_we_o         (pipe_csr_we_o),
-        .csr_waddr_o      (pipe_csr_waddr_o),
-        .csr_raddr_o      (pipe_csr_raddr_o),
-        .dec_imm_o        (pipe_dec_imm_o),
-        .dec_info_bus_o   (pipe_dec_info_bus_o),
-        // 新增：寄存rs1/rs2数据
-        .rs1_rdata_o      (pipe_rs1_rdata_o),
-        .rs2_rdata_o      (pipe_rs2_rdata_o),
+        .inst_addr_o   (pipe_inst_addr_o),
+        .inst_o        (pipe_inst_o),
+        .commit_id_o   (commit_id_o),
+        .inst_valid_o  (pipe_inst_valid_o),
+        // 额外的IDU信号输出
+        .reg_we_o      (pipe_reg_we_o),
+        .reg_waddr_o   (pipe_reg_waddr_o),
+        .csr_we_o      (pipe_csr_we_o),
+        .csr_waddr_o   (pipe_csr_waddr_o),
+        .csr_raddr_o   (pipe_csr_raddr_o),
+        .dec_imm_o     (pipe_dec_imm_o),
+        .dec_info_bus_o(pipe_dec_info_bus_o),
+        // 寄存rs1/rs2数据
+        .rs1_rdata_o   (pipe_rs1_rdata_o),
+        .rs2_rdata_o   (pipe_rs2_rdata_o),
 
         // ALU信号输出
         .req_alu_o    (req_alu_o),
@@ -479,13 +495,15 @@ module dispatch (
         .mem_wdata_o   (mem_wdata_o),
 
         // SYS信号输出
-        .sys_op_nop_o    (sys_op_nop_o),
-        .sys_op_mret_o   (sys_op_mret_o),
-        .sys_op_ecall_o  (sys_op_ecall_o),
-        .sys_op_ebreak_o (sys_op_ebreak_o),
-        .sys_op_fence_o  (sys_op_fence_o),
-        .sys_op_dret_o   (sys_op_dret_o),
-        .is_pred_branch_o(is_pred_branch_o)  // 连接预测分支信号输出
+        .sys_op_nop_o      (sys_op_nop_o),
+        .sys_op_mret_o     (sys_op_mret_o),
+        .sys_op_ecall_o    (sys_op_ecall_o),
+        .sys_op_ebreak_o   (sys_op_ebreak_o),
+        .sys_op_fence_o    (sys_op_fence_o),
+        .sys_op_dret_o     (sys_op_dret_o),
+        .is_pred_branch_o  (is_pred_branch_o),   // 连接预测分支信号输出
+        .misaligned_load_o (misaligned_load_o),
+        .misaligned_store_o(misaligned_store_o)
     );
 
 endmodule
