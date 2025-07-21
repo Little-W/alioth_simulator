@@ -113,9 +113,9 @@ module exu (
     input wire                        mem_op_store_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
     // 新增：直接访存信号
-    input wire [                31:0] mem_addr_i,
-    input wire [                31:0] mem_wdata_i,
-    input wire [                 3:0] mem_wmask_i,
+    input wire [31:0] mem_addr_i,
+    input wire [31:0] mem_wdata_i,
+    input wire [3:0]  mem_wmask_i,
 
     // dispatch to SYS
     input wire sys_op_nop_i,
@@ -171,11 +171,8 @@ module exu (
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
 
-    // 新增JALR执行信号输出
-    output wire jalr_executed_o,
     // misaligned_fetch信号输出
     output wire misaligned_fetch_o,
-
     // AXI接口 - 新增
     output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
     output wire [             31:0] M_AXI_AWADDR,
@@ -287,7 +284,6 @@ module exu (
     wire [                31:0] bjp_res;
     wire                        bjp_cmp_res;
 
-    wire                        bru_jalr_executed;
 
     // 新增：misaligned_fetch信号连线
     wire                        misaligned_fetch_bru;
@@ -438,7 +434,6 @@ module exu (
         .int_addr_i        (int_addr_i),
         .jump_flag_o       (bru_jump_flag),
         .jump_addr_o       (bru_jump_addr),
-        .jalr_executed_o   (bru_jalr_executed),
         // 新增：连接misaligned_fetch信号
         .misaligned_fetch_o(misaligned_fetch_bru)
     );
@@ -530,9 +525,6 @@ module exu (
     assign exu_op_ecall_o = sys_op_ecall_i;
     assign exu_op_ebreak_o = sys_op_ebreak_i;
     assign exu_op_mret_o = sys_op_mret_i;
-
-    // 新增JALR执行信号输出
-    assign jalr_executed_o = bru_jalr_executed;
 
     // 新增：misaligned_fetch信号输出
     assign misaligned_fetch_o = misaligned_fetch_bru;

@@ -305,16 +305,19 @@ module idu_decode (
                      op_csr) & rd_not_zero;
 
     assign reg_waddr_o = access_rd ? rd : 5'h0;
-    assign reg_we_o    = access_rd;
+    assign reg_we_o = access_rd;
 
     assign csr_waddr_o = insr_type_cstr ? {20'h0, inst_i[31:20]} : `ZeroWord;
-    assign csr_we_o    = insr_type_cstr;
+    assign csr_we_o = insr_type_cstr;
     assign csr_raddr_o = csr_we_o ? inst[31:20] : `ZeroWord;
 
     // 增加对slli非法移位量的检测
     wire slli_illegal_shamt = opcode_0010011 & funct3_001 & funct7_0000001;
 
     // 增加非法指令检测输出
-    assign illegal_inst_o = ((dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) || slli_illegal_shamt) && inst_valid_i;
+    assign illegal_inst_o = (
+        ((dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) && inst_valid_i)
+        || slli_illegal_shamt
+    );
 
 endmodule

@@ -29,18 +29,15 @@ module sbpu (
     input wire clk,
     input wire rst_n,
 
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,          // 指令内容
-    input wire                        inst_valid_i,    // 指令有效信号
-    input wire [`INST_ADDR_WIDTH-1:0] pc_i,            // PC指针
-    input wire                        any_stall_i,     // 流水线暂停信号
-    input wire                        jalr_executed_i, // JALR执行完成信号
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
+    input wire                        inst_valid_i,  // 指令有效信号
+    input wire [`INST_ADDR_WIDTH-1:0] pc_i,          // PC指针
+    input wire                        any_stall_i,   // 流水线暂停信号
 
     output wire branch_taken_o,  // 预测是否为分支
     output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,  // 预测的分支地址
     // 添加新的输出信号传递给EXU
-    output wire is_pred_branch_o,  // 当前指令是经过预测的有条件分支指令
-    // 新增端口
-    output wire wait_for_jalr_o  // JALR等待信号
+    output wire is_pred_branch_o  // 当前指令是经过预测的有条件分支指令
     // 删除与预测验证相关的接口，因为已移至EXU
 );
     wire [6:0] opcode = inst_i[6:0];
@@ -86,17 +83,7 @@ module sbpu (
     end
 
     assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
-    assign branch_addr_o = branch_addr;
-
-    // JALR等待状态寄存器
-    reg wait_for_jalr;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) wait_for_jalr <= 1'b0;
-        else if (inst_valid_i && inst_jalr) wait_for_jalr <= 1'b1;
-        else if (jalr_executed_i) wait_for_jalr <= 1'b0;
-    end
-
-    assign wait_for_jalr_o = wait_for_jalr;
+    assign branch_addr_o  = branch_addr;
 
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule
