@@ -281,6 +281,17 @@ TEST_WAV_FILE      := ${TEST_RUNDIR}/tb_top.vcd
 SIM_WAV_FILE 	   := ${SIM_OUT_DIR}/tb_top.vcd
 endif
 
+# 支持PC_WRITE_TOHOST参数，控制tb_top.sv中的宏定义
+PC_WRITE_TOHOST ?= 0
+
+define enable_pc_write_tohost
+	@sed -i '/^\/\/ ToHost程序地址,用于监控测试是否结束$$/a\`define ENABLE_PC_WRITE_TOHOST' ${VTB_DIR}/tb_top.sv
+endef
+
+define disable_pc_write_tohost
+	@sed -i '/^`define ENABLE_PC_WRITE_TOHOST$$/d' ${VTB_DIR}/tb_top.sv
+endef
+
 all: run
 
 compile.flg: ${RTL_V_FILES} ${TB_V_FILES}
@@ -288,6 +299,11 @@ compile.flg: ${RTL_V_FILES} ${TB_V_FILES}
 	@rm -rf ${CPU_EXEC_DIR}
 	@mkdir -p ${CPU_EXEC_DIR}
 	@sed -i '1i\`define ${SIM_TOOL}\'  ${VTB_DIR}/tb_top.sv
+ifeq ($(PC_WRITE_TOHOST),1)
+	$(enable_pc_write_tohost)
+else
+	$(disable_pc_write_tohost)
+endif
 	${SIM_TOOL_EXEC} ${SIM_OPTIONS}  ${RTL_V_FILES} ${TB_V_FILES} ${VERILATOR_CC_FILE} ${SIM_OPTIONS_BACK}
 	${VERILATOR_COMPILE_CMD}
 	${EXEC_POST_PROC}

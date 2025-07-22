@@ -20,6 +20,7 @@ SELF_TESTS += $(MI_TESTS)
 # 添加ASM编译目录设置
 ASM_BUILD_DIR := ${BUILD_DIR}/asm_compiled
 ASM_SRC_DIR := ${SIM_ROOT_DIR}/c_src
+C_SRC_DIR := ${SIM_ROOT_DIR}/c_src
 
 alioth:
 	@mkdir -p ${BUILD_DIR}
@@ -34,9 +35,24 @@ alioth:
 	cp -rf ${HARDWARE_SRC_DIR}/${CORE}/tb/ ${BUILD_DIR}/${CORE}_tb/tb; \
 	cp -rf ${HARDWARE_SRC_DIR}/${CORE}/tb_verilator ${BUILD_DIR}/${CORE}_tb/tb_verilator; \
 	fi
-	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} -C ${BUILD_DIR}
+	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} PC_WRITE_TOHOST=0 -C ${BUILD_DIR}
 
-test: alioth compile_test_src
+alioth_test:
+	@mkdir -p ${BUILD_DIR}
+	@if [ ! -h ${BUILD_DIR}/Makefile ] ; \
+	then \
+	rm -f ${BUILD_DIR}/Makefile; \
+	ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
+	fi
+	@if [ ! -d ${BUILD_DIR}/${CORE}_tb/ ] ; \
+	then	\
+	mkdir -p ${BUILD_DIR}/${CORE}_tb/; \
+	cp -rf ${HARDWARE_SRC_DIR}/${CORE}/tb/ ${BUILD_DIR}/${CORE}_tb/tb; \
+	cp -rf ${HARDWARE_SRC_DIR}/${CORE}/tb_verilator ${BUILD_DIR}/${CORE}_tb/tb_verilator; \
+	fi
+	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} PC_WRITE_TOHOST=1 -C ${BUILD_DIR}
+
+test: alioth_test compile_test_src
 	@if [ ! -e ${BUILD_DIR}/test_compiled ] ; \
 	then	\
 		echo ;	\
@@ -128,7 +144,7 @@ run: alioth
 		fi \
 	fi
 
-test_all: alioth compile_test_src
+test_all: alioth_test compile_test_src
 	@if [ ! -e ${BUILD_DIR}/test_compiled ] ; then \
 		echo -e "\n" ; \
 		echo "****************************************" ; \
@@ -206,5 +222,44 @@ clean:
 	@rm -rf build
 	@echo "Clean done."
 
-.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run
+c_src:
+	@mkdir -p ${BUILD_DIR}/bsp_tmp
+	@if [ ! -h ${BUILD_DIR}/bsp_tmp/Makefile ]; then \
+		ln -sf ${SIM_ROOT_DIR}/deps/software-level/bsp/bsp.mk ${BUILD_DIR}/bsp_tmp/Makefile; \
+	fi
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} BSP_DIR=${SIM_ROOT_DIR}/deps/software-level/bsp C_SRC_DIR=${C_SRC_DIR} BUILD_DIR=${BUILD_DIR}/bsp_tmp -C ${BUILD_DIR}/bsp_tmp
+
+run_csrc: c_src sim_csrc
+
+sim_csrc: alioth
+	@mkdir -p ${BUILD_DIR}
+	@if [ ! -h ${BUILD_DIR}/Makefile ]; then \
+		ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
+	fi
+	@if [ ! -e ${BUILD_DIR}/bsp_tmp/main_itcm.verilog ] ; \
+	then \
+		echo "Error: ITCM file not found, please check c_src build."; \
+		exit 1; \
+	fi
+	@echo "Simulating with ITCM: ${BUILD_DIR}/bsp_tmp/main_itcm.verilog"
+	@echo "Simulating with DTCM: ${BUILD_DIR}/bsp_tmp/main_dtcm.verilog"
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=1 PROGRAM="${BUILD_DIR}/bsp_tmp/main" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
+	@if [ -e "${BUILD_DIR}/sim_out/tb_top.vcd" ] ; then \
+		if command -v gtkwave > /dev/null 2>&1; then \
+			gtkwave ${BUILD_DIR}/sim_out/tb_top.vcd & \
+		else \
+			echo "gtkwave not found, skipping waveform display"; \
+		fi \
+	fi
+	@if [ -e "${BUILD_DIR}/bsp_tmp/main.dump" ] ; then \
+		if command -v gvim > /dev/null 2>&1; then \
+			gvim ${BUILD_DIR}/bsp_tmp/main.dump & \
+		elif command -v vim > /dev/null 2>&1; then \
+			vim ${BUILD_DIR}/bsp_tmp/main.dump & \
+		else \
+			echo "vim/gvim not found, skipping dump view"; \
+		fi \
+	fi
+
+.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc
 

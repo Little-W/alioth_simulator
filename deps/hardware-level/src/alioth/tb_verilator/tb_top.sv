@@ -10,7 +10,9 @@
 // `define DEBUG_DISPLAY_REGS 1
 
 // ToHost程序地址,用于监控测试是否结束
+`ifdef ENABLE_PC_WRITE_TOHOST
 `define PC_WRITE_TOHOST 32'h80000040
+`endif
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
@@ -48,6 +50,10 @@ module tb_top (
     reg [7:0] dtcm_prog_mem[0:DTCM_BYTE_SIZE-1];
     integer i;
 
+    // 始终定义current_cycle用于超时检测
+    wire [31:0] current_cycle = csr_cycle[31:0];
+
+`ifdef ENABLE_PC_WRITE_TOHOST
     // 添加PC监控变量
     reg [31:0] pc_write_to_host_cnt;
     reg [31:0] pc_write_to_host_cycle;
@@ -55,7 +61,6 @@ module tb_top (
     reg [31:0] last_pc;  // 保留用于监测PC变化
 
     // 不再自己维护周期和指令计数，直接从CSR获取
-    wire [31:0] current_cycle = csr_cycle[31:0];
     wire [31:0] current_instructions = csr_instret[31:0];
 
     // 周期计数器 - 简化为只更新last_pc
@@ -86,6 +91,7 @@ module tb_top (
             pc_write_to_host_cycle = 32'b0;
         end
     end
+`endif
 
     // 超时监控 - 使用CSR的cycle计数
     always @(posedge clk or negedge rst_n) begin
@@ -145,6 +151,7 @@ module tb_top (
         $display("DTCM 0x01: %h", `DTCM.mem_r[1]);
     end
 
+`ifdef ENABLE_PC_WRITE_TOHOST
     // 对pc_write_to_host_cnt的变化进行监控
     always @(pc_write_to_host_cnt) begin
         if (pc_write_to_host_cnt == 32'd2) begin
@@ -200,6 +207,7 @@ module tb_top (
             $finish;
         end
     end
+`endif
 
     // 添加一个任务来显示处理过的testcase名称
     task automatic display_testcase_name;
