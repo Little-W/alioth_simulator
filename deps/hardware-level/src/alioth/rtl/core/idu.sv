@@ -50,34 +50,34 @@ module idu (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr2_o,  // 第二路读CSR寄存器地址
 
     // to ex - 第一路
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
-    output wire                        reg_we_o,          // 写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,       // 写通用寄存器地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,      // 读通用寄存器1地址(传给EX)
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,      // 读通用寄存器2地址(传给EX)
-    output wire                        csr_we_o,          // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,       // 写CSR寄存器地址
-    output wire [                31:0] dec_imm_o,         // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,    // 译码信息总线
-    output wire                        is_pred_branch_o,  // 添加预测分支指令标志输出
-    output wire                        inst_valid_o,      // 新增：指令有效输出
-    output wire                        illegal_inst_o,    // 新增：非法指令输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 新增：指令内容输出
+    output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,          // 指令地址
+    output wire                        inst1_reg_we_o,       // 写通用寄存器标志
+    output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg_waddr_o,    // 写通用寄存器地址
+    output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg1_raddr_o,   // 读通用寄存器1地址(传给EX)
+    output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg2_raddr_o,   // 读通用寄存器2地址(传给EX)
+    output wire                        inst1_csr_we_o,       // 写CSR寄存器标志
+    output wire [ `BUS_ADDR_WIDTH-1:0] inst1_csr_waddr_o,    // 写CSR寄存器地址
+    output wire [                31:0] inst1_dec_imm_o,      // 立即数
+    output wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_o, // 译码信息总线
+    output wire                        inst1_is_pred_branch_o, // 添加预测分支指令标志输出
+    output wire                        inst1_valid_o,        // 新增：指令有效输出
+    output wire                        inst1_illegal_inst_o, // 新增：非法指令输出
+    output wire [`INST_DATA_WIDTH-1:0] inst1_o,             // 新增：指令内容输出
 
     // to ex - 第二路
-    output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,       // 第二路指令地址
-    output wire                        reg2_we_o,          // 第二路写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_waddr_o,       // 第二路写通用寄存器地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_1_raddr_o,     // 第二路读通用寄存器1地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_2_raddr_o,     // 第二路读通用寄存器2地址
-    output wire                        csr2_we_o,          // 第二路写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr2_waddr_o,       // 第二路写CSR寄存器地址
-    output wire [                31:0] dec2_imm_o,         // 第二路立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec2_info_bus_o,    // 第二路译码信息总线
-    output wire                        is_pred_branch2_o,  // 第二路预测分支指令标志输出
-    output wire                        inst2_valid_o,      // 第二路指令有效输出
-    output wire                        illegal2_inst_o,    // 第二路非法指令输出
-    output wire [`INST_DATA_WIDTH-1:0] inst2_o             // 第二路指令内容输出
+    output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,          // 第二路指令地址
+    output wire                        inst2_reg_we_o,       // 第二路写通用寄存器标志
+    output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg_waddr_o,    // 第二路写通用寄存器地址
+    output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg1_raddr_o,   // 第二路读通用寄存器1地址
+    output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg2_raddr_o,   // 第二路读通用寄存器2地址
+    output wire                        inst2_csr_we_o,       // 第二路写CSR寄存器标志
+    output wire [ `BUS_ADDR_WIDTH-1:0] inst2_csr_waddr_o,    // 第二路写CSR寄存器地址
+    output wire [                31:0] inst2_dec_imm_o,      // 第二路立即数
+    output wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_o, // 第二路译码信息总线
+    output wire                        inst2_is_pred_branch_o, // 第二路预测分支指令标志输出
+    output wire                        inst2_valid_o,        // 第二路指令有效输出
+    output wire                        inst2_illegal_inst_o, // 第二路非法指令输出
+    output wire [`INST_DATA_WIDTH-1:0] inst2_o              // 第二路指令内容输出
 );
 
     // 内部连线，连接id和id_pipe
@@ -185,20 +185,20 @@ module idu (
         .stall_flag_i(stall_flag_i),
 
         // to ex
-        .inst_addr_o     (inst_addr_o),
-        .reg_we_o        (reg_we_o),
-        .reg_waddr_o     (reg_waddr_o),
-        .reg1_raddr_o    (reg1_raddr_o),
-        .reg2_raddr_o    (reg2_raddr_o),
-        .csr_we_o        (csr_we_o),
-        .csr_waddr_o     (csr_waddr_o),
+        .inst_addr_o     (inst1_addr_o),
+        .reg_we_o        (inst1_reg_we_o),
+        .reg_waddr_o     (inst1_reg_waddr_o),
+        .reg1_raddr_o    (inst1_reg1_raddr_o),
+        .reg2_raddr_o    (inst1_reg2_raddr_o),
+        .csr_we_o        (inst1_csr_we_o),
+        .csr_waddr_o     (inst1_csr_waddr_o),
         .csr_raddr_o     (csr_raddr_o),
-        .dec_imm_o       (dec_imm_o),
-        .dec_info_bus_o  (dec_info_bus_o),
-        .is_pred_branch_o(is_pred_branch_o),  // 添加预测分支信号输出
-        .inst_valid_o    (inst_valid_o),      // 新增：指令有效输出
-        .illegal_inst_o  (illegal_inst_o),    // 新增：非法指令输出
-        .inst_o          (inst_o)             // 新增：指令内容输出
+        .dec_imm_o       (inst1_dec_imm_o),
+        .dec_info_bus_o  (inst1_dec_info_bus_o),
+        .is_pred_branch_o(inst1_is_pred_branch_o),  // 添加预测分支信号输出
+        .inst_valid_o    (inst1_valid_o),      // 新增：指令有效输出
+        .illegal_inst_o  (inst1_illegal_inst_o),    // 新增：非法指令输出
+        .inst_o          (inst1_o)             // 新增：指令内容输出
     );
 
     // 实例化第二路idu_id_pipe模块
@@ -227,18 +227,18 @@ module idu (
 
         // to ex
         .inst_addr_o     (inst2_addr_o),
-        .reg_we_o        (reg2_we_o),
-        .reg_waddr_o     (reg2_waddr_o),
-        .reg1_raddr_o    (reg2_1_raddr_o),
-        .reg2_raddr_o    (reg2_2_raddr_o),
-        .csr_we_o        (csr2_we_o),
-        .csr_waddr_o     (csr2_waddr_o),
+        .reg_we_o        (inst2_reg_we_o),
+        .reg_waddr_o     (inst2_reg_waddr_o),
+        .reg1_raddr_o    (inst2_reg1_raddr_o),
+        .reg2_raddr_o    (inst2_reg2_raddr_o),
+        .csr_we_o        (inst2_csr_we_o),
+        .csr_waddr_o     (inst2_csr_waddr_o),
         .csr_raddr_o     (csr_raddr2_o),
-        .dec_imm_o       (dec2_imm_o),
-        .dec_info_bus_o  (dec2_info_bus_o),
-        .is_pred_branch_o(is_pred_branch2_o),  // 添加第二路预测分支信号输出
+        .dec_imm_o       (inst2_dec_imm_o),
+        .dec_info_bus_o  (inst2_dec_info_bus_o),
+        .is_pred_branch_o(inst2_is_pred_branch_o),  // 添加第二路预测分支信号输出
         .inst_valid_o    (inst2_valid_o),      // 第二路指令有效输出
-        .illegal_inst_o  (illegal2_inst_o),    // 第二路非法指令输出
+        .illegal_inst_o  (inst2_illegal_inst_o),    // 第二路非法指令输出
         .inst_o          (inst2_o)             // 第二路指令内容输出
     );
 
