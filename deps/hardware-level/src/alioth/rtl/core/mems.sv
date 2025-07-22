@@ -152,6 +152,47 @@ module mems #(
     wire is_m1_itcm_w = (M1_AXI_AWADDR >= `ITCM_BASE_ADDR) && (M1_AXI_AWADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
     wire is_m1_apb_w = (M1_AXI_AWADDR >= `APB_BASE_ADDR) && (M1_AXI_AWADDR < (`APB_BASE_ADDR + `APB_SIZE));
 
+    // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
+    // 定义仲裁相关信号
+    wire m0_has_itcm_ar_req;
+    wire m1_has_itcm_ar_req;
+    wire m0_itcm_ar_grant;
+    wire m1_itcm_ar_grant;
+
+    // ==================== 从机选择逻辑（M1对ITCM vs 外设）====================
+    wire m1_has_dtcm_ar_req;
+    wire m1_has_apb_ar_req;
+    wire m1_dtcm_ar_grant;
+    wire m1_apb_ar_grant;
+
+    // ==================== 读数据通道仲裁 ====================
+    wire m0_itcm_r_priority;
+    wire m1_itcm_r_priority;
+    wire m1_select_itcm_r;
+    wire m1_select_dtcm_r;
+    wire m1_select_apb_r;
+    wire m0_itcm_rready;
+    wire m1_itcm_rready;
+    wire m1_dtcm_rready;
+
+    // ==================== 写事务仲裁逻辑 ====================
+    wire m1_has_itcm_aw_req;
+    wire m1_has_dtcm_aw_req;
+    wire m1_has_apb_aw_req;
+    wire m1_itcm_aw_grant;
+    wire m1_dtcm_aw_grant;
+    wire m1_apb_aw_grant;
+    wire m1_select_itcm_w;
+    wire m1_select_dtcm_w;
+    wire m1_select_apb_w;
+    wire m1_select_itcm_b;
+    wire m1_select_dtcm_b;
+    wire m1_select_apb_b;
+    wire itcm_bready;
+    wire dtcm_bready;
+    wire itcm_wvalid;
+    wire dtcm_wvalid;
+
     // ==================== outstanding计数器和事务信号分组 ====================
     // ----------- R通道（读）相关 -----------
     wire [3:0] m0_itcm_r_outstanding_cnt;  // M0访问ITCM的读事务计数器
@@ -173,9 +214,9 @@ module mems #(
     wire m1_apb_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_apb_r;
 
     // 读事务完成条件
-    wire m1_itcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_has_active_itcm_r && m1_slave_sel_r[0];
-    wire m1_dtcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_has_active_dtcm_r && m1_slave_sel_r[1];
-    wire m1_apb_r_trans  = M1_AXI_RVALID && M1_AXI_RREADY && m1_has_active_apb_r && m1_slave_sel_r[2]; // APB没有LAST
+    wire m1_itcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_select_itcm_r;
+    wire m1_dtcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_select_dtcm_r;
+    wire m1_apb_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && m1_select_apb_r;
 
     // ----------- W通道（写数据）相关 -----------
     wire [3:0] m1_itcm_w_outstanding_cnt;  // M1访问ITCM的写数据outstanding
@@ -186,24 +227,29 @@ module mems #(
     wire m1_has_active_dtcm_w = m1_dtcm_w_outstanding_cnt > 0;
     wire m1_has_active_apb_w = m1_apb_w_outstanding_cnt > 0;
 
+    // AW通道事务信号
+    wire m1_itcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_itcm_w;
+    wire m1_dtcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_dtcm_w;
+    wire m1_apb_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_apb_w;
+
     // W通道事务信号
-    wire m1_itcm_w_trans = M1_AXI_WVALID && M1_AXI_WREADY && m1_has_active_itcm_w && m1_slave_sel_w[0];
-    wire m1_dtcm_w_trans = M1_AXI_WVALID && M1_AXI_WREADY && m1_has_active_dtcm_w && m1_slave_sel_w[1];
-    wire m1_apb_w_trans  = M1_AXI_WVALID && M1_AXI_WREADY && m1_has_active_apb_w  && m1_slave_sel_w[2];
+    wire m1_itcm_w_trans = M1_AXI_WVALID && itcm_wready && m1_select_itcm_w;
+    wire m1_dtcm_w_trans = M1_AXI_WVALID && dtcm_wready && m1_select_dtcm_w;
+    wire m1_apb_w_trans = M1_AXI_WVALID && OM0_AXI_WREADY && m1_select_apb_w;
 
     // ----------- B通道（写响应）相关 -----------
     wire [3:0] m1_itcm_b_outstanding_cnt;  // M1访问ITCM的写响应outstanding
     wire [3:0] m1_dtcm_b_outstanding_cnt;  // M1访问DTCM的写响应outstanding
     wire [3:0] m1_apb_b_outstanding_cnt;  // M1访问APB的写响应outstanding
 
-    // B通道事务信号
-    wire m1_itcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_itcm_w;
-    wire m1_dtcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_dtcm_w;
-    wire m1_apb_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_apb_w;
+    wire m1_has_active_itcm_b = m1_itcm_b_outstanding_cnt > 0;
+    wire m1_has_active_dtcm_b = m1_dtcm_b_outstanding_cnt > 0;
+    wire m1_has_active_apb_b = m1_apb_b_outstanding_cnt > 0;
 
-    wire m1_itcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_itcm_w && m1_slave_sel_b[0];
-    wire m1_dtcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_dtcm_w && m1_slave_sel_b[1];
-    wire m1_apb_b_trans  = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_apb_w  && m1_slave_sel_b[2];
+    // B通道事务信号
+    wire m1_itcm_b_trans = itcm_bvalid && M1_AXI_BREADY && m1_select_itcm_b;
+    wire m1_dtcm_b_trans = dtcm_bvalid && M1_AXI_BREADY && m1_select_dtcm_b;
+    wire m1_apb_b_trans = OM0_AXI_BVALID && M1_AXI_BREADY && m1_select_apb_b;
 
     // ==================== outstanding计数器更新逻辑 ====================
     // 读通道计数器信号定义（下一个周期是否有未完成事务）
@@ -320,15 +366,9 @@ module mems #(
     reg [2:0] m1_slave_sel_w;  // 写数据通道优先级
 
     // 拼接变量用于case判断（当前周期）
-    wire [2:0] m1_active_r = {
-        m1_has_active_apb_r, m1_has_active_dtcm_r, m1_has_active_itcm_r
-    };
-    wire [2:0] m1_active_w = {
-        m1_has_active_apb_w, m1_has_active_dtcm_w, m1_has_active_itcm_w
-    };
-    wire [2:0] m1_active_b = {
-        m1_has_active_apb_w, m1_has_active_dtcm_w, m1_has_active_itcm_w
-    };
+    wire [2:0] m1_active_r = {m1_has_active_apb_r, m1_has_active_dtcm_r, m1_has_active_itcm_r};
+    wire [2:0] m1_active_w = {m1_has_active_apb_w, m1_has_active_dtcm_w, m1_has_active_itcm_w};
+    wire [2:0] m1_active_b = {m1_has_active_apb_b, m1_has_active_dtcm_b, m1_has_active_itcm_b};
 
     // 拼接变量用于case判断（下一个周期）
     wire [2:0] m1_active_r_nxt = {
@@ -347,6 +387,7 @@ module mems #(
             m1_slave_sel_r <= 3'b001;
         end else begin
             case (m1_active_r_nxt)
+                3'b000:  m1_slave_sel_r <= 3'b000;
                 3'b001:  m1_slave_sel_r <= 3'b001;
                 3'b010:  m1_slave_sel_r <= 3'b010;
                 3'b100:  m1_slave_sel_r <= 3'b100;
@@ -361,6 +402,7 @@ module mems #(
             m1_slave_sel_b <= 3'b001;
         end else begin
             case (m1_active_b_nxt)
+                3'b000:  m1_slave_sel_b <= 3'b000;
                 3'b001:  m1_slave_sel_b <= 3'b001;
                 3'b010:  m1_slave_sel_b <= 3'b010;
                 3'b100:  m1_slave_sel_b <= 3'b100;
@@ -375,6 +417,7 @@ module mems #(
             m1_slave_sel_w <= 3'b001;
         end else begin
             case (m1_active_w_nxt)
+                3'b000:  m1_slave_sel_w <= 3'b000;
                 3'b001:  m1_slave_sel_w <= 3'b001;
                 3'b010:  m1_slave_sel_w <= 3'b010;
                 3'b100:  m1_slave_sel_w <= 3'b100;
@@ -597,70 +640,70 @@ module mems #(
         end
     end
 
+
     // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
-    // M0和M1同时访问ITCM时的仲裁标志
-    wire m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
-    wire m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求
+    assign m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
+    assign m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求
 
     // 主机间仲裁逻辑：
     // 1. 如果一方有未完成事务，优先保证其完成
     // 2. 如果都没有未完成事务或都有未完成事务，M1优先
     // 3. 地址通道可以立即切换，所以优先处理新请求
-    wire m0_itcm_ar_grant = m0_has_itcm_ar_req && !m1_has_itcm_ar_req;
-    wire m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
+    assign m0_itcm_ar_grant = m0_has_itcm_ar_req && !m1_has_itcm_ar_req;
+    assign m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
 
     // ==================== 从机选择逻辑（M1对ITCM vs 外设）====================
-    wire m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;  // M1有DTCM读请求
-    wire m1_has_apb_ar_req = M1_AXI_ARVALID && is_m1_apb_r;  // M1有APB读请求
+    assign m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;  // M1有DTCM读请求
+    assign m1_has_apb_ar_req = M1_AXI_ARVALID && is_m1_apb_r;  // M1有APB读请求
 
     // 地址通道可以立即切换
-    wire m1_dtcm_ar_grant = m1_has_dtcm_ar_req;  // 地址通道授权可立即给DTCM
-    wire m1_apb_ar_grant = m1_has_apb_ar_req;  // 地址通道授权可立即给APB
+    assign m1_dtcm_ar_grant = m1_has_dtcm_ar_req;  // 地址通道授权可立即给DTCM
+    assign m1_apb_ar_grant = m1_has_apb_ar_req;  // 地址通道授权可立即给APB
 
     // ==================== 读数据通道仲裁 ====================
     // 处理M0与M1对ITCM的读数据通道竞争
-    wire m0_itcm_r_priority = m0_has_active_itcm_r;  // M0已有未完成事务时具有优先权
-    wire m1_itcm_r_priority = m1_has_active_itcm_r ||
+    assign m0_itcm_r_priority = m0_has_active_itcm_r;  // M0已有未完成事务时具有优先权
+    assign m1_itcm_r_priority = m1_has_active_itcm_r ||
                              (!m0_has_active_itcm_r && m1_itcm_ar_grant); // M1已有未完成事务或M0无未完成事务且M1获得读地址授权时具有优先权
 
     // 处理M1对ITCM与外设的读数据通道选择 - 基于优先权寄存器决定
     // 谁有优先权，谁就获得读数据通道
-    wire m1_select_itcm_r = m1_slave_sel_r[0] && m1_has_active_itcm_r;
-    wire m1_select_dtcm_r = m1_slave_sel_r[1] && m1_has_active_dtcm_r;
-    wire m1_select_apb_r = m1_slave_sel_r[2] && m1_has_active_apb_r;
+    assign m1_select_itcm_r = m1_slave_sel_r[0] && m1_has_active_itcm_r;
+    assign m1_select_dtcm_r = m1_slave_sel_r[1] && m1_has_active_dtcm_r;
+    assign m1_select_apb_r = m1_slave_sel_r[2] && m1_has_active_apb_r;
 
     // 读通道ready信号连接 - 确保信号只连接到当前优先级对应的设备
-    wire m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
-    wire m1_itcm_rready = m1_select_itcm_r && M1_AXI_RREADY;
-    wire m1_dtcm_rready = m1_select_dtcm_r && M1_AXI_RREADY;
+    assign m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
+    assign m1_itcm_rready = m1_select_itcm_r && M1_AXI_RREADY;
+    assign m1_dtcm_rready = m1_select_dtcm_r && M1_AXI_RREADY;
 
     // ==================== 写事务仲裁逻辑 ====================
     // 写地址通道请求信号
-    wire m1_has_itcm_aw_req = M1_AXI_AWVALID && is_m1_itcm_w;  // M1有ITCM写请求
-    wire m1_has_dtcm_aw_req = M1_AXI_AWVALID && is_m1_dtcm_w;  // M1有DTCM写请求
-    wire m1_has_apb_aw_req = M1_AXI_AWVALID && is_m1_apb_w;  // M1有APB写请求
+    assign m1_has_itcm_aw_req = M1_AXI_AWVALID && is_m1_itcm_w;  // M1有ITCM写请求
+    assign m1_has_dtcm_aw_req = M1_AXI_AWVALID && is_m1_dtcm_w;  // M1有DTCM写请求
+    assign m1_has_apb_aw_req = M1_AXI_AWVALID && is_m1_apb_w;  // M1有APB写请求
 
     // 写地址通道授权
-    wire m1_itcm_aw_grant = m1_has_itcm_aw_req;
-    wire m1_dtcm_aw_grant = m1_has_dtcm_aw_req;
-    wire m1_apb_aw_grant = m1_has_apb_aw_req;
+    assign m1_itcm_aw_grant = m1_has_itcm_aw_req;
+    assign m1_dtcm_aw_grant = m1_has_dtcm_aw_req;
+    assign m1_apb_aw_grant = m1_has_apb_aw_req;
 
     // 写数据通道授权
-    wire m1_select_itcm_w = (m1_slave_sel_w[0] && m1_has_active_itcm_w) || (!m1_active_w && m1_itcm_aw_grant);
-    wire m1_select_dtcm_w = (m1_slave_sel_w[1] && m1_has_active_dtcm_w) || (!m1_active_w && m1_dtcm_aw_grant);
-    wire m1_select_apb_w  = (m1_slave_sel_w[2] && m1_has_active_apb_w)  || (!m1_active_w && m1_apb_aw_grant);
+    assign m1_select_itcm_w = (m1_slave_sel_w[0] && m1_has_active_itcm_w) || (!m1_active_w && m1_itcm_aw_grant);
+    assign m1_select_dtcm_w = (m1_slave_sel_w[1] && m1_has_active_dtcm_w) || (!m1_active_w && m1_dtcm_aw_grant);
+    assign m1_select_apb_w  = (m1_slave_sel_w[2] && m1_has_active_apb_w)  || (!m1_active_w && m1_apb_aw_grant);
 
     // 写响应通道授权
-    wire m1_select_itcm_b = (m1_slave_sel_b[0] && m1_has_active_itcm_w) || (!m1_active_b && m1_itcm_aw_grant);
-    wire m1_select_dtcm_b = (m1_slave_sel_b[1] && m1_has_active_dtcm_w) || (!m1_active_b && m1_dtcm_aw_grant);
-    wire m1_select_apb_b  = (m1_slave_sel_b[2] && m1_has_active_apb_w)  || (!m1_active_b && m1_apb_aw_grant);
+    assign m1_select_itcm_b = (m1_slave_sel_b[0] && m1_has_active_itcm_b) || (!m1_active_b && m1_itcm_aw_grant);
+    assign m1_select_dtcm_b = (m1_slave_sel_b[1] && m1_has_active_dtcm_b) || (!m1_active_b && m1_dtcm_aw_grant);
+    assign m1_select_apb_b  = (m1_slave_sel_b[2] && m1_has_active_apb_b)  || (!m1_active_b && m1_apb_aw_grant);
 
     // 写响应通道ready信号
-    wire itcm_bready = m1_select_itcm_b && M1_AXI_BREADY;
-    wire dtcm_bready = m1_select_dtcm_b && M1_AXI_BREADY;
+    assign itcm_bready = m1_select_itcm_b && M1_AXI_BREADY;
+    assign dtcm_bready = m1_select_dtcm_b && M1_AXI_BREADY;
 
-    wire itcm_wvalid = m1_select_itcm_w && M1_AXI_WVALID;
-    wire dtcm_wvalid = m1_select_dtcm_w && M1_AXI_WVALID;
+    assign itcm_wvalid = m1_select_itcm_w && M1_AXI_WVALID;
+    assign dtcm_wvalid = m1_select_dtcm_w && M1_AXI_WVALID;
 
     // ==================== 端口连接信号 ====================
 

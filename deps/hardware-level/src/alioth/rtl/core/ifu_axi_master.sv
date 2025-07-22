@@ -171,9 +171,12 @@ module ifu_axi_master #(
                         fifo_count <= fifo_count + 1'd1;
                     end
                     2'b01: begin  // 只弹出
-                        rd_ptr <= rd_ptr + 1'd1;  // 循环指针
-                        if (rd_ptr == FIFO_DEPTH - 1) rd_ptr <= 0;  // 循环回到0
-                        fifo_count <= fifo_count - 1'd1;
+                        if (fifo_count > 0) begin
+                            // 仅当FIFO非空时才弹出
+                            rd_ptr <= rd_ptr + 1'd1;  // 循环指针
+                            if (rd_ptr == FIFO_DEPTH - 1) rd_ptr <= 0;  // 循环回到0
+                            fifo_count <= fifo_count - 1'd1;
+                        end
                     end
                     2'b11: begin  // 同时推入和弹出
                         fifo_addr[wr_ptr] <= M_AXI_ARADDR;  // 仅保存地址
