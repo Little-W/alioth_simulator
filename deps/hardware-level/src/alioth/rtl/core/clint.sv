@@ -55,6 +55,10 @@ module clint (
     // 非对齐取指异常相关端口
     input wire misaligned_fetch_i,  // 非对齐取指异常输入端口
 
+    // === 外部中断输入 ===
+    input wire       irq_req_i,
+    input wire [7:0] irq_id_i,
+
     // from ctrl
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,
 
@@ -84,10 +88,9 @@ module clint (
 
     // interrupt state machine类型定义
     typedef enum logic [3:0] {
-        S_INT_IDLE         = 4'b0001,  // 空闲状态
-        S_INT_SYNC_ASSERT  = 4'b0010,  // 同步中断断言状态
-        S_INT_ASYNC_ASSERT = 4'b0100,  // 异步中断断言状态 
-        S_INT_MRET         = 4'b1000   // 中断返回状态
+        S_INT_IDLE   = 4'b0001,  // 空闲状态
+        S_INT_ASSERT = 4'b0010,  // 同步中断断言状态
+        S_INT_MRET   = 4'b0100   // 中断返回状态
     } int_state_e;
 
     // CSR写状态机类型定义
@@ -106,9 +109,14 @@ module clint (
     reg [`INST_ADDR_WIDTH-1:0] inst_addr;  // 保存的指令地址
     reg [31:0] cause;  // 中断原因代码
 
-    wire exception_req = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
-                          || misaligned_load_i || misaligned_store_i
-                          || misaligned_fetch_i); // 保持misaligned_fetch_i
+    // === 新增：外部中断请求检测 ===
+    wire ext_irq_req = irq_req_i & global_int_en_i;
+
+    // === 修改异常请求检测，外部中断优先级最低 ===
+    wire internal_exception_req = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
+                                   || misaligned_load_i || misaligned_store_i
+                                   || misaligned_fetch_i);
+    wire exception_req = internal_exception_req ? 1'b1 : ext_irq_req;
 
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时冲刷水线
     assign flush_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE));
@@ -119,7 +127,7 @@ module clint (
         if (~rst_n) begin
             int_state = S_INT_IDLE;
         end else if (exception_req && atom_opt_busy_i == 1'b0) begin
-            int_state = S_INT_SYNC_ASSERT;
+            int_state = S_INT_ASSERT;
         end else if (sys_op_mret_i) begin
             int_state = S_INT_MRET;
         end else begin
@@ -134,7 +142,7 @@ module clint (
         end else begin
             case (csr_state)
                 S_CSR_IDLE: begin
-                    if (int_state == S_INT_SYNC_ASSERT) begin
+                    if (int_state == S_INT_ASSERT) begin
                         csr_state <= S_CSR_MEPC;
                     end else if (int_state == S_INT_MRET) begin
                         csr_state <= S_CSR_MSTATUS_MRET;
@@ -165,21 +173,25 @@ module clint (
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             cause <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
-            if (sys_op_ecall_i) begin
-                cause <= 32'd11;
-            end else if (sys_op_ebreak_i) begin
-                cause <= 32'd3;
-            end else if (misaligned_fetch_i) begin
-                cause <= 32'd0;  // 指令地址非对齐异常
-            end else if (misaligned_load_i) begin
-                cause <= 32'd4;  // Misaligned Load
-            end else if (misaligned_store_i) begin
-                cause <= 32'd6;  // Misaligned Store
-            end else if (illegal_inst_i) begin
-                cause <= 32'd2;  // 非法指令
-            end else begin
-                cause <= 32'd10;
+        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_ASSERT) begin
+            if (internal_exception_req) begin
+                if (sys_op_ecall_i) begin
+                    cause <= 32'd11;
+                end else if (sys_op_ebreak_i) begin
+                    cause <= 32'd3;
+                end else if (misaligned_fetch_i) begin
+                    cause <= 32'd0;  // 指令地址非对齐异常
+                end else if (misaligned_load_i) begin
+                    cause <= 32'd4;  // Misaligned Load
+                end else if (misaligned_store_i) begin
+                    cause <= 32'd6;  // Misaligned Store
+                end else if (illegal_inst_i) begin
+                    cause <= 32'd2;  // 非法指令
+                end else begin
+                    cause <= 32'd10;
+                end
+            end else if (ext_irq_req) begin
+                cause <= 32'h8 + {24'h0, irq_id_i};  // 外部中断cause
             end
         end
     end
@@ -194,7 +206,7 @@ module clint (
         if (~rst_n) begin
             illegal_inst_val_reg <= `ZeroWord;
             mtval_reg            <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_ASSERT) begin
             // 非法指令内容
             if (misaligned_fetch_i) begin
                 mtval_reg <= 0;
@@ -214,7 +226,7 @@ module clint (
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             inst_addr <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_SYNC_ASSERT) begin
+        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_ASSERT) begin
             if (misaligned_fetch_i) begin
                 inst_addr <= ex_exception_pc_i;  // 非对齐取指异常时共用ex_exception_pc_i
             end else if (misaligned_load_i || misaligned_store_i) begin
@@ -223,6 +235,10 @@ module clint (
                 inst_addr <= jump_addr_i - 4'h4;
             end else if (illegal_inst_i) begin
                 inst_addr <= illegal_inst_pc_i;  // 非法指令异常时用非法指令PC
+            end else if (sys_op_ecall_i || sys_op_ebreak_i) begin
+                inst_addr <= inst_addr_i;
+            end else if (ext_irq_req) begin
+                inst_addr <= inst_addr_i + 4; // 外部中断时保存pc+4，优先级最低
             end else begin
                 inst_addr <= inst_addr_i;
             end
