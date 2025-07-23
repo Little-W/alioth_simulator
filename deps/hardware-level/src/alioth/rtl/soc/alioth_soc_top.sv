@@ -128,6 +128,10 @@ module alioth_soc_top (
     wire                           S_AXI_RVALID;
     wire                           S_AXI_RREADY;
 
+    // === APB时钟和复位信号定义 ===
+    wire PCLK;
+    wire PRESETn;
+
     // === 新增：中断信号内部连线 ===
     wire uart0_event, uart1_event;
     wire spi_event;
