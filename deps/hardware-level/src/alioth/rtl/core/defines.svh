@@ -165,6 +165,8 @@
 // 计数器CSR地址 (Counter CSRs)
 `define CSR_TIME          12'hC01   // 时间计数器低32位
 `define CSR_TIMEH         12'hC81   // 时间计数器高32位
+`define CSR_CYCLE         12'hC00   // 周期计数器低32位
+`define CSR_CYCLEH        12'hC80   // 周期计数器高32位
 
 // 机器模式计数器CSR地址 (Machine Counter CSRs)
 `define CSR_MCYCLE        12'hB00   // 机器模式周期计数器低32位

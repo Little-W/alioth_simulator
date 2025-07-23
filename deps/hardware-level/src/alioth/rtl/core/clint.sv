@@ -278,7 +278,7 @@ module clint (
                 // 当检测到S_CSR_MSTATUS_MRET时，表示执行RISC-V的MRET（Machine-mode Return）指令。
                 // 根据RISC-V官方规范，MRET用于从机器模式异常返回，并需要恢复之前保存的全局中断使能状态（MIE）。
                 // 此处对csr_mstatus寄存器进行如下操作：
-                //   - 将MIE位（csr_mstatus[7]）恢复到MPIE位（csr_mstatus[7]），并将MPIE位置为1（csr_mstatus[7] -> csr_mstatus[7], csr_mstatus[7] = 1）。
+                //   - 将MIE位（csr_mstatus[7]）恢复到MPIE位（csr_mstatus[3]），并将MPIE位置为1（csr_mstatus[7] -> csr_mstatus[3], csr_mstatus[7] = 1）。
                 //   - 其他位保持不变。
                 //   - 最终结果写回mstatus CSR（地址为`CSR_MSTATUS`）。
                 //   - we_o信号使能写操作，waddr_o指定目标CSR地址，data_o为写入的新mstatus值。
