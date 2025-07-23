@@ -2,8 +2,8 @@
 
 module axi2apb #(
     parameter integer C_S_AXI_DATA_WIDTH = 32,
-    parameter integer C_S_AXI_ADDR_WIDTH = 30,
-    parameter integer C_APB_ADDR_WIDTH   = 30
+    parameter integer C_S_AXI_ADDR_WIDTH = 20,
+    parameter integer C_APB_ADDR_WIDTH   = 20
 ) (
     // AXI-lite接口信号
     input  wire                                S_AXI_ACLK,
@@ -110,21 +110,25 @@ module axi2apb #(
     assign PADDR         = addr_reg;
     assign PWRITE        = pwrite_reg;
     assign PWDATA        = wdata_reg;
-
-    // 地址解码函数
+    // 地址解码函数（高位case方式，支持8个APB设备）
     function [`APB_DEV_COUNT-1:0] addr_decode;
         input [C_APB_ADDR_WIDTH-1:0] addr;
+        reg [2:0] dev_idx;
         begin
             addr_decode = 0;
-            if (addr <= `APB_DEV0_ADDR_HIGH) addr_decode[0] = 1'b1;
-            else if (addr >= `APB_DEV1_ADDR_LOW && addr <= `APB_DEV1_ADDR_HIGH)
-                addr_decode[1] = 1'b1;
-            else if (addr >= `APB_DEV2_ADDR_LOW && addr <= `APB_DEV2_ADDR_HIGH)
-                addr_decode[2] = 1'b1;
-            else if (addr >= `APB_DEV3_ADDR_LOW && addr <= `APB_DEV3_ADDR_HIGH)
-                addr_decode[3] = 1'b1;
-            else if (addr >= `APB_DEV4_ADDR_LOW && addr <= `APB_DEV4_ADDR_HIGH)
-                addr_decode[4] = 1'b1;
+            // 取高位3位作为设备索引
+            dev_idx = addr[15:13]; // 地址空间分配为4KB对齐，20位地址，4KB=12位，设备编号在[15:13]
+            case (dev_idx)
+                3'd0: addr_decode[0] = 1'b1;  // Timer
+                3'd1: addr_decode[3] = 1'b1;  // SPI
+                3'd2: addr_decode[4] = 1'b1;  // I2C0
+                3'd3: addr_decode[5] = 1'b1;  // I2C1
+                3'd4: addr_decode[1] = 1'b1;  // UART0
+                3'd5: addr_decode[2] = 1'b1;  // UART1
+                3'd6: addr_decode[6] = 1'b1;  // GPIO0
+                3'd7: addr_decode[7] = 1'b1;  // GPIO1
+                default: addr_decode = 0;
+            endcase
         end
     endfunction
 

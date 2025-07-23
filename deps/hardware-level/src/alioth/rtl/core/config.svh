@@ -11,10 +11,10 @@
 `define DTCM_SIZE (1 << `DTCM_ADDR_WIDTH)     // DTCM大小：64KB
 
 // APB地址配置
-`define APB_ADDR_WIDTH 30  // APB地址宽度，30位
-`define APB_BASE_ADDR 32'h4000_0000          // APB基地址
+`define APB_ADDR_WIDTH 20  // APB地址宽度，20位
+`define APB_BASE_ADDR 32'h8400_0000          // APB基地址
 `define APB_SIZE (1 << `APB_ADDR_WIDTH)      // APB大小
-`define APB_SLAVE_ADDR_WIDTH 12 // APB从设备地址宽度，12位对应4KB
+`define APB_SLAVE_ADDR_WIDTH 20 // APB从设备地址宽度
 
 // 内存初始化控制
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
@@ -35,22 +35,31 @@
 `define REG_NUM 32
 `define COMMIT_ID_WIDTH 2
 
-// APB外设地址空间定义
-`define APB_DEV0_ADDR_LOW  30'h0000_0000 // UART
-`define APB_DEV0_ADDR_HIGH 30'h0000_0FFF // UART，4KB地址空间
+// APB外设地址空间定义（顺序：Timer, SPI, I2C0, I2C1, UART0, UART1, GPIO0, GPIO1）
+`define APB_DEV7_ADDR_LOW  20'h00000 // Timer
+`define APB_DEV7_ADDR_HIGH 20'h00FFF // Timer，4KB地址空间
 
-`define APB_DEV1_ADDR_LOW  30'h0000_1000 // SPI
-`define APB_DEV1_ADDR_HIGH 30'h0000_1FFF // SPI，4KB地址空间
+`define APB_DEV2_ADDR_LOW  20'h01000 // SPI
+`define APB_DEV2_ADDR_HIGH 20'h01FFF // SPI，4KB地址空间
 
-`define APB_DEV2_ADDR_LOW  30'h0000_2000 // I2C
-`define APB_DEV2_ADDR_HIGH 30'h0000_2FFF // I2C，4KB地址空间
+`define APB_DEV3_ADDR_LOW  20'h02000 // I2C0
+`define APB_DEV3_ADDR_HIGH 20'h02FFF // I2C0，4KB地址空间
 
-`define APB_DEV3_ADDR_LOW  30'h0000_3000 // GPIO
-`define APB_DEV3_ADDR_HIGH 30'h0000_3FFF // GPIO，4KB地址空间
+`define APB_DEV4_ADDR_LOW  20'h03000 // I2C1
+`define APB_DEV4_ADDR_HIGH 20'h03FFF // I2C1，4KB地址空间
 
-`define APB_DEV4_ADDR_LOW  30'h0000_4000 // Timer
-`define APB_DEV4_ADDR_HIGH 30'h0000_4FFF // Timer，4KB地址空间
+`define APB_DEV0_ADDR_LOW  20'h04000 // UART0
+`define APB_DEV0_ADDR_HIGH 20'h04FFF // UART0，4KB地址空间
 
-`define APB_DEV_COUNT 5    // 外设数量
+`define APB_DEV1_ADDR_LOW  20'h05000 // UART1
+`define APB_DEV1_ADDR_HIGH 20'h05FFF // UART1，4KB地址空间
+
+`define APB_DEV5_ADDR_LOW  20'h06000 // GPIO0
+`define APB_DEV5_ADDR_HIGH 20'h06FFF // GPIO0，4KB地址空间
+
+`define APB_DEV6_ADDR_LOW  20'h07000 // GPIO1
+`define APB_DEV6_ADDR_HIGH 20'h07FFF // GPIO1，4KB地址空间
+
+`define APB_DEV_COUNT 8    // 外设数量
 
 `define FPGA_SOURCE 1 // FPGA源代码标志
