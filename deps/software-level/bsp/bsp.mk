@@ -34,15 +34,20 @@ CLEAN_OBJS += $(TARGET) $(LINK_OBJS) ${BUILD_DIR}/main.dump ${BUILD_DIR}/main.bi
 CFLAGS += --sysroot=$(RISCV_GCC_ROOT)/riscv64-unknown-elf
 CFLAGS += -march=$(DEFAULT_RISCV_ARCH)
 CFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
-# CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL) 
+CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL) 
 CFLAGS += -ffunction-sections -fdata-sections -fno-builtin-printf -fno-builtin-malloc
-CFLAGS += -O0
+# CFLAGS += -O0
 # CFLAGS += -DSIMULATION_XLSPIKE
 CFLAGS += -DSDK_BANNER=1
 
 # 禁用工具链自带的启动文件和标准库
 LDFLAGS += -nostartfiles -nostdlib -T $(LINKER_SCRIPT)
 LDFLAGS += -Wl,--gc-sections
+LDFLAGS += -march=$(DEFAULT_RISCV_ARCH)
+LDFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
+# 添加32位库路径
+LDFLAGS += -L$(RISCV_GCC_ROOT)/riscv64-unknown-elf/lib/rv32im/ilp32
+LDFLAGS += -L$(RISCV_GCC_ROOT)/lib/gcc/riscv64-unknown-elf/12.2.0/rv32im/ilp32
 
 .PHONY: all
 all: $(TARGET)

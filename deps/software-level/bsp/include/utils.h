@@ -1,8 +1,10 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
-#define CPU_FREQ_HZ   (12000000)  // 12MHz
-#define CPU_FREQ_MHZ  (12)        // 12MHz
+#include "sys_defs.h"
+
+#define CPU_FREQ_HZ   (SYSTEM_CLOCK)
+#define CPU_FREQ_MHZ  (SYSTEM_CLOCK_MHZ)
 
 
 #define read_csr(reg) ({ unsigned long __tmp; \

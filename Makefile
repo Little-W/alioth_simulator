@@ -37,6 +37,23 @@ alioth:
 	fi
 	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} PC_WRITE_TOHOST=0 -C ${BUILD_DIR}
 
+alioth_no_timeout:
+	@mkdir -p ${BUILD_DIR}
+	@if [ ! -h ${BUILD_DIR}/Makefile ] ; \
+	then \
+	rm -f ${BUILD_DIR}/Makefile; \
+	ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
+	fi
+	@if [ ! -d ${BUILD_DIR}/${CORE}_tb/ ] ; \
+	then	\
+	mkdir -p ${BUILD_DIR}/${CORE}_tb/; \
+	cp -rf ${HARDWARE_SRC_DIR}/${CORE}/tb/ ${BUILD_DIR}/${CORE}_tb/tb; \
+	cp -rf ${HARDWARE_SRC_DIR}/${CORE}/tb_verilator ${BUILD_DIR}/${CORE}_tb/tb_verilator; \
+	echo "Inserting DISABLE_TIMEOUT macro into tb_top.sv"; \
+	sed -i '1i`define DISABLE_TIMEOUT' ${BUILD_DIR}/${CORE}_tb/tb_verilator/tb_top.sv; \
+	fi
+	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} PC_WRITE_TOHOST=0 -C ${BUILD_DIR}
+
 alioth_test:
 	@mkdir -p ${BUILD_DIR}
 	@if [ ! -h ${BUILD_DIR}/Makefile ] ; \
@@ -231,6 +248,51 @@ c_src:
 
 run_csrc: c_src sim_csrc
 
+coremark: alioth_no_timeout
+	@mkdir -p ${BUILD_DIR}/coremark_tmp
+	@cp -f ${SIM_ROOT_DIR}/deps/software-level/bsp/bsp.mk ${BUILD_DIR}/coremark_tmp/Makefile
+	@ln -sf ${SIM_ROOT_DIR}/deps/software-level/test/coremark/coremark.mk ${BUILD_DIR}/coremark_tmp/coremark.mk
+	@echo '' >> ${BUILD_DIR}/coremark_tmp/Makefile
+	@echo 'include coremark.mk' >> ${BUILD_DIR}/coremark_tmp/Makefile
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} BSP_DIR=${SIM_ROOT_DIR}/deps/software-level/bsp C_SRC_DIR=${SIM_ROOT_DIR}/deps/software-level/test/coremark BUILD_DIR=${BUILD_DIR}/coremark_tmp -C ${BUILD_DIR}/coremark_tmp
+	@echo "Splitting coremark.verilog for ITCM/DTCM..."
+	@if [ -e ${BUILD_DIR}/coremark_tmp/main.verilog ]; then \
+		${SIM_ROOT_DIR}/deps/tools/split_memory.sh ${BUILD_DIR}/coremark_tmp/coremark.verilog; \
+		echo "Memory splitting completed"; \
+	else \
+		echo "coremark.verilog not found, skip memory split"; \
+	fi
+	@echo "------ Running coremark simulation ------"
+	@mkdir -p ${BUILD_DIR}
+	@if [ ! -h ${BUILD_DIR}/Makefile ]; then \
+		ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
+	fi
+	@if [ ! -e ${BUILD_DIR}/coremark_tmp/main_itcm.verilog ] ; then \
+		echo "Error: ITCM file not found, please check coremark build."; \
+		exit 1; \
+	fi
+	@echo "Simulating with ITCM: ${BUILD_DIR}/coremark_tmp/main_itcm.verilog"
+	@echo "Simulating with DTCM: ${BUILD_DIR}/coremark_tmp/main_dtcm.verilog"
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} PROGRAM="${BUILD_DIR}/coremark_tmp/main" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
+	@if [ "${SIM_DEBUG}" = "1" ]; then \
+		if [ -e "${BUILD_DIR}/sim_out/tb_top.vcd" ] ; then \
+			if command -v gtkwave > /dev/null 2>&1; then \
+				gtkwave ${BUILD_DIR}/sim_out/tb_top.vcd & \
+			else \
+				echo "gtkwave not found, skipping waveform display"; \
+			fi \
+		fi; \
+		if [ -e "${BUILD_DIR}/coremark_tmp/main.dump" ] ; then \
+			if command -v gvim > /dev/null 2>&1; then \
+				gvim ${BUILD_DIR}/coremark_tmp/main.dump & \
+			elif command -v vim > /dev/null 2>&1; then \
+				vim ${BUILD_DIR}/coremark_tmp/main.dump & \
+			else \
+				echo "vim/gvim not found, skipping dump view"; \
+			fi \
+		fi; \
+	fi
+
 sim_csrc: alioth
 	@mkdir -p ${BUILD_DIR}
 	@if [ ! -h ${BUILD_DIR}/Makefile ]; then \
@@ -261,5 +323,5 @@ sim_csrc: alioth
 		fi \
 	fi
 
-.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc
+.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout
 

@@ -17,6 +17,10 @@ extern "C"
 #define SYSTEM_CLOCK (100000000UL)
 #endif
 
+#ifndef SYSTEM_CLOCK_MHZ
+#define SYSTEM_CLOCK_MHZ (100UL)
+#endif
+
 #define ALIOTH_PERIPH_BASE (0x84000000UL) /*!< Alioth APB Peripherals Base Address */
 
 /* Peripheral memory map */

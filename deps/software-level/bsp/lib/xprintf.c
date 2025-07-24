@@ -78,7 +78,6 @@ void xvprintf (
 	unsigned long v;
 	char s[16], c, d, *p;
 
-
 	for (;;) {
 		c = *fmt++;					/* Get a char */
 		if (!c) break;				/* End of format? */
@@ -102,6 +101,48 @@ void xvprintf (
 		if (!c) break;				/* End of format? */
 		d = c;
 		if (d >= 'a') d -= 0x20;
+
+		// 增加对%f浮点数的支持
+		if (d == 'F') {
+			double fv = va_arg(arp, double);
+			int prec = 6; // 默认小数点后6位
+			// 支持格式如%.3f
+			if (*(fmt-2) == '.') {
+				prec = 0;
+				const char* pprec = fmt-1;
+				while (*pprec >= '0' && *pprec <= '9') {
+					prec = prec * 10 + (*pprec - '0');
+					pprec++;
+				}
+			}
+			if (fv < 0) {
+				xputc('-');
+				fv = -fv;
+			}
+			long ipart = (long)fv;
+			double fpart = fv - ipart;
+			// 打印整数部分
+			i = 0;
+			v = ipart;
+			do {
+				d = (char)(v % 10); v /= 10;
+				s[i++] = d + '0';
+			} while (v && i < sizeof(s));
+			j = i;
+			while (j++ < w) xputc(' ');
+			do xputc(s[--i]); while(i);
+			// 打印小数点
+			xputc('.');
+			// 打印小数部分
+			for (i = 0; i < prec; i++) {
+				fpart *= 10;
+				int digit = (int)fpart;
+				xputc('0' + digit);
+				fpart -= digit;
+			}
+			continue;
+		}
+
 		switch (d) {				/* Type is... */
 		case 'S' :					/* String */
 			p = va_arg(arp, char*);
@@ -145,7 +186,7 @@ void xvprintf (
 	}
 }
 
-void xprintf (			/* Put a formatted string to the default device */
+int xprintf (			/* Put a formatted string to the default device */
 	const char*	fmt,	/* Pointer to the format string */
 	...					/* Optional arguments */
 )
@@ -156,6 +197,7 @@ void xprintf (			/* Put a formatted string to the default device */
 	va_start(arp, fmt);
 	xvprintf(fmt, arp);
 	va_end(arp);
+	return 0;
 }
 
 // UART输出函数
