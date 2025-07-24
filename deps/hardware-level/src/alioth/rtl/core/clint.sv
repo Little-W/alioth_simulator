@@ -306,7 +306,7 @@ module clint (
                 S_CSR_MSTATUS: begin
                     we_o    <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:4], 1'b0, csr_mstatus[2:0]};
+                    data_o  <= {csr_mstatus[31:8], csr_mstatus[3], csr_mstatus[6:4], 1'b0, csr_mstatus[2:0]};
                 end
                 S_CSR_MTVAL: begin
                     we_o    <= `WriteEnable;
