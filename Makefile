@@ -293,7 +293,7 @@ coremark: alioth_no_timeout
 		fi; \
 	fi
 
-sim_csrc: alioth
+sim_csrc: alioth_no_timeout
 	@mkdir -p ${BUILD_DIR}
 	@if [ ! -h ${BUILD_DIR}/Makefile ]; then \
 		ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
@@ -305,7 +305,7 @@ sim_csrc: alioth
 	fi
 	@echo "Simulating with ITCM: ${BUILD_DIR}/bsp_tmp/main_itcm.verilog"
 	@echo "Simulating with DTCM: ${BUILD_DIR}/bsp_tmp/main_dtcm.verilog"
-	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=1 PROGRAM="${BUILD_DIR}/bsp_tmp/main" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} PROGRAM="${BUILD_DIR}/bsp_tmp/main" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
 	@if [ -e "${BUILD_DIR}/sim_out/tb_top.vcd" ] ; then \
 		if command -v gtkwave > /dev/null 2>&1; then \
 			gtkwave ${BUILD_DIR}/sim_out/tb_top.vcd & \
