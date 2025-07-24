@@ -32,7 +32,8 @@ module tb_top (
     wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
     wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
-    wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.mcycle[31:0];
+    wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
+    wire    [   31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
     wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
 
     integer           r;
@@ -52,6 +53,7 @@ module tb_top (
 
     // 始终定义current_cycle用于超时检测
     wire [31:0] current_cycle = csr_cycle[31:0];
+    wire [31:0] current_cycleh = csr_cycleh[31:0];
 
 `ifdef ENABLE_PC_WRITE_TOHOST
     // 添加PC监控变量
@@ -93,17 +95,43 @@ module tb_top (
     end
 `endif
 
-    // 超时监控 - 使用CSR的cycle计数
+    // 超时监控 - 使用mcycleh的最高位作为超时
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset logic
         end else begin
 `ifndef NO_TIMEOUT
+`ifndef DISABLE_TIMEOUT
             if (current_cycle[20] == 1'b1) begin
                 $display("Time Out !!!");
                 $finish;
             end
 `endif
+`endif
+        end
+    end
+
+    // PC卡死检测相关变量
+    reg [31:0] pc_last;
+    reg [7:0]  pc_stuck_cnt;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pc_last      <= 32'b0;
+            pc_stuck_cnt <= 8'b0;
+        end else begin
+            // PC stuck detection: if PC does not change for 100 cycles, terminate simulation
+            if (pc == pc_last) begin
+            pc_stuck_cnt <= pc_stuck_cnt + 1'b1;
+            end else begin
+            pc_stuck_cnt <= 8'b0;
+            pc_last      <= pc;
+            end
+            if (pc_stuck_cnt >= 8'd100) begin
+            $display("PC stuck detection: PC has not changed for 100 cycles, simulation terminated!");
+            $display("PC value when stuck: 0x%08x", pc_last);
+            $finish;
+            end
         end
     end
 
@@ -259,10 +287,25 @@ module tb_top (
 `endif
     */
 
+    // 主时钟64分频，生成低速时钟 lfextclk
+    wire lfextclk;
+    reg [5:0] cnt;
+    always @(posedge clk or negedge rst_n)
+    begin 
+        if(rst_n == 1'b0) begin
+            cnt <= 0;
+        end
+        else begin
+            cnt <= cnt + 1;
+        end
+    end
+    assign lfextclk = cnt[5];
+
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
         .clk  (clk),
-        .rst_n(rst_n)
+        .rst_n(rst_n),
+        .low_speed_clk_i(lfextclk)
     );
 
     // 添加可选的寄存器调试输出功能
