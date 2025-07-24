@@ -3,33 +3,43 @@
 
 #include "sys_defs.h"
 
-#define CPU_FREQ_HZ   (SYSTEM_CLOCK)
-#define CPU_FREQ_MHZ  (SYSTEM_CLOCK_MHZ)
+/**
+ * \brief   NOP Instruction
+ * \details
+ * No Operation does nothing.
+ * This instruction can be used for code alignment purposes.
+ */
+__STATIC_FORCEINLINE void __NOP(void)
+{
+  __ASM volatile("nop");
+}
 
+/**
+ * \brief   Breakpoint Instruction
+ * \details
+ * Causes the processor to enter Debug state.
+ * Debug tools can use this to investigate system state
+ * when the instruction at a particular address is reached.
+ */
+__STATIC_FORCEINLINE void __EBREAK(void)
+{
+  __ASM volatile("ebreak");
+}
 
-#define read_csr(reg) ({ unsigned long __tmp; \
-  asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \
-  __tmp; })
-
-#define write_csr(reg, val) ({ \
-  if (__builtin_constant_p(val) && (unsigned long)(val) < 32) \
-    asm volatile ("csrw " #reg ", %0" :: "i"(val)); \
-  else \
-    asm volatile ("csrw " #reg ", %0" :: "r"(val)); })
-
+/**
+ * \brief   Environment Call Instruction
+ * \details
+ * The ECALL instruction is used to make a service request to
+ * the execution environment.
+ */
+__STATIC_FORCEINLINE void __ECALL(void)
+{
+  __ASM volatile("ecall");
+}
 
 #ifdef SIMULATION
 #define set_test_pass() asm("csrrwi x0, sstatus, 0x3")
 #define set_test_fail() asm("csrrwi x0, sstatus, 0x1")
 #endif
-
-
-uint64_t get_cycle_value();
-void busy_wait(uint32_t us);
-
-void global_irq_enable();
-void global_irq_disable();
-void mtime_irq_enable();
-void mtime_irq_disable();
 
 #endif

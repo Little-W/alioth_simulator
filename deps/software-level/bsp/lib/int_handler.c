@@ -1,4 +1,5 @@
 #include "sys_defs.h"
+#include "clint.h"
 #include "int_handler.h"
 
 // 定时器事件中断处理
@@ -53,12 +54,14 @@ void __attribute__((weak)) gpio1_int_handler(void)
 
 void __attribute__((weak)) machine_software_interrupt_handler(void)
 {
+    CLINT_ClearSWIRQ(); // 清除软件中断标志
     printf("machine_software_interrupt_handler called\n");
 }
 
 void __attribute__((weak)) machine_timer_interrupt_handler(void)
 {
     printf("machine_timer_interrupt_handler called\n");
+    // 清除定时器中断标志，防止中断重入
 }
 
 void __attribute__((weak)) machine_external_interrupt_handler(void)

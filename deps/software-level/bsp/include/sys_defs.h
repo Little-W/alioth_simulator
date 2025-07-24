@@ -24,6 +24,9 @@ extern "C"
 #define SYSTEM_CLOCK_MHZ (100UL)
 #endif
 
+#define CPU_FREQ_HZ (SYSTEM_CLOCK)
+#define CPU_FREQ_MHZ (SYSTEM_CLOCK_MHZ)
+
 #define ALIOTH_PERIPH_BASE (0x84000000UL) /*!< Alioth APB Peripherals Base Address */
 #define ALIOTH_CLINT_BASE (0x02000000UL)  /*!< Alioth CLINT Base Address */
 
@@ -234,6 +237,8 @@ extern "C"
 #ifndef __RISCV_XLEN
 #define __RISCV_XLEN 32
 #endif /* __RISCV_XLEN */
+
+#define SOC_TIMER_FREQ SYSTEM_CLOCK
 
 #ifdef __cplusplus
 }
