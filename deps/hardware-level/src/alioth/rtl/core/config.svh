@@ -16,6 +16,11 @@
 `define APB_SIZE (1 << `APB_ADDR_WIDTH)      // APB大小
 `define APB_SLAVE_ADDR_WIDTH 20 // APB从设备地址宽度
 
+// CLINT地址配置
+`define CLINT_ADDR_WIDTH 16  // CLINT地址宽度，16位
+`define CLINT_BASE_ADDR 32'h0200_0000        // CLINT基地址
+`define CLINT_SIZE (1 << `CLINT_ADDR_WIDTH)  // CLINT大小：64KB
+
 // 内存初始化控制
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
 `define ITCM_INIT_FILE "/media/5/Projects/RISC-V/alioth_simulator/deps/tools/prog.mem" // ITCM初始化文件路径

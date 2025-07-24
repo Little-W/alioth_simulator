@@ -13,6 +13,9 @@ extern "C"
 #include <stddef.h>
 #endif
 
+#include "xprintf.h"
+#include "gcc_defs.h"
+
 #ifndef SYSTEM_CLOCK
 #define SYSTEM_CLOCK (100000000UL)
 #endif
@@ -22,6 +25,7 @@ extern "C"
 #endif
 
 #define ALIOTH_PERIPH_BASE (0x84000000UL) /*!< Alioth APB Peripherals Base Address */
+#define ALIOTH_CLINT_BASE (0x02000000UL)  /*!< Alioth CLINT Base Address */
 
 /* Peripheral memory map */
 #define PWM_BASE (ALIOTH_PERIPH_BASE + 0x00000)   /*!< (Timer) Base Address */
@@ -38,14 +42,14 @@ extern "C"
      */
     typedef struct
     { /*!< GPIO Structure */
-        volatile uint32_t PADDIR;
-        volatile uint32_t PADIN;
-        volatile uint32_t PADOUT;
-        volatile uint32_t INTEN;
-        volatile uint32_t INTTYPE0;
-        volatile uint32_t INTTYPE1;
-        volatile uint32_t INTSTATUS;
-        volatile uint32_t IOFCFG;
+        __IOM uint32_t PADDIR;
+        __IOM uint32_t PADIN;
+        __IOM uint32_t PADOUT;
+        __IOM uint32_t INTEN;
+        __IOM uint32_t INTTYPE0;
+        __IOM uint32_t INTTYPE1;
+        __IOM uint32_t INTSTATUS;
+        __IOM uint32_t IOFCFG;
     } GPIO_TypeDef;
 
     /**
@@ -55,25 +59,25 @@ extern "C"
     {
         union
         {
-            volatile uint32_t RBR;
-            volatile uint32_t DLL;
-            volatile uint32_t THR;
+            __IOM uint32_t RBR;
+            __IOM uint32_t DLL;
+            __IOM uint32_t THR;
         };
         union
         {
-            volatile uint32_t DLM;
-            volatile uint32_t IER;
+            __IOM uint32_t DLM;
+            __IOM uint32_t IER;
         };
         union
         {
-            volatile uint32_t IIR;
-            volatile uint32_t FCR;
+            __IOM uint32_t IIR;
+            __IOM uint32_t FCR;
         };
-        volatile uint32_t LCR;
-        volatile uint32_t MCR;
-        volatile uint32_t LSR;
-        volatile uint32_t MSR;
-        volatile uint32_t SCR;
+        __IOM uint32_t LCR;
+        __IOM uint32_t MCR;
+        __IOM uint32_t LSR;
+        __IOM uint32_t MSR;
+        __IOM uint32_t SCR;
     } UART_TypeDef;
 
     /**
@@ -81,28 +85,28 @@ extern "C"
      */
     typedef struct
     {
-        volatile uint32_t SCKDIV;
-        volatile uint32_t SCKMODE;
-        volatile uint32_t RESERVED0[2];
-        volatile uint32_t CSID;
-        volatile uint32_t CSDEF;
-        volatile uint32_t CSMODE;
-        volatile uint32_t RESERVED1[3];
-        volatile uint32_t DELAY0;
-        volatile uint32_t DELAY1;
-        volatile uint32_t RESERVED2[4];
-        volatile uint32_t FMT;
-        volatile uint32_t RESERVED3;
-        volatile uint32_t TXDATA;
-        volatile uint32_t RXDATA;
-        volatile uint32_t TXMARK;
-        volatile uint32_t RXMARK;
-        volatile uint32_t RESERVED4[2];
-        volatile uint32_t FCTRL;
-        volatile uint32_t FFMT;
-        volatile uint32_t RESERVED5[2];
-        volatile uint32_t IE;
-        volatile uint32_t IP;
+        __IOM uint32_t SCKDIV;
+        __IOM uint32_t SCKMODE;
+        __IOM uint32_t RESERVED0[2];
+        __IOM uint32_t CSID;
+        __IOM uint32_t CSDEF;
+        __IOM uint32_t CSMODE;
+        __IOM uint32_t RESERVED1[3];
+        __IOM uint32_t DELAY0;
+        __IOM uint32_t DELAY1;
+        __IOM uint32_t RESERVED2[4];
+        __IOM uint32_t FMT;
+        __IOM uint32_t RESERVED3;
+        __IOM uint32_t TXDATA;
+        __IOM uint32_t RXDATA;
+        __IOM uint32_t TXMARK;
+        __IOM uint32_t RXMARK;
+        __IOM uint32_t RESERVED4[2];
+        __IOM uint32_t FCTRL;
+        __IOM uint32_t FFMT;
+        __IOM uint32_t RESERVED5[2];
+        __IOM uint32_t IE;
+        __IOM uint32_t IP;
     } QSPI_TypeDef;
 
     /**
@@ -110,17 +114,17 @@ extern "C"
      */
     typedef struct
     {
-        volatile uint32_t STATUS;
-        volatile uint32_t CLKDIV;
-        volatile uint32_t SPICMD;
-        volatile uint32_t SPIADR;
-        volatile uint32_t SPILEN;
-        volatile uint32_t SPIDUM;
-        volatile uint32_t TXFIFO;
-        volatile uint32_t Pad;
-        volatile uint32_t RXFIFO;
-        volatile uint32_t INTCFG;
-        volatile uint32_t INTSTA;
+        __IOM uint32_t STATUS;
+        __IOM uint32_t CLKDIV;
+        __IOM uint32_t SPICMD;
+        __IOM uint32_t SPIADR;
+        __IOM uint32_t SPILEN;
+        __IOM uint32_t SPIDUM;
+        __IOM uint32_t TXFIFO;
+        __IOM uint32_t Pad;
+        __IOM uint32_t RXFIFO;
+        __IOM uint32_t INTCFG;
+        __IOM uint32_t INTSTA;
     } SPI_TypeDef;
 
     /**
@@ -128,12 +132,12 @@ extern "C"
      */
     typedef struct
     {
-        volatile uint32_t PRE;
-        volatile uint32_t CTR;
-        volatile uint32_t RX;
-        volatile uint32_t STATUS;
-        volatile uint32_t TX;
-        volatile uint32_t CMD;
+        __IOM uint32_t PRE;
+        __IOM uint32_t CTR;
+        __IOM uint32_t RX;
+        __IOM uint32_t STATUS;
+        __IOM uint32_t TX;
+        __IOM uint32_t CMD;
     } I2C_TypeDef;
 
     /**
@@ -224,16 +228,14 @@ extern "C"
         unsigned int Raw;
     } pwm_timer;
 
-/** \brief provide the compiler with branch prediction information, the branch is rarely true */
-#ifndef __RARELY
-#define __RARELY(exp) __builtin_expect((exp), 0)
-#endif
+// 全局重定向printf到xprintf
+#define printf xprintf
+
+#ifndef __RISCV_XLEN
+#define __RISCV_XLEN 32
+#endif /* __RISCV_XLEN */
 
 #ifdef __cplusplus
 }
 #endif
 #endif // SYS_DEFS_H
-
-// 全局重定向printf到xprintf
-#include "xprintf.h"
-#define printf xprintf

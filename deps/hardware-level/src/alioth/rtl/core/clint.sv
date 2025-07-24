@@ -56,8 +56,8 @@ module clint (
     input wire misaligned_fetch_i,  // 非对齐取指异常输入端口
 
     // === 外部中断输入 ===
-    input wire       irq_req_i,
-    input wire [7:0] irq_id_i,
+    input wire       int_req_i,
+    input wire [7:0] irq_id_i,   // 外部中断ID
 
     // from ctrl
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,
@@ -67,8 +67,7 @@ module clint (
     input wire [`REG_DATA_WIDTH-1:0] csr_mtvec,
     input wire [`REG_DATA_WIDTH-1:0] csr_mepc,
     input wire [`REG_DATA_WIDTH-1:0] csr_mstatus,
-
-    input wire global_int_en_i,  // 全局中断使能标志
+    input wire [`REG_DATA_WIDTH-1:0] csr_mie,
 
     // to ctrl
     output wire flush_flag_o,  // 用于刷新流水线
@@ -82,9 +81,31 @@ module clint (
 
     // to ex
     output reg [`INST_ADDR_WIDTH-1:0] int_addr_o,   //ecall和ebreak的返回地址
-    output reg                        int_assert_o  //ecall和ebreak的中断信号
-);
+    output reg                        int_assert_o, //ecall和ebreak的中断信号
 
+    // === AXI4-Lite slave interface for clint_swi ===
+    input  wire                                 S_AXI_ACLK,
+    input  wire                                 S_AXI_ARESETN,
+    input  wire [  `CLINT_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,
+    input  wire [                          2:0] S_AXI_AWPROT,
+    input  wire                                 S_AXI_AWVALID,
+    output wire                                 S_AXI_AWREADY,
+    input  wire [  `CLINT_AXI_DATA_WIDTH-1 : 0] S_AXI_WDATA,
+    input  wire [(`CLINT_AXI_DATA_WIDTH/8)-1:0] S_AXI_WSTRB,
+    input  wire                                 S_AXI_WVALID,
+    output wire                                 S_AXI_WREADY,
+    output wire [                          1:0] S_AXI_BRESP,
+    output wire                                 S_AXI_BVALID,
+    input  wire                                 S_AXI_BREADY,
+    input  wire [  `CLINT_AXI_ADDR_WIDTH-1 : 0] S_AXI_ARADDR,
+    input  wire [                          2:0] S_AXI_ARPROT,
+    input  wire                                 S_AXI_ARVALID,
+    output wire                                 S_AXI_ARREADY,
+    output wire [  `CLINT_AXI_DATA_WIDTH-1 : 0] S_AXI_RDATA,
+    output wire [                          1:0] S_AXI_RRESP,
+    output wire                                 S_AXI_RVALID,
+    input  wire                                 S_AXI_RREADY
+);
 
     // interrupt state machine类型定义
     typedef enum logic [3:0] {
@@ -109,24 +130,38 @@ module clint (
     reg [`INST_ADDR_WIDTH-1:0] inst_addr;  // 保存的指令地址
     reg [31:0] cause;  // 中断原因代码
 
-    // === 新增：外部中断请求检测 ===
-    wire ext_irq_req = irq_req_i & global_int_en_i;
+    wire global_int_en = (csr_mstatus[3] == 1'b1);  // 全局中断使能标志
+
+    // === 定义MEIE、MTIE、MSIE ===
+    wire MEIE = csr_mie[11];  // Machine External Interrupt Enable
+    wire MTIE = csr_mie[7];  // Machine Timer Interrupt Enable
+    wire MSIE = csr_mie[3];  // Machine Software Interrupt Enable
+
+    // === 定时器中断和软件中断信号 ===
+    wire timer_irq;
+    wire soft_irq;
+
+    // === 中断请求检测（受csr_mie控制）===
+    wire ext_irq_en = int_req_i & MEIE;
+    wire timer_irq_en = timer_irq & MTIE;
+    wire soft_irq_en = soft_irq & MSIE;
+    wire int_req = (ext_irq_en | timer_irq_en | soft_irq_en) & global_int_en;
 
     // === 修改异常请求检测，外部中断优先级最低 ===
-    wire internal_exception_req = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
+    wire internal_exception_or_int = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
                                    || misaligned_load_i || misaligned_store_i
                                    || misaligned_fetch_i);
-    wire exception_req = internal_exception_req ? 1'b1 : ext_irq_req;
+    wire exception_or_int = internal_exception_or_int ? 1'b1 : int_req;
 
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时冲刷水线
     assign flush_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE));
-    assign stall_flag_o = (exception_req && atom_opt_busy_i);
+    assign stall_flag_o = (exception_or_int && atom_opt_busy_i);
 
     // 中断状态机逻辑
     always @(*) begin
         if (~rst_n) begin
             int_state = S_INT_IDLE;
-        end else if (exception_req && atom_opt_busy_i == 1'b0) begin
+        end else if (exception_or_int && atom_opt_busy_i == 1'b0) begin
             int_state = S_INT_ASSERT;
         end else if (sys_op_mret_i) begin
             int_state = S_INT_MRET;
@@ -174,7 +209,7 @@ module clint (
         if (~rst_n) begin
             cause <= `ZeroWord;
         end else if (csr_state == S_CSR_IDLE && int_state == S_INT_ASSERT) begin
-            if (internal_exception_req) begin
+            if (internal_exception_or_int) begin
                 if (sys_op_ecall_i) begin
                     cause <= 32'd11;
                 end else if (sys_op_ebreak_i) begin
@@ -190,8 +225,18 @@ module clint (
                 end else begin
                     cause <= 32'd10;
                 end
-            end else if (ext_irq_req) begin
-                cause <= 32'h8 + {24'h0, irq_id_i};  // 外部中断cause
+            end else if (int_req) begin
+                // === 按优先级选择 cause ===
+                if (soft_irq) begin
+                    // 软件中断 cause = 3 | 0x80000000
+                    cause <= 32'h80000003;
+                end else if (timer_irq) begin
+                    // 定时器中断 cause = 7 | 0x80000000
+                    cause <= 32'h80000007;
+                end else begin
+                    // 外部中断 0x80000000 | cause = 16 + irq_id_i[7:0]
+                    cause <= 32'h80000010 + {24'b0, irq_id_i};
+                end
             end
         end
     end
@@ -237,8 +282,8 @@ module clint (
                 inst_addr <= illegal_inst_pc_i;  // 非法指令异常时用非法指令PC
             end else if (sys_op_ecall_i || sys_op_ebreak_i) begin
                 inst_addr <= inst_addr_i;
-            end else if (ext_irq_req) begin
-                inst_addr <= inst_addr_i + 4; // 外部中断时保存pc+4，优先级最低
+            end else if (int_req) begin
+                inst_addr <= inst_addr_i + 4;  // 外部中断时保存pc+4，优先级最低
             end else begin
                 inst_addr <= inst_addr_i;
             end
@@ -276,9 +321,9 @@ module clint (
                 // -----------------------------------------------------------------------------
                 // MRET指令处理：
                 // 当检测到S_CSR_MSTATUS_MRET时，表示执行RISC-V的MRET（Machine-mode Return）指令。
-                // 根据RISC-V官方规范，MRET用于从机器模式异常返回，并需要恢复之前保存的全局中断使能状态（MIE）。
+                // 根据RISC-V官方规范，MRET用于从机器模式异常返回，并需要恢复之前保存的全局中断使能状态（csr_mie）。
                 // 此处对csr_mstatus寄存器进行如下操作：
-                //   - 将MIE位（csr_mstatus[7]）恢复到MPIE位（csr_mstatus[3]），并将MPIE位置为1（csr_mstatus[7] -> csr_mstatus[3], csr_mstatus[7] = 1）。
+                //   - 将csr_mie位（csr_mstatus[7]）恢复到MPIE位（csr_mstatus[3]），并将MPIE位置为1（csr_mstatus[7] -> csr_mstatus[3], csr_mstatus[7] = 1）。
                 //   - 其他位保持不变。
                 //   - 最终结果写回mstatus CSR（地址为`CSR_MSTATUS`）。
                 //   - we_o信号使能写操作，waddr_o指定目标CSR地址，data_o为写入的新mstatus值。
@@ -307,7 +352,13 @@ module clint (
             case (csr_state)
                 S_CSR_MCAUSE: begin
                     int_assert_o <= `INT_ASSERT;
-                    int_addr_o   <= csr_mtvec;
+                    // === 向量模式处理 ===
+                    if (int_req && csr_mtvec[0]) begin
+                        // cause[3:0]为中断类型编码
+                        int_addr_o <= {csr_mtvec[31:2], 2'b00} + ((cause[3:0]) << 2);
+                    end else begin
+                        int_addr_o <= csr_mtvec;
+                    end
                 end
                 S_CSR_MSTATUS_MRET: begin
                     int_assert_o <= `INT_ASSERT;
@@ -328,5 +379,36 @@ module clint (
             raddr_o <= `ZeroWord;
         end
     end
+
+
+    // === clint_swi实例化 ===
+    clint_swi #(
+        .C_S_AXI_DATA_WIDTH(`CLINT_AXI_DATA_WIDTH),
+        .C_S_AXI_ADDR_WIDTH(`CLINT_AXI_ADDR_WIDTH)
+    ) u_clint_swi (
+        .S_AXI_ACLK   (clk),
+        .S_AXI_ARESETN(rst_n),
+        .S_AXI_AWADDR (S_AXI_AWADDR),
+        .S_AXI_AWPROT (S_AXI_AWPROT),
+        .S_AXI_AWVALID(S_AXI_AWVALID),
+        .S_AXI_AWREADY(S_AXI_AWREADY),
+        .S_AXI_WDATA  (S_AXI_WDATA),
+        .S_AXI_WSTRB  (S_AXI_WSTRB),
+        .S_AXI_WVALID (S_AXI_WVALID),
+        .S_AXI_WREADY (S_AXI_WREADY),
+        .S_AXI_BRESP  (S_AXI_BRESP),
+        .S_AXI_BVALID (S_AXI_BVALID),
+        .S_AXI_BREADY (S_AXI_BREADY),
+        .S_AXI_ARADDR (S_AXI_ARADDR),
+        .S_AXI_ARPROT (S_AXI_ARPROT),
+        .S_AXI_ARVALID(S_AXI_ARVALID),
+        .S_AXI_ARREADY(S_AXI_ARREADY),
+        .S_AXI_RDATA  (S_AXI_RDATA),
+        .S_AXI_RRESP  (S_AXI_RRESP),
+        .S_AXI_RVALID (S_AXI_RVALID),
+        .S_AXI_RREADY (S_AXI_RREADY),
+        .timer_irq    (timer_irq),
+        .soft_irq     (soft_irq)
+    );
 
 endmodule

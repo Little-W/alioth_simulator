@@ -86,7 +86,6 @@ module alioth_soc_top (
     output wire [ 31:0] gpio1_iof,
 
     // Timer
-    input  wire        dft_cg_enable_i,
     input  wire        low_speed_clk_i,
     input  wire [31:0] ext_sig_i,
     output wire [ 3:0] ch_0_o,
@@ -309,7 +308,7 @@ module alioth_soc_top (
         .gpio1_iof       (gpio1_iof),
         .gpio1_interrupt (gpio1_int),
         // Timer
-        .dft_cg_enable_i (dft_cg_enable_i),
+        .dft_cg_enable_i (0),  // 忽略DFT时钟使能信号
         .low_speed_clk_i (low_speed_clk_i),
         .ext_sig_i       (ext_sig_i),
         .timer_events_o  (timer_events),
