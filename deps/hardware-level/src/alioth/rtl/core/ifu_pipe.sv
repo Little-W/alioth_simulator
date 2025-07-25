@@ -48,7 +48,7 @@ module ifu_pipe (
     wire                        flush_en = flush_flag_i;
 
     // 在指令无效或冲刷信号有效时，选择填充0作为寄存器输入
-    wire [`INST_DATA_WIDTH-1:0] inst_selected = (flush_en || !inst_valid_i) ? `INST_NOP : inst_i;
+    wire [`INST_DATA_WIDTH-1:0] inst_selected = (flush_en || !inst_valid_i) ?{`INST_NOP,`INST_NOP}  : inst_i;
 
     // 储存指令内容
     wire [`INST_DATA_WIDTH-1:0] inst_r;

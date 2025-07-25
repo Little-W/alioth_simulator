@@ -70,16 +70,17 @@ ifeq ($(TRUE_SIM_TOOL),verilator)
 
 
 ifeq ($(wildcard $(VERILATOR_BIN_DIR)),)
+	ifeq ($(wildcard ${VERILATOR_ROOT_DIR}/bin/verilator),)
 	ifeq ($(ARCH),x86_64)
 	ifeq ($(SIM_TOOL),verilator4)
-		shell := $(shell  rm x86_64_verilator-4.228.tar.xz)
+		shell := $(shell rm -f x86_64_verilator-4.228.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_verilator-4.228.tar.xz || rm x86_64_verilator-4.228.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv x86_64_verilator-4.228.tar.xz $(VERILATOR_ROOT_DIR))
 		shell := $(shell cd $(VERILATOR_ROOT_DIR) && tar -xvf x86_64_verilator-4.228.tar.xz && rm x86_64_verilator-4.228.tar.xz)
 		shell := $(shell cp -f ${SIM_ROOT_DIR}/deps/tools/update_pkgconfig.sh $(VERILATOR_ROOT_DIR) && cd $(VERILATOR_ROOT_DIR) && sh update_pkgconfig.sh)
 	else
-		shell := $(shell rm x86_64_verilator-5.016.tar.xz)
+		shell := $(shell rm -f x86_64_verilator-5.016.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_verilator-5.016.tar.xz || rm x86_64_verilator-5.016.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv x86_64_verilator-5.016.tar.xz $(VERILATOR_ROOT_DIR))
@@ -88,14 +89,14 @@ ifeq ($(wildcard $(VERILATOR_BIN_DIR)),)
 	endif
 	else ifeq ($(ARCH),aarch64)
 	ifeq ($(SIM_TOOL),verilator4)
-		shell := $(shell rm arm64_verilator-4.228.tar.xz)
+		shell := $(shell rm -f arm64_verilator-4.228.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64_verilator-4.228.tar.xz || rm arm64_verilator-4.228.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv arm64_verilator-4.228.tar.xz $(VERILATOR_ROOT_DIR))
 		shell := $(shell cd $(VERILATOR_ROOT_DIR) && tar -xvf arm64_verilator-4.228.tar.xz && rm arm64_verilator-4.228.tar.xz)
 		shell := $(shell cp -f ${SIM_ROOT_DIR}/deps/tools/update_pkgconfig.sh $(VERILATOR_ROOT_DIR) && cd $(VERILATOR_ROOT_DIR) && sh update_pkgconfig.sh)
 	else
-		shell := $(shell rm arm64_verilator-5.016.tar.xz)
+		shell := $(shell rm -f arm64_verilator-5.016.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64_verilator-5.016.tar.xz || rm arm64_verilator-5.016.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv arm64_verilator-5.016.tar.xz $(VERILATOR_ROOT_DIR))
@@ -104,6 +105,7 @@ ifeq ($(wildcard $(VERILATOR_BIN_DIR)),)
 	endif
 	else
 		$(error Unsupported architecture: $(ARCH))
+	endif
 	endif
 endif
 
@@ -171,28 +173,36 @@ ARCH := $(shell uname -m)
 ifeq ($(ARCH),x86_64)
 	ifeq ($(wildcard $(CC)),)
 		ifeq ($(USE_OPEN_GNU_GCC),0)
-		shell := $(shell rm x86_64-riscv-gnu-toolchain.tar.xz)
+		ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/gcc/bin/$(COMPILE_PREFIX)gcc),)
+		shell := $(shell rm -f x86_64-riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64-riscv-gnu-toolchain.tar.xz || rm x86_64-riscv-gnu-toolchain.tar.xz)
 		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc)
 		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc && mv x86_64-riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc && cd ${SOTFWARE_TOOLS_DIR}/gcc && tar -xvf x86_64-riscv-gnu-toolchain.tar.xz && rm x86_64-riscv-gnu-toolchain.tar.xz)
+		endif
 		else
-		shell := $(shell rm x86_64-open_riscv-gnu-toolchain.tar.xz)
+		ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/gcc_open/bin/$(COMPILE_PREFIX)gcc),)
+		shell := $(shell rm -f x86_64-open_riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64-open_riscv-gnu-toolchain.tar.xz || rm x86_64-open_riscv-gnu-toolchain.tar.xz)
 		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc_open)
 		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc_open && mv x86_64-open_riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc_open && cd ${SOTFWARE_TOOLS_DIR}/gcc_open && tar -xvf x86_64-open_riscv-gnu-toolchain.tar.xz && rm x86_64-open_riscv-gnu-toolchain.tar.xz)
 		endif
+		endif
 	endif
 	ifeq ($(wildcard $(OPENOCD)),)
-	shell := $(shell rm openocd-12.0_x86_64.tar.xz)
+	ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/openocd/bin/openocd),)
+	shell := $(shell rm -f openocd-12.0_x86_64.tar.xz)
 	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/openocd-12.0_x86_64.tar.xz ||  rm openocd-12.0_x86_64.tar.xz)
 	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/openocd)
 	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/openocd && mv openocd-12.0_x86_64.tar.xz ${SOTFWARE_TOOLS_DIR}/openocd && cd ${SOTFWARE_TOOLS_DIR}/openocd && tar -xvf openocd-12.0_x86_64.tar.xz && rm openocd-12.0_x86_64.tar.xz)
 	endif
+	endif
 	ifeq ($(wildcard $(QEMU_EXEC)),)
-	shell := $(shell rm openocd-12.0_x86_64.tar.xz)
-	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_qemu-riscv.tar.xz || rm openocd-12.0_x86_64.tar.xz)
+	ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/qemu/bin/qemu-riscv32),)
+	shell := $(shell rm -f x86_64_qemu-riscv.tar.xz)
+	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_qemu-riscv.tar.xz || rm x86_64_qemu-riscv.tar.xz)
 	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/qemu)
 	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/qemu && mv x86_64_qemu-riscv.tar.xz ${SOTFWARE_TOOLS_DIR}/qemu && cd ${SOTFWARE_TOOLS_DIR}/qemu && tar -xvf x86_64_qemu-riscv.tar.xz && rm x86_64_qemu-riscv.tar.xz)
+	endif
 	endif
 
 else ifeq ($(ARCH),aarch64)

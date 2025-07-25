@@ -21,12 +21,15 @@
 `define ITCM_INIT_FILE "/media/5/Projects/RISC-V/alioth_simulator/deps/tools/prog.mem" // ITCM初始化文件路径
 
 // 总线宽度定义
-`define BUS_DATA_WIDTH 32
+`define BUS_DATA_WIDTH 64       // 双发射：64位数据总线
 `define BUS_ADDR_WIDTH 32
-`define BUS_ID_WIDTH 2
+`define BUS_ID_WIDTH 3          // 双发射：3位ID支持8个并发事务，匹配FIFO深度
 
-`define INST_DATA_WIDTH 32
+`define INST_DATA_WIDTH 64      // 双发射：64位指令数据（两个32位指令）
 `define INST_ADDR_WIDTH 32
+
+// IFU FIFO配置
+`define IFU_FIFO_DEPTH 8        // 双发射：增加FIFO深度以支持更高吞吐量
 
 // 寄存器配置
 `define REG_ADDR_WIDTH 5
