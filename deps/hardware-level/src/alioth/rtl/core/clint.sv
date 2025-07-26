@@ -32,6 +32,8 @@ module clint (
 
     // from id
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
+    input wire [ `REG_DATA_WIDTH-1:0] inst_data_i,  // 非法指令内容
+    input wire                        inst_valid_i, // 指令有效标志
 
     // from ex
     input wire                        jump_flag_i,
@@ -39,18 +41,12 @@ module clint (
     input wire                        atom_opt_busy_i, // 原子操作忙标志
 
     // 添加系统操作输入端口
-    input wire                        sys_op_ecall_i,
-    input wire                        sys_op_ebreak_i,
-    input wire                        sys_op_mret_i,
-    input wire                        illegal_inst_i,     // 非法指令
-    input wire [`INST_ADDR_WIDTH-1:0] illegal_inst_pc_i,  // 非法指令发生时的PC
-    input wire [ `REG_DATA_WIDTH-1:0] illegal_inst_val_i, // 非法指令内容
-
+    input wire sys_op_ecall_i,
+    input wire sys_op_ebreak_i,
+    input wire sys_op_mret_i,
+    input wire illegal_inst_i,     // 非法指令
     input wire misaligned_load_i,  // Misaligned Load异常输入端口
     input wire misaligned_store_i, // Misaligned Store异常输入端口
-
-    input wire [`INST_ADDR_WIDTH-1:0] ex_exception_pc_i,  // Ex阶段发生异常时的PC
-    input wire [ `REG_DATA_WIDTH-1:0] ex_exception_val_i, // Ex阶段发生异常时的指令内容
 
     // 非对齐取指异常相关端口
     input wire misaligned_fetch_i,  // 非对齐取指异常输入端口
@@ -127,7 +123,8 @@ module clint (
     // 状态机和相关信号声明
     int_state_e int_state;  // 中断状态机当前状态
     csr_state_e csr_state;  // CSR写状态机当前状态
-    reg [`INST_ADDR_WIDTH-1:0] inst_addr;  // 保存的指令地址
+
+    reg [`INST_ADDR_WIDTH-1:0] saved_pc;  // 保存的PC地址
     reg [31:0] cause;  // 中断原因代码
 
     wire global_int_en = (csr_mstatus[3] == 1'b1);  // 全局中断使能标志
@@ -147,11 +144,11 @@ module clint (
     wire soft_irq_en = soft_irq & MSIE;
     wire int_req = (ext_irq_en | timer_irq_en | soft_irq_en) & global_int_en;
 
-    // === 修改异常请求检测，外部中断优先级最低 ===
-    wire internal_exception_or_int = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
-                                   || misaligned_load_i || misaligned_store_i
-                                   || misaligned_fetch_i);
-    wire exception_or_int = internal_exception_or_int ? 1'b1 : int_req;
+    wire exception_req = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
+                            || misaligned_load_i || misaligned_store_i
+                            || misaligned_fetch_i);
+
+    wire exception_or_int = exception_req | int_req;
 
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时冲刷水线
     assign flush_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE));
@@ -161,7 +158,7 @@ module clint (
     always @(*) begin
         if (~rst_n) begin
             int_state = S_INT_IDLE;
-        end else if (exception_or_int && atom_opt_busy_i == 1'b0) begin
+        end else if (exception_or_int && atom_opt_busy_i == 1'b0 && inst_valid_i) begin
             int_state = S_INT_ASSERT;
         end else if (sys_op_mret_i) begin
             int_state = S_INT_MRET;
@@ -209,7 +206,7 @@ module clint (
         if (~rst_n) begin
             cause <= `ZeroWord;
         end else if (csr_state == S_CSR_IDLE && int_state == S_INT_ASSERT) begin
-            if (internal_exception_or_int) begin
+            if (exception_req) begin
                 if (sys_op_ecall_i) begin
                     cause <= 32'd11;
                 end else if (sys_op_ebreak_i) begin
@@ -256,36 +253,28 @@ module clint (
             if (misaligned_fetch_i) begin
                 mtval_reg <= 0;
             end else if (misaligned_load_i || misaligned_store_i) begin
-                mtval_reg <= ex_exception_val_i;
+                mtval_reg <= inst_data_i;
             end else if (jump_flag_i == `JumpEnable) begin
                 mtval_reg <= `ZeroWord;
             end else if (illegal_inst_i) begin
-                mtval_reg <= illegal_inst_val_i;
+                mtval_reg <= inst_data_i;
             end else begin
                 mtval_reg <= `ZeroWord;
             end
         end
     end
 
-    // 保存指令地址寄存器更新逻辑
+    // saved_pc更新逻辑
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
-            inst_addr <= `ZeroWord;
-        end else if (csr_state == S_CSR_IDLE && int_state == S_INT_ASSERT) begin
-            if (misaligned_fetch_i) begin
-                inst_addr <= ex_exception_pc_i;  // 非对齐取指异常时共用ex_exception_pc_i
-            end else if (misaligned_load_i || misaligned_store_i) begin
-                inst_addr <= ex_exception_pc_i;  // Misaligned异常时用共用PC
-            end else if (jump_flag_i == `JumpEnable) begin
-                inst_addr <= jump_addr_i - 4'h4;
-            end else if (illegal_inst_i) begin
-                inst_addr <= illegal_inst_pc_i;  // 非法指令异常时用非法指令PC
-            end else if (sys_op_ecall_i || sys_op_ebreak_i) begin
-                inst_addr <= inst_addr_i;
-            end else if (int_req) begin
-                inst_addr <= inst_addr_i + 4;  // 外部中断时保存pc+4，优先级最低
-            end else begin
-                inst_addr <= inst_addr_i;
+            saved_pc <= `ZeroWord;
+        end else if (exception_req) begin
+            saved_pc <= inst_addr_i;  // 保存当前指令地址
+        end else if (int_req) begin
+            if (jump_flag_i) begin
+                saved_pc <= jump_addr_i;  // 跳转时保存跳转地址
+            end else if (inst_valid_i) begin
+                saved_pc <= inst_addr_i + 4;  // 保存当前指令地址 + 4
             end
         end
     end
@@ -301,12 +290,14 @@ module clint (
                 S_CSR_MEPC: begin
                     we_o    <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MEPC};
-                    data_o  <= inst_addr;
+                    data_o  <= saved_pc;
                 end
                 S_CSR_MSTATUS: begin
-                    we_o    <= `WriteEnable;
+                    we_o <= `WriteEnable;
                     waddr_o <= {20'h0, `CSR_MSTATUS};
-                    data_o  <= {csr_mstatus[31:8], csr_mstatus[3], csr_mstatus[6:4], 1'b0, csr_mstatus[2:0]};
+                    data_o <= {
+                        csr_mstatus[31:8], csr_mstatus[3], csr_mstatus[6:4], 1'b0, csr_mstatus[2:0]
+                    };
                 end
                 S_CSR_MTVAL: begin
                     we_o    <= `WriteEnable;

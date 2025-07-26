@@ -69,7 +69,7 @@ module exu (
     input wire [31:0] bjp_op2_i,
     input wire [31:0] bjp_jump_op1_i,
     input wire [31:0] bjp_jump_op2_i,
-    input wire        bjp_op_jump_i,
+    input wire        bjp_op_jal_i,
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
     input wire        bjp_op_blt_i,
@@ -113,9 +113,9 @@ module exu (
     input wire                        mem_op_store_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
     // 新增：直接访存信号
-    input wire [31:0] mem_addr_i,
-    input wire [31:0] mem_wdata_i,
-    input wire [3:0]  mem_wmask_i,
+    input wire [                31:0] mem_addr_i,
+    input wire [                31:0] mem_wdata_i,
+    input wire [                 3:0] mem_wmask_i,
 
     // dispatch to SYS
     input wire sys_op_nop_i,
@@ -172,9 +172,9 @@ module exu (
     output wire exu_op_mret_o,
 
     // misaligned_fetch信号输出
-    output wire misaligned_fetch_o,
+    output wire                     misaligned_fetch_o,
     // AXI接口 - 新增
-    output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
+    output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,          // 使用BUS_ID_WIDTH定义位宽
     output wire [             31:0] M_AXI_AWADDR,
     output wire [              7:0] M_AXI_AWLEN,
     output wire [              2:0] M_AXI_AWSIZE,
@@ -420,7 +420,7 @@ module exu (
         .bjp_op2_i         (bjp_op2_i),
         .bjp_jump_op1_i    (bjp_jump_op1_i),
         .bjp_jump_op2_i    (bjp_jump_op2_i),
-        .bjp_op_jump_i     (bjp_op_jump_i),
+        .bjp_op_jal_i      (bjp_op_jal_i),
         .bjp_op_beq_i      (bjp_op_beq_i),
         .bjp_op_bne_i      (bjp_op_bne_i),
         .bjp_op_blt_i      (bjp_op_blt_i),

@@ -46,25 +46,34 @@ module axi2apb #(
     assign PRESETn = S_AXI_ARESETN;
 
     // APB状态机状态定义
-    localparam IDLE = 2'b00;
-    localparam SETUP = 2'b01;
-    localparam ACCESS = 2'b10;
+    typedef enum logic [1:0] {
+        IDLE   = 2'b00,
+        SETUP  = 2'b01,
+        ACCESS = 2'b10
+    } apb_state_t;
 
-    // AXI状态机状态定义
-    localparam WRITE_IDLE = 2'b00;
-    localparam WRITE_ADDR = 2'b01;
-    localparam WRITE_DATA = 2'b10;
-    localparam WRITE_RESP = 2'b11;
+    // AXI写状态机状态定义
+    typedef enum logic [2:0] {
+        WRITE_IDLE = 3'b000,
+        WRITE_ADDR = 3'b001,
+        WRITE_DATA = 3'b010,
+        WRITE_RESP = 3'b011,
+        WRITE_WAIT = 3'b100
+    } write_state_t;
 
-    localparam READ_IDLE = 2'b00;
-    localparam READ_ADDR = 2'b01;
-    localparam READ_DATA = 2'b10;
-    localparam READ_RESP = 2'b11;
+    // AXI读状态机状态定义
+    typedef enum logic [2:0] {
+        READ_IDLE  = 3'b000,
+        READ_ADDR  = 3'b001,
+        READ_DATA  = 3'b010,
+        READ_RESP  = 3'b011,
+        READ_WAIT  = 3'b100
+    } read_state_t;
 
     // 状态寄存器
-    reg  [                   1:0] apb_state;
-    reg  [                   1:0] write_state;
-    reg  [                   1:0] read_state;
+    apb_state_t    apb_state;
+    write_state_t  write_state;
+    read_state_t   read_state;
 
     // 寄存器定义
     reg  [  C_APB_ADDR_WIDTH-1:0] addr_reg;
@@ -178,14 +187,18 @@ module axi2apb #(
                         awready_reg <= 1'b0;
 
                         if (S_AXI_WVALID) begin
-                            // 地址和数据同时准备好
                             wdata_reg   <= S_AXI_WDATA;
                             wready_reg  <= 1'b0;
-                            write_state <= WRITE_RESP;
-                            apb_write   <= 1'b1;
-                            apb_start   <= 1'b1;
+                            if (apb_state == IDLE && read_state == READ_IDLE) begin
+                                write_state <= WRITE_RESP;
+                                apb_write   <= 1'b1;
+                                apb_start   <= 1'b1;
+                            end else begin
+                                write_state <= WRITE_WAIT;
+                                apb_write   <= 1'b1;
+                                apb_start   <= 1'b0;
+                            end
                         end else begin
-                            // 只有地址准备好
                             write_state <= WRITE_DATA;
                         end
                     end
@@ -195,9 +208,24 @@ module axi2apb #(
                     if (S_AXI_WVALID) begin
                         wdata_reg   <= S_AXI_WDATA;
                         wready_reg  <= 1'b0;
+                        if (apb_state == IDLE && read_state == READ_IDLE) begin
+                            write_state <= WRITE_RESP;
+                            apb_write   <= 1'b1;
+                            apb_start   <= 1'b1;
+                        end else begin
+                            write_state <= WRITE_WAIT;
+                            apb_write   <= 1'b1;
+                            apb_start   <= 1'b0;
+                        end
+                    end
+                end
+
+                WRITE_WAIT: begin
+                    if (apb_state == IDLE) begin
                         write_state <= WRITE_RESP;
-                        apb_write   <= 1'b1;
                         apb_start   <= 1'b1;
+                    end else begin
+                        apb_start   <= 1'b0;
                     end
                 end
 
@@ -240,9 +268,24 @@ module axi2apb #(
                     if (S_AXI_ARVALID && S_AXI_ARREADY) begin
                         addr_reg    <= S_AXI_ARADDR[C_APB_ADDR_WIDTH-1:0];
                         arready_reg <= 1'b0;
+                        if (apb_state == IDLE && write_state == WRITE_IDLE) begin
+                            read_state  <= READ_DATA;
+                            apb_write   <= 1'b0;
+                            apb_start   <= 1'b1;
+                        end else begin
+                            read_state  <= READ_WAIT;
+                            apb_write   <= 1'b0;
+                            apb_start   <= 1'b0;
+                        end
+                    end
+                end
+
+                READ_WAIT: begin
+                    if (apb_state == IDLE) begin
                         read_state  <= READ_DATA;
-                        apb_write   <= 1'b0;
                         apb_start   <= 1'b1;
+                    end else begin
+                        apb_start   <= 1'b0;
                     end
                 end
 

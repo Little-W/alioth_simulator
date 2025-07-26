@@ -94,7 +94,7 @@ module dispatch (
     output wire [31:0] bjp_op2_o,
     output wire [31:0] bjp_jump_op1_o,
     output wire [31:0] bjp_jump_op2_o,
-    output wire        bjp_op_jump_o,
+    output wire        bjp_op_jal_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
     output wire        bjp_op_blt_o,
@@ -176,7 +176,7 @@ module dispatch (
     wire [                31:0] logic_bjp_op2;
     wire [                31:0] logic_bjp_jump_op1;
     wire [                31:0] logic_bjp_jump_op2;
-    wire                        logic_bjp_op_jump;
+    wire                        logic_bjp_op_jal;
     wire                        logic_bjp_op_beq;
     wire                        logic_bjp_op_bne;
     wire                        logic_bjp_op_blt;
@@ -272,7 +272,7 @@ module dispatch (
         .bjp_op2_o     (logic_bjp_op2),
         .bjp_jump_op1_o(logic_bjp_jump_op1),
         .bjp_jump_op2_o(logic_bjp_jump_op2),
-        .bjp_op_jump_o (logic_bjp_op_jump),
+        .bjp_op_jal_o (logic_bjp_op_jal),
         .bjp_op_beq_o  (logic_bjp_op_beq),
         .bjp_op_bne_o  (logic_bjp_op_bne),
         .bjp_op_blt_o  (logic_bjp_op_blt),
@@ -369,7 +369,7 @@ module dispatch (
         .bjp_op2_i     (logic_bjp_op2),
         .bjp_jump_op1_i(logic_bjp_jump_op1),
         .bjp_jump_op2_i(logic_bjp_jump_op2),
-        .bjp_op_jump_i (logic_bjp_op_jump),
+        .bjp_op_jal_i (logic_bjp_op_jal),
         .bjp_op_beq_i  (logic_bjp_op_beq),
         .bjp_op_bne_i  (logic_bjp_op_bne),
         .bjp_op_blt_i  (logic_bjp_op_blt),
@@ -455,7 +455,7 @@ module dispatch (
         .bjp_op2_o     (bjp_op2_o),
         .bjp_jump_op1_o(bjp_jump_op1_o),
         .bjp_jump_op2_o(bjp_jump_op2_o),
-        .bjp_op_jump_o (bjp_op_jump_o),
+        .bjp_op_jal_o (bjp_op_jal_o),
         .bjp_op_beq_o  (bjp_op_beq_o),
         .bjp_op_bne_o  (bjp_op_bne_o),
         .bjp_op_blt_o  (bjp_op_blt_o),

@@ -32,7 +32,7 @@ module exu_bru (
     input wire [31:0] bjp_op2_i,
     input wire [31:0] bjp_jump_op1_i,
     input wire [31:0] bjp_jump_op2_i,
-    input wire        bjp_op_jump_i,    // JAL/JALR指令
+    input wire        bjp_op_jal_i,    // JAL指令标志
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
     input wire        bjp_op_blt_i,
@@ -60,10 +60,7 @@ module exu_bru (
     wire        op1_ge_op2_unsigned;
     wire [31:0] adder_op2;
     wire [31:0] adder_result;
-    wire        is_op_jal;
     wire [31:0] jalr_target_addr;
-
-    assign is_op_jal           = bjp_op_jump_i & ~bjp_op_jalr_i;
 
     // 比较结果
     assign op1_eq_op2          = (bjp_op1_i == bjp_op2_i);
@@ -97,7 +94,7 @@ module exu_bru (
         (bjp_op_jalr_i ? jalr_target_addr : adder_result);
 
     // 非对齐跳转判断（跳转地址低2位非0）
-    assign misaligned_fetch_o = ((jump_addr_o[1:0] != 2'b00) && (jump_flag || is_op_jal));
+    assign misaligned_fetch_o = ((jump_addr_o[1:0] != 2'b00) && (jump_flag || bjp_op_jal_i));
 
     assign jump_flag_o = jump_flag & ~misaligned_fetch_o;  // 跳转标志输出，排除预测回退情况
 
