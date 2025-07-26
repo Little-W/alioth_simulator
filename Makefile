@@ -21,6 +21,7 @@ SELF_TESTS += $(MI_TESTS)
 ASM_BUILD_DIR := ${BUILD_DIR}/asm_compiled
 ASM_SRC_DIR := ${SIM_ROOT_DIR}/c_src
 C_SRC_DIR := ${SIM_ROOT_DIR}/c_src
+RT_THREAD_ROOT := ${SIM_ROOT_DIR}/deps/software-level/rt-thread
 
 alioth:
 	@mkdir -p ${BUILD_DIR}
@@ -237,6 +238,7 @@ debug_gdb:
 
 clean:
 	@rm -rf build
+	@rm -rf "${RT_THREAD_ROOT}/bsp/build"
 	@echo "Clean done."
 
 c_src:
@@ -323,5 +325,51 @@ sim_csrc: alioth_no_timeout
 		fi \
 	fi
 
-.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout
+build_rt_thread: alioth_no_timeout
+	@mkdir -p ${BUILD_DIR}/rt_thread_tmp
+	@cp -f ${SIM_ROOT_DIR}/deps/software-level/rt-thread/rt_thread.mk ${BUILD_DIR}/rt_thread_tmp/Makefile
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} BSP_DIR=${SIM_ROOT_DIR}/deps/software-level/bsp RT_THREAD_ROOT=${SIM_ROOT_DIR}/deps/software-level/rt-thread BUILD_DIR=${BUILD_DIR}/rt_thread_tmp RT_THREAD_ROOT=${RT_THREAD_ROOT} -C ${BUILD_DIR}/rt_thread_tmp
+
+sim_rt_thread: build_rt_thread
+	@echo "Splitting rt_thread.verilog for ITCM/DTCM..."
+	@if [ -e ${BUILD_DIR}/rt_thread_tmp/main.verilog ]; then \
+		${SIM_ROOT_DIR}/deps/tools/split_memory.sh ${BUILD_DIR}/rt_thread_tmp/rt_thread.verilog; \
+		echo "Memory splitting completed"; \
+	else \
+		echo "rt_thread.verilog not found, skip memory split"; \
+	fi
+	@echo "------ Running rt_thread simulation ------"
+	@mkdir -p ${BUILD_DIR}
+	@if [ ! -h ${BUILD_DIR}/Makefile ]; then \
+		ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
+	fi
+	@if [ ! -e ${BUILD_DIR}/rt_thread_tmp/main_itcm.verilog ] ; then \
+		echo "Error: ITCM file not found, please check rt_thread build."; \
+		exit 1; \
+	fi
+	@echo "Simulating with ITCM: ${BUILD_DIR}/rt_thread_tmp/main_itcm.verilog"
+	@echo "Simulating with DTCM: ${BUILD_DIR}/rt_thread_tmp/main_dtcm.verilog"
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} PROGRAM="${BUILD_DIR}/rt_thread_tmp/main" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
+	@if [ "${SIM_DEBUG}" = "1" ]; then \
+		if [ -e "${BUILD_DIR}/sim_out/tb_top.vcd" ] ; then \
+			if command -v gtkwave > /dev/null 2>&1; then \
+				gtkwave ${BUILD_DIR}/sim_out/tb_top.vcd & \
+			else \
+				echo "gtkwave not found, skipping waveform display"; \
+			fi \
+		fi; \
+		if [ -e "${BUILD_DIR}/rt_thread_tmp/main.dump" ] ; then \
+			if command -v gvim > /dev/null 2>&1; then \
+				gvim ${BUILD_DIR}/rt_thread_tmp/main.dump & \
+			elif command -v vim > /dev/null 2>&1; then \
+				vim ${BUILD_DIR}/rt_thread_tmp/main.dump & \
+			else \
+				echo "vim/gvim not found, skipping dump view"; \
+			fi \
+		fi; \
+	fi
+
+rt_thread: sim_rt_thread
+
+.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout rt_thread build_rt_thread sim_rt_thread
 
