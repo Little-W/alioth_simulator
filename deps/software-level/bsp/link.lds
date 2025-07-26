@@ -129,7 +129,8 @@ SECTIONS
     PROVIDE( _heap_end = . );
     . = __stack_size;
     PROVIDE( _sp = . );
-    __freertos_irq_stack_top = .;
+    __stack_top = .;
+    PROVIDE( __rt_rvstack = . );
   } >dtcm AT>dtcm
 
 }

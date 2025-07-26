@@ -5,13 +5,18 @@
     .section .text.vector
     .align   2
     .global  trap_entry
+    .weak    trap_entry
     .global  vector_table
 
 vector_table:
     .word    instruction_addr_misaligned_handler // 0 指令地址不对齐
     .word    instruction_access_fault_handler // 1 指令访问错误
     .word    illegal_instruction_handler // 2 非法指令
+#ifdef RTOS_RTTHREAD
     .word    cause3_handler // 3 软件中断/断点分流
+#else
+    .word    cause3_handler // 3 软件中断/断点分流
+#endif
     .word    load_misaligned_handler // 4 加载地址不对齐
     .word    load_access_fault_handler // 5 加载访问错误
     .word    store_misaligned_handler // 6 存储/AMO地址不对齐
@@ -116,7 +121,11 @@ cause3_handler:
     csrr     t0, mcause
     srli     t1, t0, 31 // 取Interrupt位
     beqz     t1, ebreak_handler // Interrupt=0，异常，跳转断点
+#ifdef RTOS_RTTHREAD
+    j        SW_handler // Interrupt=1，RT-Thread下跳转SW_handler
+#else
     j        machine_software_interrupt_handler // Interrupt=1，中断
+#endif
 
     //       cause=7分流handler
 cause7_handler:

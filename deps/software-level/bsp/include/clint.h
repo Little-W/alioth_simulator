@@ -132,6 +132,59 @@ extern "C"
         CLINT->MSIP = (msip & CLINT_MSIP_MSK);
     }
 
+    /**
+     * \brief   System Tick Configuration
+     * \details Initializes the System Timer and its non-vector interrupt, and starts the System Tick Timer.
+     *
+     *  In our default implementation, the timer counter will be set to zero, and it will start a timer compare non-vector interrupt
+     *  when it matchs the ticks user set, during the timer interrupt user should reload the system tick using \ref SysTick_Reload function
+     *  or similar function written by user, so it can produce period timer interrupt.
+     * \param [in]  ticks  Number of ticks between two interrupts.
+     * \return          0  Function succeeded.
+     * \return          1  Function failed.
+     * \sa
+     * - \ref CLINT_SetCompareValue; CLINT_SetLoadValue
+     */
+    __STATIC_INLINE uint32_t SysTick_Config(uint64_t ticks)
+    {
+        CLINT_SetLoadValue(0);
+        CLINT_SetCompareValue(ticks);
+        __enable_timer_irq();
+        return (0UL);
+    }
+
+    /**
+     * \brief   System Tick Reload
+     * \details Reload the System Timer Tick when the MTIMECMP reached TIME value
+     *
+     * \param [in]  ticks  Number of ticks between two interrupts.
+     * \return          0  Function succeeded.
+     * \return          1  Function failed.
+     * \sa
+     * - \ref CLINT_SetCompareValue
+     * - \ref CLINT_SetLoadValue
+     */
+    __STATIC_FORCEINLINE uint32_t SysTick_Reload(uint64_t ticks)
+    {
+        uint64_t cur_ticks = CLINT->MTIME;
+        uint64_t reload_ticks = ticks + cur_ticks;
+
+        if (__USUALLY(reload_ticks > cur_ticks))
+        {
+            CLINT->MTIMECMP = reload_ticks;
+        }
+        else
+        {
+            /* When added the ticks value, then the MTIMERCMP < TIMER,
+             * which means the MTIMERCMP is overflowed,
+             * so we need to reset the counter to zero */
+            CLINT->MTIME = 0;
+            CLINT->MTIMECMP = ticks;
+        }
+
+        return (0UL);
+    }
+
 #ifdef __cplusplus
 }
 #endif

@@ -14,7 +14,7 @@ void rt_show_stack_frame(void);
  * @param mcause Machine Cause Register
  * @return RT_NULL
  */
-rt_weak rt_isr_handler_t rt_hw_interrupt_handle(rt_uint32_t mcause)
+rt_isr_handler_t rt_hw_interrupt_handle(rt_uint32_t mcause)
 {
     rt_kprintf("UN-handled interrupt %d occurred!!!\n", mcause);
     return RT_NULL;
@@ -23,7 +23,7 @@ rt_weak rt_isr_handler_t rt_hw_interrupt_handle(rt_uint32_t mcause)
 /**
  * Interrupt entry function initialization
  */
-rt_weak void rt_hw_interrupt_init(void)
+void rt_hw_interrupt_init(void)
 {
     int idx = 0;
 
@@ -43,7 +43,7 @@ rt_weak void rt_hw_interrupt_init(void)
  * @param name    NULL
  * @return old handler
  */
-rt_weak rt_isr_handler_t rt_hw_interrupt_install(int vector, rt_isr_handler_t handler,
+rt_isr_handler_t rt_hw_interrupt_install(int vector, rt_isr_handler_t handler,
         void *param, const char *name)
 {
     rt_isr_handler_t old_handler = RT_NULL;
@@ -61,12 +61,24 @@ rt_weak rt_isr_handler_t rt_hw_interrupt_install(int vector, rt_isr_handler_t ha
     return old_handler;
 }
 
+void rt_hw_interrupt_uninstall(int vector, rt_isr_handler_t handler, void *param)
+{
+    if (vector < ISR_NUMBER)
+    {
+        if (rv32irq_table[vector].handler == handler && rv32irq_table[vector].param == param)
+        {
+            rv32irq_table[vector].handler = (rt_isr_handler_t)rt_hw_interrupt_handle;
+            rv32irq_table[vector].param = RT_NULL;
+        }
+    }
+}
+
 /**
  * Query and Distribution Entry for Exception and Interrupt Sources
  *
  * @param mcause Machine Cause Register
  */
-rt_weak void rt_rv32_system_irq_handler(rt_uint32_t mcause)
+void rt_rv32_system_irq_handler(rt_uint32_t mcause)
 {
     rt_uint32_t mscratch = read_csr(0x340);
     rt_uint32_t irq_id = (mcause & 0x1F);
@@ -82,10 +94,28 @@ rt_weak void rt_rv32_system_irq_handler(rt_uint32_t mcause)
     }
 }
 
+__attribute__((weak)) uintptr_t handle_nmi()
+{
+  //_exit(1);
+  return 0;
+}
+
+__attribute__((weak)) uintptr_t handle_trap(uintptr_t mcause, uintptr_t sp)
+{
+  if((mcause & 0xFFF) == 0xFFF) {
+      handle_nmi();
+  }
+  //printf("In trap handler, the mcause is %d\n", mcause);
+  //printf("In trap handler, the mepc is 0x%x\n", read_csr(mepc));
+  //printf("In trap handler, the mtval is 0x%x\n", read_csr(mbadaddr));
+  //_exit(mcause);
+  return 0;
+}
+
 /**
  * Register Print on Exception
  */
-rt_weak void rt_show_stack_frame(void)
+void rt_show_stack_frame(void)
 {
     rt_kprintf("Stack frame:\r\n----------------------------------------\r\n");
     rt_kprintf("ra      : 0x%08x\r\n", s_stack_frame->ra);

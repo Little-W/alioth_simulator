@@ -14,6 +14,7 @@
 #include <rtthread.h>
 
 #include "cpuport.h"
+#include "platform.h"
 #include "rt_hw_stack_frame.h"
 
 #ifndef RT_USING_SMP
@@ -68,7 +69,8 @@ rt_uint8_t *rt_hw_stack_init(void       *tentry,
 
 rt_weak void rt_trigger_software_interrupt(void)
 {
-    while (0);
+    /* 触发软件中断，适用于RISC-V CLINT模块 */
+    CLINT_SetSWIRQ();
 }
 
 rt_weak void rt_hw_do_after_save_above(void)
@@ -96,4 +98,5 @@ rt_weak void rt_hw_context_switch_interrupt(rt_ubase_t from, rt_ubase_t to, rt_t
 
     return ;
 }
+
 #endif /* end of RT_USING_SMP */

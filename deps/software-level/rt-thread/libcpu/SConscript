@@ -13,3 +13,5 @@ if rtconfig.ARCH in list:
     group = group + SConscript(os.path.join(rtconfig.ARCH, 'SConscript'))
 
 Return('group')
+
+# 已迁移到 Makefile，无需保留内容
