@@ -32,8 +32,7 @@ module dispatch_pipe (
 
     // 新增：指令有效信号输入
     input wire                        inst_valid_i,
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,               // 指令内容
-    input wire                        long_inst_accepted_i, // 新长指令被接受信号
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
 
     // 指令信息输入端口
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -221,7 +220,7 @@ module dispatch_pipe (
 );
 
     wire                        flush_en = |stall_flag_i;
-    wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH] & ~long_inst_accepted_i;
+    wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器

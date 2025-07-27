@@ -101,7 +101,6 @@ module cpu_top (
     wire [`COMMIT_ID_WIDTH-1:0] exu_alu_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_muldiv_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_lsu_commit_id_o;
-    wire exu_mul_div_accepted_o;
 
     // EXU到WBU的数据通路信号
     wire [`REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
@@ -523,8 +522,6 @@ module cpu_top (
         .csr_waddr_i(idu_csr_waddr_o),
         .csr_raddr_i(idu_csr_raddr_o),
 
-        .long_inst_accepted_i(exu_mul_div_accepted_o), // 新增：长指令接受信号
-
         // 长指令有效信号 - 用于HDU
         .new_long_inst_valid_i(rd_access_inst_valid),
 
@@ -723,7 +720,6 @@ module cpu_top (
         .muldiv_reg_we_o   (exu_muldiv_reg_we_o),
         .muldiv_reg_waddr_o(exu_muldiv_reg_waddr_o),
         .muldiv_commit_id_o(exu_muldiv_commit_id_o),
-        .mul_div_accepted_o(exu_mul_div_accepted_o),
 
         .lsu_reg_wdata_o(exu_lsu_reg_wdata_o),
         .lsu_reg_we_o   (exu_lsu_reg_we_o),
