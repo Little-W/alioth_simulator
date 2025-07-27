@@ -1,4 +1,4 @@
-menuconfig RT_USING_SPI
+config RT_USING_SPI
     bool "Using SPI Bus/Device device drivers"
     default n
 
@@ -235,7 +235,3 @@ menuconfig RT_USING_SPI
             select RT_USING_LWIP
             default n
     endif
-
-if RT_USING_DM && RT_USING_SPI
-    osource "$(SOC_DM_SPI_DIR)/Kconfig"
-endif

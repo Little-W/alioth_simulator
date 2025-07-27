@@ -22,7 +22,7 @@
 #endif
 
 /**
- * @addtogroup group_fs_posix_api
+ * @addtogroup group_FsPosixApi
  * @{
  */
 

@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 /**
- * @addtogroup group_kernel_service
+ * @addtogroup group_KernelService
  */
 
 /**@{*/
@@ -234,7 +234,6 @@ rt_inline rt_slist_t *rt_slist_pop(rt_slist_t *l)
     if (node != (rt_slist_t *)0)
     {
         ((struct rt_slist_node *)l)->next = node->next;
-        node->next = RT_NULL;
     }
 
     return node;
@@ -247,11 +246,7 @@ rt_inline rt_slist_t *rt_slist_remove(rt_slist_t *l, rt_slist_t *n)
     while (node->next && node->next != n) node = node->next;
 
     /* remove node */
-    if (node->next != (rt_slist_t *)0)
-    {
-        node->next = node->next->next;
-        n->next = RT_NULL;
-    }
+    if (node->next != (rt_slist_t *)0) node->next = node->next->next;
 
     return l;
 }

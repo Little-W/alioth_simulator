@@ -50,7 +50,7 @@ int entry(void);
 #endif
 
 /**
- * @addtogroup group_object_management
+ * @addtogroup group_KernelObject
  * @{
  */
 
@@ -90,7 +90,7 @@ void rt_object_put_sethook(void (*hook)(struct rt_object *object));
 /**@}*/
 
 /**
- * @addtogroup group_clock_management
+ * @addtogroup group_Clock
  * @{
  */
 
@@ -139,7 +139,7 @@ void rt_timer_exit_sethook(void (*hook)(struct rt_timer *timer));
 /**@}*/
 
 /**
- * @addtogroup group_thread_management
+ * @addtogroup group_Thread
  * @{
  */
 
@@ -248,7 +248,7 @@ void rt_scheduler_ipi_handler(int vector, void *param);
 /**@}*/
 
 /**
- * @addtogroup group_signal
+ * @addtogroup group_Signal
  * @{
  */
 #ifdef RT_USING_SIGNALS
@@ -262,7 +262,7 @@ int rt_system_signal_init(void);
 /**@}*/
 
 /**
- * @addtogroup group_memory_management
+ * @addtogroup group_MM
  * @{
  */
 
@@ -318,7 +318,7 @@ void rt_page_free(void *addr, rt_size_t npages);
 #endif /* defined(RT_USING_SLAB) && defined(RT_USING_SLAB_AS_HEAP) */
 
 /**
- * @ingroup group_hook
+ * @ingroup group_Hook
  * @{
  */
 
@@ -388,7 +388,7 @@ void rt_slab_free(rt_slab_t m, void *ptr);
 /**@}*/
 
 /**
- * @addtogroup group_thread_comm
+ * @addtogroup group_IPC
  * @{
  */
 
@@ -762,7 +762,7 @@ void rt_components_board_init(void);
 #endif /* RT_USING_COMPONENTS_INIT */
 
 /**
- * @addtogroup group_kernel_service
+ * @addtogroup group_KernelService
  * @{
  */
 

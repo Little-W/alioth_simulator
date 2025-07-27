@@ -19,7 +19,7 @@
 #include <drivers/core/driver.h>
 
 /**
- * @defgroup    group_drivers_spi SPI
+ * @defgroup    group_SPI SPI
  * @brief       SPI driver api
  * @ingroup     group_device_driver
  *
@@ -86,7 +86,7 @@
  */
 
 /*!
- * @addtogroup group_drivers_spi
+ * @addtogroup group_SPI
  * @{
  */
 #ifdef __cplusplus
@@ -313,11 +313,6 @@ rt_err_t rt_spi_driver_register(struct rt_spi_driver *driver);
 rt_err_t rt_spi_device_register(struct rt_spi_device *device);
 
 #define RT_SPI_DRIVER_EXPORT(driver)  RT_DRIVER_EXPORT(driver, spi, BUILIN)
-
-rt_inline const void *rt_spi_device_id_data(struct rt_spi_device *device)
-{
-    return device->id ? device->id->data : (device->ofw_id ? device->ofw_id->data : RT_NULL);
-}
 #endif /* RT_USING_DM */
 
 /**
@@ -603,7 +598,7 @@ rt_err_t rt_qspi_bus_register(struct rt_spi_bus *bus, const char *name, const st
  *
  * @return the actual length of transmitted.
  */
-rt_ssize_t rt_qspi_transfer_message(struct rt_qspi_device  *device, struct rt_qspi_message *message);
+rt_size_t rt_qspi_transfer_message(struct rt_qspi_device  *device, struct rt_qspi_message *message);
 
 /**
  * @brief This function can send data then receive data from QSPI device
@@ -616,7 +611,7 @@ rt_ssize_t rt_qspi_transfer_message(struct rt_qspi_device  *device, struct rt_qs
  *
  * @return the status of transmit.
  */
-rt_ssize_t rt_qspi_send_then_recv(struct rt_qspi_device *device, const void *send_buf, rt_size_t send_length,void *recv_buf, rt_size_t recv_length);
+rt_err_t rt_qspi_send_then_recv(struct rt_qspi_device *device, const void *send_buf, rt_size_t send_length,void *recv_buf, rt_size_t recv_length);
 
 /**
  * @brief This function can send data to QSPI device
@@ -627,7 +622,7 @@ rt_ssize_t rt_qspi_send_then_recv(struct rt_qspi_device *device, const void *sen
  *
  * @return the status of transmit.
  */
-rt_ssize_t rt_qspi_send(struct rt_qspi_device *device, const void *send_buf, rt_size_t length);
+rt_err_t rt_qspi_send(struct rt_qspi_device *device, const void *send_buf, rt_size_t length);
 
 #ifdef __cplusplus
 }

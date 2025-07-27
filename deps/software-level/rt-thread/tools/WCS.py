@@ -426,6 +426,9 @@ def main():
     # Print A Nice Message With Each Function and the WCS
     print_all_fxns(call_graph)
 
+
+
+
 def ThreadStackStaticAnalysis(env):
     print('Start thread stack static analysis...')
 

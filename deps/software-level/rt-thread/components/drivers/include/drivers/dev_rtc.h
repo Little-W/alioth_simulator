@@ -17,7 +17,7 @@
 #include <rtdef.h>
 #include <sys/time.h>
 /**
- * @defgroup    group_drivers_rtc RTC
+ * @defgroup    group_RTC RTC
  * @brief       RTC driver api
  * @ingroup     group_device_driver
  *
@@ -74,7 +74,7 @@
  */
 
 /*!
- * @addtogroup group_drivers_rtc
+ * @addtogroup group_RTC
  * @{
  */
 #ifdef __cplusplus

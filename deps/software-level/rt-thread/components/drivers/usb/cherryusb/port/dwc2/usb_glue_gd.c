@@ -7,10 +7,6 @@
 #include "stdint.h"
 #include "usb_dwc2_reg.h"
 
-#if 1
-#error you need to modify some usb register values then use this chip
-#endif
-
 #if CONFIG_USBDEV_EP_NUM != 4 && CONFIG_USBDEV_EP_NUM != 6
 #error "gd32 only has 4 endpoints for pa11/pa12 and 6 endpoints for pb14/pb15"
 #endif
@@ -39,12 +35,7 @@ uint32_t usbh_get_dwc2_gccfg_conf(uint32_t reg_base)
 #endif
 }
 
-extern uint32_t SystemCoreClock;
-
 void usbd_dwc2_delay_ms(uint8_t ms)
 {
-    uint32_t count = SystemCoreClock / 1000 * ms;
-    while (count--) {
-        __asm volatile("nop");
-    }
+    /* implement later */
 }

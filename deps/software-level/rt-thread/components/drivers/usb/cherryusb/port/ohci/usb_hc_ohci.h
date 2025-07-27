@@ -22,23 +22,13 @@
 #ifndef CONFIG_USB_OHCI_TD_NUM
 #define CONFIG_USB_OHCI_TD_NUM 3
 #endif
-
-#if CONFIG_USB_ALIGN_SIZE <= 32
-#define CONFIG_USB_OHCI_ALIGN_SIZE  32
-#elif CONFIG_USB_ALIGN_SIZE <= 64
+#ifndef CONFIG_USB_OHCI_ALIGN_SIZE
 #define CONFIG_USB_OHCI_ALIGN_SIZE  64
-#else
-#error "CONFIG_USB_ALIGN_SIZE must be 32 or 64"
 #endif
 
 struct ohci_ed_hw;
 struct ohci_td_hw {
     struct ohci_gtd hw;
-#if defined(CONFIG_USB_OHCI_DESC_DCACHE_ENABLE) && (CONFIG_USB_ALIGN_SIZE == 32)
-    uint8_t pad[16];
-#elif defined(CONFIG_USB_OHCI_DESC_DCACHE_ENABLE) && (CONFIG_USB_ALIGN_SIZE == 64)
-    uint8_t pad[48];
-#endif
     struct usbh_urb *urb;
     bool dir_in;
     uint32_t buf_start;
@@ -47,11 +37,6 @@ struct ohci_td_hw {
 
 struct ohci_ed_hw {
     struct ohci_ed hw;
-#if defined(CONFIG_USB_OHCI_DESC_DCACHE_ENABLE) && (CONFIG_USB_ALIGN_SIZE == 32)
-    uint8_t pad[16];
-#elif defined(CONFIG_USB_OHCI_DESC_DCACHE_ENABLE) && (CONFIG_USB_ALIGN_SIZE == 64)
-    uint8_t pad[48];
-#endif
     struct ohci_td_hw td_pool[CONFIG_USB_OHCI_TD_NUM];
     uint32_t td_count;
     uint8_t ed_type;

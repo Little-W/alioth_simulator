@@ -10,36 +10,33 @@
 #include "usbh_video.h"
 #include "usbh_audio.h"
 
-#ifndef CONFIG_TEST_USBH_CDC_ACM
-#define CONFIG_TEST_USBH_CDC_ACM 1
+#ifndef TEST_USBH_CDC_ACM
+#define TEST_USBH_CDC_ACM 1
 #endif
 #ifndef TEST_USBH_CDC_SPEED
 #define TEST_USBH_CDC_SPEED 0
 #endif
-#ifndef CONFIG_TEST_USBH_HID
-#define CONFIG_TEST_USBH_HID 1
+#ifndef TEST_USBH_HID
+#define TEST_USBH_HID 1
 #endif
-#ifndef CONFIG_TEST_USBH_MSC
-#define CONFIG_TEST_USBH_MSC 1
+#ifndef TEST_USBH_MSC
+#define TEST_USBH_MSC 1
 #endif
 #ifndef TEST_USBH_MSC_FATFS
 #define TEST_USBH_MSC_FATFS 0
 #endif
-#ifndef TEST_USBH_MSC_FATFS_SPEED
-#define TEST_USBH_MSC_FATFS_SPEED 0
+#ifndef TEST_USBH_AUDIO
+#define TEST_USBH_AUDIO 0
 #endif
-#ifndef CONFIG_TEST_USBH_AUDIO
-#define CONFIG_TEST_USBH_AUDIO 0
-#endif
-#ifndef CONFIG_TEST_USBH_VIDEO
-#define CONFIG_TEST_USBH_VIDEO 0
+#ifndef TEST_USBH_VIDEO
+#define TEST_USBH_VIDEO 0
 #endif
 
 #if defined(TEST_USBH_CDC_ECM) || defined(TEST_USBH_CDC_RNDIS) || defined(TEST_USBH_ASIX) || defined(TEST_USBH_RTL8152)
 #error we have move those class implements into platform/none/usbh_lwip.c, and you should call tcpip_init(NULL, NULL) in your app
 #endif
 
-#if CONFIG_TEST_USBH_CDC_ACM
+#if TEST_USBH_CDC_ACM
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t cdc_buffer[4096];
 
 #if TEST_USBH_CDC_SPEED
@@ -57,7 +54,7 @@ void usbh_cdc_acm_callback(void *arg, int nbytes)
         for (size_t i = 0; i < nbytes; i++) {
             USB_LOG_RAW("0x%02x ", cdc_buffer[i]);
         }
-        USB_LOG_RAW("nbytes:%d\r\n", (unsigned int)nbytes);
+        USB_LOG_RAW("nbytes:%d\r\n", nbytes);
     }
 }
 
@@ -85,7 +82,7 @@ static void usbh_cdc_acm_thread(CONFIG_USB_OSAL_THREAD_SET_ARGV)
             }
         }
         uint32_t time_ms = xTaskGetTickCount() - start_time;
-        USB_LOG_RAW("per packet len:%d, out speed:%f MB/S\r\n", (unsigned int)test_len[j], (test_len[j] * TEST_COUNT / 1024 / 1024) * 1000 / ((float)time_ms));
+        USB_LOG_RAW("per packet len:%d, out speed:%f MB/S\r\n", test_len[j], (test_len[j] * TEST_COUNT / 1024 / 1024) * 1000 / ((float)time_ms));
     }
 #endif
     memset(cdc_buffer, 0x55, 4096);
@@ -97,7 +94,7 @@ static void usbh_cdc_acm_thread(CONFIG_USB_OSAL_THREAD_SET_ARGV)
         USB_LOG_RAW("bulk out error,ret:%d\r\n", ret);
         goto delete;
     } else {
-        USB_LOG_RAW("send over:%d\r\n", (unsigned int)cdc_acm_class->bulkout_urb.actual_length);
+        USB_LOG_RAW("send over:%d\r\n", cdc_acm_class->bulkout_urb.actual_length);
     }
 
     /* we can change cdc_acm_class->bulkin->wMaxPacketSize with 4096 for testing zlp, default is ep mps  */
@@ -115,7 +112,7 @@ delete:
 }
 #endif
 
-#if CONFIG_TEST_USBH_HID
+#if TEST_USBH_HID
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t hid_buffer[128];
 
 void usbh_hid_callback(void *arg, int nbytes)
@@ -126,7 +123,7 @@ void usbh_hid_callback(void *arg, int nbytes)
         for (int i = 0; i < nbytes; i++) {
             USB_LOG_RAW("0x%02x ", hid_buffer[i]);
         }
-        USB_LOG_RAW("nbytes:%d\r\n", (unsigned int)nbytes);
+        USB_LOG_RAW("nbytes:%d\r\n", nbytes);
         usbh_int_urb_fill(&hid_class->intin_urb, hid_class->hport, hid_class->intin, hid_buffer, hid_class->intin->wMaxPacketSize, 0, usbh_hid_callback, hid_class);
         usbh_submit_urb(&hid_class->intin_urb);
     } else if (nbytes == -USB_ERR_NAK) { /* only dwc2 should do this */
@@ -157,19 +154,12 @@ delete:
 }
 #endif
 
-#if CONFIG_TEST_USBH_MSC
+#if TEST_USBH_MSC
 
 #if TEST_USBH_MSC_FATFS
 #include "ff.h"
 
-#if TEST_USBH_MSC_FATFS_SPEED
-#define WRITE_SIZE_MB (128UL)
-#define WRITE_SIZE (1024UL * 1024UL * WRITE_SIZE_MB)
-#define BUF_SIZE (1024UL * 128UL)
-USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_write_buffer[BUF_SIZE];
-#else
 USB_NOCACHE_RAM_SECTION USB_MEM_ALIGNX uint8_t read_write_buffer[25 * 100];
-#endif
 
 USB_NOCACHE_RAM_SECTION FATFS fs;
 USB_NOCACHE_RAM_SECTION FIL fnew;
@@ -180,14 +170,14 @@ int usb_msc_fatfs_test()
 {
     const char *tmp_data = "cherryusb fatfs demo...\r\n";
 
-    USB_LOG_RAW("data len:%d\r\n", (unsigned int)strlen(tmp_data));
+    USB_LOG_RAW("data len:%d\r\n", strlen(tmp_data));
     for (uint32_t i = 0; i < 100; i++) {
         memcpy(&read_write_buffer[i * 25], tmp_data, strlen(tmp_data));
     }
 
     res_sd = f_mount(&fs, "2:", 1);
     if (res_sd != FR_OK) {
-        USB_LOG_RAW("mount fail,res:%d\r\n", (unsigned int)res_sd);
+        USB_LOG_RAW("mount fail,res:%d\r\n", res_sd);
         return -1;
     }
 
@@ -222,64 +212,6 @@ int usb_msc_fatfs_test()
         USB_LOG_RAW("open fail\r\n");
         goto unmount;
     }
-
-#if TEST_USBH_MSC_FATFS_SPEED
-    for (uint32_t i = 0; i < BUF_SIZE; i++) {
-        read_write_buffer[i] = i % 256;
-    }
-
-    USB_LOG_RAW("test fatfs write speed\r\n");
-    res_sd = f_open(&fnew, "2:cherryusb_msc_test.bin", FA_OPEN_ALWAYS | FA_WRITE);
-    if (res_sd == FR_OK) {
-        uint32_t write_size = WRITE_SIZE;
-        uint32_t start_time = (uint32_t)xTaskGetTickCount();
-        while (write_size > 0) {
-            res_sd = f_write(&fnew, read_write_buffer, BUF_SIZE, (UINT*)&fnum);
-            if (res_sd != FR_OK) {
-                printf("Write file failed, cause: %s\n", res_sd);
-                goto unmount;
-            }
-            write_size -= BUF_SIZE;
-        }
-        if (res_sd == FR_OK) {
-            uint32_t time_ms = xTaskGetTickCount() - start_time;
-            USB_LOG_RAW("Fatfs write speed:%f MB/S\r\n", (WRITE_SIZE_MB * 1000 / (float)time_ms));
-        } else {
-            USB_LOG_RAW("write fail\r\n");
-            goto unmount;
-        }
-        f_close(&fnew);
-    } else {
-        USB_LOG_RAW("open fail\r\n");
-        goto unmount;
-    }
-    USB_LOG_RAW("test fatfs read speed\r\n");
-
-    res_sd = f_open(&fnew, "2:cherryusb_msc_test.bin", FA_OPEN_EXISTING | FA_READ);
-    if (res_sd == FR_OK) {
-        uint32_t write_size = WRITE_SIZE;
-        uint32_t start_time = (uint32_t)xTaskGetTickCount();
-        while (write_size > 0) {
-            res_sd = f_read(&fnew, read_write_buffer, BUF_SIZE, (UINT*)&fnum);
-            if (res_sd != FR_OK) {
-                printf("Read file failed, cause: %s\n", res_sd);
-                goto unmount;
-            }
-            write_size -= BUF_SIZE;
-        }
-        if (res_sd == FR_OK) {
-            uint32_t time_ms = xTaskGetTickCount() - start_time;
-            USB_LOG_RAW("Fatfs read speed:%f MB/S\r\n", (WRITE_SIZE_MB * 1000 / (float)time_ms));
-        } else {
-            USB_LOG_RAW("read fail\r\n");
-            goto unmount;
-        }
-        f_close(&fnew);
-    } else {
-        USB_LOG_RAW("open fail\r\n");
-        goto unmount;
-    }
-#endif
     f_mount(NULL, "2:", 1);
     return 0;
 unmount:
@@ -326,7 +258,7 @@ delete:
 }
 #endif
 
-#if CONFIG_TEST_USBH_CDC_ACM
+#if TEST_USBH_CDC_ACM
 void usbh_cdc_acm_run(struct usbh_cdc_acm *cdc_acm_class)
 {
     usb_osal_thread_create("usbh_cdc", 2048, CONFIG_USBHOST_PSC_PRIO + 1, usbh_cdc_acm_thread, cdc_acm_class);
@@ -337,7 +269,7 @@ void usbh_cdc_acm_stop(struct usbh_cdc_acm *cdc_acm_class)
 }
 #endif
 
-#if CONFIG_TEST_USBH_HID
+#if TEST_USBH_HID
 void usbh_hid_run(struct usbh_hid *hid_class)
 {
     usb_osal_thread_create("usbh_hid", 2048, CONFIG_USBHOST_PSC_PRIO + 1, usbh_hid_thread, hid_class);
@@ -348,7 +280,7 @@ void usbh_hid_stop(struct usbh_hid *hid_class)
 }
 #endif
 
-#if CONFIG_TEST_USBH_MSC
+#if TEST_USBH_MSC
 void usbh_msc_run(struct usbh_msc *msc_class)
 {
     usb_osal_thread_create("usbh_msc", 2048, CONFIG_USBHOST_PSC_PRIO + 1, usbh_msc_thread, msc_class);
@@ -359,11 +291,11 @@ void usbh_msc_stop(struct usbh_msc *msc_class)
 }
 #endif
 
-#if CONFIG_TEST_USBH_AUDIO
+#if TEST_USBH_AUDIO
 #error "commercial charge"
 #endif
 
-#if CONFIG_TEST_USBH_VIDEO
+#if TEST_USBH_VIDEO
 #error "commercial charge"
 #endif
 

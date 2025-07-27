@@ -181,9 +181,7 @@ int netdev_dhcp_enabled(struct netdev *netdev, rt_bool_t is_enabled);
 int netdev_set_ipaddr(struct netdev *netdev, const ip_addr_t *ipaddr);
 int netdev_set_netmask(struct netdev *netdev, const ip_addr_t *netmask);
 int netdev_set_gw(struct netdev *netdev, const ip_addr_t *gw);
-void netdev_set_dns(char *netdev_name, uint8_t dns_num, char *dns_server);
-int  netdev_set_dns_server(struct netdev *netdev, uint8_t dns_num, const ip_addr_t *dns_server);
-void netdev_set_if(char *netdev_name, char *ip_addr, char *gw_addr, char *nm_addr);
+int netdev_set_dns_server(struct netdev *netdev, uint8_t dns_num, const ip_addr_t *dns_server);
 
 /* Set network interface device callback, it can be called when the status or address changed */
 void netdev_set_register_callback(netdev_callback_fn status_callback);

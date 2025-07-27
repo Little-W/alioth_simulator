@@ -16,7 +16,7 @@
 #include "dev_audio_pipe.h"
 
 /**
- * @defgroup    group_drivers_audio Audio
+ * @defgroup    group_Audio Audio
  * @brief       Audio driver API.
  * @ingroup     group_device_driver
  *
@@ -286,6 +286,6 @@ void        rt_audio_rx_done(struct rt_audio_device *audio, rt_uint8_t *pbuf, rt
 #define CODEC_VOLUME_MAX            (63)
 /** @} */ /* End of group_audio_codec_cmd */
 
-/** @} group_drivers_audio */
+/** @} group_Audio */
 
 #endif /* __DEV_AUDIO_H__ */

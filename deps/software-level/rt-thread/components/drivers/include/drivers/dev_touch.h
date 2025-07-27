@@ -14,7 +14,7 @@
 #include <rtthread.h>
 #include "dev_pin.h"
 /**
- * @defgroup    group_drivers_touch Touch
+ * @defgroup    group_Touch Touch
  * @brief       Touch driver api
  * @ingroup     group_device_driver
  *
@@ -113,7 +113,7 @@
  */
 
 /*!
- * @addtogroup group_drivers_touch
+ * @addtogroup group_Touch
  * @{
  */
 #ifdef __cplusplus

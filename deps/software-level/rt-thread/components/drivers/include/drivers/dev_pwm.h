@@ -14,7 +14,7 @@
 
 #include <rtthread.h>
 /**
- * @defgroup    group_drivers_pwm PWM
+ * @defgroup    group_PWM PWM
  * @brief       PWM driver api
  * @ingroup     group_device_driver
  *
@@ -79,7 +79,7 @@
  */
 
 /*!
- * @addtogroup group_drivers_pwm
+ * @addtogroup group_PWM
  * @{
  */
 #define PWM_CMD_ENABLE      (RT_DEVICE_CTRL_BASE(PWM) + 0)

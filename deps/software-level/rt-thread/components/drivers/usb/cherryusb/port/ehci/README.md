@@ -4,11 +4,11 @@
 
 ### BouffaloLab
 
-- BouffaloLab BL616/BL808 (bouffalolab + EHCI)
+- BouffaloLab BL616/BL808
 
 ### HPMicro
 
-- HPM all series (hpmicro + EHCI)
+- HPM all series
 
 ### AllwinnerTech
 
@@ -30,8 +30,8 @@ Modify USB_NOCACHE_RAM_SECTION
 #define USB_NOCACHE_RAM_SECTION __attribute__((section(".NonCacheable")))
 ```
 
-- IMRT10XX/IMRT11XX (chipidea + EHCI)
-- MCXN9XX/MCXN236 (chipidea + EHCI)
+- IMRT10XX/IMRT11XX
+- MCXN9XX/MCXN236
 
 ### Intel
 

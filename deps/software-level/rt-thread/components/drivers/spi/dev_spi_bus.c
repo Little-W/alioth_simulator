@@ -34,19 +34,7 @@ void spi_bus_scan_devices(struct rt_spi_bus *bus)
                 continue;
             }
 
-            if ((bus->mode & RT_SPI_BUS_MODE_SPI) == RT_SPI_BUS_MODE_SPI)
-            {
-                spi_dev = rt_calloc(1, sizeof(struct rt_spi_device));
-            }
-            else if ((bus->mode & RT_SPI_BUS_MODE_QSPI) == RT_SPI_BUS_MODE_QSPI)
-            {
-                spi_dev = rt_calloc(1, sizeof(struct rt_qspi_device));
-            }
-            else
-            {
-                LOG_E("Unknown bus mode = %x", bus->mode);
-                RT_ASSERT(0);
-            }
+            spi_dev = rt_calloc(1, sizeof(*spi_dev));
 
             if (!spi_dev)
             {

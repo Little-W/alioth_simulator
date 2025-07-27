@@ -24,8 +24,6 @@
 
 # this script is used to build group with package.json instead of SConscript
 import os
-import json
-
 from building import *
 
 def ExtendPackageVar(package, var):
@@ -38,14 +36,8 @@ def ExtendPackageVar(package, var):
 
     return v
 
-def BuildPackage(package = None):
-    if package is None:
-        package = os.path.join(GetCurrentDir(), 'package.json')
-
-    if not os.path.isfile(package):
-        print("%s/package.json not found" % GetCurrentDir())
-        return []
-
+def BuildPackage(package):
+    import json
     f = open(package)
     package_json = f.read()
 
@@ -55,7 +47,7 @@ def BuildPackage(package = None):
     package = json.loads(package_json)
 
     # check package name
-    if 'name' not in package or 'type' not in package or package['type'] != 'rt-package':
+    if 'name' not in package:
         return []
 
     # get depends

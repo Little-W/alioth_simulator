@@ -15,7 +15,7 @@
 #include <rtthread.h>
 
 /**
- * @defgroup    group_drivers_pin Pin
+ * @defgroup    group_Pin Pin
  * @brief       Pin driver api
  * @ingroup     group_device_driver
  *
@@ -69,7 +69,7 @@
  */
 
 /*!
- * @addtogroup group_drivers_pin
+ * @addtogroup group_Pin
  * @{
  */
 #ifdef __cplusplus
