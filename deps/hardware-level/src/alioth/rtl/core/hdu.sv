@@ -29,6 +29,7 @@ module hdu (
     input wire clk,   // 时钟
     input wire rst_n, // 复位信号，低电平有效
 
+    input wire                       stall_flag_i,  // 流水线暂停标志
     // 新指令信息
     input wire                       new_long_inst_valid,  // 新长指令有效
     input wire [`REG_ADDR_WIDTH-1:0] new_inst_rd_addr,     // 新指令写寄存器地址
@@ -88,7 +89,7 @@ module hdu (
 
     // 只有在有新指令且存在冒险时才暂停流水线
     assign hazard = (raw_hazard || waw_hazard);
-    assign hazard_stall_o = hazard;
+    assign hazard_stall_o = hazard || (fifo_valid == 4'b1111); // 如果FIFO已满也暂停流水线
 
     // 为新的长指令分配ID - 使用assign语句
     assign commit_id_o = (new_long_inst_valid && ~hazard) ? 
@@ -112,7 +113,7 @@ module hdu (
             end
 
             // 添加新的长指令到FIFO
-            if (new_long_inst_valid && ~hazard) begin
+            if (new_long_inst_valid && ~stall_flag_i) begin
                 // 使用组合逻辑分配的ID更新FIFO
                 fifo_valid[commit_id_o]   <= 1'b1;
                 fifo_rd_addr[commit_id_o] <= new_inst_rd_addr;
