@@ -88,7 +88,7 @@ module hdu (
 
     // 只有在有新指令且存在冒险时才暂停流水线
     assign hazard = (raw_hazard || waw_hazard);
-    assign hazard_stall_o = hazard;
+    assign hazard_stall_o = hazard || (fifo_valid == 4'b1111); // 如果FIFO已满也暂停流水线
 
     // 为新的长指令分配ID - 使用assign语句
     assign commit_id_o = (inst_valid && ~hazard) ? 
