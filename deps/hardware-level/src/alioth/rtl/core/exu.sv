@@ -138,6 +138,7 @@ module exu (
     output wire                        muldiv_reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id_o,
+    output wire                        mul_div_accepted_o,
 
     output wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_o,
     output wire                        lsu_reg_we_o,
@@ -510,7 +511,9 @@ module exu (
         .reg_wdata_o        (muldiv_reg_wdata_o),
         .reg_we_o           (muldiv_reg_we_o),
         .reg_waddr_o        (muldiv_reg_waddr_o),
-        .commit_id_o        (muldiv_commit_id_o)   // 3位commit_id输出
+        .commit_id_o        (muldiv_commit_id_o),  // 3位commit_id输出
+        // 新增：连接乘除法指令被接受信号到顶层
+        .mul_div_accepted_o (mul_div_accepted_o)
     );
 
     // 输出选择逻辑

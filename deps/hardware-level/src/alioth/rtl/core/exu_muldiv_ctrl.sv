@@ -82,7 +82,8 @@ module exu_muldiv_ctrl (
     output reg [ `REG_DATA_WIDTH-1:0] reg_wdata_o,
     output reg                        reg_we_o,
     output reg [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,
-    output reg [`COMMIT_ID_WIDTH-1:0] commit_id_o
+    output reg [`COMMIT_ID_WIDTH-1:0] commit_id_o,
+    output wire                       mul_div_accepted_o
 );
 
     // 添加寄存器保存乘除法指令的写回信息
@@ -227,10 +228,10 @@ module exu_muldiv_ctrl (
     );
 
     // 第二级 commit_id 更新条件
-    wire                        saved_div_commit_id_stage2_en = div_result_we_en;
+    wire                        saved_div_commit_id_stage2_en = div_valid_i;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id_stage2_nxt = saved_div_commit_id;
 
-    wire                        saved_mul_commit_id_stage2_en = mul_result_we_en;
+    wire                        saved_mul_commit_id_stage2_en = mul_valid_i;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_stage2_nxt = saved_mul_commit_id;
 
     gnrl_dfflr #(
@@ -312,6 +313,9 @@ module exu_muldiv_ctrl (
 
     // 乘法启动控制逻辑 - 只在需要启动新的乘法操作时为高，并在中断时禁止启动
     assign mul_start_o = (int_assert_i == `INT_ASSERT) ? 1'b0 : mul_op_start_cond;
+
+    // 新增：乘除法指令被接受信号
+    assign mul_div_accepted_o = div_start_o | mul_start_o;
 
     // 条件信号定义 - 用于流水线保持逻辑
     wire stall_mul_cond = is_mul_op && (mul_busy_i || mul_result_we);
