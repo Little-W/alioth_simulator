@@ -111,13 +111,14 @@ module clint (
     } int_state_e;
 
     // CSR写状态机类型定义
-    typedef enum logic [5:0] {
-        S_CSR_IDLE         = 6'b000001,
-        S_CSR_MSTATUS      = 6'b000010,
-        S_CSR_MEPC         = 6'b000100,
-        S_CSR_MSTATUS_MRET = 6'b001000,
-        S_CSR_MCAUSE       = 6'b010000,
-        S_CSR_MTVAL        = 6'b100000
+    typedef enum logic [6:0] {
+        S_CSR_IDLE         = 7'b0000001,
+        S_CSR_MSTATUS      = 7'b0000010,
+        S_CSR_MEPC         = 7'b0000100,
+        S_CSR_MSTATUS_MRET = 7'b0001000,
+        S_CSR_MCAUSE       = 7'b0010000,
+        S_CSR_MTVAL        = 7'b0100000,
+        S_CSR_MRET_WAIT    = 7'b1000000
     } csr_state_e;
 
     // 状态机和相关信号声明
@@ -149,16 +150,18 @@ module clint (
                             || misaligned_fetch_i);
 
     wire exception_or_int = exception_req | int_req;
+    wire int_env_valid = (atom_opt_busy_i == 1'b0) && (csr_state == S_CSR_IDLE);
 
     // 暂停信号产生逻辑 - 当中断状态机或CSR写状态机不在空闲状态时冲刷水线
-    assign flush_flag_o = ((int_state != S_INT_IDLE) | (csr_state != S_CSR_IDLE));
+    assign flush_flag_o = ((int_state != S_INT_IDLE) |
+                            (csr_state != S_CSR_IDLE) && (csr_state != S_CSR_MRET_WAIT));
     assign stall_flag_o = (exception_or_int && atom_opt_busy_i);
 
     // 中断状态机逻辑
     always @(*) begin
         if (~rst_n) begin
             int_state = S_INT_IDLE;
-        end else if (exception_or_int && atom_opt_busy_i == 1'b0 && inst_valid_i) begin
+        end else if (exception_or_int && int_env_valid && inst_valid_i) begin
             int_state = S_INT_ASSERT;
         end else if (sys_op_mret_i) begin
             int_state = S_INT_MRET;
@@ -184,18 +187,21 @@ module clint (
                     csr_state <= S_CSR_MSTATUS;
                 end
                 S_CSR_MSTATUS: begin
-                    if (illegal_inst_i)
-                        csr_state <= S_CSR_MTVAL; // 新增：非法指令异常时进入mtval写状态
+                    if (illegal_inst_i) csr_state <= S_CSR_MTVAL;
                     else csr_state <= S_CSR_MCAUSE;
                 end
                 S_CSR_MTVAL: begin
-                    csr_state <= S_CSR_MCAUSE;  // 新增：写完mtval后写mcause
+                    csr_state <= S_CSR_MCAUSE;
                 end
                 S_CSR_MCAUSE: begin
                     csr_state <= S_CSR_IDLE;
                 end
                 S_CSR_MSTATUS_MRET: begin
-                    csr_state <= S_CSR_IDLE;
+                    csr_state <= S_CSR_MRET_WAIT;  // 写完mstatus后进入等待状态
+                end
+                S_CSR_MRET_WAIT: begin
+                    if (inst_addr_i == int_addr_o)
+                        csr_state <= S_CSR_IDLE;  // 跳转完成后回到空闲
                 end
             endcase
         end
@@ -224,15 +230,16 @@ module clint (
                 end
             end else if (int_req) begin
                 // === 按优先级选择 cause ===
-                if (soft_irq) begin
-                    // 软件中断 cause = 3 | 0x80000000
-                    cause <= 32'h80000003;
-                end else if (timer_irq) begin
-                    // 定时器中断 cause = 7 | 0x80000000
-                    cause <= 32'h80000007;
-                end else begin
+                // 优先级：外部最高 > 定时器 > 软件
+                if (ext_irq_en) begin
                     // 外部中断 0x80000000 | cause = 16 + irq_id_i[7:0]
                     cause <= 32'h80000010 + {24'b0, irq_id_i};
+                end else if (timer_irq_en) begin
+                    // 定时器中断 cause = 7 | 0x80000000
+                    cause <= 32'h80000007;
+                end else if (soft_irq_en) begin
+                    // 软件中断 cause = 3 | 0x80000000
+                    cause <= 32'h80000003;
                 end
             end
         end
