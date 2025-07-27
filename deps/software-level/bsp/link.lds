@@ -4,14 +4,14 @@ ENTRY(_start)
 
 MEMORY
 {
-  itcm (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 64K
-  dtcm (wxa!ri) : ORIGIN = 0x80100000, LENGTH = 64K
+  itcm (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 256K
+  dtcm (wxa!ri) : ORIGIN = 0x80100000, LENGTH = 256K
 }
 
 
 SECTIONS
 {
-   __stack_size = DEFINED(__stack_size) ? __stack_size : 8K;
+   __stack_size = DEFINED(__stack_size) ? __stack_size : 16K;
 
   .init           :
   {
@@ -24,6 +24,12 @@ SECTIONS
     *(.text.startup .text.startup.*)
     *(.text .text.*)
     *(.gnu.linkonce.t.*)
+
+    /* section information for utest */
+    . = ALIGN(4);
+    PROVIDE(__rt_utest_tc_tab_start = .);
+    KEEP(*(UtestTcTab))
+    PROVIDE(__rt_utest_tc_tab_end = .);
   } >itcm AT>itcm 
 
   . = ALIGN(4);
