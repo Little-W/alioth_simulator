@@ -346,7 +346,7 @@ module gnrl_ram_pseudo_dual_axi #(
 
     // 添加S_AXI_ARREADY的赋值逻辑
     // 当地址FIFO未满且当前没有正在进行的BURST传输时才接受新的读请求
-    assign S_AXI_ARREADY = (!rd_fifo_full) && (axi_arlen_cntr == axi_arlen);
+    assign S_AXI_ARREADY = !(rd_fifo_full || rdata_fifo_full)  && (axi_arlen_cntr == axi_arlen);
 
     // 修改S_AXI_AWREADY的赋值逻辑，支持outstanding写入
     // 当写地址FIFO未满时才接受新的写请求
@@ -449,27 +449,14 @@ module gnrl_ram_pseudo_dual_axi #(
         end
     end
 
-    // AXI写数据通道处理
-    reg [C_S_AXI_ID_WIDTH-1:0] bvalid_id;
-    reg                        bvalid;
-    reg [                 1:0] bvalid_resp;
+    // AXI写数据通道处理 - 改为组合逻辑
+    wire [C_S_AXI_ID_WIDTH-1:0] bvalid_id;
+    wire                        bvalid;
+    wire [                 1:0] bvalid_resp;
 
-    always @(posedge S_AXI_ACLK) begin
-        if (!S_AXI_ARESETN) begin
-            bvalid         <= 1'b0;
-            bvalid_id      <= 'b0;
-            bvalid_resp    <= 2'b00;
-        end else begin
-            // 只要(S_AXI_WLAST && S_AXI_WVALID && S_AXI_WREADY)，下一个周期返回写响应
-            if (S_AXI_WLAST && S_AXI_WVALID && S_AXI_WREADY) begin
-                bvalid         <= 1'b1;
-                bvalid_id      <= axi_awid_r;
-                bvalid_resp    <= 2'b00;
-            end else if (S_AXI_BREADY && bvalid) begin
-                bvalid <= 1'b0;
-            end
-        end
-    end
+    assign bvalid      = (S_AXI_WLAST && S_AXI_WVALID && S_AXI_WREADY);
+    assign bvalid_id   = axi_awid_r;
+    assign bvalid_resp = 2'b00;
 
     // 写响应FIFO推入/弹出逻辑，使用bfifo_op控制
     always @(posedge S_AXI_ACLK) begin
