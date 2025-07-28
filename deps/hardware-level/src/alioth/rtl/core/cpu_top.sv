@@ -184,8 +184,9 @@ module cpu_top (
 
     // 给dispatch和HDU的译码信息
     wire inst_valid = (ctrl_stall_flag_o == 0);
-    wire inst_exu_valid = (ctrl_stall_flag_o == 0) && (dispatch_inst_valid_o);
-    wire inst_clint_valid = (!dispatch_bjp_op_jal) && (dispatch_inst_valid_o);
+    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+                        (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    wire inst_clint_valid = (!dispatch_bjp_op_jal) && !dis_is_pred_branch_o && (dispatch_inst_valid_o);
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;

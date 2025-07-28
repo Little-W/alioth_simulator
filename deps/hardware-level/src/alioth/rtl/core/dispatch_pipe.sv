@@ -221,6 +221,7 @@ module dispatch_pipe (
 
     wire                        flush_en = |stall_flag_i;
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
+    wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器
@@ -229,7 +230,7 @@ module dispatch_pipe (
     gnrl_dfflr #(32) inst_addr_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         inst_addr_dnxt,
         inst_addr
     );
@@ -437,7 +438,7 @@ module dispatch_pipe (
     gnrl_dfflr #(1) bjp_op_jal_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         bjp_op_jal_dnxt,
         bjp_op_jal
     );
@@ -917,7 +918,7 @@ module dispatch_pipe (
     gnrl_dfflr #(1) is_pred_branch_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         is_pred_branch_dnxt,
         is_pred_branch
     );
@@ -965,7 +966,7 @@ module dispatch_pipe (
     gnrl_dfflr #(1) inst_valid_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         inst_valid_dnxt,
         inst_valid
     );
@@ -977,7 +978,7 @@ module dispatch_pipe (
     gnrl_dfflr #(1) misaligned_load_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         misaligned_load_dnxt,
         misaligned_load
     );
@@ -988,7 +989,7 @@ module dispatch_pipe (
     gnrl_dfflr #(1) misaligned_store_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         misaligned_store_dnxt,
         misaligned_store
     );
@@ -1000,7 +1001,7 @@ module dispatch_pipe (
     gnrl_dfflr #(32) inst_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         inst_dnxt,
         inst
     );
@@ -1012,7 +1013,7 @@ module dispatch_pipe (
     gnrl_dfflr #(1) illegal_inst_ff (
         clk,
         rst_n,
-        reg_update_en,
+        ~inst_info_stall_en,
         illegal_inst_dnxt,
         illegal_inst
     );

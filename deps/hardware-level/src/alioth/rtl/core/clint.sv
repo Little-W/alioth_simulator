@@ -126,6 +126,7 @@ module clint (
     csr_state_e csr_state;  // CSR写状态机当前状态
 
     reg [`INST_ADDR_WIDTH-1:0] saved_pc;  // 保存的PC地址
+    reg [`INST_ADDR_WIDTH-1:0] inst_addr;  // 当前指令地址
     reg [31:0] cause;  // 中断原因代码
 
     wire global_int_en = (csr_mstatus[3] == 1'b1);  // 全局中断使能标志
@@ -274,14 +275,20 @@ module clint (
     // saved_pc更新逻辑
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
-            saved_pc <= `ZeroWord;
+            saved_pc  <= `ZeroWord;
+            inst_addr <= `ZeroWord;
         end else if (exception_req) begin
             saved_pc <= inst_addr_i;  // 保存当前指令地址
         end else if (int_req) begin
             if (jump_flag_i) begin
-                saved_pc <= jump_addr_i;  // 跳转时保存跳转地址
+                saved_pc  <= jump_addr_i;  // 跳转时保存跳转地址
+                inst_addr <= inst_addr_i;
             end else if (inst_valid_i) begin
-                saved_pc <= inst_addr_i + 4;  // 保存当前指令地址 + 4
+                if (inst_addr_i != inst_addr) begin
+                    // 如果当前指令地址与跳转指令地址不同，则更新
+                    saved_pc  <= inst_addr_i + 4;  // 保存当前指令地址 + 4
+                    inst_addr <= `ZeroWord;
+                end
             end
         end
     end
