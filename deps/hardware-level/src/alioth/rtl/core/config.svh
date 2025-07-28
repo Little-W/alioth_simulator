@@ -21,6 +21,11 @@
 `define CLINT_BASE_ADDR 32'h0200_0000        // CLINT基地址
 `define CLINT_SIZE (1 << `CLINT_ADDR_WIDTH)  // CLINT大小：64KB
 
+// PLIC地址配置
+`define PLIC_ADDR_WIDTH 16   // PLIC地址宽度，16位
+`define PLIC_BASE_ADDR 32'h0C00_0000         // PLIC基地址
+`define PLIC_SIZE (1 << `PLIC_ADDR_WIDTH)    // PLIC大小：64KB
+
 // 内存初始化控制
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
 `define ITCM_INIT_FILE "/media/5/Projects/RISC-V/alioth_simulator/deps/tools/prog.mem" // ITCM初始化文件路径

@@ -52,8 +52,7 @@ module clint (
     input wire misaligned_fetch_i,  // 非对齐取指异常输入端口
 
     // === 外部中断输入 ===
-    input wire       int_req_i,
-    input wire [7:0] irq_id_i,   // 外部中断ID
+    input wire       ext_int_req_i,
 
     // from ctrl
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,
@@ -141,7 +140,7 @@ module clint (
     wire soft_irq;
 
     // === 中断请求检测（受csr_mie控制）===
-    wire ext_irq_en = int_req_i & MEIE;
+    wire ext_irq_en = ext_int_req_i & MEIE;
     wire timer_irq_en = timer_irq & MTIE;
     wire soft_irq_en = soft_irq & MSIE;
     wire int_req = (ext_irq_en | timer_irq_en | soft_irq_en) & global_int_en;
@@ -233,8 +232,8 @@ module clint (
                 // === 按优先级选择 cause ===
                 // 优先级：外部最高 > 定时器 > 软件
                 if (ext_irq_en) begin
-                    // 外部中断 0x80000000 | cause = 16 + irq_id_i[7:0]
-                    cause <= 32'h80000010 + {24'b0, irq_id_i};
+                    // 外部中断
+                    cause <= 32'h8000000B; // 外部中断 cause = 11 | 0x80000000
                 end else if (timer_irq_en) begin
                     // 定时器中断 cause = 7 | 0x80000000
                     cause <= 32'h80000007;
