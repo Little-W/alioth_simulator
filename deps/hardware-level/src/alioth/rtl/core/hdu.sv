@@ -30,11 +30,11 @@ module hdu (
     input wire rst_n, // 复位信号，低电平有效
 
     // 新指令信息
-    input wire                       new_long_inst_valid,  // 新长指令有效
-    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rd_addr,     // 新指令写寄存器地址
-    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs1_addr,    // 新指令读寄存器1地址
-    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs2_addr,    // 新指令读寄存器2地址
-    input wire                       new_inst_rd_we,       // 新指令是否写寄存器
+    input wire                       inst_valid,         // 新长指令有效
+    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rd_addr,   // 新指令写寄存器地址
+    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs1_addr,  // 新指令读寄存器1地址
+    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs2_addr,  // 新指令读寄存器2地址
+    input wire                       new_inst_rd_we,     // 新指令是否写寄存器
 
     // 长指令完成信号
     input wire                        commit_valid_i,  // 长指令执行完成有效信号
@@ -91,7 +91,7 @@ module hdu (
     assign hazard_stall_o = hazard;
 
     // 为新的长指令分配ID - 使用assign语句
-    assign commit_id_o = (new_long_inst_valid && ~hazard) ? 
+    assign commit_id_o = (inst_valid && ~hazard) ? 
         ( ~fifo_valid[0] ? 0 :
           ~fifo_valid[1] ? 1 :
           ~fifo_valid[2] ? 2 :
@@ -112,7 +112,7 @@ module hdu (
             end
 
             // 添加新的长指令到FIFO
-            if (new_long_inst_valid && ~hazard) begin
+            if (inst_valid && ~hazard) begin
                 // 使用组合逻辑分配的ID更新FIFO
                 fifo_valid[commit_id_o]   <= 1'b1;
                 fifo_rd_addr[commit_id_o] <= new_inst_rd_addr;

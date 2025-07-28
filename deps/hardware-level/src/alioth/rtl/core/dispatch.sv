@@ -56,7 +56,7 @@ module dispatch (
     input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
 
     // 长指令有效信号 - 用于HDU
-    input wire new_long_inst_valid_i,
+    input wire rd_access_inst_valid_i,
 
     // 写回阶段提交信号 - 用于HDU
     input wire                        commit_valid_i,
@@ -240,7 +240,7 @@ module dispatch (
     hdu u_hdu (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .new_long_inst_valid  (new_long_inst_valid_i),
+        .inst_valid           (rd_access_inst_valid_i),
         .new_inst_rd_addr     (reg_waddr_i),
         .new_inst_rs1_addr    (reg1_raddr_i),
         .new_inst_rs2_addr    (reg2_raddr_i),
@@ -272,7 +272,7 @@ module dispatch (
         .bjp_op2_o     (logic_bjp_op2),
         .bjp_jump_op1_o(logic_bjp_jump_op1),
         .bjp_jump_op2_o(logic_bjp_jump_op2),
-        .bjp_op_jal_o (logic_bjp_op_jal),
+        .bjp_op_jal_o  (logic_bjp_op_jal),
         .bjp_op_beq_o  (logic_bjp_op_beq),
         .bjp_op_bne_o  (logic_bjp_op_bne),
         .bjp_op_blt_o  (logic_bjp_op_blt),
@@ -369,7 +369,7 @@ module dispatch (
         .bjp_op2_i     (logic_bjp_op2),
         .bjp_jump_op1_i(logic_bjp_jump_op1),
         .bjp_jump_op2_i(logic_bjp_jump_op2),
-        .bjp_op_jal_i (logic_bjp_op_jal),
+        .bjp_op_jal_i  (logic_bjp_op_jal),
         .bjp_op_beq_i  (logic_bjp_op_beq),
         .bjp_op_bne_i  (logic_bjp_op_bne),
         .bjp_op_blt_i  (logic_bjp_op_blt),
@@ -455,7 +455,7 @@ module dispatch (
         .bjp_op2_o     (bjp_op2_o),
         .bjp_jump_op1_o(bjp_jump_op1_o),
         .bjp_jump_op2_o(bjp_jump_op2_o),
-        .bjp_op_jal_o (bjp_op_jal_o),
+        .bjp_op_jal_o  (bjp_op_jal_o),
         .bjp_op_beq_o  (bjp_op_beq_o),
         .bjp_op_bne_o  (bjp_op_bne_o),
         .bjp_op_blt_o  (bjp_op_blt_o),
@@ -507,10 +507,10 @@ module dispatch (
         .sys_op_ebreak_o   (sys_op_ebreak_o),
         .sys_op_fence_o    (sys_op_fence_o),
         .sys_op_dret_o     (sys_op_dret_o),
-        .is_pred_branch_o  (is_pred_branch_o),   // 连接预测分支信号输出
+        .is_pred_branch_o  (is_pred_branch_o),    // 连接预测分支信号输出
         .misaligned_load_o (misaligned_load_o),
         .misaligned_store_o(misaligned_store_o),
-        .illegal_inst_o(illegal_inst_o) // 新增：非法指令信号输出
+        .illegal_inst_o    (illegal_inst_o)       // 新增：非法指令信号输出
     );
 
 endmodule

@@ -524,7 +524,7 @@ module cpu_top (
         .csr_raddr_i(idu_csr_raddr_o),
 
         // 长指令有效信号 - 用于HDU
-        .new_long_inst_valid_i(rd_access_inst_valid),
+        .rd_access_inst_valid_i(rd_access_inst_valid),
 
         // 写回阶段提交信号
         .commit_valid_i(wbu_commit_valid_o),
