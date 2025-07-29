@@ -193,6 +193,61 @@ module mems #(
     output wire                                  OM2_AXI_RREADY
 );
 
+
+    // ITCM与DTCM的接口信号
+    // ITCM读地址通道
+    wire                        itcm_arready;
+    wire [  C_AXI_ID_WIDTH-1:0] itcm_arid;
+    wire [C_AXI_ADDR_WIDTH-1:0] itcm_araddr;
+    wire [                 7:0] itcm_arlen;
+    wire [                 2:0] itcm_arsize;
+    wire [                 1:0] itcm_arburst;
+    wire                        itcm_arlock;
+    wire [                 3:0] itcm_arcache;
+    wire [                 2:0] itcm_arprot;
+    wire                        itcm_arvalid;
+
+    // ITCM读数据通道
+    wire [  C_AXI_ID_WIDTH-1:0] itcm_rid;
+    wire [C_AXI_DATA_WIDTH-1:0] itcm_rdata;
+    wire [                 1:0] itcm_rresp;
+    wire                        itcm_rlast;
+    wire                        itcm_rvalid;
+    wire                        itcm_rready;
+
+    // DTCM读地址通道
+    wire                        dtcm_arready;
+    wire [  C_AXI_ID_WIDTH-1:0] dtcm_arid;
+    wire [C_AXI_ADDR_WIDTH-1:0] dtcm_araddr;
+    wire [                 7:0] dtcm_arlen;
+    wire [                 2:0] dtcm_arsize;
+    wire [                 1:0] dtcm_arburst;
+    wire                        dtcm_arlock;
+    wire [                 3:0] dtcm_arcache;
+    wire [                 2:0] dtcm_arprot;
+    wire                        dtcm_arvalid;
+
+    // DTCM读数据通道
+    wire [  C_AXI_ID_WIDTH-1:0] dtcm_rid;
+    wire [C_AXI_DATA_WIDTH-1:0] dtcm_rdata;
+    wire [                 1:0] dtcm_rresp;
+    wire                        dtcm_rlast;
+    wire                        dtcm_rvalid;
+    wire                        dtcm_rready;
+
+    // 写响应通道连接
+    wire [C_AXI_ID_WIDTH-1:0] itcm_bid;
+    wire [1:0] itcm_bresp;
+    wire itcm_bvalid;
+    wire itcm_wready;
+    wire itcm_awready;
+
+    wire [C_AXI_ID_WIDTH-1:0] dtcm_bid;
+    wire [1:0] dtcm_bresp;
+    wire dtcm_bvalid;
+    wire dtcm_wready;
+    wire dtcm_awready;
+
     // 地址解码逻辑
     wire is_m0_itcm_r = (M0_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M0_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
     wire is_m1_itcm_r = (M1_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M1_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
@@ -782,64 +837,6 @@ module mems #(
         .qout (m1_plic_b_outstanding_cnt)
     );
 
-
-    // ITCM与DTCM的接口信号
-    // ITCM读地址通道
-    wire                        itcm_arready;
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_arid;
-    wire [C_AXI_ADDR_WIDTH-1:0] itcm_araddr;
-    wire [                 7:0] itcm_arlen;
-    wire [                 2:0] itcm_arsize;
-    wire [                 1:0] itcm_arburst;
-    wire                        itcm_arlock;
-    wire [                 3:0] itcm_arcache;
-    wire [                 2:0] itcm_arprot;
-    wire                        itcm_arvalid;
-
-    // ITCM读数据通道
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_rid;
-    wire [C_AXI_DATA_WIDTH-1:0] itcm_rdata;
-    wire [                 1:0] itcm_rresp;
-    wire                        itcm_rlast;
-    wire                        itcm_rvalid;
-    wire                        itcm_rready;
-
-    // DTCM读地址通道
-    wire                        dtcm_arready;
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_arid;
-    wire [C_AXI_ADDR_WIDTH-1:0] dtcm_araddr;
-    wire [                 7:0] dtcm_arlen;
-    wire [                 2:0] dtcm_arsize;
-    wire [                 1:0] dtcm_arburst;
-    wire                        dtcm_arlock;
-    wire [                 3:0] dtcm_arcache;
-    wire [                 2:0] dtcm_arprot;
-    wire                        dtcm_arvalid;
-
-    // DTCM读数据通道
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_rid;
-    wire [C_AXI_DATA_WIDTH-1:0] dtcm_rdata;
-    wire [                 1:0] dtcm_rresp;
-    wire                        dtcm_rlast;
-    wire                        dtcm_rvalid;
-    wire                        dtcm_rready;
-    // 处理读通道ready信号的连接
-    assign itcm_rready = m0_itcm_rready || m1_itcm_rready;
-    assign dtcm_rready = m1_dtcm_rready;
-
-    // 写响应通道连接
-    wire [C_AXI_ID_WIDTH-1:0] itcm_bid;
-    wire [               1:0] itcm_bresp;
-    wire                      itcm_bvalid;
-    wire                      itcm_wready;
-    wire                      itcm_awready;
-
-    wire [C_AXI_ID_WIDTH-1:0] dtcm_bid;
-    wire [               1:0] dtcm_bresp;
-    wire                      dtcm_bvalid;
-    wire                      dtcm_wready;
-    wire                      dtcm_awready;
-
     // 为M0添加读响应FIFO - 用于缓存ITCM的读响应
     // FIFO深度设置为4，足够缓存一般的突发传输
     localparam RDATA_FIFO_DEPTH = 4;
@@ -870,6 +867,12 @@ module mems #(
             m0_rdata_wr_ptr <= 0;
             m0_rdata_rd_ptr <= 0;
             m0_rdata_count  <= 0;
+            for(integer i = 0; i < RDATA_FIFO_DEPTH; i = i + 1) begin
+                m0_rdata_rid[i] <= 0;
+                m0_rdata_rdata[i] <= 0;
+                m0_rdata_rresp[i] <= 0;
+                m0_rdata_rlast[i] <= 0;
+            end
         end else begin
             // 同时推入和弹出
             if (m0_rdata_push && m0_rdata_pop) begin
@@ -1053,8 +1056,8 @@ module mems #(
     assign OM2_AXI_RREADY = M1_AXI_RREADY && m1_select_plic_r;
 
     // 处理读通道ready信号的连接
-    assign itcm_rready = m0_itcm_rready || (m1_slave_sel_r[0] && m1_has_active_itcm_r && M1_AXI_RREADY);
-    assign dtcm_rready = m1_slave_sel_r[1] && m1_has_active_dtcm_r && M1_AXI_RREADY;
+    assign itcm_rready = m0_itcm_rready || m1_itcm_rready;
+    assign dtcm_rready = m1_dtcm_rready;
 
     // 端口1读数据通道的选择逻辑
     assign M1_AXI_RID = m1_select_itcm_r ? itcm_rid :

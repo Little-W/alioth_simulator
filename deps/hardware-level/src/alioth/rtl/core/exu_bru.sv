@@ -32,7 +32,7 @@ module exu_bru (
     input wire [31:0] bjp_op2_i,
     input wire [31:0] bjp_jump_op1_i,
     input wire [31:0] bjp_jump_op2_i,
-    input wire        bjp_op_jal_i,    // JAL指令标志
+    input wire        bjp_op_jal_i,     // JAL指令标志
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
     input wire        bjp_op_blt_i,
@@ -61,6 +61,7 @@ module exu_bru (
     wire [31:0] adder_op2;
     wire [31:0] adder_result;
     wire [31:0] jalr_target_addr;
+    wire        branch_cond;
 
     // 比较结果
     assign op1_eq_op2          = (bjp_op1_i == bjp_op2_i);
@@ -71,12 +72,12 @@ module exu_bru (
     wire pred_rollback = is_pred_branch_i & req_bjp_i & ~branch_cond;
 
     // 复用加法器：根据是否需要回退选择加法的第二个操作数
-    assign adder_op2        = pred_rollback ? 32'h4 : bjp_jump_op2_i;
-    assign adder_result     = bjp_jump_op1_i + adder_op2;
+    assign adder_op2 = pred_rollback ? 32'h4 : bjp_jump_op2_i;
+    assign adder_result = bjp_jump_op1_i + adder_op2;
     assign jalr_target_addr = adder_result & ~32'h1;  // JALR目标地址需要清除最低位
 
     // 简化跳转条件信号判断
-    wire branch_cond = req_bjp_i & (
+    assign branch_cond = req_bjp_i & (
         (bjp_op_beq_i  &  op1_eq_op2) |
         (bjp_op_bne_i  & ~op1_eq_op2) |
         (bjp_op_blt_i  & ~op1_ge_op2_signed) |

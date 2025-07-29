@@ -107,7 +107,7 @@ module dispatch_logic (
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
 
-
+    wire [`DECINFO_WIDTH-1:0] bjp_info;
     // ALU info
     wire bjp_wb_req = bjp_info[`DECINFO_BJP_JUMP];
     wire op_alu = (disp_info_grp == `DECINFO_GRP_ALU);
@@ -164,7 +164,7 @@ module dispatch_logic (
     // Bru info
 
     wire op_bjp = (disp_info_grp == `DECINFO_GRP_BJP);
-    wire [`DECINFO_WIDTH-1:0] bjp_info = {`DECINFO_WIDTH{op_bjp}} & dec_info_bus_i;
+    assign bjp_info = {`DECINFO_WIDTH{op_bjp}} & dec_info_bus_i;
     // BJP op1
     wire bjp_op1_rs1 = bjp_info[`DECINFO_BJP_OP1RS1];  // 使用rs1寄存器作为跳转基地址 (JALR指令)
     wire [31:0] bjp_op1 = bjp_op1_rs1 ? rs1_rdata_i : dec_pc_i;

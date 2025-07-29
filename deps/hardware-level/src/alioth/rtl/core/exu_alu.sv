@@ -237,14 +237,14 @@ module exu_alu (
     // 握手信号控制逻辑
     wire update_output = (wb_ready_i | ~reg_we_o);
 
+    // 使用gnrl_dfflr实例化输出级寄存器
+    wire [`REG_DATA_WIDTH-1:0] result_r;
+    wire reg_we_r;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
+
     // 握手失败时输出stall信号
     assign alu_stall_o = reg_we_r & ~wb_ready_i;
-
-    // 使用gnrl_dfflr实例化输出级寄存器
-    wire [ `REG_DATA_WIDTH-1:0] result_r;
-    wire                        reg_we_r;
-    wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_r;
-    wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
 
     // 结果寄存器
     gnrl_dfflr #(

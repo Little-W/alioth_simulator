@@ -203,6 +203,9 @@ module clint (
                     if (inst_addr_i == int_addr_o)
                         csr_state <= S_CSR_IDLE;  // 跳转完成后回到空闲
                 end
+                default: begin
+                    csr_state <= S_CSR_IDLE;  // 默认回到空闲状态
+                end
             endcase
         end
     end

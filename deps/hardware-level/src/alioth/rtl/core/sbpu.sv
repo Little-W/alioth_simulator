@@ -42,33 +42,34 @@ module sbpu (
 );
     wire [6:0] opcode = inst_i[6:0];
 
-    wire       opcode_1100011 = (opcode == 7'b1100011);
-    wire       opcode_1101111 = (opcode == 7'b1101111);
-    wire       opcode_1100111 = (opcode == 7'b1100111);
+    wire opcode_1100011 = (opcode == 7'b1100011);
+    wire opcode_1101111 = (opcode == 7'b1101111);
+    wire opcode_1100111 = (opcode == 7'b1100111);
 
-    wire       inst_type_branch = opcode_1100011;
-    wire       inst_jal = opcode_1101111;
-    wire       inst_jalr = opcode_1100111;
-
-    // 内部信号
-    wire       is_pred_branch = inst_valid_i & (inst_type_branch & inst_b_type_imm[31]);
-    wire       is_pred_jal = inst_valid_i & (inst_jal);
-
-    // 标识当前指令是否为分支指令（用于传递给EXU）
-    // 加回JALR和JAL判断
-    assign is_pred_branch_o = is_pred_branch;
+    wire inst_type_branch = opcode_1100011;
+    wire inst_jal = opcode_1101111;
+    wire inst_jalr = opcode_1100111;
 
     wire [31:0] inst_b_type_imm = {{20{inst_i[31]}}, inst_i[7], inst_i[30:25], inst_i[11:8], 1'b0};
     wire [31:0] inst_j_type_imm = {
         {12{inst_i[31]}}, inst_i[19:12], inst_i[20], inst_i[30:21], 1'b0
     };
+
+    // 内部信号
+    wire is_pred_branch = inst_valid_i & (inst_type_branch & inst_b_type_imm[31]);
+    wire is_pred_jal = inst_valid_i & (inst_jal);
+
+    // 标识当前指令是否为分支指令（用于传递给EXU）
+    // 加回JALR和JAL判断
+    assign is_pred_branch_o = is_pred_branch;
+
     // wire [31:0] inst_i_type_imm = {{20{inst_i[31]}}, inst_i[31:20]};  // 为JALR添加I-type立即数
 
     // 只预测条件分支指令和JAL
     // 我们不预测JALR，因为我们无法在这个阶段读取寄存器
-    wire branch_taken = is_pred_branch | is_pred_jal;
+    wire        branch_taken = is_pred_branch | is_pred_jal;
 
-    reg [31:0] branch_addr;
+    reg  [31:0] branch_addr;
 
     always @(*) begin
         // 默认值，避免锁存器
@@ -83,7 +84,7 @@ module sbpu (
     end
 
     assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
-    assign branch_addr_o  = branch_addr;
+    assign branch_addr_o = branch_addr;
 
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule

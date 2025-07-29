@@ -30,22 +30,22 @@ module clint_swi #(
     output wire                                soft_irq
 );
 
-    reg [C_S_AXI_ADDR_WIDTH-1 : 0] axi_awaddr;
-    reg                            axi_awready;
-    reg                            axi_wready;
-    reg [                   1 : 0] axi_bresp;
-    reg                            axi_bvalid;
-    reg [C_S_AXI_ADDR_WIDTH-1 : 0] axi_araddr;
-    reg                            axi_arready;
-    reg [                   1 : 0] axi_rresp;
-    reg                            axi_rvalid;
+    reg  [C_S_AXI_ADDR_WIDTH-1 : 0] axi_awaddr;
+    reg                             axi_awready;
+    reg                             axi_wready;
+    reg  [                   1 : 0] axi_bresp;
+    reg                             axi_bvalid;
+    reg  [C_S_AXI_ADDR_WIDTH-1 : 0] axi_araddr;
+    reg                             axi_arready;
+    reg  [                   1 : 0] axi_rresp;
+    reg                             axi_rvalid;
 
-wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr;
+    wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr;
     wire [C_S_AXI_DATA_WIDTH-1 : 0] mem_raddr;
 
 
     // CLINT寄存器
-    reg msip;
+    reg                             msip;
     reg [31:0] mtimecmp_lo, mtimecmp_hi;
     reg [31:0] mtime_lo, mtime_hi;
 
@@ -60,8 +60,8 @@ wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr;
     assign S_AXI_ARREADY = axi_arready;
     assign S_AXI_RRESP   = axi_rresp;
     assign S_AXI_RVALID  = axi_rvalid;
-    assign mem_waddr = (S_AXI_AWVALID) ? S_AXI_AWADDR : axi_awaddr;
-    assign mem_raddr = (S_AXI_ARVALID) ? S_AXI_ARADDR : axi_araddr;
+    assign mem_waddr     = (S_AXI_AWVALID) ? S_AXI_AWADDR : axi_awaddr;
+    assign mem_raddr     = (S_AXI_ARVALID) ? S_AXI_ARADDR : axi_araddr;
 
     reg [1:0] state_write;
     reg [1:0] state_read;
@@ -111,6 +111,12 @@ wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr;
                         if (S_AXI_BREADY && axi_bvalid) axi_bvalid <= 1'b0;
                     end
                 end
+                default: begin
+                    state_write <= Idle;
+                    axi_awready <= 1'b0;
+                    axi_wready  <= 1'b0;
+                    axi_bvalid  <= 1'b0;
+                end
             endcase
         end
     end
@@ -148,26 +154,19 @@ wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr;
         end
     end
 
-
-    // mtime自增
-    always @(posedge S_AXI_ACLK) begin
-        if (!S_AXI_ARESETN) begin
-            mtime_lo <= 32'h0;
-            mtime_hi <= 32'h0;
-        end else begin
-            {mtime_hi, mtime_lo} <= {mtime_hi, mtime_lo} + 64'd1;
-        end
-    end
-
     // 写操作
     always @(posedge S_AXI_ACLK) begin
         if (S_AXI_ARESETN == 1'b0) begin
             msip        <= 1'b0;
             mtimecmp_lo <= 32'hFFFF_FFFF;
             mtimecmp_hi <= 32'hFFFF_FFFF;
-            mtime_lo    <= 32'h0;           // 初始化 mtime_lo
-            mtime_hi    <= 32'h0;           // 初始化 mtime_hi
+            mtime_lo    <= 32'h0;  // 初始化 mtime_lo
+            mtime_hi    <= 32'h0;  // 初始化 mtime_hi
         end else begin
+
+            // mtime自增
+            {mtime_hi, mtime_lo} <= {mtime_hi, mtime_lo} + 64'd1;
+
             if (S_AXI_WVALID) begin
                 case (mem_waddr)
                     `CLINT_MSIP_ADDR: begin
@@ -175,19 +174,19 @@ wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr;
                     end
                     `CLINT_MTIMECMP_ADDR: begin
                         for (int i = 0; i < 4; i = i + 1)
-                            if (S_AXI_WSTRB[i]) mtimecmp_lo[i*8+:8] <= S_AXI_WDATA[i*8+:8];
+                        if (S_AXI_WSTRB[i]) mtimecmp_lo[i*8+:8] <= S_AXI_WDATA[i*8+:8];
                     end
                     `CLINT_MTIMECMP_ADDR_H: begin
                         for (int i = 0; i < 4; i = i + 1)
-                            if (S_AXI_WSTRB[i]) mtimecmp_hi[i*8+:8] <= S_AXI_WDATA[i*8+:8];
+                        if (S_AXI_WSTRB[i]) mtimecmp_hi[i*8+:8] <= S_AXI_WDATA[i*8+:8];
                     end
                     `CLINT_MTIME_ADDR: begin
                         for (int i = 0; i < 4; i = i + 1)
-                            if (S_AXI_WSTRB[i]) mtime_lo[i*8+:8] <= S_AXI_WDATA[i*8+:8];
+                        if (S_AXI_WSTRB[i]) mtime_lo[i*8+:8] <= S_AXI_WDATA[i*8+:8];
                     end
                     `CLINT_MTIME_ADDR_H: begin
                         for (int i = 0; i < 4; i = i + 1)
-                            if (S_AXI_WSTRB[i]) mtime_hi[i*8+:8] <= S_AXI_WDATA[i*8+:8];
+                        if (S_AXI_WSTRB[i]) mtime_hi[i*8+:8] <= S_AXI_WDATA[i*8+:8];
                     end
                     default: ;
                 endcase

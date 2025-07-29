@@ -47,9 +47,6 @@ module exu (
     input wire csr_wb_ready_i,     // CSR写回握手信号
     input wire is_pred_branch_i,   // 添加预测分支指令标志输入
 
-    // from mem
-    input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
-
     // from regs
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,

@@ -151,8 +151,6 @@ module cpu_top (
     wire clint_flush_flag_o;  // 添加中断刷新信号
     wire clint_stall_flag_o;
 
-    wire [`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
-
     // 新增信号定义
     wire ifu_read_resp_error_o;
     wire exu_mem_stall_o;
@@ -180,18 +178,6 @@ module cpu_top (
     wire dispatch_misaligned_store_o;  // dispatch输出misaligned store信号
     wire dispatch_illegal_inst_o;  // dispatch输出非法指令信号
     wire misaligned_fetch_o;  // EXU输出misaligned fetch信号
-
-    // 给dispatch和HDU的译码信息
-    wire inst_valid = (ctrl_stall_flag_o == 0);
-    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
-                        (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
-    wire inst_clint_valid = (!dispatch_bjp_op_jal) && !dis_is_pred_branch_o && (dispatch_inst_valid_o);
-    // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
-    // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
-    // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o;
-    wire dis_is_pred_branch_o;
-    wire ext_int_req;
 
     // AXI接口信号 - IFU
     wire [`BUS_ID_WIDTH-1:0] ifu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
@@ -338,6 +324,18 @@ module cpu_top (
     wire exu_axi_ruser;
     wire exu_axi_rvalid;
     wire exu_axi_rready;
+
+    // 给dispatch和HDU的译码信息
+    wire dis_is_pred_branch_o;
+    wire ext_int_req;
+    wire inst_valid = (ctrl_stall_flag_o == 0);
+    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+                        (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    wire inst_clint_valid = (!dispatch_bjp_op_jal) && !dis_is_pred_branch_o && (dispatch_inst_valid_o);
+    // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
+    // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
+    // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
+    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o;
 
     // CLINT AXI-Lite接口信号
     wire OM1_AXI_ACLK;
@@ -632,7 +630,6 @@ module cpu_top (
         .csr_rdata_i(csr_data_o),
         .dec_info_bus_i(dispatch_dec_info_bus_o),     // 修改为从dispatch pipe获取译码信息总线
         .dec_imm_i(dispatch_dec_imm_o),  // 修改为从dispatch pipe获取立即数
-        .mem_rdata_i(exu_mem_data_i),
         .int_assert_i(clint_int_assert_o),
         .int_addr_i(clint_int_addr_o),
         .is_pred_branch_i(dis_is_pred_branch_o),  // 连接预测分支信号输入
