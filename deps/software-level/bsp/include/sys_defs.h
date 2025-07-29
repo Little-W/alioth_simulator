@@ -29,6 +29,7 @@ extern "C"
 
 #define ALIOTH_PERIPH_BASE (0x84000000UL) /*!< Alioth APB Peripherals Base Address */
 #define ALIOTH_CLINT_BASE (0x02000000UL)  /*!< Alioth CLINT Base Address */
+#define ALIOTH_PLIC_BASE (0x0C000000UL)  /*!< Alioth PLIC Base Address */
 
 /* Peripheral memory map */
 #define PWM_BASE (ALIOTH_PERIPH_BASE + 0x00000)   /*!< (Timer) Base Address */

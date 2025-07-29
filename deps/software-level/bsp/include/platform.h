@@ -15,6 +15,7 @@ extern "C" {
 #include "gpio.h"
 #include "spi.h"
 #include "pwm.h"
+#include "plic.h"
 
 uint32_t get_cpu_freq(void);
 uint32_t measure_cpu_freq(uint32_t n);
