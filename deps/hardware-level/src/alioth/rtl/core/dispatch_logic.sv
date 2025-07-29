@@ -33,11 +33,21 @@ module dispatch_logic (
     input wire [              31:0] rs1_rdata_i,
     input wire [              31:0] rs2_rdata_i,
 
-    // dispatch to ALU
-    output wire                     req_alu_o,
-    output wire [             31:0] alu_op1_o,
-    output wire [             31:0] alu_op2_o,
-    output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
+    // dispatch to ADDER
+    output wire        req_adder_o,
+    output wire [31:0] adder_op1_o,
+    output wire [31:0] adder_op2_o,
+    output wire [5:0]  adder_op_info_o,  // {op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
+
+    // dispatch to SHIFTER
+    output wire        req_shifter_o,
+    output wire [31:0] shifter_op1_o,
+    output wire [31:0] shifter_op2_o,
+    output wire [5:0]  shifter_op_info_o,  // {op_and, op_or, op_xor, op_sra, op_srl, op_sll}
+
+    // ALU special operations
+    output wire        alu_op_jump_o,  // jump operations
+    output wire        alu_op_lui_o,   // LUI operation
 
     // dispatch to Bru
     output wire        req_bjp_o,
@@ -111,34 +121,65 @@ module dispatch_logic (
 
     wire op_alu = (disp_info_grp == `DECINFO_GRP_ALU);
     wire [`DECINFO_WIDTH-1:0] alu_info = {`DECINFO_WIDTH{op_alu}} & dec_info_bus_i;
+    
+    // ALU操作分类
+    wire alu_op_add = alu_info[`DECINFO_ALU_ADD];
+    wire alu_op_sub = alu_info[`DECINFO_ALU_SUB];
+    wire alu_op_slt = alu_info[`DECINFO_ALU_SLT];
+    wire alu_op_sltu = alu_info[`DECINFO_ALU_SLTU];
+    wire alu_op_sll = alu_info[`DECINFO_ALU_SLL];
+    wire alu_op_srl = alu_info[`DECINFO_ALU_SRL];
+    wire alu_op_sra = alu_info[`DECINFO_ALU_SRA];
+    wire alu_op_and = alu_info[`DECINFO_ALU_AND];
+    wire alu_op_or = alu_info[`DECINFO_ALU_OR];
+    wire alu_op_xor = alu_info[`DECINFO_ALU_XOR];
+    wire alu_op_lui = alu_info[`DECINFO_ALU_LUI];
+    wire alu_op_auipc = alu_info[`DECINFO_ALU_AUIPC];
+    
+    // 加法器操作：加法、减法、比较、LUI、AUIPC
+    wire op_adder = op_alu & (alu_op_add | alu_op_sub | alu_op_slt | alu_op_sltu | alu_op_lui | alu_op_auipc);
+    
+    // 移位器操作：左移、右移、逻辑运算
+    wire op_shifter = op_alu & (alu_op_sll | alu_op_srl | alu_op_sra | alu_op_and | alu_op_or | alu_op_xor);
+    
     // ALU op1
     wire alu_op1_pc = alu_info[`DECINFO_ALU_OP1PC];  // 使用PC作为操作数1 (AUIPC指令)
     wire alu_op1_zero = alu_info[`DECINFO_ALU_LUI];  // 使用0作为操作数1 (LUI指令)
     wire [31:0] alu_op1 = (alu_op1_pc | bjp_op_jump_o) ? dec_pc_i : alu_op1_zero ? 32'h0 : rs1_rdata_i;
-    assign alu_op1_o = (op_alu | bjp_op_jump_o) ? alu_op1 : 32'h0;  // ALU指令的操作数1
-
+    
     // ALU op2
     wire alu_op2_imm = alu_info[`DECINFO_ALU_OP2IMM];  // 使用立即数作为操作数2 (I型指令、LUI、AUIPC)
     wire [31:0] alu_op2 = alu_op2_imm ? dec_imm_i : rs2_rdata_i;
-    assign alu_op2_o = bjp_op_jump_o ? 32'h4 : op_alu ? alu_op2 : 32'h0;
 
-    assign alu_op_info_o = {
-        bjp_op_jump_o,  // ALU_OP_JUMP
-        alu_info[`DECINFO_ALU_AUIPC],  // ALU_OP_AUIPC
-        alu_info[`DECINFO_ALU_LUI],  // ALU_OP_LUI
-        alu_info[`DECINFO_ALU_AND],  // ALU_OP_AND
-        alu_info[`DECINFO_ALU_OR],  // ALU_OP_OR
-        alu_info[`DECINFO_ALU_SRA],  // ALU_OP_SRA
-        alu_info[`DECINFO_ALU_SRL],  // ALU_OP_SRL
-        alu_info[`DECINFO_ALU_XOR],  // ALU_OP_XOR
-        alu_info[`DECINFO_ALU_SLTU],  // ALU_OP_SLTU
-        alu_info[`DECINFO_ALU_SLT],  // ALU_OP_SLT
-        alu_info[`DECINFO_ALU_SLL],  // ALU_OP_SLL
-        alu_info[`DECINFO_ALU_SUB],  // ALU_OP_SUB
-        alu_info[`DECINFO_ALU_ADD]  // ALU_OP_ADD
+    // ADDER输出
+    assign req_adder_o = op_adder | bjp_op_jump_o;
+    assign adder_op1_o = (op_adder | bjp_op_jump_o) ? alu_op1 : 32'h0;
+    assign adder_op2_o = bjp_op_jump_o ? 32'h4 : op_adder ? alu_op2 : 32'h0;
+    assign adder_op_info_o = {
+        alu_info[`DECINFO_ALU_SLTU],  // op_sltu
+        alu_info[`DECINFO_ALU_SLT],   // op_slt
+        alu_info[`DECINFO_ALU_SUB],   // op_sub
+        alu_info[`DECINFO_ALU_ADD],   // op_add
+        alu_info[`DECINFO_ALU_LUI],   // op_lui
+        alu_info[`DECINFO_ALU_AUIPC]  // op_auipc
     };
 
-    assign req_alu_o = op_alu;
+    // SHIFTER输出
+    assign req_shifter_o = op_shifter;
+    assign shifter_op1_o = op_shifter ? rs1_rdata_i : 32'h0;
+    assign shifter_op2_o = op_shifter ? alu_op2 : 32'h0;
+    assign shifter_op_info_o = {
+        alu_info[`DECINFO_ALU_AND],  // op_and
+        alu_info[`DECINFO_ALU_OR],   // op_or
+        alu_info[`DECINFO_ALU_XOR],  // op_xor
+        alu_info[`DECINFO_ALU_SRA],  // op_sra
+        alu_info[`DECINFO_ALU_SRL],  // op_srl
+        alu_info[`DECINFO_ALU_SLL]   // op_sll
+    };
+
+    // ALU特殊操作输出
+    assign alu_op_jump_o = bjp_op_jump_o;
+    assign alu_op_lui_o = alu_info[`DECINFO_ALU_LUI];
 
     // MULDIV info
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
