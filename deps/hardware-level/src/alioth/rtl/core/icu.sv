@@ -98,6 +98,8 @@ module icu (
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,
     output wire                        long_inst_atom_lock_o,
+    output wire [31:0] inst1_timestamp_o_ex,
+    output wire [31:0] inst2_timestamp_o_ex,
     
     // 新增输出信号给WBU
     output wire [`REG_ADDR_WIDTH-1:0] inst1_rd_addr_o,
@@ -182,6 +184,28 @@ module icu (
         inst2_commit_id
     );
     assign inst2_commit_id_o = inst2_commit_id;
+
+    wire [31:0] inst1_timestamp_o_ex_nxt = flush_en ? 32'b0 : inst1_dec_imm_i;
+    wire [31:0] inst1_timestamp_o_ex;
+    gnrl_dfflr #(32) inst1_timestamp_o_ex_ff (
+        clk,
+        rst_n,
+        update_id1,
+        inst1_timestamp_o_ex_nxt,
+        inst1_timestamp_o_ex
+    );
+    assign inst1_timestamp_o_ex = inst1_timestamp_o_ex;
+
+    wire [31:0] inst2_timestamp_o_ex_nxt = flush_en ? 32'b0 : inst2_dec_imm_i;
+    wire [31:0] inst2_timestamp_o_ex;
+    gnrl_dfflr #(32) inst2_timestamp_o_ex_ff (
+        clk,
+        rst_n,
+        update_id2,
+        inst2_timestamp_o_ex_nxt,
+        inst2_timestamp_o_ex
+    );
+    assign inst2_timestamp_o_ex = inst2_timestamp_o_ex;
 
 
     // 实例化icu_issue模块模块
