@@ -172,7 +172,7 @@ module hdu (
         end
     end
 
-    // 新发射暂停信号：当不是所有指令都能发射时拉高
+    // 新发射暂停信号：当不是所有指令都能发射或fifo满或时间戳溢出时拉高
     assign new_issue_stall_o = (issue_inst_reg != 2'b11) || fifo_full || timestamp_full;
     
     // 发射指令标志输出

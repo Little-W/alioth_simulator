@@ -118,12 +118,14 @@ module wbu (
     input wire                        lsu1_reg_we_i,
     input wire [ `REG_ADDR_WIDTH-1:0] lsu1_reg_waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] lsu1_commit_id_i,
+    input wire [`TIMESTAMP_WIDTH-1:0] lsu1_timestamp_exu,
     output wire                       lsu1_ready_o,
 
     input wire [ `REG_DATA_WIDTH-1:0] lsu2_reg_wdata_i,
     input wire                        lsu2_reg_we_i,
     input wire [ `REG_ADDR_WIDTH-1:0] lsu2_reg_waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] lsu2_commit_id_i,
+    input wire [`TIMESTAMP_WIDTH-1:0] lsu2_timestamp_exu,
     output wire                       lsu2_ready_o,
 
     // HDU指令地址和时间戳输入
@@ -184,38 +186,27 @@ module wbu (
     localparam FIFO_DEPTH = 8;
     localparam FIFO_ADDR_WIDTH = 3;
     
-    // FIFO表项
-    reg [`REG_ADDR_WIDTH-1:0] fifo_waddr [0:FIFO_DEPTH-1];
-    reg [`TIMESTAMP_WIDTH-1:0] fifo_timestamp [0:FIFO_DEPTH-1];
-    reg [FIFO_DEPTH-1:0] fifo_valid;
+    // FIFO表项 - 存储写回地址和时间戳
+    reg [4:0] fifo_waddr [0:FIFO_DEPTH-1];        // 5位写回地址
+    reg [31:0] fifo_timestamp [0:FIFO_DEPTH-1];   // 32位时间戳
+    reg [FIFO_DEPTH-1:0] fifo_valid;              // FIFO有效标志
     
-    // 缓冲队列参数
-    localparam BUFFER_SIZE = 8;
-    localparam BUFFER_ADDR_WIDTH = 3;
+    // FIFO管理信号
+    reg [FIFO_ADDR_WIDTH:0] fifo_count;
+    wire [FIFO_ADDR_WIDTH-1:0] fifo_write_ptr;
+    wire fifo_full, fifo_empty;
     
-    // 待写回缓冲队列
-    reg [`REG_DATA_WIDTH-1:0] pending_reg_wdata [0:BUFFER_SIZE-1];
-    reg [`REG_ADDR_WIDTH-1:0] pending_reg_waddr [0:BUFFER_SIZE-1];
-    reg [`COMMIT_ID_WIDTH-1:0] pending_commit_id [0:BUFFER_SIZE-1];
-    reg [`TIMESTAMP_WIDTH-1:0] pending_timestamp [0:BUFFER_SIZE-1];
-    reg [3:0] pending_eu_type [0:BUFFER_SIZE-1];  // 执行单元类型
-    reg [BUFFER_SIZE-1:0] pending_valid;          // 缓冲有效标志
-    reg [BUFFER_SIZE-1:0] pending_is_csr;         // 标识是否为CSR写回
-    reg [`BUS_ADDR_WIDTH-1:0] pending_csr_waddr [0:BUFFER_SIZE-1];
-    reg [`REG_DATA_WIDTH-1:0] pending_csr_wdata [0:BUFFER_SIZE-1];
-    
-    // 缓冲队列控制信号
-    wire [BUFFER_ADDR_WIDTH-1:0] buffer_alloc_ptr;
-    wire buffer_full, buffer_empty;
-    reg [BUFFER_ADDR_WIDTH:0] buffer_count;
+    assign fifo_full = (fifo_count >= FIFO_DEPTH - 1);  // 保留一个位置给第二个指令
+    assign fifo_empty = (fifo_count == 0);
+    assign fifo_write_ptr = fifo_count[FIFO_ADDR_WIDTH-1:0];
     
     // 当前周期执行单元写回请求
     wire [11:0] eu_reg_we;
     wire [11:0] eu_csr_we;
     wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:11];
-    wire [`REG_ADDR_WIDTH-1:0] eu_reg_waddr [0:11];
+    wire [4:0] eu_reg_waddr [0:11];               // 5位地址
     wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:11];
-    wire [`TIMESTAMP_WIDTH-1:0] eu_timestamp [0:11];
+    wire [31:0] eu_timestamp [0:11];              // 32位时间戳
     wire [`BUS_ADDR_WIDTH-1:0] eu_csr_waddr [0:11];
     wire [`REG_DATA_WIDTH-1:0] eu_csr_wdata [0:11];
     
@@ -275,31 +266,18 @@ module wbu (
     assign eu_timestamp[7] = div2_timestamp_exu;
     assign eu_timestamp[8] = csr1_timestamp_exu;
     assign eu_timestamp[9] = csr2_timestamp_exu;
-    assign eu_timestamp[10] = {`TIMESTAMP_WIDTH{1'b0}}; // LSU1没有timestamp
-    assign eu_timestamp[11] = {`TIMESTAMP_WIDTH{1'b0}}; // LSU2没有timestamp
+    assign eu_timestamp[10] = lsu1_timestamp_exu;
+    assign eu_timestamp[11] = lsu2_timestamp_exu;
     
     assign eu_csr_waddr[8] = csr1_waddr_i;
     assign eu_csr_waddr[9] = csr2_waddr_i;
     assign eu_csr_wdata[8] = csr1_wdata_i;
     assign eu_csr_wdata[9] = csr2_wdata_i;
     
-    // WAW冲突检测 - 基于FIFO的新逻辑
-    reg [11:0] waw_conflict_detected;  // 检测到WAW冲突的执行单元
+    // WAW冲突检测逻辑
     reg [11:0] waw_conflict_delay;     // 需要延迟写回的执行单元
     
-    // FIFO管理信号
-    reg [FIFO_ADDR_WIDTH:0] fifo_count;
-    wire [FIFO_ADDR_WIDTH-1:0] fifo_alloc_ptr1, fifo_alloc_ptr2;
-    wire fifo_full, fifo_empty;
-    
-    assign fifo_full = (fifo_count >= FIFO_DEPTH - 1);  // 保留一个位置给第二个指令
-    assign fifo_empty = (fifo_count == 0);
-    assign fifo_alloc_ptr1 = fifo_count[FIFO_ADDR_WIDTH-1:0];
-    assign fifo_alloc_ptr2 = (fifo_count + 1)[FIFO_ADDR_WIDTH-1:0];
-    
-    // WAW冲突检测逻辑
     always @(*) begin
-        waw_conflict_detected = 12'b0;
         waw_conflict_delay = 12'b0;
         
         for (integer eu_idx = 0; eu_idx < 12; eu_idx = eu_idx + 1) begin
@@ -308,11 +286,9 @@ module wbu (
                     if (fifo_valid[fifo_idx] && 
                         fifo_waddr[fifo_idx] == eu_reg_waddr[eu_idx]) begin
                         
-                        waw_conflict_detected[eu_idx] = 1'b1;
-                        
                         // 比较timestamp，决定是否延迟
                         if (eu_timestamp[eu_idx] != fifo_timestamp[fifo_idx]) begin
-                            // timestamp不同，比较大小
+                            // timestamp不同，比较大小，时间戳小的先写回
                             if (eu_timestamp[eu_idx] > fifo_timestamp[fifo_idx]) begin
                                 waw_conflict_delay[eu_idx] = 1'b1;
                             end
@@ -348,98 +324,64 @@ module wbu (
         end
     end
     
-    // 缓冲队列管理
-    assign buffer_full = (buffer_count == BUFFER_SIZE);
-    assign buffer_empty = (buffer_count == 0);
-    assign buffer_alloc_ptr = buffer_count[BUFFER_ADDR_WIDTH-1:0];
-    
-    // 找到最高优先级的缓冲项进行释放
-    reg [BUFFER_ADDR_WIDTH-1:0] buffer_release_ptr;
-    reg buffer_release_valid;
-    reg [`COMMIT_ID_WIDTH-1:0] max_commit_id;
-    
-    always @(*) begin
-        buffer_release_valid = 1'b0;
-        buffer_release_ptr = 3'b0;
-        max_commit_id = 3'b0;
-        
-        for (integer idx = 0; idx < BUFFER_SIZE; idx = idx + 1) begin
-            if (pending_valid[idx] && pending_commit_id[idx] >= max_commit_id) begin
-                max_commit_id = pending_commit_id[idx];
-                buffer_release_ptr = idx[BUFFER_ADDR_WIDTH-1:0];
-                buffer_release_valid = 1'b1;
-            end
-        end
-    end
-    
     // 当前周期可以直接写回的执行单元
     wire [11:0] eu_can_writeback;
     assign eu_can_writeback = (eu_reg_we | eu_csr_we) & 
                              (~waw_conflict_delay) & 
-                             (~current_cycle_conflict) &
-                             {12{~buffer_full}};  // 缓冲满时暂停所有新的写回
+                             (~current_cycle_conflict);
     
     // 选择两个最高优先级的写回请求（优先级：LSU > DIV > MUL > CSR > ADDER > SHIFTER）
     reg [3:0] wb_ch1_eu, wb_ch2_eu;
     reg wb_ch1_valid, wb_ch2_valid;
-    reg wb_ch1_from_buffer, wb_ch2_from_buffer;
     
     always @(*) begin
         wb_ch1_valid = 1'b0;
         wb_ch2_valid = 1'b0;
         wb_ch1_eu = 4'd0;
         wb_ch2_eu = 4'd0;
-        wb_ch1_from_buffer = 1'b0;
-        wb_ch2_from_buffer = 1'b0;
-        
-        // 优先处理缓冲队列中的请求
-        if (buffer_release_valid && !buffer_empty) begin
-            wb_ch1_valid = 1'b1;
-            wb_ch1_from_buffer = 1'b1;
-        end
         
         // 从当前周期请求中选择最高优先级的
         // 按优先级顺序检查：LSU2, LSU1, DIV2, DIV1, MUL2, MUL1, CSR2, CSR1, ADDER2, ADDER1, SHIFTER2, SHIFTER1
-        if (!wb_ch1_valid && eu_can_writeback[11]) begin
+        if (eu_can_writeback[11]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_LSU2;
-        end else if (!wb_ch1_valid && eu_can_writeback[10]) begin
+        end else if (eu_can_writeback[10]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_LSU1;
-        end else if (!wb_ch1_valid && eu_can_writeback[7]) begin
+        end else if (eu_can_writeback[7]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_DIV2;
-        end else if (!wb_ch1_valid && eu_can_writeback[6]) begin
+        end else if (eu_can_writeback[6]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_DIV1;
-        end else if (!wb_ch1_valid && eu_can_writeback[5]) begin
+        end else if (eu_can_writeback[5]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_MUL2;
-        end else if (!wb_ch1_valid && eu_can_writeback[4]) begin
+        end else if (eu_can_writeback[4]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_MUL1;
-        end else if (!wb_ch1_valid && eu_can_writeback[9]) begin
+        end else if (eu_can_writeback[9]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_CSR2;
-        end else if (!wb_ch1_valid && eu_can_writeback[8]) begin
+        end else if (eu_can_writeback[8]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_CSR1;
-        end else if (!wb_ch1_valid && eu_can_writeback[1]) begin
+        end else if (eu_can_writeback[1]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_ADDER2;
-        end else if (!wb_ch1_valid && eu_can_writeback[0]) begin
+        end else if (eu_can_writeback[0]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_ADDER1;
-        end else if (!wb_ch1_valid && eu_can_writeback[3]) begin
+        end else if (eu_can_writeback[3]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_SHIFTER2;
-        end else if (!wb_ch1_valid && eu_can_writeback[2]) begin
+        end else if (eu_can_writeback[2]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_SHIFTER1;
         end
         
         // 选择第二个写回通道（排除已选择的）
-        if (wb_ch1_valid && !wb_ch1_from_buffer) begin
+        if (wb_ch1_valid) begin
             // 屏蔽已选择的执行单元
             if (eu_can_writeback[11] && wb_ch1_eu != EU_LSU2) begin
                 wb_ch2_valid = 1'b1;
@@ -498,31 +440,31 @@ module wbu (
             // 处理新指令入FIFO
             if (!fifo_full) begin
                 // inst1入FIFO
-                if (inst1_rd_addr_i != {`REG_ADDR_WIDTH{1'b0}}) begin
-                    fifo_valid[fifo_alloc_ptr1] <= 1'b1;
-                    fifo_waddr[fifo_alloc_ptr1] <= inst1_rd_addr_i;
-                    fifo_timestamp[fifo_alloc_ptr1] <= inst1_timestamp_hdu;
+                if (inst1_rd_addr_i != 5'b0) begin
+                    fifo_valid[fifo_write_ptr] <= 1'b1;
+                    fifo_waddr[fifo_write_ptr] <= inst1_rd_addr_i;
+                    fifo_timestamp[fifo_write_ptr] <= inst1_timestamp_hdu;
                     fifo_count <= fifo_count + 1'b1;
                     
-                    // inst2入FIFO（如果还有空间）
+                    // inst2入FIFO（如果还有空间且不是同一个表项）
                     if (fifo_count < FIFO_DEPTH - 1 && 
-                        inst2_rd_addr_i != {`REG_ADDR_WIDTH{1'b0}}) begin
-                        fifo_valid[fifo_alloc_ptr2] <= 1'b1;
-                        fifo_waddr[fifo_alloc_ptr2] <= inst2_rd_addr_i;
-                        fifo_timestamp[fifo_alloc_ptr2] <= inst2_timestamp_hdu;
+                        inst2_rd_addr_i != 5'b0) begin
+                        fifo_valid[fifo_write_ptr + 1] <= 1'b1;
+                        fifo_waddr[fifo_write_ptr + 1] <= inst2_rd_addr_i;
+                        fifo_timestamp[fifo_write_ptr + 1] <= inst2_timestamp_hdu;
                         fifo_count <= fifo_count + 2'd2;
                     end
-                end else if (inst2_rd_addr_i != {`REG_ADDR_WIDTH{1'b0}}) begin
+                end else if (inst2_rd_addr_i != 5'b0) begin
                     // 只有inst2需要入FIFO
-                    fifo_valid[fifo_alloc_ptr1] <= 1'b1;
-                    fifo_waddr[fifo_alloc_ptr1] <= inst2_rd_addr_i;
-                    fifo_timestamp[fifo_alloc_ptr1] <= inst2_timestamp_hdu;
+                    fifo_valid[fifo_write_ptr] <= 1'b1;
+                    fifo_waddr[fifo_write_ptr] <= inst2_rd_addr_i;
+                    fifo_timestamp[fifo_write_ptr] <= inst2_timestamp_hdu;
                     fifo_count <= fifo_count + 1'b1;
                 end
             end
             
             // 处理写回完成，清除对应FIFO项
-            if (wb_ch1_valid && !wb_ch1_from_buffer) begin
+            if (wb_ch1_valid) begin
                 for (integer idx = 0; idx < FIFO_DEPTH; idx = idx + 1) begin
                     if (fifo_valid[idx] && 
                         fifo_waddr[idx] == eu_reg_waddr[wb_ch1_eu] &&
@@ -545,69 +487,6 @@ module wbu (
                     end
                 end
             end
-            
-            // 处理从缓冲队列写回完成
-            if (wb_ch1_valid && wb_ch1_from_buffer) begin
-                for (integer idx = 0; idx < FIFO_DEPTH; idx = idx + 1) begin
-                    if (fifo_valid[idx] && 
-                        fifo_waddr[idx] == pending_reg_waddr[buffer_release_ptr] &&
-                        fifo_timestamp[idx] == pending_timestamp[buffer_release_ptr]) begin
-                        fifo_valid[idx] <= 1'b0;
-                        fifo_count <= fifo_count - 1'b1;
-                        break;
-                    end
-                end
-            end
-        end
-    end
-    
-    // 缓冲队列管理和时序逻辑
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            buffer_count <= {(BUFFER_ADDR_WIDTH+1){1'b0}};
-            pending_valid <= {BUFFER_SIZE{1'b0}};
-        end else if (int_assert_i == `INT_ASSERT) begin
-            // 中断时清空缓冲队列
-            buffer_count <= {(BUFFER_ADDR_WIDTH+1){1'b0}};
-            pending_valid <= {BUFFER_SIZE{1'b0}};
-        end else begin
-            // 正常操作：入队和出队
-            case ({buffer_release_valid, |waw_conflict_delay})
-                2'b00: buffer_count <= buffer_count;  // 无入队无出队
-                2'b01: buffer_count <= buffer_count + 1'b1;  // 仅入队
-                2'b10: buffer_count <= buffer_count - 1'b1;  // 仅出队
-                2'b11: buffer_count <= buffer_count;  // 同时入队出队
-            endcase
-            
-            // 出队：释放缓冲项
-            if (buffer_release_valid && !buffer_empty) begin
-                pending_valid[buffer_release_ptr] <= 1'b0;
-            end
-            
-            // 入队：存储WAW冲突的请求
-            if (|waw_conflict_delay && !buffer_full) begin
-                for (integer eu_idx = 0; eu_idx < 12; eu_idx = eu_idx + 1) begin
-                    if (waw_conflict_delay[eu_idx]) begin
-                        pending_valid[buffer_alloc_ptr] <= 1'b1;
-                        pending_reg_wdata[buffer_alloc_ptr] <= eu_reg_wdata[eu_idx];
-                        pending_reg_waddr[buffer_alloc_ptr] <= eu_reg_waddr[eu_idx];
-                        pending_commit_id[buffer_alloc_ptr] <= eu_commit_id[eu_idx];
-                        pending_timestamp[buffer_alloc_ptr] <= eu_timestamp[eu_idx];
-                        pending_eu_type[buffer_alloc_ptr] <= eu_idx[3:0];
-                        
-                        // 处理CSR写回
-                        if (eu_idx == EU_CSR1 || eu_idx == EU_CSR2) begin
-                            pending_is_csr[buffer_alloc_ptr] <= 1'b1;
-                            pending_csr_waddr[buffer_alloc_ptr] <= eu_csr_waddr[eu_idx];
-                            pending_csr_wdata[buffer_alloc_ptr] <= eu_csr_wdata[eu_idx];
-                        end else begin
-                            pending_is_csr[buffer_alloc_ptr] <= 1'b0;
-                        end
-                        
-                        break;  // 每次只处理一个冲突请求
-                    end
-                end
-            end
         end
     end
     
@@ -617,19 +496,13 @@ module wbu (
     
     // 寄存器写回通道1输出
     always @(*) begin
-        if (wb_ch1_valid && !wb_ch1_from_buffer) begin
-            // 从当前周期执行单元输出
+        if (wb_ch1_valid) begin
             reg1_wdata_o = eu_reg_wdata[wb_ch1_eu];
             reg1_waddr_o = eu_reg_waddr[wb_ch1_eu];
             reg1_we_o = (int_assert_i != `INT_ASSERT) && eu_reg_we[wb_ch1_eu];
-        end else if (wb_ch1_valid && wb_ch1_from_buffer && !pending_is_csr[buffer_release_ptr]) begin
-            // 从缓冲队列输出（非CSR）
-            reg1_wdata_o = pending_reg_wdata[buffer_release_ptr];
-            reg1_waddr_o = pending_reg_waddr[buffer_release_ptr];
-            reg1_we_o = (int_assert_i != `INT_ASSERT);
         end else begin
             reg1_wdata_o = {`REG_DATA_WIDTH{1'b0}};
-            reg1_waddr_o = {`REG_ADDR_WIDTH{1'b0}};
+            reg1_waddr_o = 5'b0;
             reg1_we_o = 1'b0;
         end
     end
@@ -642,23 +515,17 @@ module wbu (
             reg2_we_o = (int_assert_i != `INT_ASSERT) && eu_reg_we[wb_ch2_eu];
         end else begin
             reg2_wdata_o = {`REG_DATA_WIDTH{1'b0}};
-            reg2_waddr_o = {`REG_ADDR_WIDTH{1'b0}};
+            reg2_waddr_o = 5'b0;
             reg2_we_o = 1'b0;
         end
     end
     
     // CSR写回通道1输出
     always @(*) begin
-        if (wb_ch1_valid && !wb_ch1_from_buffer && (wb_ch1_eu == EU_CSR1 || wb_ch1_eu == EU_CSR2)) begin
-            // 从当前周期CSR执行单元输出
+        if (wb_ch1_valid && (wb_ch1_eu == EU_CSR1 || wb_ch1_eu == EU_CSR2)) begin
             csr1_wdata_o = eu_csr_wdata[wb_ch1_eu];
             csr1_waddr_o = eu_csr_waddr[wb_ch1_eu];
             csr1_we_o = (int_assert_i != `INT_ASSERT) && eu_csr_we[wb_ch1_eu];
-        end else if (wb_ch1_valid && wb_ch1_from_buffer && pending_is_csr[buffer_release_ptr]) begin
-            // 从缓冲队列输出（CSR）
-            csr1_wdata_o = pending_csr_wdata[buffer_release_ptr];
-            csr1_waddr_o = pending_csr_waddr[buffer_release_ptr];
-            csr1_we_o = (int_assert_i != `INT_ASSERT);
         end else begin
             csr1_wdata_o = {`REG_DATA_WIDTH{1'b0}};
             csr1_waddr_o = {`BUS_ADDR_WIDTH{1'b0}};
@@ -680,18 +547,18 @@ module wbu (
     end
     
     // Ready信号生成
-    assign adder1_ready_o = ~(waw_conflict_delay[0] | current_cycle_conflict[0] | buffer_full);
-    assign adder2_ready_o = ~(waw_conflict_delay[1] | current_cycle_conflict[1] | buffer_full);
-    assign shifter1_ready_o = ~(waw_conflict_delay[2] | current_cycle_conflict[2] | buffer_full);
-    assign shifter2_ready_o = ~(waw_conflict_delay[3] | current_cycle_conflict[3] | buffer_full);
-    assign mul1_ready_o = ~(waw_conflict_delay[4] | current_cycle_conflict[4] | buffer_full);
-    assign mul2_ready_o = ~(waw_conflict_delay[5] | current_cycle_conflict[5] | buffer_full);
-    assign div1_ready_o = ~(waw_conflict_delay[6] | current_cycle_conflict[6] | buffer_full);
-    assign div2_ready_o = ~(waw_conflict_delay[7] | current_cycle_conflict[7] | buffer_full);
-    assign csr1_ready_o = ~(waw_conflict_delay[8] | current_cycle_conflict[8] | buffer_full);
-    assign csr2_ready_o = ~(waw_conflict_delay[9] | current_cycle_conflict[9] | buffer_full);
-    assign lsu1_ready_o = ~(waw_conflict_delay[10] | current_cycle_conflict[10] | buffer_full);
-    assign lsu2_ready_o = ~(waw_conflict_delay[11] | current_cycle_conflict[11] | buffer_full);
+    assign adder1_ready_o = ~(waw_conflict_delay[0] | current_cycle_conflict[0]);
+    assign adder2_ready_o = ~(waw_conflict_delay[1] | current_cycle_conflict[1]);
+    assign shifter1_ready_o = ~(waw_conflict_delay[2] | current_cycle_conflict[2]);
+    assign shifter2_ready_o = ~(waw_conflict_delay[3] | current_cycle_conflict[3]);
+    assign mul1_ready_o = ~(waw_conflict_delay[4] | current_cycle_conflict[4]);
+    assign mul2_ready_o = ~(waw_conflict_delay[5] | current_cycle_conflict[5]);
+    assign div1_ready_o = ~(waw_conflict_delay[6] | current_cycle_conflict[6]);
+    assign div2_ready_o = ~(waw_conflict_delay[7] | current_cycle_conflict[7]);
+    assign csr1_ready_o = ~(waw_conflict_delay[8] | current_cycle_conflict[8]);
+    assign csr2_ready_o = ~(waw_conflict_delay[9] | current_cycle_conflict[9]);
+    assign lsu1_ready_o = ~(waw_conflict_delay[10] | current_cycle_conflict[10]);
+    assign lsu2_ready_o = ~(waw_conflict_delay[11] | current_cycle_conflict[11]);
     
     // 提交信号生成
     assign commit_valid1_o = wb_ch1_valid && (int_assert_i != `INT_ASSERT);
@@ -700,11 +567,7 @@ module wbu (
     // 提交ID生成
     always @(*) begin
         if (wb_ch1_valid) begin
-            if (wb_ch1_from_buffer) begin
-                commit_id1_o = pending_commit_id[buffer_release_ptr];
-            end else begin
-                commit_id1_o = eu_commit_id[wb_ch1_eu];
-            end
+            commit_id1_o = eu_commit_id[wb_ch1_eu];
         end else begin
             commit_id1_o = {`COMMIT_ID_WIDTH{1'b0}};
         end
