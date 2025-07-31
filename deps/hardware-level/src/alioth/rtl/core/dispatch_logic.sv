@@ -37,7 +37,7 @@ module dispatch_logic (
     output wire        req_adder_o,
     output wire [31:0] adder_op1_o,
     output wire [31:0] adder_op2_o,
-    output wire [5:0]  adder_op_info_o,  // {op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
+    output wire [6:0]  adder_op_info_o,  // {op_jump, op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
 
     // dispatch to SHIFTER
     output wire        req_shifter_o,
@@ -45,9 +45,6 @@ module dispatch_logic (
     output wire [31:0] shifter_op2_o,
     output wire [5:0]  shifter_op_info_o,  // {op_and, op_or, op_xor, op_sra, op_srl, op_sll}
 
-    // ALU special operations
-    output wire        alu_op_jump_o,  // jump operations
-    output wire        alu_op_lui_o,   // LUI operation
 
     // dispatch to Bru
     output wire        req_bjp_o,
@@ -156,6 +153,7 @@ module dispatch_logic (
     assign adder_op1_o = (op_adder | bjp_op_jump_o) ? alu_op1 : 32'h0;
     assign adder_op2_o = bjp_op_jump_o ? 32'h4 : op_adder ? alu_op2 : 32'h0;
     assign adder_op_info_o = {
+        bjp_op_jump_o,  // op_jump (用于JALR指令)
         alu_info[`DECINFO_ALU_SLTU],  // op_sltu
         alu_info[`DECINFO_ALU_SLT],   // op_slt
         alu_info[`DECINFO_ALU_SUB],   // op_sub
@@ -177,9 +175,6 @@ module dispatch_logic (
         alu_info[`DECINFO_ALU_SLL]   // op_sll
     };
 
-    // ALU特殊操作输出
-    assign alu_op_jump_o = bjp_op_jump_o;
-    assign alu_op_lui_o = alu_info[`DECINFO_ALU_LUI];
 
     // MULDIV info
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
