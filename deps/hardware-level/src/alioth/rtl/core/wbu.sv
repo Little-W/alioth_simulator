@@ -63,9 +63,6 @@ module wbu (
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
 
-    // 中断信号
-    input wire int_assert_i,
-
     // 长指令完成信号（对接hazard_detection）
     output wire                        commit_valid_o,  // 指令完成有效信号
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,     // 完成指令ID
@@ -98,14 +95,14 @@ module wbu (
     assign alu_ready_o    = !alu_conflict;
 
     // 定义各单元的最终使能信号
-    wire lsu_en = lsu_active;
-    wire muldiv_en = muldiv_active && !muldiv_conflict;
-    wire csr_en = csr_active && !csr_conflict;
-    wire alu_en = alu_active && !alu_conflict;
-    wire idu_en = !lsu_en && !muldiv_en && !csr_en && !alu_en;
+    wire                       lsu_en = lsu_active;
+    wire                       muldiv_en = muldiv_active && !muldiv_conflict;
+    wire                       csr_en = csr_active && !csr_conflict;
+    wire                       alu_en = alu_active && !alu_conflict;
+    wire                       idu_en = !lsu_en && !muldiv_en && !csr_en && !alu_en;
 
     // 最终生效的写信号
-    wire reg_we_effective = (int_assert_i != `INT_ASSERT) && (lsu_en || muldiv_en || csr_en || alu_en);
+    wire                       reg_we_effective = (lsu_en || muldiv_en || csr_en || alu_en);
 
     // 写数据和地址多路选择器，使用与或逻辑实现
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
@@ -114,13 +111,13 @@ module wbu (
     // 使用与或结构简化数据选择逻辑
     assign reg_wdata_r = ({`REG_DATA_WIDTH{lsu_en}} & lsu_reg_wdata_i) |
                         ({`REG_DATA_WIDTH{muldiv_en}} & muldiv_reg_wdata_i) |
-                        ({`REG_DATA_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_wdata_i) | // 仅当csr_reg_we_i有效时写回
-        ({`REG_DATA_WIDTH{alu_en}} & alu_reg_wdata_i);
+                        ({`REG_DATA_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_wdata_i) |
+                        ({`REG_DATA_WIDTH{alu_en}} & alu_reg_wdata_i);
 
     assign reg_waddr_r = ({`REG_ADDR_WIDTH{lsu_en}} & lsu_reg_waddr_i) |
                         ({`REG_ADDR_WIDTH{muldiv_en}} & muldiv_reg_waddr_i) |
-                        ({`REG_ADDR_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_waddr_i) | // 仅当csr_reg_we_i有效时写回
-        ({`REG_ADDR_WIDTH{alu_en}} & alu_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{csr_en && csr_reg_we_i}} & csr_reg_waddr_i) |
+                        ({`REG_ADDR_WIDTH{alu_en}} & alu_reg_waddr_i) |
                         ({`REG_ADDR_WIDTH{idu_en}} & idu_reg_waddr_i);
 
     // 输出到寄存器文件的信号
@@ -129,12 +126,12 @@ module wbu (
     assign reg_waddr_o = reg_waddr_r;
 
     // CSR写回信号
-    assign csr_we_o = (int_assert_i != `INT_ASSERT) && csr_we_i && !csr_conflict;
+    assign csr_we_o = csr_we_i; // 始终写回CSR，即使可能发生重复写回
     assign csr_wdata_o = csr_wdata_i;
     assign csr_waddr_o = csr_waddr_i;
 
     // 长指令完成信号（对接hazard_detection）
-    assign commit_valid_o = (muldiv_active || lsu_active || alu_active || csr_active) && (int_assert_i != `INT_ASSERT);
+    assign commit_valid_o = (muldiv_active || lsu_active || alu_active || csr_active);
     assign commit_id_o = lsu_active ? lsu_commit_id_i : 
                         muldiv_active ? muldiv_commit_id_i :
                         csr_active ? csr_commit_id_i :
