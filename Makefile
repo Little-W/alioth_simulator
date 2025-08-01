@@ -53,7 +53,7 @@ alioth_no_timeout:
 	echo "Inserting DISABLE_TIMEOUT macro into tb_top.sv"; \
 	sed -i '1i`define DISABLE_TIMEOUT' ${BUILD_DIR}/${CORE}_tb/tb_verilator/tb_top.sv; \
 	fi
-	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} PC_WRITE_TOHOST=0 -C ${BUILD_DIR}
+	make compile SIM_ROOT_DIR=${SIM_ROOT_DIR} SIM_TOOL=${SIM_TOOL} SIM_OPTIONS_COMMON=${SIM_OPTIONS_COMMON} PC_WRITE_TOHOST=0 ENABLE_UART_SIM=1 -C ${BUILD_DIR}
 
 alioth_test:
 	@mkdir -p ${BUILD_DIR}

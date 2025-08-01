@@ -1,3 +1,6 @@
+`define verilator5
+`define verilator5
+`define DISABLE_TIMEOUT
 `timescale 1 ns / 1 ps
 
 `include "defines.svh"
@@ -8,7 +11,8 @@
 
 // 宏定义控制寄存器调试输出
 // `define DEBUG_DISPLAY_REGS 1
-`define ENABLE_IRQ_MONITOR
+// `define ENABLE_IRQ_MONITOR // 监控IRQ相关信号变化
+// `define ENABLE_EXT_IRQ_MONITOR // 监控外部中断源变化 
 `define ENABLE_DUMP_EN
 // ToHost程序地址,用于监控测试是否结束
 `ifdef ENABLE_PC_WRITE_TOHOST
@@ -18,7 +22,9 @@
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
 
-parameter DUMP_START_CYCLE = 20278800;
+// 支持dump使能区间
+parameter DUMP_START_CYCLE = 133262798;
+parameter DUMP_END_CYCLE = 136262728;  // 可根据需要修改，默认最大32位无符号数
 
 module tb_top (
     input clk,
@@ -29,22 +35,28 @@ module tb_top (
     input  tms_i,
     input  tdi_i,
     output tdo_o,
-    output dump_en  // 新增dump_en输出端口
+    output dump_en, // 新增dump_en输出端口
+
+    // UART接口引脚
+    output uart_tx,
+    input  uart_rx
 );
 
     // 通用寄存器访问 - 仅用于错误信息显示
-    wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
+    wire [31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_dispatch.pipe_inst_addr_o;
-    wire    [   31:0] csr_cyclel = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
-    wire    [   31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
-    wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
-    wire              swi = alioth_soc_top_0.u_cpu_top.u_clint.soft_irq;
-    wire              timer_irq = alioth_soc_top_0.u_cpu_top.u_clint.timer_irq;
+    wire [31:0] pc = alioth_soc_top_0.u_cpu_top.u_dispatch.pipe_inst_addr_o;
+    wire [31:0] csr_cyclel = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
+    wire [31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
+    wire [31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
+    wire swi = alioth_soc_top_0.u_cpu_top.u_clint.soft_irq;
+    wire timer_irq = alioth_soc_top_0.u_cpu_top.u_clint.timer_irq;
+    wire [10:0] irq_sources = alioth_soc_top_0.u_cpu_top.u_plic.irq_sources;  // 修改为11位
+    wire irq_valid = alioth_soc_top_0.u_cpu_top.u_plic.irq_valid;
 
-    integer           r;
-    reg     [8*300:1] testcase;
-    integer           dumpwave;
+    integer r;
+    reg [8*300:1] testcase;
+    integer dumpwave;
 
     // 计算ITCM和DTCM的深度和字节大小
     localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数
@@ -69,7 +81,8 @@ module tb_top (
         if (!rst_n) begin
             dump_en_reg <= 1'b0;
         end else begin
-            if (cycle >= DUMP_START_CYCLE) dump_en_reg <= 1'b1;
+            // 支持dump使能区间
+            if (cycle >= DUMP_START_CYCLE && cycle < DUMP_END_CYCLE) dump_en_reg <= 1'b1;
             else dump_en_reg <= 1'b0;
         end
     end
@@ -336,7 +349,10 @@ module tb_top (
     alioth_soc_top alioth_soc_top_0 (
         .clk            (clk),
         .rst_n          (rst_n),
-        .low_speed_clk_i(lfextclk)
+        .low_speed_clk_i(lfextclk),
+        // UART端口连接
+        .tx_o           (uart_tx),
+        .rx_i           (uart_rx)
     );
 
     // 添加可选的寄存器调试输出功能
@@ -402,4 +418,30 @@ module tb_top (
     end
 `endif
 
+`ifdef ENABLE_EXT_IRQ_MONITOR
+    // 新增：监控irq_sources和irq_valid变化
+    reg [10:0] irq_sources_last;  // 修改为11位
+    reg        irq_valid_last;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            irq_sources_last <= 11'b0;  // 修改为11位
+            irq_valid_last   <= 1'b0;
+        end else begin
+            if (irq_sources != irq_sources_last) begin
+                $display("------------------------------------------------------------");
+                $display("irq_sources changed to %b at pc=0x%08x, cycle=%0d", irq_sources, pc,
+                         cycle);
+                $display("------------------------------------------------------------");
+                irq_sources_last <= irq_sources;
+            end
+            if (irq_valid != irq_valid_last) begin
+                $display("------------------------------------------------------------");
+                $display("irq_valid changed to %b at pc=0x%08x, cycle=%0d", irq_valid, pc, cycle);
+                $display("------------------------------------------------------------");
+                irq_valid_last <= irq_valid;
+            end
+        end
+    end
+
+`endif
 endmodule

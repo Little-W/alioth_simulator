@@ -23,6 +23,11 @@ SIM_OPTIONS   += --exe --trace --trace-structs --trace-params --trace-max-array 
 SIM_OPTIONS   += -CFLAGS "-Wall -DTOPLEVEL_NAME=tb_top -g -O0" -LDFLAGS "-pthread -lutil -lelf"
 SIM_OPTIONS   += -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT -Wno-TIMESCALEMOD -Wno-fatal
 
+# 仅当 ENABLE_UART_SIM=1 时追加
+ifeq ($(ENABLE_UART_SIM),1)
+SIM_OPTIONS   += -CFLAGS -DENABLE_UART_SIM
+endif
+
 ifeq ($(SIM_TOOL),verilator5)
 SIM_OPTIONS   += --no-timing
 endif
