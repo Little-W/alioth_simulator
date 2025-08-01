@@ -36,7 +36,8 @@
 `define REG_DATA_WIDTH 32
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
-`define COMMIT_ID_WIDTH 2
+`define COMMIT_ID_WIDTH 3 // 提交ID宽度，更改为3
+
 
 // APB外设地址空间定义（顺序：Timer, SPI, I2C0, I2C1, UART0, UART1, GPIO0, GPIO1）
 `define APB_DEV7_ADDR_LOW  20'h00000 // Timer

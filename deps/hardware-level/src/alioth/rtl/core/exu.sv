@@ -54,7 +54,7 @@ module exu (
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [`REG_DATA_WIDTH-1:0] reg2_rdata_i,
 
-    input wire hazard_stall_i,  // 来自HDU的冒险暂停信号
+    input wire hazard_stall_i,  // 来自HDU的冒险暂停信号 //无用，可以去除
 
     // 新增从顶层dispatch接收的信号
     // dispatch to ALU
