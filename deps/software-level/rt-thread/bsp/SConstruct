@@ -52,8 +52,6 @@ objs = PrepareBuilding(env, RTT_ROOT)
 BUILD_DIR = os.path.join(os.getcwd(), 'build', rtconfig.BSP_LIBRARY_TYPE)
 Export('BUILD_DIR')
 
-# objs.extend(SConscript(os.path.join(BSP_DIR, 'SConscript'), exports=['BUILD_DIR']))
-
 GDB = rtconfig.GDB
 
 # make a building
