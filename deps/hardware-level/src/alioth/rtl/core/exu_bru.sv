@@ -88,15 +88,14 @@ module exu_bru (
     );
 
     // 简化跳转标志判断，增加预测回退条件
-    assign jump_flag = int_assert_i | (branch_cond & ~is_pred_branch_i) | sys_op_fence_i | pred_rollback;
+    assign jump_flag = (branch_cond & ~is_pred_branch_i) | sys_op_fence_i | pred_rollback;
 
     // 简化跳转地址选择逻辑
-    assign jump_addr_o = int_assert_i ? int_addr_i :
-        (bjp_op_jalr_i ? jalr_target_addr : adder_result);
+    assign jump_addr_o = (bjp_op_jalr_i ? jalr_target_addr : adder_result);
 
     // 非对齐跳转判断（跳转地址低2位非0）
     assign misaligned_fetch_o = ((jump_addr_o[1:0] != 2'b00) && (jump_flag || bjp_op_jal_i));
 
-    assign jump_flag_o = jump_flag & ~misaligned_fetch_o;  // 跳转标志输出，排除预测回退情况
+    assign jump_flag_o = jump_flag & ~misaligned_fetch_o & ~int_assert_i;  // 跳转标志输出，排除预测回退情况，并屏蔽中断
 
 endmodule

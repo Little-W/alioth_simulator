@@ -37,6 +37,7 @@ module exu (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,
     input wire                        int_assert_i,
+    input wire                        int_jump_i,
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
@@ -512,8 +513,8 @@ module exu (
 
     // 输出选择逻辑
     assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
-    assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
-    assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
+    assign jump_flag_o = bru_jump_flag || int_jump_i;
+    assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
 
     // 将乘除法开始信号输出给clint
     assign muldiv_started_o = div_start | mul_start;

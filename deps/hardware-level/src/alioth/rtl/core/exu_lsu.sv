@@ -201,7 +201,7 @@ module exu_lsu #(
 
     // 基本信号计算
     assign mem_addr_index = mem_addr_i[1:0];
-    assign valid_op = req_mem_i & (int_assert_i != `INT_ASSERT);
+    assign valid_op = req_mem_i && !int_assert_i;
 
     // 访存阻塞信号
     wire read_stall;

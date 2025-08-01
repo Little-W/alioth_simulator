@@ -148,8 +148,8 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] clint_data_o;
     wire [`INST_ADDR_WIDTH-1:0] clint_int_addr_o;
     wire clint_int_assert_o;
-    wire clint_flush_flag_o;  // 添加中断刷新信号
-    wire clint_stall_flag_o;
+    wire clint_int_jump_o;  // 添加中断跳转信号
+    wire clint_req_valid_o;  // 添加中断请求有效信号
 
     // 新增信号定义
     wire ifu_read_resp_error_o;
@@ -331,11 +331,12 @@ module cpu_top (
     wire inst_valid = (ctrl_stall_flag_o == 0);
     wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
                         (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
-    wire inst_clint_valid = (!dispatch_bjp_op_jal) && !dis_is_pred_branch_o && (dispatch_inst_valid_o);
+    wire inst_clint_valid = !dis_is_pred_branch_o && (dispatch_inst_valid_o);
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o;
+    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
 
     // CLINT AXI-Lite接口信号
     wire OM1_AXI_ACLK;
@@ -428,8 +429,7 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
-        .flush_flag_clint_i(clint_flush_flag_o),     // 添加连接到clint的flush信号
-        .stall_flag_clint_i(clint_stall_flag_o),
+        .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
         .stall_flag_hdu_i  (dispatch_stall_flag_o),  // 修改为从dispatch获取HDU暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
@@ -631,10 +631,11 @@ module cpu_top (
         .dec_info_bus_i(dispatch_dec_info_bus_o),     // 修改为从dispatch pipe获取译码信息总线
         .dec_imm_i(dispatch_dec_imm_o),  // 修改为从dispatch pipe获取立即数
         .int_assert_i(clint_int_assert_o),
+        .int_jump_i(clint_int_jump_o),  // 添加中断跳转信号输入
         .int_addr_i(clint_int_addr_o),
         .is_pred_branch_i(dis_is_pred_branch_o),  // 连接预测分支信号输入
 
-        // 修改：从dispatch获取长指令ID
+        // 从dispatch获取长指令ID
         .commit_id_i(dispatch_commit_id_o),
 
         // 写回握手信号
@@ -828,8 +829,6 @@ module cpu_top (
 
         .idu_reg_waddr_i(dispatch_reg_waddr_o), // 修改为从dispatch pipe获取IDU寄存器写地址
 
-        .int_assert_i(clint_int_assert_o),
-
         // 新增长指令完成输出
         .commit_valid_o(wbu_commit_valid_o),
         .commit_id_o   (wbu_commit_id_o),
@@ -850,7 +849,7 @@ module cpu_top (
         .inst_addr_i       (dispatch_inst_addr_o),
         .inst_data_i       (dispatch_inst_o),
         .inst_valid_i      (inst_clint_valid),
-        .jump_flag_i       (exu_jump_flag_o),
+        .jump_flag_i       (jump_addr_valid),
         .jump_addr_i       (exu_jump_addr_o),
         .stall_flag_i      (ctrl_stall_flag_o),
         .atom_opt_busy_i   (atom_opt_busy),
@@ -862,21 +861,22 @@ module cpu_top (
         .misaligned_store_i(dispatch_misaligned_store_o),
         .misaligned_fetch_i(misaligned_fetch_o),           // misaligned fetch信号输入
 
-        .data_i       (csr_clint_data_o),
-        .csr_mtvec    (csr_clint_csr_mtvec),
-        .csr_mepc     (csr_clint_csr_mepc),
-        .csr_mstatus  (csr_clint_csr_mstatus),
-        .csr_mie      (csr_clint_csr_mie),
-        .we_o         (clint_we_o),
-        .waddr_o      (clint_waddr_o),
-        .raddr_o      (clint_raddr_o),
-        .data_o       (clint_data_o),
-        .flush_flag_o (clint_flush_flag_o),     // 连接flush信号
-        .stall_flag_o (clint_stall_flag_o),
-        .int_addr_o   (clint_int_addr_o),
-        .int_assert_o (clint_int_assert_o),
+        .exu_stall_i      (exu_stall_flag_o),
+        .data_i           (csr_clint_data_o),
+        .csr_mtvec        (csr_clint_csr_mtvec),
+        .csr_mepc         (csr_clint_csr_mepc),
+        .csr_mstatus      (csr_clint_csr_mstatus),
+        .csr_mie          (csr_clint_csr_mie),
+        .we_o             (clint_we_o),
+        .waddr_o          (clint_waddr_o),
+        .raddr_o          (clint_raddr_o),
+        .data_o           (clint_data_o),
+        .int_addr_o       (clint_int_addr_o),
+        .int_jump_o       (clint_int_jump_o),
+        .int_assert_o     (clint_int_assert_o),
+        .clint_req_valid_o(clint_req_valid_o),
         // === 连接外部中断信号 ===
-        .ext_int_req_i(ext_int_req),
+        .ext_int_req_i    (ext_int_req),
 
         // AXI-lite slave接口直连
         .S_AXI_ACLK   (OM1_AXI_ACLK),
