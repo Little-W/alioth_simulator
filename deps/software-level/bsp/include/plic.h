@@ -11,7 +11,7 @@
 #define PLIC_INT_VECTABLE_ADDR  0x2000
 #define PLIC_INT_OBJS_ADDR      0x3000
 
-#define PLIC_NUM_SOURCES        8
+#define PLIC_NUM_SOURCES        11
 
 typedef struct {
     volatile uint32_t int_en;                          // 0x0000
@@ -22,6 +22,7 @@ typedef struct {
     volatile uint8_t  int_pri[PLIC_NUM_SOURCES];        // 0x1000~0x1000+N-1
     uint8_t  reserved2[0x2000 - (0x1000 + PLIC_NUM_SOURCES)]; // 填充到0x2000
     volatile uint32_t vectable[PLIC_NUM_SOURCES];       // 0x2000~0x2000+N-1*4
+    uint8_t  reserved3[0x3000 - (0x2000 + PLIC_NUM_SOURCES * 4)]; // 填充到0x3000
     volatile uint32_t objtable[PLIC_NUM_SOURCES];       // 0x3000~0x3000+N-1*4
 } PLIC_type;
 

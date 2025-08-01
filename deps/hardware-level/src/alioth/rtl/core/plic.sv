@@ -62,21 +62,35 @@ module plic (
                 r_idx = find_max_id(pri, valid, mid + 1, right);
                 l_pri = (valid[l_idx]) ? pri[l_idx] : 8'd0;
                 r_pri = (valid[r_idx]) ? pri[r_idx] : 8'd0;
-                if (l_pri >= r_pri) find_max_id = l_idx;
+                // 优先级非零优先，否则选第一个valid
+                if (l_pri > r_pri) find_max_id = l_idx;
+                else if (r_pri > l_pri) find_max_id = r_idx;
+                else if (valid[l_idx]) find_max_id = l_idx;
                 else find_max_id = r_idx;
             end
         end
     endfunction
 
     reg [        `PLIC_NUM_SOURCES-1:0] valid_mask;
+    reg [        `PLIC_NUM_SOURCES-1:0] valid_mask_r;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id_next;
     reg                                 irq_valid_next;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id;  // 最高优先级中断号
 
     always @(*) begin
-        valid_mask     = irq_sources & int_en;
-        irq_valid_next = |(int_en & irq_sources);
-        irq_id_next    = find_max_id(int_pri, valid_mask, 0, `PLIC_NUM_SOURCES - 1);
+        valid_mask = irq_sources & int_en;
+    end
+
+    // valid_mask打一拍
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) valid_mask_r <= {`PLIC_NUM_SOURCES{1'b0}};
+        else valid_mask_r <= valid_mask;
+    end
+
+    // 优先级选择和中断有效判断使用valid_mask_r
+    always @(*) begin
+        irq_valid_next = |valid_mask_r;
+        irq_id_next    = find_max_id(int_pri, valid_mask_r, 0, `PLIC_NUM_SOURCES - 1);
     end
 
     always @(posedge clk or negedge rst_n) begin
@@ -118,8 +132,8 @@ module plic (
             else if ((waddr >= `PLIC_INT_PRI_ADDR) && (waddr < (`PLIC_INT_PRI_ADDR + `PLIC_NUM_SOURCES))) begin
                 for (i = 0; i < 4; i = i + 1) begin
                     if (wstrb[i]) begin
-                        if ((waddr-`PLIC_INT_PRI_ADDR+i) < `PLIC_NUM_SOURCES)
-                            int_pri[waddr-`PLIC_INT_PRI_ADDR+i] <= wdata[i*8+:8];
+                        if (({waddr[`PLIC_AXI_ADDR_WIDTH-1:2],2'b0} - `PLIC_INT_PRI_ADDR + i) < `PLIC_NUM_SOURCES)
+                            int_pri[{waddr[`PLIC_AXI_ADDR_WIDTH-1:2],2'b0} -`PLIC_INT_PRI_ADDR+i] <= wdata[i*8+:8];
                     end
                 end
             end

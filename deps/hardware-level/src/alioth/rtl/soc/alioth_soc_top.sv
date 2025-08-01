@@ -139,7 +139,7 @@ module alioth_soc_top (
     wire [ 3:0] timer_events;
 
     // 拓展宽度为12位，优先级顺序：Timer[3:0], SPI, I2C0, I2C1, UART0, UART1, GPIO0, GPIO1
-    wire [11:0] irq_vec;
+    wire [10:0] irq_vec;
     assign irq_vec = {
         gpio1_int,  // [11]
         gpio0_int,  // [10]

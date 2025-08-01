@@ -8,7 +8,7 @@
 `define PLIC_INT_PRI_ADDR 16'h1000
 `define PLIC_INT_VECTABLE_ADDR 16'h2000
 `define PLIC_INT_OBJS_ADDR 16'h3000
-`define PLIC_NUM_SOURCES 8
+`define PLIC_NUM_SOURCES 11
 
 module plic_tb;
 
@@ -117,22 +117,22 @@ module plic_tb;
         // 模拟中断输入
         #10;
         irq_sources = 8'b0000_0001; // 只触发中断0
-        #10;
+        #50; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h)", irq_valid, mvec_val, irq_vec_addr[0]);
 
         irq_sources = 8'b0000_1001; // 触发中断0和3
-        #10;
+        #50; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h)", irq_valid, mvec_val, irq_vec_addr[3]);
 
         irq_sources = 8'b1000_1001; // 触发中断0、3、7
-        #10;
+        #50; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h)", irq_valid, mvec_val, irq_vec_addr[7]);
 
         irq_sources = 8'b0000_0000; // 无中断
-        #10;
+        #50; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0)", irq_valid, mvec_val);
 
@@ -142,15 +142,28 @@ module plic_tb;
         write_reg(`PLIC_INT_PRI_ADDR + 7, 2);  // 降低中断7优先级
         // 重新触发中断0、3、7
         irq_sources = 8'b1000_1001;
-        #10;
+        #50; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, priority 3=10, 7=2)", irq_valid, mvec_val, irq_vec_addr[3]);
 
         // 再次改变优先级
         write_reg(`PLIC_INT_PRI_ADDR + 7, 15); // 提高中断7优先级
-        #10;
+        #50; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, priority 7=15)", irq_valid, mvec_val, irq_vec_addr[7]);
+
+        // 新增测试：7优先级为2，其余为0，只触发3
+        $display("=== Only IRQ3 Active, Priority 7=2, Others=0 ===");
+        for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1) begin
+            if (i == 7)
+                write_reg(`PLIC_INT_PRI_ADDR + i, 2);
+            else
+                write_reg(`PLIC_INT_PRI_ADDR + i, 0);
+        end
+        irq_sources = 8'b0000_1000; // 只触发中断3
+        #50; // 增加等待时间
+        read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
+        $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, only irq3 active, priority 7=2)", irq_valid, mvec_val, irq_vec_addr[3]);
 
         $finish;
     end
