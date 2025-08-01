@@ -229,7 +229,7 @@ module exu_alu (
 
     // 所有算术逻辑操作都需要写回寄存器
     // 如果misaligned_fetch_i为1，则忽略op_jump
-    wire alu_r_we = !(int_assert_i) && (req_alu_i | op_jump) && reg_we_i;
+    wire alu_r_we = !(int_assert_i) && (req_alu_i) && reg_we_i;
 
     // 目标寄存器地址逻辑
     wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT || misaligned_fetch_i) ? 5'b0 : alu_rd_i;
@@ -244,7 +244,7 @@ module exu_alu (
     wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
 
     // 握手失败时输出stall信号
-    assign alu_stall_o = reg_we_r & ~wb_ready_i;
+    assign alu_stall_o = reg_we_r & ~wb_ready_i && alu_r_we;
 
     // 结果寄存器
     gnrl_dfflr #(

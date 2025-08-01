@@ -139,7 +139,7 @@ module dispatch_logic (
         alu_info[`DECINFO_ALU_ADD]  // ALU_OP_ADD
     };
 
-    assign req_alu_o = op_alu;
+    assign req_alu_o = op_alu | bjp_wb_req;
 
     // MULDIV info
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
