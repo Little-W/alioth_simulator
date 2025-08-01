@@ -227,10 +227,10 @@ module exu_muldiv_ctrl (
     );
 
     // 第二级 commit_id 更新条件
-    wire                        saved_div_commit_id_stage2_en = div_result_we_en;
+    wire                        saved_div_commit_id_stage2_en = div_valid_i;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id_stage2_nxt = saved_div_commit_id;
 
-    wire                        saved_mul_commit_id_stage2_en = mul_result_we_en;
+    wire                        saved_mul_commit_id_stage2_en = mul_valid_i;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_stage2_nxt = saved_mul_commit_id;
 
     gnrl_dfflr #(
