@@ -20,17 +20,17 @@
 #define UART1 ((UART_TypeDef *)UART1_BASE)
 
 /* config class */
-struct hbird_uart_config
+struct alioth_uart_config
 {
     const char *name;
     UART_TypeDef *uart;
     IRQn_Type irqn;
 };
 
-/* hbird uart dirver class */
-struct hbird_uart
+/* alioth uart dirver class */
+struct alioth_uart
 {
-    struct hbird_uart_config *config;
+    struct alioth_uart_config *config;
     struct rt_serial_device serial;
 };
 

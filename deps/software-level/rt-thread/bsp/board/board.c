@@ -39,15 +39,14 @@ rt_weak void rt_hw_ticksetup(void)
     /* Make SWI and SysTick the lowest priority interrupts. */
     /* Stop and clear the SysTimer. SysTimer as Non-Vector Interrupt */
     SysTick_Config(ticks);
-
-    rt_hw_interrupt_init();                                                         // 中断入口函数初始化
-    rt_hw_interrupt_install(SysTimer_IRQn, timer_irq_handler, RT_NULL, "timerirq"); // 注册系统定时器中断入口函数
-    rt_hw_interrupt_install(SysTimerSW_IRQn, swi_handler, RT_NULL, "swi"); // 注册软件中断入口函数
+    // 中断入口函数初始化
+    rt_hw_interrupt_install(MachineTimer_IRQn, timer_irq_handler, RT_NULL, "timerirq"); // 注册系统定时器中断入口函数
+    __enable_timer_irq();                                                               // 使能定时器中断
 }
 
 void swi_handler(void)
 {
-   CLINT_ClearSWIRQ();
+    CLINT_ClearSWIRQ();
 }
 
 /**
@@ -75,8 +74,15 @@ void timer_irq_handler(void)
  */
 void rt_hw_board_init(void)
 {
+    rt_hw_interrupt_init();
     /* OS Tick Configuration */
     rt_hw_ticksetup();
+
+    rt_hw_interrupt_install(MachineSoftware_IRQn, swi_handler, RT_NULL, "swi");    // 注册软件中断入口函数
+    __enable_sw_irq();                                                             // 使能软件中断
+    plic_init();                                                                   // 初始化PLIC
+    __enable_ext_irq();                                                         // 使能外部中断 
+    rt_hw_interrupt_install(MachineExternal_IRQn, plic_dispatch, RT_NULL, "plic"); // 注册PLIC中断处理函数
 
 #ifdef RT_USING_HEAP
     rt_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
