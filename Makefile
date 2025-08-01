@@ -371,5 +371,21 @@ sim_rt_thread: build_rt_thread
 
 rt_thread: sim_rt_thread
 
-.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout rt_thread build_rt_thread sim_rt_thread
+menuconfig:
+	@if [ -z "$(RT_THREAD_ROOT)" ]; then \
+		echo "请先设置RT_THREAD_ROOT环境变量"; \
+		exit 1; \
+	fi
+	@echo "RT_THREAD_ROOT: $(RT_THREAD_ROOT)"
+	@export SIM_ROOT_DIR=$(SIM_ROOT_DIR) && cd $(RT_THREAD_ROOT)/bsp && source $(abspath ${SIM_ROOT_DIR}/deps/tools/env_tools/env.sh) && menuconfig
+
+pkgs_update:
+	@if [ -z "$(RT_THREAD_ROOT)" ]; then \
+		echo "请先设置RT_THREAD_ROOT环境变量"; \
+		exit 1; \
+	fi
+	@echo "RT_THREAD_ROOT: $(RT_THREAD_ROOT)"
+	@export SIM_ROOT_DIR=$(SIM_ROOT_DIR) && cd $(RT_THREAD_ROOT)/bsp && source $(abspath ${SIM_ROOT_DIR}/deps/tools/env_tools/env.sh) && pkgs --update
+
+.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout rt_thread build_rt_thread sim_rt_thread menuconfig pkgs_update
 
