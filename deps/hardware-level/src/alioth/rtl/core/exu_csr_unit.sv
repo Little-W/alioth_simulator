@@ -53,6 +53,7 @@ module exu_csr_unit (
 
     // 中断信号
     input wire int_assert_i,
+    input wire fflags_pending_i, // 新增：fflags_pending输入信号
 
     // CSR写数据输出 - 完整输出所有CSR相关信号
     output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,  // CSR写数据
@@ -80,13 +81,18 @@ module exu_csr_unit (
     wire valid_csr_op = req_csr_i & ~int_assert_i;  // 当前有有效的CSR操作
     wire update_output = (wb_ready_i | ~csr_reg_we_o);
 
-    wire csr_reg_we_nxt = (valid_csr_op & csr_reg_we_i) ? `WriteEnable : `WriteDisable;
+    wire csr_reg_we_nxt = (valid_csr_op & ~fflags_pending_i & csr_reg_we_i) ? `WriteEnable : `WriteDisable;
 
     // 仿照csr_reg_we_nxt，统一风格
-    wire csr_we_nxt = (valid_csr_op & csr_we_i) ? `WriteEnable : `WriteDisable;
+    wire csr_we_nxt = (valid_csr_op & ~fflags_pending_i & csr_we_i) ? `WriteEnable : `WriteDisable;
 
-    // 握手失败时输出stall信号
-    assign csr_stall_o = csr_reg_we_o & ~wb_ready_i;
+    // 判断是否访问fflags或fcsr
+    wire csr_fflags_fcsr_access = valid_csr_op &&
+        ((csr_addr_i == `CSR_FFLAGS) || (csr_addr_i == `CSR_FCSR));
+
+    // 握手失败或fflags_pending时输出stall信号
+    assign csr_stall_o = (csr_reg_we_o & ~wb_ready_i) ||
+                         (csr_fflags_fcsr_access & fflags_pending_i);
 
     // 直接输出信号赋值
     assign csr_wdata_o  = csr_wdata_nxt;

@@ -34,13 +34,16 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] rd_addr,     // 新指令写寄存器地址
     input wire [`REG_ADDR_WIDTH-1:0] rs1_addr,    // 新指令读寄存器1地址
     input wire [`REG_ADDR_WIDTH-1:0] rs2_addr,    // 新指令读寄存器2地址
+    input wire [`REG_ADDR_WIDTH-1:0] rs3_addr,  // 新指令读寄存器3地址
     input wire                       rd_we,       // 新指令是否写寄存器
     input wire                       rs1_re,      // 是否检测rs1
     input wire                       rs2_re,      // 是否检测rs2
-
-    // 长指令完成信号
-    input wire                        commit_valid_i,  // 长指令执行完成有效信号
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // 执行完成的长指令ID
+    input wire                       rs3_re,      // 是否检测rs3
+    // 长指令完成信号（支持两路）
+    input wire                        commit_valid_int_i,  // 整数指令完成有效
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_int_i,     // 整数指令ID
+    input wire                        commit_valid_fp_i,   // 浮点指令完成有效
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_fp_i,      // 浮点指令ID
 
     // 控制信号
     output wire hazard_stall_o,  // 暂停流水线信号
@@ -49,8 +52,8 @@ module hdu (
 );
 
     // 定义FIFO表项结构
-    reg  [                3:0] fifo_valid;  // 有效位
-    reg  [`REG_ADDR_WIDTH-1:0] fifo_rd_addr                   [0:3];  // 目标寄存器地址
+    reg [7:0] fifo_valid;  // 有效位，深度8
+    reg [`REG_ADDR_WIDTH-1:0] fifo_rd_addr[0:7];  // 目标寄存器地址，深度8
 
     // 冒险检测信号
     reg                        raw_hazard;  // 读后写冒险
@@ -58,16 +61,34 @@ module hdu (
     wire                       hazard;  // 总冒险信号
 
     // 并行冒险检测信号
-    wire [                3:0] raw_hazard_vec;
-    wire [                3:0] waw_hazard_vec;
+    wire [                7:0] raw_hazard_vec;
+    wire [                7:0] waw_hazard_vec;
 
     genvar i;
     generate
-        for (i = 0; i < 4; i = i + 1) begin : hazard_vec_gen
-            assign raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                ((rs1_re && rs1_addr == fifo_rd_addr[i]) || (rs2_re && rs2_addr == fifo_rd_addr[i]));
-            assign waw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                (rd_we && rd_addr == fifo_rd_addr[i]);
+        for (i = 0; i < 8; i = i + 1) begin : hazard_vec_gen
+            assign raw_hazard_vec[i] = (
+                fifo_valid[i] &&
+                !(
+                    (commit_valid_int_i && commit_id_int_i == i) ||
+                    (commit_valid_fp_i  && commit_id_fp_i  == i)
+                ) &&
+                (
+                    (rs1_re && rs1_addr == fifo_rd_addr[i]) ||
+                    (rs2_re && rs2_addr == fifo_rd_addr[i]) ||
+                    (rs3_re && rs3_addr == fifo_rd_addr[i])
+                )
+            );
+            assign waw_hazard_vec[i] = (
+                fifo_valid[i] &&
+                !(
+                    (commit_valid_int_i && commit_id_int_i == i) ||
+                    (commit_valid_fp_i  && commit_id_fp_i  == i)
+                ) &&
+                (
+                    rd_we && rd_addr == fifo_rd_addr[i]
+                )
+            );
         end
     endgenerate
 
@@ -76,27 +97,34 @@ module hdu (
 
     // 只有在有新指令且存在冒险时才暂停流水线
     assign hazard = (raw_hazard || waw_hazard);
-    assign hazard_stall_o = hazard || (fifo_valid == 4'b1111); // 如果FIFO已满也暂停流水线
+    assign hazard_stall_o = hazard || (fifo_valid == 8'b11111111); // 如果FIFO已满也暂停流水线
 
     // 为新的长指令分配ID - 使用assign语句
     assign commit_id_o = (inst_valid && ~hazard) ? 
         ( ~fifo_valid[0] ? 0 :
           ~fifo_valid[1] ? 1 :
           ~fifo_valid[2] ? 2 :
-          ~fifo_valid[3] ? 3 : 0 ) : 0;
+          ~fifo_valid[3] ? 3 :
+          ~fifo_valid[4] ? 4 :
+          ~fifo_valid[5] ? 5 :
+          ~fifo_valid[6] ? 6 :
+          ~fifo_valid[7] ? 7 : 0 ) : 0;
 
     // 更新FIFO
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             // 复位时清空FIFO
-            for (int i = 0; i < (1 << `COMMIT_ID_WIDTH); i = i + 1) begin
+            for (int i = 0; i < 8; i = i + 1) begin
                 fifo_valid[i]   <= 1'b0;
-                fifo_rd_addr[i] <= 5'h0;
+                fifo_rd_addr[i] <= 0;
             end
         end else begin
-            // 清除已完成的长指令
-            if (commit_valid_i) begin
-                fifo_valid[commit_id_i] <= 1'b0;
+            // 清除已完成的长指令（支持两路ID）
+            if (commit_valid_int_i) begin
+                fifo_valid[commit_id_int_i] <= 1'b0;
+            end
+            if (commit_valid_fp_i) begin
+                fifo_valid[commit_id_fp_i] <= 1'b0;
             end
 
             // 添加新的长指令到FIFO

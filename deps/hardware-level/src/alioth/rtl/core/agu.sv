@@ -30,6 +30,7 @@ module agu (
     input  wire [31:0] rs1_rdata_i,
     input  wire [31:0] rs2_rdata_i,
     input  wire [31:0] dec_imm_i,
+    input  wire [31:0] frs2_rdata_i, // 新增浮点寄存器输入
     output wire        mem_op_lb_o,
     output wire        mem_op_lh_o,
     output wire        mem_op_lw_o,
@@ -57,16 +58,21 @@ module agu (
     wire mem_op_sh = mem_info[`DECINFO_MEM_SH];
     wire mem_op_sw = mem_info[`DECINFO_MEM_SW];
 
+    // 浮点内存操作
+    wire mem_op_flw = mem_info[`DECINFO_MEM_FLW];  // FLW加载一个浮点字
+    wire mem_op_fsw = mem_info[`DECINFO_MEM_FSW];  // FSW存储一个浮点字
+
+    // 这些信号仍然作为输出
     assign mem_op_lb_o    = mem_op_lb;
     assign mem_op_lh_o    = mem_op_lh;
-    assign mem_op_lw_o    = mem_op_lw;
+    assign mem_op_lw_o    = mem_op_lw | mem_op_flw;  // LW和FLW都加载一个字
     assign mem_op_lbu_o   = mem_op_lbu;
     assign mem_op_lhu_o   = mem_op_lhu;
     assign mem_op_sb_o    = mem_op_sb;
     assign mem_op_sh_o    = mem_op_sh;
-    assign mem_op_sw_o    = mem_op_sw;
-    assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];
-    assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];
+    assign mem_op_sw_o    = mem_op_sw | mem_op_fsw;  // SW和FSW都存储一个字
+    assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD] | mem_op_flw;  // 所有加载指令，包括FLW
+    assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE] | mem_op_fsw;  // 所有存储指令，包括FSW
 
     // 直接计算内存地址
     wire [31:0] mem_addr = rs1_rdata_i + dec_imm_i;
@@ -97,14 +103,23 @@ module agu (
     assign sw_mask = 4'b1111;
     assign sw_data = rs2_rdata_i;
 
+    // 浮点字存储掩码和数据 (FSW指令)
+    wire [ 3:0] fsw_mask;
+    wire [31:0] fsw_data;
+
+    assign fsw_mask = 4'b1111;  // FSW也是32位字存储
+    assign fsw_data = frs2_rdata_i;  // 使用浮点寄存器数据
+
     wire [ 3:0] mem_wmask;
     wire [31:0] mem_wdata;
-    assign mem_wmask = ({4{valid_op & mem_op_sb}} & sb_mask) |
-                       ({4{valid_op & mem_op_sh}} & sh_mask) |
-                       ({4{valid_op & mem_op_sw}} & sw_mask);
-    assign mem_wdata = ({32{valid_op & mem_op_sb}} & sb_data) |
-                       ({32{valid_op & mem_op_sh}} & sh_data) |
-                       ({32{valid_op & mem_op_sw}} & sw_data);
+    assign mem_wmask = ({4{valid_op & mem_op_sb}}  & sb_mask)  |
+                       ({4{valid_op & mem_op_sh}}  & sh_mask)  |
+                       ({4{valid_op & mem_op_sw}}  & sw_mask)  |
+                       ({4{valid_op & mem_op_fsw}} & fsw_mask);
+    assign mem_wdata = ({32{valid_op & mem_op_sb}}  & sb_data)  |
+                       ({32{valid_op & mem_op_sh}}  & sh_data)  |
+                       ({32{valid_op & mem_op_sw}}  & sw_data)  |
+                       ({32{valid_op & mem_op_fsw}} & fsw_data);
 
     assign mem_addr_o = mem_addr;
     assign mem_wmask_o = mem_wmask;

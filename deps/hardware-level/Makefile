@@ -17,10 +17,10 @@ TRUE_SIM_TOOL := $(shell echo ${SIM_TOOL} | grep -o '[^0-9]*')
 ifeq ($(TRUE_SIM_TOOL),verilator)
 VERILATOR_BUILD_DIR := ${BUILD_DIR}/verilator_build
 SIM_OPTIONS   := --Mdir ${VERILATOR_BUILD_DIR} 
-SIM_OPTIONS   += --cc +incdir+${VSRC_DIR}/core  -CFLAGS -I${VSRC_DIR}/core +incdir+${VSRC_DIR}/perips/ -CFLAGS -I${VSRC_DIR}/perips
-SIM_OPTIONS   += +incdir+${VSRC_DIR}/perips/apb_i2c/ -CFLAGS -I${VSRC_DIR}/perips/apb_i2c/
-SIM_OPTIONS   += --exe --trace --trace-structs --trace-params --trace-max-array 1024
+SIM_OPTIONS   += --cc --exe --trace --trace-structs --trace-params --trace-max-array 1024
 SIM_OPTIONS   += -CFLAGS "-Wall -DTOPLEVEL_NAME=tb_top -g -O0" -LDFLAGS "-pthread -lutil -lelf"
+SIM_OPTIONS   += +incdir+${VSRC_DIR}/core +incdir+${VSRC_DIR}/perips +incdir+${VSRC_DIR}/perips/apb_i2c
+SIM_OPTIONS   += +incdir+${VSRC_DIR}/core/fpu/lzc +incdir+${VSRC_DIR}/core/fpu/float
 SIM_OPTIONS   += -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT -Wno-TIMESCALEMOD -Wno-fatal
 
 # 仅当 ENABLE_UART_SIM=1 时追加
@@ -31,7 +31,7 @@ endif
 ifeq ($(SIM_TOOL),verilator5)
 SIM_OPTIONS   += --no-timing
 endif
-SIM_OPTIONS_BACK := --top-module tb_top --exe
+SIM_OPTIONS_BACK := --top-module tb_top
 SIM_OPTIONS_BACK   += ${SIM_OPTIONS_COMMON}
 VTB_DIR      := ${BUILD_DIR}/${CORE}_tb/tb_verilator
 VERILATOR_CC_FILE := ${VTB_DIR}/tb_top.cc
@@ -43,11 +43,19 @@ SIM_OPTIONS   += +incdir+"${VSRC_DIR}/core/"+"${VSRC_DIR}/perips/"+"${VSRC_DIR}/
 SIM_OPTIONS   += ${SIM_OPTIONS_COMMON}
 endif
 ifeq ($(TRUE_SIM_TOOL),iverilog)
-SIM_OPTIONS   := -o vvp.exec -I "${VSRC_DIR}/core/" -I "${VSRC_DIR}/perips/" -I "${VSRC_DIR}/perips/apb_i2c/" -D DISABLE_SV_ASSERTION=1 -g2005-sv
+SIM_OPTIONS   := -o vvp.exec -I "${VSRC_DIR}/core/" -I "${VSRC_DIR}/perips/" -I "${VSRC_DIR}/perips/apb_i2c/" -I "${VSRC_DIR}/core/fpu/lzc/" -I "${VSRC_DIR}/core/fpu/float/" -D DISABLE_SV_ASSERTION=1 -g2005-sv
 SIM_OPTIONS   += ${SIM_OPTIONS_COMMON}
 endif
 
-RTL_V_FILES		:= $(wildcard ${VSRC_DIR}/*/*.v ${VSRC_DIR}/*/*/*.v ${VSRC_DIR}/*/*.sv ${VSRC_DIR}/*/*/*.sv)
+# Explicitly list package files to ensure they are compiled first.
+FPU_PKG_FILES   := ${VSRC_DIR}/core/fpu/float/fp_wire.sv ${VSRC_DIR}/core/fpu/lzc/lzc_wire.sv
+
+# Get all other Verilog and SystemVerilog files.
+OTHER_RTL_FILES	:= $(filter-out $(FPU_PKG_FILES), $(wildcard ${VSRC_DIR}/*/*.v ${VSRC_DIR}/*/*/*.v ${VSRC_DIR}/*/*/*/*.v ${VSRC_DIR}/*/*/*/*/*.v ${VSRC_DIR}/*/*.sv ${VSRC_DIR}/*/*/*.sv ${VSRC_DIR}/*/*/*/*.sv ${VSRC_DIR}/*/*/*/*/*.sv))
+
+# Prepend package files to the list.
+RTL_V_FILES     := $(FPU_PKG_FILES) $(OTHER_RTL_FILES)
+
 TB_V_FILES		:= $(wildcard ${VTB_DIR}/*.v ${VTB_DIR}/*.sv)
 
 ifeq ($(SMIC130LL),1)
@@ -357,4 +365,3 @@ debug_gdb:
 	${GDB} -ex "set remotetimeout 14000" -ex "target extended-remote localhost:3333"  -ex "info reg" ${PROGRAM}.elf
 
 .PHONY: run
-

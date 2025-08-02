@@ -33,8 +33,9 @@ module idu_id_pipe (
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,       // 指令地址
     input wire                        reg_we_i,          // 写通用寄存器标志
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,       // 写通用寄存器地址
-    input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,      // 读通用寄存器1地址
-    input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,      // 读通用寄存器2地址
+    input wire [ `REG_ADDR_WIDTH-1:0] rs1_raddr_i,      // 统一：读寄存器1地址
+    input wire [ `REG_ADDR_WIDTH-1:0] rs2_raddr_i,      // 统一：读寄存器2地址
+    input wire [ `REG_ADDR_WIDTH-1:0] rs3_raddr_i,      // 统一：读寄存器3地址
     input wire                        csr_we_i,          // 写CSR寄存器标志
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,       // 写CSR寄存器地址
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,       // 读CSR寄存器地址
@@ -46,14 +47,16 @@ module idu_id_pipe (
     input wire [`INST_DATA_WIDTH-1:0] inst_i,            // 新增：指令内容输入
     input wire                        rs1_re,            // 新增：rs1寄存器是否需要访问
     input wire                        rs2_re,            // 新增：rs2寄存器是否需要访问
+    input wire                        rs3_re,            // 新增：rs3寄存器是否需要访问
 
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,       // 指令地址
     output wire                        reg_we_o,          // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,       // 写通用寄存器地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,      // 读通用寄存器1地址
-    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,      // 读通用寄存器2地址
+    output wire [ `REG_ADDR_WIDTH-1:0] rs1_raddr_o,      // 统一：读寄存器1地址
+    output wire [ `REG_ADDR_WIDTH-1:0] rs2_raddr_o,      // 统一：读寄存器2地址
+    output wire [ `REG_ADDR_WIDTH-1:0] rs3_raddr_o,      // 统一：读寄存器3地址
     output wire                        csr_we_o,          // 写CSR寄存器标志
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,       // 写CSR寄存器地址
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,       // 读CSR寄存器地址
@@ -64,7 +67,8 @@ module idu_id_pipe (
     output wire                        illegal_inst_o,     // 新增：非法指令输出
     output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 新增：指令内容输出
     output wire                        rs1_re_o,
-    output wire                        rs2_re_o
+    output wire                        rs2_re_o,
+    output wire                        rs3_re_o
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -95,7 +99,7 @@ module idu_id_pipe (
 
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = flush_en ? `ZeroReg : reg_waddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
-    gnrl_dfflr #(5) reg_waddr_ff (
+    gnrl_dfflr #(`REG_ADDR_WIDTH) reg_waddr_ff (
         clk,
         rst_n,
         reg_update_en,
@@ -105,27 +109,38 @@ module idu_id_pipe (
     assign reg_waddr_o = reg_waddr;
 
     // 传递寄存器地址而非数据
-    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_dnxt = flush_en ? `ZeroReg : reg1_raddr_i;
-    wire [`REG_ADDR_WIDTH-1:0] reg1_raddr;
-    gnrl_dfflr #(5) reg1_raddr_ff (
+    wire [`REG_ADDR_WIDTH:0] rs1_raddr_dnxt = flush_en ? {1'b0, 5'h0} : rs1_raddr_i;
+    wire [`REG_ADDR_WIDTH:0] rs1_raddr;
+    gnrl_dfflr #(6) rs1_raddr_ff (
         clk,
         rst_n,
         reg_update_en,
-        reg1_raddr_dnxt,
-        reg1_raddr
+        rs1_raddr_dnxt,
+        rs1_raddr
     );
-    assign reg1_raddr_o = reg1_raddr;
+    assign rs1_raddr_o = rs1_raddr;
 
-    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_dnxt = flush_en ? `ZeroReg : reg2_raddr_i;
-    wire [`REG_ADDR_WIDTH-1:0] reg2_raddr;
-    gnrl_dfflr #(5) reg2_raddr_ff (
+    wire [`REG_ADDR_WIDTH:0] rs2_raddr_dnxt = flush_en ? {1'b0, 5'h0} : rs2_raddr_i;
+    wire [`REG_ADDR_WIDTH:0] rs2_raddr;
+    gnrl_dfflr #(6) rs2_raddr_ff (
         clk,
         rst_n,
         reg_update_en,
-        reg2_raddr_dnxt,
-        reg2_raddr
+        rs2_raddr_dnxt,
+        rs2_raddr
     );
-    assign reg2_raddr_o = reg2_raddr;
+    assign rs2_raddr_o = rs2_raddr;
+
+    wire [`REG_ADDR_WIDTH:0] rs3_raddr_dnxt = flush_en ? {1'b0, 5'h0} : rs3_raddr_i;
+    wire [`REG_ADDR_WIDTH:0] rs3_raddr;
+    gnrl_dfflr #(6) rs3_raddr_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        rs3_raddr_dnxt,
+        rs3_raddr
+    );
+    assign rs3_raddr_o = rs3_raddr;
 
     wire csr_we_dnxt = flush_en ? `WriteDisable : csr_we_i;
     wire csr_we;
@@ -256,5 +271,17 @@ module idu_id_pipe (
         rs2_re_q
     );
     assign rs2_re_o = rs2_re_q;
+
+    // 传递rs3_re
+    wire rs3_re_dnxt = flush_en ? 1'b0 : rs3_re;
+    wire rs3_re_q;
+    gnrl_dfflr #(1) rs3_re_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        rs3_re_dnxt,
+        rs3_re_q
+    );
+    assign rs3_re_o = rs3_re_q;
 
 endmodule

@@ -50,9 +50,9 @@ module exu_lsu #(
     input wire mem_op_ldl_i,  // 64位加载低位指令
     input wire mem_op_ldh_i,  // 64位加载高位指令
 
-    input wire       mem_op_load_i,
-    input wire       mem_op_store_i,
-    input wire [4:0] rd_addr_i,
+    input wire                       mem_op_load_i,
+    input wire                       mem_op_store_i,
+    input wire [`REG_ADDR_WIDTH-1:0] rd_addr_i,
 
     // 新增的输入信号，直接提供写数据相关信号
     input wire [                 31:0] mem_addr_i,
@@ -160,7 +160,7 @@ module exu_lsu #(
     reg input_fifo_mem_op_ldh[0:INPUT_FIFO_DEPTH-1];  // 64位加载高位
     reg input_fifo_mem_op_load[0:INPUT_FIFO_DEPTH-1];
     reg input_fifo_mem_op_store[0:INPUT_FIFO_DEPTH-1];
-    reg [4:0] input_fifo_rd_addr[0:INPUT_FIFO_DEPTH-1];
+    reg [`REG_ADDR_WIDTH-1:0] input_fifo_rd_addr[0:INPUT_FIFO_DEPTH-1];
     reg [31:0] input_fifo_mem_addr[0:INPUT_FIFO_DEPTH-1];
     reg [31:0] input_fifo_mem_wdata[0:INPUT_FIFO_DEPTH-1];
     reg [3:0] input_fifo_mem_wmask[0:INPUT_FIFO_DEPTH-1];
@@ -196,7 +196,7 @@ module exu_lsu #(
     wire effective_mem_op_ldh_i = input_fifo_empty ? mem_op_ldh_i : input_fifo_mem_op_ldh[input_fifo_rd_ptr];
     wire effective_mem_op_load_i = input_fifo_empty ? mem_op_load_i : input_fifo_mem_op_load[input_fifo_rd_ptr];
     wire effective_mem_op_store_i = input_fifo_empty ? mem_op_store_i : input_fifo_mem_op_store[input_fifo_rd_ptr];
-    wire [4:0] effective_rd_addr_i = input_fifo_empty ? rd_addr_i : input_fifo_rd_addr[input_fifo_rd_ptr];
+    wire [`REG_ADDR_WIDTH-1:0] effective_rd_addr_i = input_fifo_empty ? rd_addr_i : input_fifo_rd_addr[input_fifo_rd_ptr];
     wire [31:0] effective_mem_addr_i = input_fifo_empty ? mem_addr_i : input_fifo_mem_addr[input_fifo_rd_ptr];
     wire [31:0] effective_mem_wdata_i = input_fifo_empty ? mem_wdata_i : input_fifo_mem_wdata[input_fifo_rd_ptr];
     wire [3:0] effective_mem_wmask_i = input_fifo_empty ? mem_wmask_i : input_fifo_mem_wmask[input_fifo_rd_ptr];
@@ -256,7 +256,7 @@ module exu_lsu #(
     reg read_fifo_mem_op_lhu[0:FIFO_DEPTH-1];
     reg read_fifo_mem_op_ldl[0:FIFO_DEPTH-1];  // 64位加载低位
     reg read_fifo_mem_op_ldh[0:FIFO_DEPTH-1];  // 64位加载高位
-    reg [4:0] read_fifo_rd_addr[0:FIFO_DEPTH-1];
+    reg [`REG_ADDR_WIDTH-1:0] read_fifo_rd_addr[0:FIFO_DEPTH-1];
     reg [1:0] read_fifo_mem_addr_index[0:FIFO_DEPTH-1];
     reg [`COMMIT_ID_WIDTH-1:0] read_fifo_commit_id[0:FIFO_DEPTH-1];
 
@@ -267,7 +267,7 @@ module exu_lsu #(
     // 输出寄存器 - 改为reg类型
     reg [31:0] current_reg_wdata_r;
     reg reg_write_valid_r;
-    reg [4:0] reg_waddr_r;
+    reg [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
     reg [`COMMIT_ID_WIDTH-1:0] current_commit_id_r;
 
     // 64位加载数据暂存寄存器
@@ -346,7 +346,7 @@ module exu_lsu #(
     assign reg_write_valid_nxt = reg_write_valid_set;
 
     // 直接从AXI读取数据
-    assign axi_read_data = M_AXI_RDATA;
+    assign axi_read_data       = M_AXI_RDATA;
 
     // 从FIFO中获取当前处理的请求信息 - 使用effective信号
     wire [1:0] curr_mem_addr_index = same_cycle_response ? mem_addr_index : read_fifo_mem_addr_index[read_fifo_rd_ptr];
@@ -357,7 +357,7 @@ module exu_lsu #(
     wire curr_mem_op_lhu = same_cycle_response ? effective_mem_op_lhu_i : read_fifo_mem_op_lhu[read_fifo_rd_ptr];
     wire curr_mem_op_ldl = same_cycle_response ? effective_mem_op_ldl_i : read_fifo_mem_op_ldl[read_fifo_rd_ptr];
     wire curr_mem_op_ldh = same_cycle_response ? effective_mem_op_ldh_i : read_fifo_mem_op_ldh[read_fifo_rd_ptr];
-    wire [4:0] curr_rd_addr = same_cycle_response ? effective_rd_addr_i : read_fifo_rd_addr[read_fifo_rd_ptr];
+    wire [`REG_ADDR_WIDTH-1:0] curr_rd_addr = same_cycle_response ? effective_rd_addr_i : read_fifo_rd_addr[read_fifo_rd_ptr];
     wire [`COMMIT_ID_WIDTH-1:0] curr_commit_id = same_cycle_response ? effective_commit_id_i : read_fifo_commit_id[read_fifo_rd_ptr];
 
     // 字节加载数据的与或逻辑
