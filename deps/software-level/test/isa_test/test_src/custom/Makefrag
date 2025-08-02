@@ -1,0 +1,8 @@
+#=======================================================================
+# Makefrag for rv32mi tests
+#-----------------------------------------------------------------------
+
+custom_sc_tests = \
+	mem_rw_test \
+
+custom_p_tests = $(addprefix custom-p-, $(custom_sc_tests))

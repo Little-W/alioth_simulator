@@ -16,6 +16,8 @@ include $(src_dir)/rv64si/Makefrag
 include $(src_dir)/rv32ui/Makefrag
 include $(src_dir)/rv32um/Makefrag
 include $(src_dir)/rv32mi/Makefrag
+include $(src_dir)/rv32uf/Makefrag
+include $(src_dir)/rv32ud/Makefrag
 include $(src_dir)/rv32si/Makefrag
 
 RISCV_GCC_FLAGS ?= -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles
@@ -59,10 +61,14 @@ ifeq ($(USE_OPEN_GNU_GCC),1)
 $(eval $(call compile_template,rv32ui,-march=rv32imf_zifencei -mabi=ilp32))
 $(eval $(call compile_template,rv32um,-march=rv32imf_zifencei -mabi=ilp32))
 $(eval $(call compile_template,rv32mi,-march=rv32imf_zifencei -mabi=ilp32))
+$(eval $(call compile_template,rv32uf,-march=rv32imf_zifencei -mabi=ilp32f))
+$(eval $(call compile_template,rv32ud,-march=rv32imfd_zifencei -mabi=ilp32d))
 else
 $(eval $(call compile_template,rv32ui,-march=rv32imf -mabi=ilp32))
 $(eval $(call compile_template,rv32um,-march=rv32imf -mabi=ilp32))
 $(eval $(call compile_template,rv32mi,-march=rv32imf -mabi=ilp32))
+$(eval $(call compile_template,rv32uf,-march=rv32imf -mabi=ilp32f))
+$(eval $(call compile_template,rv32ud,-march=rv32imfd -mabi=ilp32d))
 endif
 
 tests_verilog = $(addsuffix .verilog, $(tests))

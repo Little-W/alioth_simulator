@@ -1,0 +1,12 @@
+[
+ {
+  "name": "COREMARK",
+  "path": "/packages/tools/CoreMark",
+  "ver": "latest"
+ },
+ {
+  "name": "DHRYSTONE",
+  "path": "/packages/tools/Dhrystone",
+  "ver": "latest"
+ }
+]
