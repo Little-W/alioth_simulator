@@ -37,6 +37,7 @@ module exu (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,
     input wire                        int_assert_i,
+    input wire                        int_jump_i,
     input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
@@ -46,9 +47,6 @@ module exu (
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
     input wire csr_wb_ready_i,     // CSR写回握手信号
     input wire is_pred_branch_i,   // 添加预测分支指令标志输入
-
-    // from mem
-    input wire [`BUS_DATA_WIDTH-1:0] mem_rdata_i,
 
     // from regs
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
@@ -69,7 +67,7 @@ module exu (
     input wire [31:0] bjp_op2_i,
     input wire [31:0] bjp_jump_op1_i,
     input wire [31:0] bjp_jump_op2_i,
-    input wire        bjp_op_jump_i,
+    input wire        bjp_op_jal_i,
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
     input wire        bjp_op_blt_i,
@@ -113,9 +111,9 @@ module exu (
     input wire                        mem_op_store_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
     // 新增：直接访存信号
-    input wire [31:0] mem_addr_i,
-    input wire [31:0] mem_wdata_i,
-    input wire [3:0]  mem_wmask_i,
+    input wire [                31:0] mem_addr_i,
+    input wire [                31:0] mem_wdata_i,
+    input wire [                 3:0] mem_wmask_i,
 
     // dispatch to SYS
     input wire sys_op_nop_i,
@@ -172,9 +170,9 @@ module exu (
     output wire exu_op_mret_o,
 
     // misaligned_fetch信号输出
-    output wire misaligned_fetch_o,
+    output wire                     misaligned_fetch_o,
     // AXI接口 - 新增
-    output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,     // 使用BUS_ID_WIDTH定义位宽
+    output wire [`BUS_ID_WIDTH-1:0] M_AXI_AWID,          // 使用BUS_ID_WIDTH定义位宽
     output wire [             31:0] M_AXI_AWADDR,
     output wire [              7:0] M_AXI_AWLEN,
     output wire [              2:0] M_AXI_AWSIZE,
@@ -420,7 +418,7 @@ module exu (
         .bjp_op2_i         (bjp_op2_i),
         .bjp_jump_op1_i    (bjp_jump_op1_i),
         .bjp_jump_op2_i    (bjp_jump_op2_i),
-        .bjp_op_jump_i     (bjp_op_jump_i),
+        .bjp_op_jal_i      (bjp_op_jal_i),
         .bjp_op_beq_i      (bjp_op_beq_i),
         .bjp_op_bne_i      (bjp_op_bne_i),
         .bjp_op_blt_i      (bjp_op_blt_i),
@@ -515,8 +513,8 @@ module exu (
 
     // 输出选择逻辑
     assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
-    assign jump_flag_o = bru_jump_flag || ((int_assert_i == `INT_ASSERT) ? `JumpEnable : `JumpDisable);
-    assign jump_addr_o = (int_assert_i == `INT_ASSERT) ? int_addr_i : bru_jump_addr;
+    assign jump_flag_o = bru_jump_flag || int_jump_i;
+    assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
 
     // 将乘除法开始信号输出给clint
     assign muldiv_started_o = div_start | mul_start;

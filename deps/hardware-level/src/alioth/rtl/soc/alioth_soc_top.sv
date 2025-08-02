@@ -86,7 +86,6 @@ module alioth_soc_top (
     output wire [ 31:0] gpio1_iof,
 
     // Timer
-    input  wire        dft_cg_enable_i,
     input  wire        low_speed_clk_i,
     input  wire [31:0] ext_sig_i,
     output wire [ 3:0] ch_0_o,
@@ -129,8 +128,8 @@ module alioth_soc_top (
     wire                           S_AXI_RREADY;
 
     // === APB时钟和复位信号定义 ===
-    wire PCLK;
-    wire PRESETn;
+    wire                           PCLK;
+    wire                           PRESETn;
 
     // === 新增：中断信号内部连线 ===
     wire uart0_event, uart1_event;
@@ -140,7 +139,7 @@ module alioth_soc_top (
     wire [ 3:0] timer_events;
 
     // 拓展宽度为12位，优先级顺序：Timer[3:0], SPI, I2C0, I2C1, UART0, UART1, GPIO0, GPIO1
-    wire [11:0] irq_vec;
+    wire [10:0] irq_vec;
     assign irq_vec = {
         gpio1_int,  // [11]
         gpio0_int,  // [10]
@@ -152,25 +151,11 @@ module alioth_soc_top (
         timer_events  // [4:1]
     };
 
-    // === 中断控制器输出信号 ===
-    wire       irq_req;
-    wire [7:0] irq_id;
-
-    // === 中断控制器例化 ===
-    irq_ctrl u_irq_ctrl (
-        .clk    (clk),
-        .rst_n  (rst_n),
-        .irq_vec(irq_vec),
-        .irq_req(irq_req),
-        .irq_id (irq_id)
-    );
-
     // alioth处理器核模块例化
     cpu_top u_cpu_top (
         .clk            (clk),
         .rst_n          (rst_n),
-        .irq_req        (irq_req),        // 中断请求信号
-        .irq_id         (irq_id),         // 新增：中断向量输入
+        .irq_sources    (irq_vec),        // 中断向量输入
         .OM0_AXI_ACLK   (S_AXI_ACLK),     // AXI-Lite时钟信号
         .OM0_AXI_ARESETN(S_AXI_ARESETN),  // AXI-Lite复位信号
         .OM0_AXI_AWADDR (S_AXI_AWADDR),   // AXI写地址信号
@@ -309,7 +294,7 @@ module alioth_soc_top (
         .gpio1_iof       (gpio1_iof),
         .gpio1_interrupt (gpio1_int),
         // Timer
-        .dft_cg_enable_i (dft_cg_enable_i),
+        .dft_cg_enable_i (0),                // 忽略DFT时钟使能信号
         .low_speed_clk_i (low_speed_clk_i),
         .ext_sig_i       (ext_sig_i),
         .timer_events_o  (timer_events),

@@ -11,7 +11,7 @@
 extern void (*xfunc_out)(unsigned char);
 void xputc (char c);
 void xputs (const char* str);
-void xprintf (const char* fmt, ...);
+int xprintf (const char* fmt, ...);
 void xprintf_uart_init(void);
 #define DW_CHAR		sizeof(char)
 #define DW_SHORT	sizeof(short)

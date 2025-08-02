@@ -1,4 +1,4 @@
-.section .init // 初始化段
+	.section .init // 初始化段
 	.globl   _start // 声明全局入口符号
 	.type    _start,@function // 声明_start为函数类型
 
@@ -37,15 +37,25 @@ _start:
 2:
 
 	//       设置异常和中断入口地址
-	la       a0, trap_entry
+#ifdef RTOS_RTTHREAD
+	la       a0, SW_handler // 设置RT-Thread下的SW_handler
+#else
+	la       a0, trap_entry // 设置中断处理函数入口地址
+#endif
 	csrw     mtvec, a0
-
-	// 调用SystemInit
+#ifndef RTOS_RTTHREAD
+	//       调用SystemInit
 	call     SystemInit
+#endif
 
 	li       a0, 0 // main函数参数a0 = 0
 	li       a1, 0 // main函数参数a1 = 0
-	call     main // 调用main函数
+#ifdef RTOS_RTTHREAD
+	//       Call entry function when using RT-Thread
+	call     entry
+#else
+	call     main
+#endif
 
 loop:
 	j        loop // 死循环，防止main返回

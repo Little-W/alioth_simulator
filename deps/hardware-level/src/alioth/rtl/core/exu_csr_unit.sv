@@ -65,38 +65,28 @@ module exu_csr_unit (
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,  // 输出指令ID
     output wire                        csr_reg_we_o  // 保留寄存器写使能输出
 );
-    // CSR处理单元逻辑 - 组合逻辑部分
-    reg [`REG_DATA_WIDTH-1:0] csr_wdata_comb;
-    reg [`REG_DATA_WIDTH-1:0] reg_wdata_comb;
 
-    always @(*) begin
-        // 默认值
-        csr_wdata_comb = `ZeroWord;
-        reg_wdata_comb = `ZeroWord;
+    wire [`REG_DATA_WIDTH-1:0] csr_wdata_nxt;
+    wire [`REG_DATA_WIDTH-1:0] reg_wdata_nxt;
 
-        // 响应中断时不进行CSR操作
-        if (int_assert_i == `INT_ASSERT) begin
-            // 不执行任何操作
-        end else if (req_csr_i) begin
-            reg_wdata_comb = csr_rdata_i;  // 所有CSR指令都将CSR的值读出来放入目标寄存器
+    assign csr_wdata_nxt = int_assert_i ? `ZeroWord :
+        ({`REG_DATA_WIDTH{csr_csrrw_i}} & csr_op1_i) |
+        ({`REG_DATA_WIDTH{csr_csrrs_i}} & (csr_op1_i | csr_rdata_i)) |
+        ({`REG_DATA_WIDTH{csr_csrrc_i}} & (csr_rdata_i & (~csr_op1_i)));
 
-            // 使用并行选择逻辑实现CSR写入值的计算
-            csr_wdata_comb = ({`REG_DATA_WIDTH{csr_csrrw_i}} & csr_op1_i) |
-                          ({`REG_DATA_WIDTH{csr_csrrs_i}} & (csr_op1_i | csr_rdata_i)) |
-                          ({`REG_DATA_WIDTH{csr_csrrc_i}} & (csr_rdata_i & (~csr_op1_i)));
-        end
-    end
+    assign reg_wdata_nxt = int_assert_i ? `ZeroWord : (req_csr_i ? csr_rdata_i : `ZeroWord);
 
     // 握手信号控制逻辑
-    wire valid_csr_op = req_csr_i & (int_assert_i != `INT_ASSERT);  // 当前有有效的CSR操作
-    wire update_output = (wb_ready_i);
+    wire valid_csr_op = req_csr_i & ~int_assert_i;  // 当前有有效的CSR操作
+    wire update_output = (wb_ready_i | ~csr_reg_we_o);
 
     wire csr_reg_we_nxt = (valid_csr_op & csr_reg_we_i) ? `WriteEnable : `WriteDisable;
-    // 握手失败时输出stall信号
-    assign csr_stall_o = csr_we_o & ~wb_ready_i;
 
-    // CSR写使能输出 - 只有在没有中断时才使能
-    wire                        csr_we_comb = (int_assert_i == `INT_ASSERT) ? 1'b0 : csr_we_i;
+    // 仿照csr_reg_we_nxt，统一风格
+    wire csr_we_nxt = (valid_csr_op & csr_we_i) ? `WriteEnable : `WriteDisable;
+
+    // 握手失败时输出stall信号
+    assign csr_stall_o = csr_we_o & ~wb_ready_i & valid_csr_op;
 
     // 使用gnrl_dfflr实例化输出级寄存器
     wire [ `REG_DATA_WIDTH-1:0] csr_wdata_r;
@@ -114,7 +104,7 @@ module exu_csr_unit (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (csr_wdata_comb),
+        .dnxt (csr_wdata_nxt),
         .qout (csr_wdata_r)
     );
 
@@ -125,7 +115,7 @@ module exu_csr_unit (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (reg_wdata_comb),
+        .dnxt (reg_wdata_nxt),
         .qout (reg_wdata_r)
     );
 
@@ -136,7 +126,7 @@ module exu_csr_unit (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (csr_we_comb),
+        .dnxt (csr_we_nxt),
         .qout (csr_we_r)
     );
 

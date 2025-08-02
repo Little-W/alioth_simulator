@@ -136,9 +136,6 @@ module wbu (
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
 
-    // 中断信号
-    input wire int_assert_i,
-
     // 长指令完成信号（对接hazard_detection）
     output wire                        commit_valid1_o,  // 指令完成有效信号1
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id1_o,     // 完成指令ID1

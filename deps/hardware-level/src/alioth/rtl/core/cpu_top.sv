@@ -30,8 +30,7 @@ module cpu_top (
 
     input  wire                             clk,
     input  wire                             rst_n,
-    input  wire                             irq_req,          // 中断请求信号
-    input  wire [                      7:0] irq_id,           // 中断ID
+    input  wire [                      7:0] irq_sources,      // 中断ID
     // APB AXI-Lite 接口信号
     output wire                             OM0_AXI_ACLK,
     output wire                             OM0_AXI_ARESETN,
@@ -147,10 +146,10 @@ module cpu_top (
     // csr_reg模块输出信号
     wire [`REG_DATA_WIDTH-1:0] csr_data_o;
     wire [`REG_DATA_WIDTH-1:0] csr_clint_data_o;
-    wire csr_global_int_en_o;
     wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mtvec;
     wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mepc;
     wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mstatus;
+    wire [`REG_DATA_WIDTH-1:0] csr_clint_csr_mie;
 
     // ctrl模块输出信号
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_o;
@@ -164,10 +163,8 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] clint_data_o;
     wire [`INST_ADDR_WIDTH-1:0] clint_int_addr_o;
     wire clint_int_assert_o;
-    wire clint_flush_flag_o;  // 添加中断刷新信号
-    wire clint_stall_flag_o;
-
-    wire [`BUS_DATA_WIDTH-1:0] exu_mem_data_i;
+    wire clint_int_jump_o;  // 添加中断跳转信号
+    wire clint_req_valid_o;  // 添加中断请求有效信号
 
     // 新增信号定义
     wire ifu_read_resp_error_o;
@@ -242,7 +239,7 @@ module cpu_top (
     wire [31:0] dispatch_bjp_op2;
     wire [31:0] dispatch_bjp_jump_op1;
     wire [31:0] dispatch_bjp_jump_op2;
-    wire dispatch_bjp_op_jump;
+    wire dispatch_bjp_op_jal;
     wire dispatch_bjp_op_beq;
     wire dispatch_bjp_op_bne;
     wire dispatch_bjp_op_blt;
@@ -356,6 +353,67 @@ module cpu_top (
     wire exu_axi_rvalid;
     wire exu_axi_rready;
 
+    // 给dispatch和HDU的译码信息
+    wire dis_is_pred_branch_o;
+    wire ext_int_req;
+    wire inst_valid = (ctrl_stall_flag_o == 0);
+    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+                        (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    wire inst_clint_valid = !dis_is_pred_branch_o && (dispatch_inst_valid_o);
+    // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
+    // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
+    // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
+    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
+
+    // CLINT AXI-Lite接口信号
+    wire OM1_AXI_ACLK;
+    wire OM1_AXI_ARESETN;
+    wire [`BUS_ADDR_WIDTH-1 : 0] OM1_AXI_AWADDR;
+    wire [2 : 0] OM1_AXI_AWPROT;
+    wire OM1_AXI_AWVALID;
+    wire OM1_AXI_AWREADY;
+    wire [`BUS_DATA_WIDTH-1 : 0] OM1_AXI_WDATA;
+    wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM1_AXI_WSTRB;
+    wire OM1_AXI_WVALID;
+    wire OM1_AXI_WREADY;
+    wire [1 : 0] OM1_AXI_BRESP;
+    wire OM1_AXI_BVALID;
+    wire OM1_AXI_BREADY;
+    wire [`BUS_ADDR_WIDTH-1 : 0] OM1_AXI_ARADDR;
+    wire [2 : 0] OM1_AXI_ARPROT;
+    wire OM1_AXI_ARVALID;
+    wire OM1_AXI_ARREADY;
+    wire [`BUS_DATA_WIDTH-1 : 0] OM1_AXI_RDATA;
+    wire [1 : 0] OM1_AXI_RRESP;
+    wire OM1_AXI_RVALID;
+    wire OM1_AXI_RREADY;
+
+
+    // PLIC AXI-Lite接口信号
+    wire OM2_AXI_ACLK;
+    wire OM2_AXI_ARESETN;
+    wire [`PLIC_ADDR_WIDTH-1 : 0] OM2_AXI_AWADDR;
+    wire [2 : 0] OM2_AXI_AWPROT;
+    wire OM2_AXI_AWVALID;
+    wire OM2_AXI_AWREADY;
+    wire [`BUS_DATA_WIDTH-1 : 0] OM2_AXI_WDATA;
+    wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM2_AXI_WSTRB;
+    wire OM2_AXI_WVALID;
+    wire OM2_AXI_WREADY;
+    wire [1 : 0] OM2_AXI_BRESP;
+    wire OM2_AXI_BVALID;
+    wire OM2_AXI_BREADY;
+    wire [`PLIC_ADDR_WIDTH-1 : 0] OM2_AXI_ARADDR;
+    wire [2 : 0] OM2_AXI_ARPROT;
+    wire OM2_AXI_ARVALID;
+    wire OM2_AXI_ARREADY;
+    wire [`BUS_DATA_WIDTH-1 : 0] OM2_AXI_RDATA;
+    wire [1 : 0] OM2_AXI_RRESP;
+    wire OM2_AXI_RVALID;
+    wire OM2_AXI_RREADY;
+
+
     // IFU模块例化
     ifu u_ifu (
         .clk              (clk),
@@ -430,7 +488,6 @@ module cpu_top (
         .data_i           (wbu_csr_wdata_o),
         .inst_valid_i     (inst_exu_valid),
         .data_o           (csr_data_o),
-        .global_int_en_o  (csr_global_int_en_o),
         .clint_we_i       (clint_we_o),
         .clint_raddr_i    (clint_raddr_o),
         .clint_waddr_i    (clint_waddr_o),
@@ -438,7 +495,8 @@ module cpu_top (
         .clint_data_o     (csr_clint_data_o),
         .clint_csr_mtvec  (csr_clint_csr_mtvec),
         .clint_csr_mepc   (csr_clint_csr_mepc),
-        .clint_csr_mstatus(csr_clint_csr_mstatus)
+        .clint_csr_mstatus(csr_clint_csr_mstatus),
+        .clint_csr_mie    (csr_clint_csr_mie)
     );
 
     // idu模块例化 - 更新接口，支持双发射
@@ -610,7 +668,7 @@ module cpu_top (
         .csr_raddr_i(idu_csr_raddr_o),
 
         // 长指令有效信号 - 用于HDU
-        .new_long_inst_valid_i(rd_access_inst_valid),
+        .rd_access_inst_valid_i(rd_access_inst_valid),
 
         // 写回阶段提交信号
         .commit_valid_i(wbu_commit_valid_o),
@@ -647,7 +705,7 @@ module cpu_top (
         .bjp_op2_o     (dispatch_bjp_op2),
         .bjp_jump_op1_o(dispatch_bjp_jump_op1),
         .bjp_jump_op2_o(dispatch_bjp_jump_op2),
-        .bjp_op_jump_o (dispatch_bjp_op_jump),
+        .bjp_op_jal_o  (dispatch_bjp_op_jal),
         .bjp_op_beq_o  (dispatch_bjp_op_beq),
         .bjp_op_bne_o  (dispatch_bjp_op_bne),
         .bjp_op_blt_o  (dispatch_bjp_op_blt),
@@ -715,12 +773,12 @@ module cpu_top (
         .csr_rdata_i(csr_data_o),
         .dec_info_bus_i(dispatch_dec_info_bus_o),     // 修改为从dispatch pipe获取译码信息总线
         .dec_imm_i(dispatch_dec_imm_o),  // 修改为从dispatch pipe获取立即数
-        .mem_rdata_i(exu_mem_data_i),
         .int_assert_i(clint_int_assert_o),
+        .int_jump_i(clint_int_jump_o),  // 添加中断跳转信号输入
         .int_addr_i(clint_int_addr_o),
         .is_pred_branch_i(dis_is_pred_branch_o),  // 连接预测分支信号输入
 
-        // 修改：从dispatch获取长指令ID
+        // 从dispatch获取长指令ID
         .commit_id_i(dispatch_commit_id_o),
 
         // 写回握手信号
@@ -744,7 +802,7 @@ module cpu_top (
         .bjp_op2_i     (dispatch_bjp_op2),
         .bjp_jump_op1_i(dispatch_bjp_jump_op1),
         .bjp_jump_op2_i(dispatch_bjp_jump_op2),
-        .bjp_op_jump_i (dispatch_bjp_op_jump),
+        .bjp_op_jal_i  (dispatch_bjp_op_jal),
         .bjp_op_beq_i  (dispatch_bjp_op_beq),
         .bjp_op_bne_i  (dispatch_bjp_op_bne),
         .bjp_op_blt_i  (dispatch_bjp_op_blt),
@@ -914,8 +972,6 @@ module cpu_top (
 
         .idu_reg_waddr_i(dispatch_reg_waddr_o), // 修改为从dispatch pipe获取IDU寄存器写地址
 
-        .int_assert_i(clint_int_assert_o),
-
         // 新增长指令完成输出
         .commit_valid_o(wbu_commit_valid_o),
         .commit_id_o   (wbu_commit_id_o),
@@ -929,45 +985,94 @@ module cpu_top (
         .csr_waddr_o(wbu_csr_waddr_o)
     );
 
-    // clint模块例化 - 修改为从dispatch pipe获取指令地址
+    // clint模块例化 - 增加AXI-lite slave接口直连
     clint u_clint (
-        .clk            (clk),
-        .rst_n          (rst_n),
-        .inst_addr_i    (dispatch_inst_addr_o),  // 修改为从dispatch pipe获取指令地址
-        .jump_flag_i    (exu_jump_flag_o),
-        .jump_addr_i    (exu_jump_addr_o),
-        .stall_flag_i   (ctrl_stall_flag_o),
-        .atom_opt_busy_i(atom_opt_busy),
-
-        // 连接系统操作信号
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .inst_addr_i       (dispatch_inst_addr_o),
+        .inst_data_i       (dispatch_inst_o),
+        .inst_valid_i      (inst_clint_valid),
+        .jump_flag_i       (jump_addr_valid),
+        .jump_addr_i       (exu_jump_addr_o),
+        .stall_flag_i      (ctrl_stall_flag_o),
+        .atom_opt_busy_i   (atom_opt_busy),
         .sys_op_ecall_i    (exu_ecall_o),
         .sys_op_ebreak_i   (exu_ebreak_o),
         .sys_op_mret_i     (exu_mret_o),
         .illegal_inst_i    (dispatch_illegal_inst_o),      // 连接非法指令信号
-        .illegal_inst_pc_i (dispatch_inst_addr_o),         // 连接非法指令地址
-        .illegal_inst_val_i(dispatch_inst_o),              // 连接非法指令值
         .misaligned_load_i (dispatch_misaligned_load_o),
         .misaligned_store_i(dispatch_misaligned_store_o),
-        .ex_exception_pc_i (dispatch_inst_addr_o),         // 连接异常指令地址
-        .ex_exception_val_i(dispatch_inst_o),              // 连接异常指令值
         .misaligned_fetch_i(misaligned_fetch_o),           // misaligned fetch信号输入
 
-        .data_i         (csr_clint_data_o),
-        .csr_mtvec      (csr_clint_csr_mtvec),
-        .csr_mepc       (csr_clint_csr_mepc),
-        .csr_mstatus    (csr_clint_csr_mstatus),
-        .we_o           (clint_we_o),
-        .waddr_o        (clint_waddr_o),
-        .raddr_o        (clint_raddr_o),
-        .data_o         (clint_data_o),
-        .flush_flag_o   (clint_flush_flag_o),     // 连接flush信号
-        .stall_flag_o   (clint_stall_flag_o),
-        .global_int_en_i(csr_global_int_en_o),
-        .int_addr_o     (clint_int_addr_o),
-        .int_assert_o   (clint_int_assert_o),
+        .exu_stall_i      (exu_stall_flag_o),
+        .data_i           (csr_clint_data_o),
+        .csr_mtvec        (csr_clint_csr_mtvec),
+        .csr_mepc         (csr_clint_csr_mepc),
+        .csr_mstatus      (csr_clint_csr_mstatus),
+        .csr_mie          (csr_clint_csr_mie),
+        .we_o             (clint_we_o),
+        .waddr_o          (clint_waddr_o),
+        .raddr_o          (clint_raddr_o),
+        .data_o           (clint_data_o),
+        .int_addr_o       (clint_int_addr_o),
+        .int_jump_o       (clint_int_jump_o),
+        .int_assert_o     (clint_int_assert_o),
+        .clint_req_valid_o(clint_req_valid_o),
         // === 连接外部中断信号 ===
-        .irq_req_i      (irq_req),
-        .irq_id_i       (irq_id)
+        .ext_int_req_i    (ext_int_req),
+
+        // AXI-lite slave接口直连
+        .S_AXI_ACLK   (OM1_AXI_ACLK),
+        .S_AXI_ARESETN(OM1_AXI_ARESETN),
+        .S_AXI_AWADDR (OM1_AXI_AWADDR),
+        .S_AXI_AWPROT (OM1_AXI_AWPROT),
+        .S_AXI_AWVALID(OM1_AXI_AWVALID),
+        .S_AXI_AWREADY(OM1_AXI_AWREADY),
+        .S_AXI_WDATA  (OM1_AXI_WDATA),
+        .S_AXI_WSTRB  (OM1_AXI_WSTRB),
+        .S_AXI_WVALID (OM1_AXI_WVALID),
+        .S_AXI_WREADY (OM1_AXI_WREADY),
+        .S_AXI_BRESP  (OM1_AXI_BRESP),
+        .S_AXI_BVALID (OM1_AXI_BVALID),
+        .S_AXI_BREADY (OM1_AXI_BREADY),
+        .S_AXI_ARADDR (OM1_AXI_ARADDR),
+        .S_AXI_ARPROT (OM1_AXI_ARPROT),
+        .S_AXI_ARVALID(OM1_AXI_ARVALID),
+        .S_AXI_ARREADY(OM1_AXI_ARREADY),
+        .S_AXI_RDATA  (OM1_AXI_RDATA),
+        .S_AXI_RRESP  (OM1_AXI_RRESP),
+        .S_AXI_RVALID (OM1_AXI_RVALID),
+        .S_AXI_RREADY (OM1_AXI_RREADY)
+    );
+
+    // plic_top模块例化 - PLIC外部中断控制器
+    plic_top #(
+        .C_S_AXI_DATA_WIDTH(`BUS_DATA_WIDTH),
+        .C_S_AXI_ADDR_WIDTH(`PLIC_ADDR_WIDTH)
+    ) u_plic (
+        .S_AXI_ACLK   (OM2_AXI_ACLK),
+        .S_AXI_ARESETN(OM2_AXI_ARESETN),
+        .S_AXI_AWADDR (OM2_AXI_AWADDR),
+        .S_AXI_AWPROT (OM2_AXI_AWPROT),
+        .S_AXI_AWVALID(OM2_AXI_AWVALID),
+        .S_AXI_AWREADY(OM2_AXI_AWREADY),
+        .S_AXI_WDATA  (OM2_AXI_WDATA),
+        .S_AXI_WSTRB  (OM2_AXI_WSTRB),
+        .S_AXI_WVALID (OM2_AXI_WVALID),
+        .S_AXI_WREADY (OM2_AXI_WREADY),
+        .S_AXI_BRESP  (OM2_AXI_BRESP),
+        .S_AXI_BVALID (OM2_AXI_BVALID),
+        .S_AXI_BREADY (OM2_AXI_BREADY),
+        .S_AXI_ARADDR (OM2_AXI_ARADDR),
+        .S_AXI_ARPROT (OM2_AXI_ARPROT),
+        .S_AXI_ARVALID(OM2_AXI_ARVALID),
+        .S_AXI_ARREADY(OM2_AXI_ARREADY),
+        .S_AXI_RDATA  (OM2_AXI_RDATA),
+        .S_AXI_RRESP  (OM2_AXI_RRESP),
+        .S_AXI_RVALID (OM2_AXI_RVALID),
+        .S_AXI_RREADY (OM2_AXI_RREADY),
+        .irq_sources  (irq_sources),
+        .irq_valid    (ext_int_req)
     );
 
     // mems模块例化
@@ -978,8 +1083,12 @@ module cpu_top (
         .C_AXI_ID_WIDTH      (`BUS_ID_WIDTH),
         .C_AXI_DATA_WIDTH    (`BUS_DATA_WIDTH),
         .C_AXI_ADDR_WIDTH    (`BUS_ADDR_WIDTH),
-        .C_OM0_AXI_ADDR_WIDTH(32),                // APB AXI-Lite 地址宽度
-        .C_OM0_AXI_DATA_WIDTH(32)                 // APB AXI-Lite 数据宽度
+        .C_OM0_AXI_ADDR_WIDTH(32),
+        .C_OM0_AXI_DATA_WIDTH(32),
+        .C_OM1_AXI_ADDR_WIDTH(32),
+        .C_OM1_AXI_DATA_WIDTH(32),
+        .C_OM2_AXI_ADDR_WIDTH(`PLIC_ADDR_WIDTH),
+        .C_OM2_AXI_DATA_WIDTH(`BUS_DATA_WIDTH)
     ) u_mems (
         .clk  (clk),
         .rst_n(rst_n),
@@ -1068,7 +1177,53 @@ module cpu_top (
         .OM0_AXI_RDATA  (OM0_AXI_RDATA),
         .OM0_AXI_RRESP  (OM0_AXI_RRESP),
         .OM0_AXI_RVALID (OM0_AXI_RVALID),
-        .OM0_AXI_RREADY (OM0_AXI_RREADY)
+        .OM0_AXI_RREADY (OM0_AXI_RREADY),
+
+        // CLINT AXI-Lite 接口内部连线
+        .OM1_AXI_ACLK   (OM1_AXI_ACLK),
+        .OM1_AXI_ARESETN(OM1_AXI_ARESETN),
+        .OM1_AXI_AWADDR (OM1_AXI_AWADDR),
+        .OM1_AXI_AWPROT (OM1_AXI_AWPROT),
+        .OM1_AXI_AWVALID(OM1_AXI_AWVALID),
+        .OM1_AXI_AWREADY(OM1_AXI_AWREADY),
+        .OM1_AXI_WDATA  (OM1_AXI_WDATA),
+        .OM1_AXI_WSTRB  (OM1_AXI_WSTRB),
+        .OM1_AXI_WVALID (OM1_AXI_WVALID),
+        .OM1_AXI_WREADY (OM1_AXI_WREADY),
+        .OM1_AXI_BRESP  (OM1_AXI_BRESP),
+        .OM1_AXI_BVALID (OM1_AXI_BVALID),
+        .OM1_AXI_BREADY (OM1_AXI_BREADY),
+        .OM1_AXI_ARADDR (OM1_AXI_ARADDR),
+        .OM1_AXI_ARPROT (OM1_AXI_ARPROT),
+        .OM1_AXI_ARVALID(OM1_AXI_ARVALID),
+        .OM1_AXI_ARREADY(OM1_AXI_ARREADY),
+        .OM1_AXI_RDATA  (OM1_AXI_RDATA),
+        .OM1_AXI_RRESP  (OM1_AXI_RRESP),
+        .OM1_AXI_RVALID (OM1_AXI_RVALID),
+        .OM1_AXI_RREADY (OM1_AXI_RREADY),
+
+        // PLIC AXI-Lite 接口
+        .OM2_AXI_ACLK   (OM2_AXI_ACLK),
+        .OM2_AXI_ARESETN(OM2_AXI_ARESETN),
+        .OM2_AXI_AWADDR (OM2_AXI_AWADDR),
+        .OM2_AXI_AWPROT (OM2_AXI_AWPROT),
+        .OM2_AXI_AWVALID(OM2_AXI_AWVALID),
+        .OM2_AXI_AWREADY(OM2_AXI_AWREADY),
+        .OM2_AXI_WDATA  (OM2_AXI_WDATA),
+        .OM2_AXI_WSTRB  (OM2_AXI_WSTRB),
+        .OM2_AXI_WVALID (OM2_AXI_WVALID),
+        .OM2_AXI_WREADY (OM2_AXI_WREADY),
+        .OM2_AXI_BRESP  (OM2_AXI_BRESP),
+        .OM2_AXI_BVALID (OM2_AXI_BVALID),
+        .OM2_AXI_BREADY (OM2_AXI_BREADY),
+        .OM2_AXI_ARADDR (OM2_AXI_ARADDR),
+        .OM2_AXI_ARPROT (OM2_AXI_ARPROT),
+        .OM2_AXI_ARVALID(OM2_AXI_ARVALID),
+        .OM2_AXI_ARREADY(OM2_AXI_ARREADY),
+        .OM2_AXI_RDATA  (OM2_AXI_RDATA),
+        .OM2_AXI_RRESP  (OM2_AXI_RRESP),
+        .OM2_AXI_RVALID (OM2_AXI_RVALID),
+        .OM2_AXI_RREADY (OM2_AXI_RREADY)
     );
 
     // 定义原子操作忙信号 - 使用dispatch提供的HDU原子锁信号

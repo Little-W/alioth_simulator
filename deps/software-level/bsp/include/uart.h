@@ -37,6 +37,14 @@ int32_t uart_enable_rx_err_int(UART_TypeDef *uart);
 int32_t uart_disable_rx_err_int(UART_TypeDef *uart);
 int32_t uart_get_int_status(UART_TypeDef *uart);
 int32_t uart_get_status(UART_TypeDef *uart);
+int32_t uart_clear_tx_fifo(UART_TypeDef *uart);
+int32_t uart_clear_rx_fifo(UART_TypeDef *uart);
+
+// UART RX FIFO中断触发等级宏定义
+#define UART_RX_FIFO_TH_1BYTE   0
+#define UART_RX_FIFO_TH_4BYTE   1
+#define UART_RX_FIFO_TH_8BYTE   2
+#define UART_RX_FIFO_TH_14BYTE  3
 
 #ifdef __cplusplus
 }

@@ -52,7 +52,7 @@ module dispatch_logic (
     output wire [31:0] bjp_op2_o,
     output wire [31:0] bjp_jump_op1_o,
     output wire [31:0] bjp_jump_op2_o,
-    output wire        bjp_op_jump_o,
+    output wire        bjp_op_jal_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
     output wire        bjp_op_blt_o,
@@ -114,8 +114,9 @@ module dispatch_logic (
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
 
+    wire [`DECINFO_WIDTH-1:0] bjp_info;
     // ALU info
-
+    wire bjp_wb_req = bjp_info[`DECINFO_BJP_JUMP];
     wire op_alu = (disp_info_grp == `DECINFO_GRP_ALU);
     wire [`DECINFO_WIDTH-1:0] alu_info = {`DECINFO_WIDTH{op_alu}} & dec_info_bus_i;
     
@@ -142,39 +143,31 @@ module dispatch_logic (
     // ALU op1
     wire alu_op1_pc = alu_info[`DECINFO_ALU_OP1PC];  // 使用PC作为操作数1 (AUIPC指令)
     wire alu_op1_zero = alu_info[`DECINFO_ALU_LUI];  // 使用0作为操作数1 (LUI指令)
-    wire [31:0] alu_op1 = (alu_op1_pc | bjp_op_jump_o) ? dec_pc_i : alu_op1_zero ? 32'h0 : rs1_rdata_i;
-    
+    wire [31:0] alu_op1 = (alu_op1_pc | bjp_wb_req) ? dec_pc_i : alu_op1_zero ? 32'h0 : rs1_rdata_i;
+    assign alu_op1_o = (op_alu | bjp_wb_req) ? alu_op1 : 32'h0;  // ALU指令的操作数1
+
     // ALU op2
     wire alu_op2_imm = alu_info[`DECINFO_ALU_OP2IMM];  // 使用立即数作为操作数2 (I型指令、LUI、AUIPC)
     wire [31:0] alu_op2 = alu_op2_imm ? dec_imm_i : rs2_rdata_i;
+    assign alu_op2_o = bjp_wb_req ? 32'h4 : op_alu ? alu_op2 : 32'h0;
 
-    // ADDER输出
-    assign req_adder_o = op_adder | bjp_op_jump_o;
-    assign adder_op1_o = (op_adder | bjp_op_jump_o) ? alu_op1 : 32'h0;
-    assign adder_op2_o = bjp_op_jump_o ? 32'h4 : op_adder ? alu_op2 : 32'h0;
-    assign adder_op_info_o = {
-        bjp_op_jump_o,  // op_jump (用于JALR指令)
-        alu_info[`DECINFO_ALU_SLTU],  // op_sltu
-        alu_info[`DECINFO_ALU_SLT],   // op_slt
-        alu_info[`DECINFO_ALU_SUB],   // op_sub
-        alu_info[`DECINFO_ALU_ADD],   // op_add
-        alu_info[`DECINFO_ALU_LUI],   // op_lui
-        alu_info[`DECINFO_ALU_AUIPC]  // op_auipc
+    assign alu_op_info_o = {
+        bjp_wb_req,  // ALU_OP_JUMP
+        alu_info[`DECINFO_ALU_AUIPC],  // ALU_OP_AUIPC
+        alu_info[`DECINFO_ALU_LUI],  // ALU_OP_LUI
+        alu_info[`DECINFO_ALU_AND],  // ALU_OP_AND
+        alu_info[`DECINFO_ALU_OR],  // ALU_OP_OR
+        alu_info[`DECINFO_ALU_SRA],  // ALU_OP_SRA
+        alu_info[`DECINFO_ALU_SRL],  // ALU_OP_SRL
+        alu_info[`DECINFO_ALU_XOR],  // ALU_OP_XOR
+        alu_info[`DECINFO_ALU_SLTU],  // ALU_OP_SLTU
+        alu_info[`DECINFO_ALU_SLT],  // ALU_OP_SLT
+        alu_info[`DECINFO_ALU_SLL],  // ALU_OP_SLL
+        alu_info[`DECINFO_ALU_SUB],  // ALU_OP_SUB
+        alu_info[`DECINFO_ALU_ADD]  // ALU_OP_ADD
     };
 
-    // SHIFTER输出
-    assign req_shifter_o = op_shifter;
-    assign shifter_op1_o = op_shifter ? rs1_rdata_i : 32'h0;
-    assign shifter_op2_o = op_shifter ? alu_op2 : 32'h0;
-    assign shifter_op_info_o = {
-        alu_info[`DECINFO_ALU_AND],  // op_and
-        alu_info[`DECINFO_ALU_OR],   // op_or
-        alu_info[`DECINFO_ALU_XOR],  // op_xor
-        alu_info[`DECINFO_ALU_SRA],  // op_sra
-        alu_info[`DECINFO_ALU_SRL],  // op_srl
-        alu_info[`DECINFO_ALU_SLL]   // op_sll
-    };
-
+    assign req_alu_o = op_alu | bjp_wb_req;
 
     // MULDIV info
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
@@ -199,7 +192,7 @@ module dispatch_logic (
     // Bru info
 
     wire op_bjp = (disp_info_grp == `DECINFO_GRP_BJP);
-    wire [`DECINFO_WIDTH-1:0] bjp_info = {`DECINFO_WIDTH{op_bjp}} & dec_info_bus_i;
+    assign bjp_info = {`DECINFO_WIDTH{op_bjp}} & dec_info_bus_i;
     // BJP op1
     wire bjp_op1_rs1 = bjp_info[`DECINFO_BJP_OP1RS1];  // 使用rs1寄存器作为跳转基地址 (JALR指令)
     wire [31:0] bjp_op1 = bjp_op1_rs1 ? rs1_rdata_i : dec_pc_i;
@@ -209,7 +202,6 @@ module dispatch_logic (
     assign bjp_jump_op2_o = (sys_op_fence_o) ? 32'h4 : op_bjp ? bjp_op2 : 32'h0;
     assign bjp_op1_o      = op_bjp ? rs1_rdata_i : 32'h0;  // 用于分支指令的比较操作数1
     assign bjp_op2_o      = op_bjp ? rs2_rdata_i : 32'h0;  // 用于分支指令的比较操作数2
-    assign bjp_op_jump_o  = bjp_info[`DECINFO_BJP_JUMP];  // JAL/JALR指令
     assign bjp_op_beq_o   = bjp_info[`DECINFO_BJP_BEQ];  // BEQ指令
     assign bjp_op_bne_o   = bjp_info[`DECINFO_BJP_BNE];  // BNE指令
     assign bjp_op_blt_o   = bjp_info[`DECINFO_BJP_BLT];  // BLT指令
@@ -217,6 +209,7 @@ module dispatch_logic (
     assign bjp_op_bge_o   = bjp_info[`DECINFO_BJP_BGE];  // BGE指令
     assign bjp_op_bgeu_o  = bjp_info[`DECINFO_BJP_BGEU];  // BGEU指令
     assign req_bjp_o      = op_bjp;
+    assign bjp_op_jal_o   = bjp_info[`DECINFO_BJP_JUMP] && !bjp_op1_rs1;  // JAL指令标志
     assign bjp_op_jalr_o  = bjp_op1_rs1;  // JALR指令标志
 
     // CSR info

@@ -1,6 +1,6 @@
 // 内存和地址配置
-`define ITCM_ADDR_WIDTH 16  // ITCM地址宽度，16位对应64KB
-`define DTCM_ADDR_WIDTH 16  // DTCM地址宽度，16位对应64KB
+`define ITCM_ADDR_WIDTH 18  // ITCM地址宽度，16位对应64KB
+`define DTCM_ADDR_WIDTH 18  // DTCM地址宽度，16位对应64KB
 
 `define PC_RESET_ADDR 32'h8000_0000
 
@@ -15,6 +15,16 @@
 `define APB_BASE_ADDR 32'h8400_0000          // APB基地址
 `define APB_SIZE (1 << `APB_ADDR_WIDTH)      // APB大小
 `define APB_SLAVE_ADDR_WIDTH 20 // APB从设备地址宽度
+
+// CLINT地址配置
+`define CLINT_ADDR_WIDTH 16  // CLINT地址宽度，16位
+`define CLINT_BASE_ADDR 32'h0200_0000        // CLINT基地址
+`define CLINT_SIZE (1 << `CLINT_ADDR_WIDTH)  // CLINT大小：64KB
+
+// PLIC地址配置
+`define PLIC_ADDR_WIDTH 16   // PLIC地址宽度，16位
+`define PLIC_BASE_ADDR 32'h0C00_0000         // PLIC基地址
+`define PLIC_SIZE (1 << `PLIC_ADDR_WIDTH)    // PLIC大小：64KB
 
 // 内存初始化控制
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化

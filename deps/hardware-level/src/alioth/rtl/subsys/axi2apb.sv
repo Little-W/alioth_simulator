@@ -46,54 +46,71 @@ module axi2apb #(
     assign PRESETn = S_AXI_ARESETN;
 
     // APB状态机状态定义
-    localparam IDLE = 2'b00;
-    localparam SETUP = 2'b01;
-    localparam ACCESS = 2'b10;
+    typedef enum logic [1:0] {
+        IDLE   = 2'b00,
+        SETUP  = 2'b01,
+        ACCESS = 2'b10
+    } apb_state_t;
 
-    // AXI状态机状态定义
-    localparam WRITE_IDLE = 2'b00;
-    localparam WRITE_ADDR = 2'b01;
-    localparam WRITE_DATA = 2'b10;
-    localparam WRITE_RESP = 2'b11;
+    // AXI写状态机状态定义
+    typedef enum logic [2:0] {
+        WRITE_IDLE = 3'b000,
+        WRITE_ADDR = 3'b001,
+        WRITE_DATA = 3'b010,
+        WRITE_RESP = 3'b011,
+        WRITE_WAIT = 3'b100
+    } write_state_t;
 
-    localparam READ_IDLE = 2'b00;
-    localparam READ_ADDR = 2'b01;
-    localparam READ_DATA = 2'b10;
-    localparam READ_RESP = 2'b11;
+    // AXI读状态机状态定义
+    typedef enum logic [2:0] {
+        READ_IDLE = 3'b000,
+        READ_ADDR = 3'b001,
+        READ_DATA = 3'b010,
+        READ_RESP = 3'b011,
+        READ_WAIT = 3'b100
+    } read_state_t;
 
     // 状态寄存器
-    reg  [                   1:0] apb_state;
-    reg  [                   1:0] write_state;
-    reg  [                   1:0] read_state;
+    apb_state_t                            apb_state;
+    write_state_t                          write_state;
+    read_state_t                           read_state;
 
     // 寄存器定义
-    reg  [  C_APB_ADDR_WIDTH-1:0] addr_reg;
-    reg  [C_S_AXI_DATA_WIDTH-1:0] wdata_reg;
-    reg  [C_S_AXI_DATA_WIDTH-1:0] rdata_reg;
-    reg                           write_reg;
-    reg  [                   1:0] resp_reg;
-    reg  [    `APB_DEV_COUNT-1:0] dev_sel;
+    reg           [  C_APB_ADDR_WIDTH-1:0] awaddr_reg;
+    reg           [  C_APB_ADDR_WIDTH-1:0] araddr_reg;
+    reg           [  C_APB_ADDR_WIDTH-1:0] paddr_reg;
+    reg           [C_S_AXI_DATA_WIDTH-1:0] wdata_reg;
+    reg           [C_S_AXI_DATA_WIDTH-1:0] rdata_reg;
+    reg                                    write_reg;
+    reg           [                   1:0] resp_reg;
+    reg           [    `APB_DEV_COUNT-1:0] dev_sel_write;
+    reg           [    `APB_DEV_COUNT-1:0] dev_sel_read;
 
     // AXI信号控制
-    reg                           awready_reg;
-    reg                           wready_reg;
-    reg  [                   1:0] bresp_reg;
-    reg                           bvalid_reg;
-    reg  [  C_APB_ADDR_WIDTH-1:0] araddr_reg;
-    reg                           arready_reg;
-    reg  [                   1:0] rresp_reg;
-    reg                           rvalid_reg;
+    reg                                    awready_reg;
+    reg                                    wready_reg;
+    reg           [                   1:0] bresp_reg;
+    reg                                    bvalid_reg;
+    reg                                    arready_reg;
+    reg           [                   1:0] rresp_reg;
+    reg                                    rvalid_reg;
+
 
     // APB信号控制
-    reg                           penable_reg;
-    reg  [    `APB_DEV_COUNT-1:0] psel_reg;
-    reg                           pwrite_reg;
+    reg                                    penable_reg;
+    reg           [    `APB_DEV_COUNT-1:0] psel_reg;
+    reg                                    pwrite_reg;
 
     // 传输控制标志
-    reg                           apb_start;
-    reg                           apb_write;
-    wire                          apb_read_done;
-    wire                          apb_write_done;
+    reg                                    apb_start_write;
+    reg                                    apb_start_read;
+    wire                                   apb_start;
+    reg                                    axi_write;
+    reg                                    axi_read;
+    wire                                   apb_read_done;
+    wire                                   apb_write_done;
+
+    assign apb_start = apb_start_write | apb_start_read;
 
     // 输出信号赋值
     assign S_AXI_AWREADY = awready_reg;
@@ -107,7 +124,7 @@ module axi2apb #(
 
     assign PSEL          = psel_reg;
     assign PENABLE       = penable_reg;
-    assign PADDR         = addr_reg;
+    assign PADDR         = paddr_reg;
     assign PWRITE        = pwrite_reg;
     assign PWDATA        = wdata_reg;
     // 地址解码函数（高位case方式，支持8个APB设备）
@@ -134,7 +151,8 @@ module axi2apb #(
 
     // APB设备选择信号
     always @(*) begin
-        dev_sel = addr_decode(addr_reg);
+        dev_sel_write = addr_decode(awaddr_reg);
+        dev_sel_read  = addr_decode(araddr_reg);
     end
 
     // 读数据多路复用器 - 使用临时变量避免对rdata_reg进行阻塞赋值
@@ -148,16 +166,16 @@ module axi2apb #(
 
     // PREADY信号汇总
     wire apb_ready;
-    assign apb_ready = PREADY[dev_sel] == 1'b1;
+    assign apb_ready = pwrite_reg ? (|(PREADY & dev_sel_write)) : (|(PREADY & dev_sel_read));
 
     // PSLVERR信号汇总
     wire apb_slverr;
-    assign apb_slverr     = PSLVERR[dev_sel] == 1'b1;
+    assign apb_slverr     = pwrite_reg ? (|(PSLVERR & dev_sel_write)) : (|(PSLVERR & dev_sel_read));
 
     assign apb_read_done  = (apb_state == ACCESS) && (!pwrite_reg) && apb_ready;
     assign apb_write_done = (apb_state == ACCESS) && (pwrite_reg) && apb_ready;
 
-    // 写通道状态机
+    // 写状态机
     always @(posedge S_AXI_ACLK or negedge S_AXI_ARESETN) begin
         if (!S_AXI_ARESETN) begin
             write_state <= WRITE_IDLE;
@@ -165,27 +183,36 @@ module axi2apb #(
             wready_reg  <= 1'b0;
             bvalid_reg  <= 1'b0;
             bresp_reg   <= 2'b00;  // OKAY
-            apb_write   <= 1'b0;
-            apb_start   <= 1'b0;
+            axi_write   <= 1'b0;
+            apb_start_write <= 1'b0;
+            wdata_reg   <= 0;
+            awaddr_reg  <= 0;
         end else begin
+
             case (write_state)
                 WRITE_IDLE: begin
                     awready_reg <= 1'b1;
                     wready_reg  <= 1'b1;
+                    axi_write   <= 1'b0;  // idle时清零
+                    apb_start_write <= 1'b0; // idle时清零
 
                     if (S_AXI_AWVALID && S_AXI_AWREADY) begin
-                        addr_reg    <= S_AXI_AWADDR[C_APB_ADDR_WIDTH-1:0];
+                        awaddr_reg  <= S_AXI_AWADDR[C_APB_ADDR_WIDTH-1:0];  // 写请求赋值
                         awready_reg <= 1'b0;
 
                         if (S_AXI_WVALID) begin
-                            // 地址和数据同时准备好
-                            wdata_reg   <= S_AXI_WDATA;
-                            wready_reg  <= 1'b0;
-                            write_state <= WRITE_RESP;
-                            apb_write   <= 1'b1;
-                            apb_start   <= 1'b1;
+                            wdata_reg  <= S_AXI_WDATA;
+                            wready_reg <= 1'b0;
+                            if (apb_state == IDLE && read_state == READ_IDLE) begin
+                                write_state    <= WRITE_RESP;
+                                axi_write      <= 1'b1;
+                                apb_start_write<= 1'b1;
+                            end else begin
+                                write_state    <= WRITE_WAIT;
+                                axi_write      <= 1'b1;
+                                apb_start_write<= 1'b0;
+                            end
                         end else begin
-                            // 只有地址准备好
                             write_state <= WRITE_DATA;
                         end
                     end
@@ -193,16 +220,31 @@ module axi2apb #(
 
                 WRITE_DATA: begin
                     if (S_AXI_WVALID) begin
-                        wdata_reg   <= S_AXI_WDATA;
-                        wready_reg  <= 1'b0;
-                        write_state <= WRITE_RESP;
-                        apb_write   <= 1'b1;
-                        apb_start   <= 1'b1;
+                        wdata_reg  <= S_AXI_WDATA;
+                        wready_reg <= 1'b0;
+                        if (apb_state == IDLE && read_state == READ_IDLE) begin
+                            write_state    <= WRITE_RESP;
+                            axi_write      <= 1'b1;
+                            apb_start_write<= 1'b1;
+                        end else begin
+                            write_state    <= WRITE_WAIT;
+                            axi_write      <= 1'b1;
+                            apb_start_write<= 1'b0;
+                        end
+                    end
+                end
+
+                WRITE_WAIT: begin
+                    if (apb_state == IDLE) begin
+                        write_state    <= WRITE_RESP;
+                        apb_start_write<= 1'b1;
+                    end else begin
+                        apb_start_write<= 1'b0;
                     end
                 end
 
                 WRITE_RESP: begin
-                    apb_start <= 1'b0;
+                    apb_start_write<= 1'b0;
 
                     if (apb_write_done) begin
                         bvalid_reg <= 1'b1;
@@ -214,7 +256,8 @@ module axi2apb #(
                         write_state <= WRITE_IDLE;
                         awready_reg <= 1'b1;
                         wready_reg  <= 1'b1;
-                        apb_write   <= 1'b0;
+                        axi_write   <= 1'b0;  // idle时清零
+                        apb_start_write<= 1'b0; // idle时清零
                     end
                 end
 
@@ -223,31 +266,51 @@ module axi2apb #(
         end
     end
 
-    // 读通道状态机
+    // 读状态机
     always @(posedge S_AXI_ACLK or negedge S_AXI_ARESETN) begin
         if (!S_AXI_ARESETN) begin
             read_state  <= READ_IDLE;
             arready_reg <= 1'b0;
             rvalid_reg  <= 1'b0;
             rresp_reg   <= 2'b00;  // OKAY
-            apb_write   <= 1'b0;
-            rdata_reg   <= 0;  // 重置rdata_reg
+            rdata_reg   <= 0;
+            araddr_reg  <= 0;
+            axi_read    <= 1'b0;  // 新增初始化
+            apb_start_read <= 1'b0;
         end else begin
             case (read_state)
                 READ_IDLE: begin
                     arready_reg <= 1'b1;
+                    axi_read    <= 1'b0;  // idle时清零
+                    apb_start_read <= 1'b0; // idle时清零
 
                     if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-                        addr_reg    <= S_AXI_ARADDR[C_APB_ADDR_WIDTH-1:0];
+                        araddr_reg  <= S_AXI_ARADDR[C_APB_ADDR_WIDTH-1:0];  // 读请求赋值
                         arready_reg <= 1'b0;
-                        read_state  <= READ_DATA;
-                        apb_write   <= 1'b0;
-                        apb_start   <= 1'b1;
+                        if (apb_state == IDLE && write_state == WRITE_IDLE &&
+                         !(S_AXI_AWVALID && S_AXI_AWREADY)) begin
+                            read_state     <= READ_DATA;
+                            axi_read       <= 1'b1;  // 新增读请求标志
+                            apb_start_read <= 1'b1;
+                        end else begin
+                            read_state     <= READ_WAIT;
+                            axi_read       <= 1'b1;  // 新增读请求标志
+                            apb_start_read <= 1'b0;
+                        end
+                    end
+                end
+
+                READ_WAIT: begin
+                    if (apb_state == IDLE && write_state == WRITE_IDLE) begin
+                        read_state     <= READ_DATA;
+                        apb_start_read <= 1'b1;
+                    end else begin
+                        apb_start_read <= 1'b0;
                     end
                 end
 
                 READ_DATA: begin
-                    apb_start  <= 1'b0;
+                    apb_start_read <= 1'b0;
                     rvalid_reg <= 1'b0;
                     if (apb_read_done) begin
                         rvalid_reg <= 1'b1;
@@ -262,7 +325,8 @@ module axi2apb #(
                         rvalid_reg  <= 1'b0;
                         read_state  <= READ_IDLE;
                         arready_reg <= 1'b1;
-                        apb_start   <= 1'b0;
+                        axi_read    <= 1'b0;  // idle时清零
+                        apb_start_read <= 1'b0; // idle时清零
                     end
                 end
 
@@ -278,6 +342,7 @@ module axi2apb #(
             psel_reg    <= 0;
             penable_reg <= 1'b0;
             pwrite_reg  <= 1'b0;
+            paddr_reg   <= 0;
         end else begin
             case (apb_state)
                 IDLE: begin
@@ -286,8 +351,9 @@ module axi2apb #(
 
                     if (apb_start) begin
                         apb_state  <= SETUP;
-                        psel_reg   <= dev_sel;
-                        pwrite_reg <= apb_write;
+                        psel_reg   <= axi_write ? dev_sel_write : (axi_read ? dev_sel_read : 0);
+                        paddr_reg  <= axi_write ? awaddr_reg : araddr_reg;
+                        pwrite_reg <= axi_write;
                     end
                 end
 

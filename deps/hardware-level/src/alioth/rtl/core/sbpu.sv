@@ -105,7 +105,7 @@ module sbpu (
     // 输出是否为预测分支（任一条指令是预测分支）
     assign is_pred_branch_o = is_pred_branch0 | (is_pred_branch1 & ~branch_taken0);
 
-    reg [31:0] branch_addr;
+    reg  [31:0] branch_addr;
 
     always @(*) begin
         // 默认值，避免锁存器
@@ -144,7 +144,7 @@ module sbpu (
 
     assign wait_for_jalr_o = wait_for_jalr;
     assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
-    assign branch_addr_o  = branch_addr;
+    assign branch_addr_o = branch_addr;
 
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule

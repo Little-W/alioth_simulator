@@ -23,6 +23,11 @@ SIM_OPTIONS   += --exe --trace --trace-structs --trace-params --trace-max-array 
 SIM_OPTIONS   += -CFLAGS "-Wall -DTOPLEVEL_NAME=tb_top -g -O0" -LDFLAGS "-pthread -lutil -lelf"
 SIM_OPTIONS   += -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT -Wno-TIMESCALEMOD -Wno-fatal
 
+# 仅当 ENABLE_UART_SIM=1 时追加
+ifeq ($(ENABLE_UART_SIM),1)
+SIM_OPTIONS   += -CFLAGS -DENABLE_UART_SIM
+endif
+
 ifeq ($(SIM_TOOL),verilator5)
 SIM_OPTIONS   += --no-timing
 endif
@@ -211,26 +216,26 @@ else ifeq ($(ARCH),aarch64)
 		ifeq ($(USE_OPEN_GNU_GCC),0)
 		shell := $(shell rm arm64-riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64-riscv-gnu-toolchain.tar.xz || rm arm64-riscv-gnu-toolchain.tar.xz)
-		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc)
-		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc && mv arm64-riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc && cd ${SOTFWARE_TOOLS_DIR}/gcc && tar -xvf arm64-riscv-gnu-toolchain.tar.xz && rm arm64-riscv-gnu-toolchain.tar.xz)
+		shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/gcc)
+		shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/gcc && mv arm64-riscv-gnu-toolchain.tar.xz ${SOFTWARE_TOOLS_DIR}/gcc && cd ${SOFTWARE_TOOLS_DIR}/gcc && tar -xvf arm64-riscv-gnu-toolchain.tar.xz && rm arm64-riscv-gnu-toolchain.tar.xz)
 		else
 		shell := $(shell rm arm64-open_riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64-open_riscv-gnu-toolchain.tar.xz || rm arm64-open_riscv-gnu-toolchain.tar.xz)
-		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc_open)
-		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc_open && mv arm64-open_riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc_open && cd ${SOTFWARE_TOOLS_DIR}/gcc_open && tar -xvf arm64-open_riscv-gnu-toolchain.tar.xz && rm arm64-open_riscv-gnu-toolchain.tar.xz)
+		shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/gcc_open)
+		shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/gcc_open && mv arm64-open_riscv-gnu-toolchain.tar.xz ${SOFTWARE_TOOLS_DIR}/gcc_open && cd ${SOFTWARE_TOOLS_DIR}/gcc_open && tar -xvf arm64-open_riscv-gnu-toolchain.tar.xz && rm arm64-open_riscv-gnu-toolchain.tar.xz)
 		endif
 	endif
 	ifeq ($(wildcard $(OPENOCD)),)
 	shell := $(shell rm openocd-12.0_arm64.tar.xz)
 	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/openocd-12.0_arm64.tar.xz || rm openocd-12.0_arm64.tar.xz)
-	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/openocd)
-	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/openocd && mv openocd-12.0_arm64.tar.xz ${SOTFWARE_TOOLS_DIR}/openocd && cd ${SOTFWARE_TOOLS_DIR}/openocd && tar -xvf openocd-12.0_arm64.tar.xz && rm openocd-12.0_arm64.tar.xz)
+	shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/openocd)
+	shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/openocd && mv openocd-12.0_arm64.tar.xz ${SOFTWARE_TOOLS_DIR}/openocd && cd ${SOFTWARE_TOOLS_DIR}/openocd && tar -xvf openocd-12.0_arm64.tar.xz && rm openocd-12.0_arm64.tar.xz)
 	endif
 	ifeq ($(wildcard $(QEMU_EXEC)),)
 	shell := $(shell rm arm64_qemu-riscv.tar.xz)
 	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64_qemu-riscv.tar.xz || rm arm64_qemu-riscv.tar.xz)
-	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/qemu)
-	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/qemu && mv arm64_qemu-riscv.tar.xz ${SOTFWARE_TOOLS_DIR}/qemu && cd ${SOTFWARE_TOOLS_DIR}/qemu && tar -xvf arm64_qemu-riscv.tar.xz && rm arm64_qemu-riscv.tar.xz)
+	shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/qemu)
+	shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/qemu && mv arm64_qemu-riscv.tar.xz ${SOFTWARE_TOOLS_DIR}/qemu && cd ${SOFTWARE_TOOLS_DIR}/qemu && tar -xvf arm64_qemu-riscv.tar.xz && rm arm64_qemu-riscv.tar.xz)
 	endif
 
 else

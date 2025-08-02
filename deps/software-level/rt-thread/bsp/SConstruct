@@ -1,0 +1,58 @@
+import os
+import sys
+import rtconfig
+
+if os.getenv('RTT_ROOT'):
+    RTT_ROOT = os.getenv('RTT_ROOT')
+    print(f"RTT_ROOT set from environment: {RTT_ROOT}")
+else:
+    RTT_ROOT = os.path.normpath(os.getcwd() + '/../../..')
+
+# BSP_DIR从环境变量获得，未设置则使用默认值 ../../bsp
+if os.getenv('BSP_DIR'):
+    BSP_DIR = os.path.abspath(os.getenv('BSP_DIR'))
+    print(f"BSP_DIR set from environment: {BSP_DIR}")
+elif os.getenv('SIM_ROOT_DIR'):
+    BSP_DIR = os.path.abspath(os.path.join(os.getenv('SIM_ROOT_DIR'), 'deps', 'software-level', 'bsp'))
+else:
+    BSP_DIR = os.path.abspath(os.path.join(os.getcwd(), '../../bsp'))
+
+# 优先插入RTT_ROOT/tools到sys.path最前面，确保导入building.py
+sys.path.insert(0, os.path.join(RTT_ROOT, 'tools'))
+from building import *
+
+TARGET = 'rtthread.' + rtconfig.TARGET_EXT
+
+DefaultEnvironment(tools=[])
+env = Environment(tools = ['gcc', 'as', 'link'],
+    AS = rtconfig.AS, ASFLAGS = rtconfig.AFLAGS,
+    CC = rtconfig.CC, CFLAGS = rtconfig.CFLAGS, CCFLAGS = '',
+    CXX = rtconfig.CXX, CXXFLAGS = rtconfig.CXXFLAGS,
+    AR = rtconfig.AR, ARFLAGS = '-rc', LIBS = rtconfig.LIBS,
+    LINK = rtconfig.LINK, LINKFLAGS = rtconfig.LFLAGS)
+env.PrependENVPath('PATH', rtconfig.EXEC_PATH)
+if 'ASPPCOM' in env:
+    env['ASCOM'] = env['ASPPCOM']
+
+Export('RTT_ROOT')
+Export('rtconfig')
+
+libraries_path_prefix = os.path.join(BSP_DIR, 'libraries')
+
+SDK_LIB = libraries_path_prefix
+Export('SDK_LIB')
+
+alioth_library = 'alioth'
+rtconfig.BSP_LIBRARY_TYPE = alioth_library
+
+# 先准备基础objs
+objs = PrepareBuilding(env, RTT_ROOT)
+
+# 获取build目录，通常SCons会有BUILD_DIR环境变量或自定义
+BUILD_DIR = os.path.join(os.getcwd(), 'build', rtconfig.BSP_LIBRARY_TYPE)
+Export('BUILD_DIR')
+
+GDB = rtconfig.GDB
+
+# make a building
+DoBuilding(TARGET, objs)

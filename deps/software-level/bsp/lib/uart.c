@@ -1,5 +1,20 @@
 #include "uart.h"
 
+/*
+ * UART中断模式说明：
+ * 1. RX阈值中断（接收FIFO到达设定阈值）：
+ *    当接收FIFO中的数据量达到设定的触发阈值时产生中断，用于通知有足够数据可读。
+ *    通过IER寄存器的bit0使能（uart_enable_rx_th_int / uart_disable_rx_th_int）。
+ *
+ * 2. TX空中断（发送FIFO为空）：
+ *    当发送FIFO为空时产生中断，通知可以继续发送数据。
+ *    通过IER寄存器的bit1使能（uart_enable_tx_empt_int / uart_disable_tx_empt_int）。
+ *
+ * 3. RX错误中断（接收数据出错）：
+ *    当接收数据发生错误（如校验错误、帧错误等）时产生中断。
+ *    通过IER寄存器的bit2使能（uart_enable_rx_err_int / uart_disable_rx_err_int）。
+ */
+
 int32_t uart_init(UART_TypeDef *uart, uint32_t baudrate)
 {
     if (__RARELY(uart == NULL)) {
@@ -95,6 +110,7 @@ uint8_t uart_read(UART_TypeDef *uart)
 
 int32_t uart_enable_tx_empt_int(UART_TypeDef *uart)
 {
+    // 使能发送FIFO为空中断（TX空中断），IER寄存器bit1
     if (__RARELY(uart == NULL)) {
         return -1;
     }
@@ -105,6 +121,7 @@ int32_t uart_enable_tx_empt_int(UART_TypeDef *uart)
 
 int32_t uart_disable_tx_empt_int(UART_TypeDef *uart)
 {
+    // 禁用发送FIFO为空中断（TX空中断），IER寄存器bit1
     if (__RARELY(uart == NULL)) {
         return -1;
     }
@@ -113,23 +130,29 @@ int32_t uart_disable_tx_empt_int(UART_TypeDef *uart)
     return 0;
 }
 
+// 接收FIFO中断触发等级
+// UART_RX_FIFO_TH_1BYTE: 1字节
+// UART_RX_FIFO_TH_4BYTE: 4字节
+// UART_RX_FIFO_TH_8BYTE: 8字节
+// UART_RX_FIFO_TH_14BYTE: 14字节
 int32_t uart_set_rx_th(UART_TypeDef *uart, uint8_t th)
 {
+    // 设置接收FIFO触发阈值，影响RX阈值中断触发条件
     if (__RARELY(uart == NULL)) {
         return -1;
     }
 
-    if(th > 3) {
-       th = 3;
+    if(th > UART_RX_FIFO_TH_14BYTE) {
+       th = UART_RX_FIFO_TH_14BYTE;
     }
 
-    uart->FCR &= 0xFFFFFF3F;
-    uart->FCR |= (th << 6);
+    uart->FCR = (th << 6);
     return 0;
 }
 
 int32_t uart_enable_rx_th_int(UART_TypeDef *uart)
 {
+    // 使能接收FIFO阈值中断（RX阈值中断），IER寄存器bit0
     if (__RARELY(uart == NULL)) {
         return -1;
     }
@@ -140,6 +163,7 @@ int32_t uart_enable_rx_th_int(UART_TypeDef *uart)
 
 int32_t uart_disable_rx_th_int(UART_TypeDef *uart)
 {
+    // 禁用接收FIFO阈值中断（RX阈值中断），IER寄存器bit0
     if (__RARELY(uart == NULL)) {
         return -1;
     }
@@ -150,6 +174,7 @@ int32_t uart_disable_rx_th_int(UART_TypeDef *uart)
 
 int32_t uart_enable_rx_err_int(UART_TypeDef *uart)
 {
+    // 使能接收错误中断（RX错误中断），IER寄存器bit2
     if (__RARELY(uart == NULL)) {
         return -1;
     }
@@ -160,6 +185,7 @@ int32_t uart_enable_rx_err_int(UART_TypeDef *uart)
 
 int32_t uart_disable_rx_err_int(UART_TypeDef *uart)
 {
+    // 禁用接收错误中断（RX错误中断），IER寄存器bit2
     if (__RARELY(uart == NULL)) {
         return -1;
     }
@@ -186,6 +212,24 @@ int32_t uart_get_status(UART_TypeDef *uart)
     }
 
     return uart->LSR;
+}
+
+int32_t uart_clear_tx_fifo(UART_TypeDef *uart)
+{
+    if (__RARELY(uart == NULL)) {
+        return -1;
+    }
+    uart->FCR |= (1 << 2); // TX FIFO 清空
+    return 0;
+}
+
+int32_t uart_clear_rx_fifo(UART_TypeDef *uart)
+{
+    if (__RARELY(uart == NULL)) {
+        return -1;
+    }
+    uart->FCR |= (1 << 1); // RX FIFO 清空
+    return 0;
 }
 
 
