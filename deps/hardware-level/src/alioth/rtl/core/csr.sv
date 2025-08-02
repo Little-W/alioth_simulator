@@ -42,6 +42,10 @@ module csr (
     input wire [`BUS_ADDR_WIDTH-1:0] clint_waddr_i,  // clint模块写寄存器地址
     input wire [`REG_DATA_WIDTH-1:0] clint_data_i,   // clint模块写寄存器数据
 
+    // from fpu
+    input wire       fpu_fflags_we_i,  // FPU异常标志写使能
+    input wire [4:0] fpu_fflags_i,     // FPU异常标志数据
+
     input wire inst_valid_i,  // 指令有效信号
 
     // to clint
@@ -50,6 +54,9 @@ module csr (
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mepc,     // mepc
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mstatus,  // mstatus
     output wire [`REG_DATA_WIDTH-1:0] clint_csr_mie,
+
+    // to fpu
+    output wire [2:0] fpu_frm_o,  // FPU舍入模式
 
     // to ex
     output wire [`REG_DATA_WIDTH-1:0] data_o  // ex模块读寄存器数据
@@ -66,6 +73,62 @@ module csr (
     wire [`REG_DATA_WIDTH-1:0] mie;
     wire [`REG_DATA_WIDTH-1:0] mstatus;
     wire [`REG_DATA_WIDTH-1:0] mscratch;
+
+    // FPU相关CSR寄存器
+    wire [                4:0] fflags;  // 浮点异常标志 (CSR_FFLAGS)
+    wire [                2:0] frm;  // 浮点舍入模式 (CSR_FRM)
+    wire [                7:0] fcsr;  // 浮点控制和状态寄存器 (CSR_FCSR = {frm, fflags})
+
+    // FCSR由frm和fflags组成
+    assign fcsr = {24'b0, frm, fflags};  // 高24位保留为0
+
+    // FPU相关CSR寄存器的控制信号
+    wire       frm_we;
+    wire       fflags_we;
+    wire [2:0] frm_next;
+    wire [4:0] fflags_next;
+
+    // 写使能逻辑
+    assign frm_we = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FRM) ||
+                    (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FCSR);
+
+    assign fflags_we = fpu_fflags_we_i ||
+                       (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FFLAGS) ||
+                       (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FCSR);
+
+    // 下一状态逻辑
+    assign frm_next = (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FRM) ? data_i[2:0] :
+                      (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FCSR) ? data_i[7:5] :
+                      frm;
+
+    assign fflags_next = fpu_fflags_we_i ? (fflags | fpu_fflags_i) :
+                        (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FFLAGS) ? data_i[4:0] :
+                        (we_i == `WriteEnable && waddr_i[11:0] == `CSR_FCSR) ? data_i[4:0] :
+                        fflags;
+
+    assign fpu_frm_o = we_i && (waddr_i[11:0] == `CSR_FRM || waddr_i[11:0] == `CSR_FCSR) ?
+                     frm_next : frm;
+
+    // 实例化FPU相关CSR寄存器
+    gnrl_dfflr #(
+        .DW(3)
+    ) frm_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (frm_we),
+        .dnxt (frm_next),
+        .qout (frm)
+    );
+
+    gnrl_dfflr #(
+        .DW(5)
+    ) fflags_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (fflags_we),
+        .dnxt (fflags_next),
+        .qout (fflags)
+    );
 
     // 机器模式CSR寄存器
     wire [`REG_DATA_WIDTH-1:0] mvendorid;  // 供应商ID寄存器
@@ -684,6 +747,10 @@ module csr (
         (raddr_i[11:0] == `CSR_HPMCOUNTER4) ? hpmcounter4 :
         (raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
         (raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
+        // FPU相关CSR寄存器
+        (raddr_i[11:0] == `CSR_FCSR) ? {24'b0, frm, fflags} :
+        (raddr_i[11:0] == `CSR_FRM) ? {29'b0, frm} :
+        (raddr_i[11:0] == `CSR_FFLAGS) ? {27'b0, fflags} :
         `ZeroWord;
 
     // clint模块读CSR寄存器
@@ -721,6 +788,10 @@ module csr (
         (clint_raddr_i[11:0] == `CSR_HPMCOUNTER5) ? hpmcounter5 :
         (clint_raddr_i[11:0] == `CSR_HPMCOUNTER6) ? hpmcounter6 :
         (clint_raddr_i[11:0] == `CSR_MCOUNTINHIBIT) ? mcountinhibit :
+        // FPU相关CSR寄存器
+        (clint_raddr_i[11:0] == `CSR_FCSR) ? {24'b0, frm, fflags} :
+        (clint_raddr_i[11:0] == `CSR_FRM) ? {29'b0, frm} :
+        (clint_raddr_i[11:0] == `CSR_FFLAGS) ? {27'b0, fflags} :
         `ZeroWord;
 
 endmodule

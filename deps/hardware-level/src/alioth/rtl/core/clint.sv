@@ -67,9 +67,6 @@ module clint (
     // EXU暂停信号输入
     input wire exu_stall_i,
 
-    // to ctrl
-    output wire flush_flag_o,  // 用于刷新流水线
-
     // to csr_reg
     output reg                       we_o,
     output reg [`BUS_ADDR_WIDTH-1:0] waddr_o,

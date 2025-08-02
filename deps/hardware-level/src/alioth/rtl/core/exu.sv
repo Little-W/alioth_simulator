@@ -47,6 +47,7 @@ module exu (
     input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
     input wire csr_wb_ready_i,     // CSR写回握手信号
     input wire is_pred_branch_i,   // 添加预测分支指令标志输入
+    input wire fpu_wb_ready_i,     // FPU写回握手信号
 
     // from regs
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
@@ -60,6 +61,32 @@ module exu (
     input wire [             31:0] alu_op1_i,
     input wire [             31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
+
+    // dispatch to FPU
+    input wire        req_fpu_i,
+    input wire        fpu_op_fadd_s_i,
+    input wire        fpu_op_fsub_s_i,
+    input wire        fpu_op_fmul_s_i,
+    input wire        fpu_op_fdiv_s_i,
+    input wire        fpu_op_fsqrt_s_i,
+    input wire        fpu_op_fsgnj_s_i,
+    input wire        fpu_op_fmax_s_i,
+    input wire        fpu_op_fcmp_s_i,
+    input wire        fpu_op_fcvt_f2i_s_i,
+    input wire        fpu_op_fcvt_i2f_s_i,
+    input wire        fpu_op_fmadd_s_i,
+    input wire        fpu_op_fmsub_s_i,
+    input wire        fpu_op_fnmadd_s_i,
+    input wire        fpu_op_fnmsub_s_i,
+    input wire        fpu_op_fmv_i2f_s_i,
+    input wire        fpu_op_fmv_f2i_s_i,
+    input wire        fpu_op_fclass_s_i,
+    input wire [31:0] fpu_op1_i,
+    input wire [31:0] fpu_op2_i,
+    input wire [31:0] fpu_op3_i,
+    input wire [ 2:0] frm_i,
+    input wire [ 1:0] fcvt_op_i,
+    input wire [ 2:0] csr_frm_i,
 
     // dispatch to BJP
     input wire        req_bjp_i,
@@ -141,6 +168,14 @@ module exu (
     output wire                        lsu_reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_o,
+
+    // FPU输出
+    output wire [ `REG_DATA_WIDTH-1:0] fpu_reg_wdata_o,
+    output wire                        fpu_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] fpu_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] fpu_commit_id_o,
+    output wire                        fcsr_we_o,
+    output wire [                 4:0] fcsr_fflags_o,
 
     // CSR寄存器写数据输出
     output wire [ `REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
@@ -254,6 +289,10 @@ module exu (
 
     // 新CSR握手相关信号
     wire                        csr_stall;
+
+    // FPU握手相关信号
+    wire                        fpu_stall;
+    wire                        fflags_pending;
 
     wire [ `REG_DATA_WIDTH-1:0] alu_result;
     wire                        alu_reg_we;
@@ -438,30 +477,31 @@ module exu (
 
     // CSR处理单元模块例化
     exu_csr_unit u_csr_unit (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .req_csr_i   (req_csr_i),
-        .csr_op1_i   (csr_op1_i),
-        .csr_addr_i  (csr_addr_i),
-        .csr_csrrw_i (csr_csrrw_i),
-        .csr_csrrs_i (csr_csrrs_i),
-        .csr_csrrc_i (csr_csrrc_i),
-        .csr_rdata_i (csr_rdata_i),
-        .commit_id_i (commit_id_i),
-        .csr_we_i    (csr_we_i),
-        .csr_reg_we_i(reg_we_i),
-        .csr_waddr_i (csr_waddr_i),
-        .reg_waddr_i (reg_waddr_i),
-        .wb_ready_i  (csr_wb_ready_i),
-        .csr_stall_o (csr_stall),
-        .int_assert_i(int_assert_i),
-        .csr_wdata_o (csr_wdata_o),
-        .csr_we_o    (csr_we_o),
-        .csr_waddr_o (csr_waddr_o),
-        .reg_wdata_o (csr_reg_wdata_o),
-        .reg_waddr_o (csr_reg_waddr_o),
-        .commit_id_o (csr_commit_id_o),
-        .csr_reg_we_o(csr_reg_we_o)
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .req_csr_i       (req_csr_i),
+        .fflags_pending_i(fflags_pending),
+        .csr_op1_i       (csr_op1_i),
+        .csr_addr_i      (csr_addr_i),
+        .csr_csrrw_i     (csr_csrrw_i),
+        .csr_csrrs_i     (csr_csrrs_i),
+        .csr_csrrc_i     (csr_csrrc_i),
+        .csr_rdata_i     (csr_rdata_i),
+        .commit_id_i     (commit_id_i),
+        .csr_we_i        (csr_we_i),
+        .csr_reg_we_i    (reg_we_i),
+        .csr_waddr_i     (csr_waddr_i),
+        .reg_waddr_i     (reg_waddr_i),
+        .wb_ready_i      (csr_wb_ready_i),
+        .csr_stall_o     (csr_stall),
+        .int_assert_i    (int_assert_i),
+        .csr_wdata_o     (csr_wdata_o),
+        .csr_we_o        (csr_we_o),
+        .csr_waddr_o     (csr_waddr_o),
+        .reg_wdata_o     (csr_reg_wdata_o),
+        .reg_waddr_o     (csr_reg_waddr_o),
+        .commit_id_o     (csr_commit_id_o),
+        .csr_reg_we_o    (csr_reg_we_o)
     );
 
     // 乘除法控制逻辑
@@ -511,18 +551,59 @@ module exu (
         .commit_id_o        (muldiv_commit_id_o)   // 3位commit_id输出
     );
 
+    // FPU模块例化
+    exu_fpu u_fpu (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .req_fpu_i          (req_fpu_i),
+        .fpu_op_fadd_s_i    (fpu_op_fadd_s_i),
+        .fpu_op_fsub_s_i    (fpu_op_fsub_s_i),
+        .fpu_op_fmul_s_i    (fpu_op_fmul_s_i),
+        .fpu_op_fdiv_s_i    (fpu_op_fdiv_s_i),
+        .fpu_op_fsqrt_s_i   (fpu_op_fsqrt_s_i),
+        .fpu_op_fsgnj_s_i   (fpu_op_fsgnj_s_i),
+        .fpu_op_fmax_s_i    (fpu_op_fmax_s_i),
+        .fpu_op_fcmp_s_i    (fpu_op_fcmp_s_i),
+        .fpu_op_fcvt_f2i_s_i(fpu_op_fcvt_f2i_s_i),
+        .fpu_op_fcvt_i2f_s_i(fpu_op_fcvt_i2f_s_i),
+        .fpu_op_fmadd_s_i   (fpu_op_fmadd_s_i),
+        .fpu_op_fmsub_s_i   (fpu_op_fmsub_s_i),
+        .fpu_op_fnmadd_s_i  (fpu_op_fnmadd_s_i),
+        .fpu_op_fnmsub_s_i  (fpu_op_fnmsub_s_i),
+        .fpu_op_fmv_i2f_s_i (fpu_op_fmv_i2f_s_i),
+        .fpu_op_fmv_f2i_s_i (fpu_op_fmv_f2i_s_i),
+        .fpu_op_fclass_s_i  (fpu_op_fclass_s_i),
+        .fpu_op1_i          (fpu_op1_i),
+        .fpu_op2_i          (fpu_op2_i),
+        .fpu_op3_i          (fpu_op3_i),
+        .frm_i              (frm_i),
+        .fcvt_op_i          (fcvt_op_i),
+        .csr_frm_i          (csr_frm_i),
+        .commit_id_i        (commit_id_i),
+        .reg_waddr_i        (reg_waddr_i),
+        .wb_ready_i         (fpu_wb_ready_i),
+        .reg_we_o           (fpu_reg_we_o),
+        .reg_waddr_o        (fpu_reg_waddr_o),
+        .reg_wdata_o        (fpu_reg_wdata_o),
+        .fcsr_we_o          (fcsr_we_o),
+        .fcsr_fflags_o      (fcsr_fflags_o),
+        .fflags_pending_o   (fflags_pending),
+        .fpu_stall_o        (fpu_stall),
+        .commit_id_o        (fpu_commit_id_o)
+    );
+
     // 输出选择逻辑
-    assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
-    assign jump_flag_o = bru_jump_flag || int_jump_i;
-    assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
+    assign stall_flag_o       = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o | fpu_stall;
+    assign jump_flag_o        = bru_jump_flag || int_jump_i;
+    assign jump_addr_o        = int_jump_i ? int_addr_i : bru_jump_addr;
 
     // 将乘除法开始信号输出给clint
-    assign muldiv_started_o = div_start | mul_start;
+    assign muldiv_started_o   = div_start | mul_start;
 
     // 将SYS操作信号连接到输出
-    assign exu_op_ecall_o = sys_op_ecall_i;
-    assign exu_op_ebreak_o = sys_op_ebreak_i;
-    assign exu_op_mret_o = sys_op_mret_i;
+    assign exu_op_ecall_o     = sys_op_ecall_i;
+    assign exu_op_ebreak_o    = sys_op_ebreak_i;
+    assign exu_op_mret_o      = sys_op_mret_i;
 
     // 新增：misaligned_fetch信号输出
     assign misaligned_fetch_o = misaligned_fetch_bru;

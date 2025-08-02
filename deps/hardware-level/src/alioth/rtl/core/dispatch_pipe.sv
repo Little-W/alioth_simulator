@@ -125,6 +125,31 @@ module dispatch_pipe (
     input wire sys_op_fence_i,
     input wire sys_op_dret_i,
 
+    // FPU输入端口
+    input wire                        req_fpu_i,
+    input wire                        fpu_op_fadd_s_i,
+    input wire                        fpu_op_fsub_s_i,
+    input wire                        fpu_op_fmul_s_i,
+    input wire                        fpu_op_fdiv_s_i,
+    input wire                        fpu_op_fsqrt_s_i,
+    input wire                        fpu_op_fsgnj_s_i,
+    input wire                        fpu_op_fmax_s_i,
+    input wire                        fpu_op_fcmp_s_i,
+    input wire                        fpu_op_fcvt_f2i_s_i,
+    input wire                        fpu_op_fcvt_i2f_s_i,
+    input wire                        fpu_op_fmadd_s_i,
+    input wire                        fpu_op_fmsub_s_i,
+    input wire                        fpu_op_fnmadd_s_i,
+    input wire                        fpu_op_fnmsub_s_i,
+    input wire                        fpu_op_fmv_i2f_s_i,
+    input wire                        fpu_op_fmv_f2i_s_i,
+    input wire                        fpu_op_fclass_s_i,
+    input wire [`FREG_DATA_WIDTH-1:0] fpu_op1_i,
+    input wire [`FREG_DATA_WIDTH-1:0] fpu_op2_i,
+    input wire [`FREG_DATA_WIDTH-1:0] fpu_op3_i,
+    input wire [                 2:0] frm_i,
+    input wire [                 1:0] fcvt_op_i,
+
     // 指令信息输出端口
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
@@ -216,7 +241,32 @@ module dispatch_pipe (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o
+    output wire illegal_inst_o,
+
+    // FPU输出端口
+    output wire                        req_fpu_o,
+    output wire                        fpu_op_fadd_s_o,
+    output wire                        fpu_op_fsub_s_o,
+    output wire                        fpu_op_fmul_s_o,
+    output wire                        fpu_op_fdiv_s_o,
+    output wire                        fpu_op_fsqrt_s_o,
+    output wire                        fpu_op_fsgnj_s_o,
+    output wire                        fpu_op_fmax_s_o,
+    output wire                        fpu_op_fcmp_s_o,
+    output wire                        fpu_op_fcvt_f2i_s_o,
+    output wire                        fpu_op_fcvt_i2f_s_o,
+    output wire                        fpu_op_fmadd_s_o,
+    output wire                        fpu_op_fmsub_s_o,
+    output wire                        fpu_op_fnmadd_s_o,
+    output wire                        fpu_op_fnmsub_s_o,
+    output wire                        fpu_op_fmv_i2f_s_o,
+    output wire                        fpu_op_fmv_f2i_s_o,
+    output wire                        fpu_op_fclass_s_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_op1_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_op2_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_op3_o,
+    output wire [                 2:0] frm_o,
+    output wire [                 1:0] fcvt_op_o
 );
 
     wire                        flush_en = |stall_flag_i;
@@ -1018,5 +1068,259 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
+
+    // 新增：FPU接口流水线寄存器
+    wire req_fpu_dnxt = flush_en ? 1'b0 : req_fpu_i;
+    wire req_fpu;
+    gnrl_dfflr #(1) req_fpu_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        req_fpu_dnxt,
+        req_fpu
+    );
+    assign req_fpu_o = req_fpu;
+
+    wire fpu_op_fadd_s_dnxt = flush_en ? 1'b0 : fpu_op_fadd_s_i;
+    wire fpu_op_fadd_s;
+    gnrl_dfflr #(1) fpu_op_fadd_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fadd_s_dnxt,
+        fpu_op_fadd_s
+    );
+    assign fpu_op_fadd_s_o = fpu_op_fadd_s;
+
+    wire fpu_op_fsub_s_dnxt = flush_en ? 1'b0 : fpu_op_fsub_s_i;
+    wire fpu_op_fsub_s;
+    gnrl_dfflr #(1) fpu_op_fsub_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fsub_s_dnxt,
+        fpu_op_fsub_s
+    );
+    assign fpu_op_fsub_s_o = fpu_op_fsub_s;
+
+    wire fpu_op_fmul_s_dnxt = flush_en ? 1'b0 : fpu_op_fmul_s_i;
+    wire fpu_op_fmul_s;
+    gnrl_dfflr #(1) fpu_op_fmul_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fmul_s_dnxt,
+        fpu_op_fmul_s
+    );
+    assign fpu_op_fmul_s_o = fpu_op_fmul_s;
+
+    wire fpu_op_fdiv_s_dnxt = flush_en ? 1'b0 : fpu_op_fdiv_s_i;
+    wire fpu_op_fdiv_s;
+    gnrl_dfflr #(1) fpu_op_fdiv_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fdiv_s_dnxt,
+        fpu_op_fdiv_s
+    );
+    assign fpu_op_fdiv_s_o = fpu_op_fdiv_s;
+
+    wire fpu_op_fsqrt_s_dnxt = flush_en ? 1'b0 : fpu_op_fsqrt_s_i;
+    wire fpu_op_fsqrt_s;
+    gnrl_dfflr #(1) fpu_op_fsqrt_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fsqrt_s_dnxt,
+        fpu_op_fsqrt_s
+    );
+    assign fpu_op_fsqrt_s_o = fpu_op_fsqrt_s;
+
+    wire fpu_op_fsgnj_s_dnxt = flush_en ? 1'b0 : fpu_op_fsgnj_s_i;
+    wire fpu_op_fsgnj_s;
+    gnrl_dfflr #(1) fpu_op_fsgnj_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fsgnj_s_dnxt,
+        fpu_op_fsgnj_s
+    );
+    assign fpu_op_fsgnj_s_o = fpu_op_fsgnj_s;
+
+    wire fpu_op_fmax_s_dnxt = flush_en ? 1'b0 : fpu_op_fmax_s_i;
+    wire fpu_op_fmax_s;
+    gnrl_dfflr #(1) fpu_op_fmax_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fmax_s_dnxt,
+        fpu_op_fmax_s
+    );
+    assign fpu_op_fmax_s_o = fpu_op_fmax_s;
+
+    wire fpu_op_fcmp_s_dnxt = flush_en ? 1'b0 : fpu_op_fcmp_s_i;
+    wire fpu_op_fcmp_s;
+    gnrl_dfflr #(1) fpu_op_fcmp_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fcmp_s_dnxt,
+        fpu_op_fcmp_s
+    );
+    assign fpu_op_fcmp_s_o = fpu_op_fcmp_s;
+
+    wire fpu_op_fcvt_f2i_s_dnxt = flush_en ? 1'b0 : fpu_op_fcvt_f2i_s_i;
+    wire fpu_op_fcvt_f2i_s;
+    gnrl_dfflr #(1) fpu_op_fcvt_f2i_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fcvt_f2i_s_dnxt,
+        fpu_op_fcvt_f2i_s
+    );
+    assign fpu_op_fcvt_f2i_s_o = fpu_op_fcvt_f2i_s;
+
+    wire fpu_op_fcvt_i2f_s_dnxt = flush_en ? 1'b0 : fpu_op_fcvt_i2f_s_i;
+    wire fpu_op_fcvt_i2f_s;
+    gnrl_dfflr #(1) fpu_op_fcvt_i2f_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fcvt_i2f_s_dnxt,
+        fpu_op_fcvt_i2f_s
+    );
+    assign fpu_op_fcvt_i2f_s_o = fpu_op_fcvt_i2f_s;
+
+    wire fpu_op_fmadd_s_dnxt = flush_en ? 1'b0 : fpu_op_fmadd_s_i;
+    wire fpu_op_fmadd_s;
+    gnrl_dfflr #(1) fpu_op_fmadd_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fmadd_s_dnxt,
+        fpu_op_fmadd_s
+    );
+    assign fpu_op_fmadd_s_o = fpu_op_fmadd_s;
+
+    wire fpu_op_fmsub_s_dnxt = flush_en ? 1'b0 : fpu_op_fmsub_s_i;
+    wire fpu_op_fmsub_s;
+    gnrl_dfflr #(1) fpu_op_fmsub_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fmsub_s_dnxt,
+        fpu_op_fmsub_s
+    );
+    assign fpu_op_fmsub_s_o = fpu_op_fmsub_s;
+
+    wire fpu_op_fnmadd_s_dnxt = flush_en ? 1'b0 : fpu_op_fnmadd_s_i;
+    wire fpu_op_fnmadd_s;
+    gnrl_dfflr #(1) fpu_op_fnmadd_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fnmadd_s_dnxt,
+        fpu_op_fnmadd_s
+    );
+    assign fpu_op_fnmadd_s_o = fpu_op_fnmadd_s;
+
+    wire fpu_op_fnmsub_s_dnxt = flush_en ? 1'b0 : fpu_op_fnmsub_s_i;
+    wire fpu_op_fnmsub_s;
+    gnrl_dfflr #(1) fpu_op_fnmsub_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fnmsub_s_dnxt,
+        fpu_op_fnmsub_s
+    );
+    assign fpu_op_fnmsub_s_o = fpu_op_fnmsub_s;
+
+    wire fpu_op_fmv_i2f_s_dnxt = flush_en ? 1'b0 : fpu_op_fmv_i2f_s_i;
+    wire fpu_op_fmv_i2f_s;
+    gnrl_dfflr #(1) fpu_op_fmv_i2f_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fmv_i2f_s_dnxt,
+        fpu_op_fmv_i2f_s
+    );
+    assign fpu_op_fmv_i2f_s_o = fpu_op_fmv_i2f_s;
+
+    wire fpu_op_fmv_f2i_s_dnxt = flush_en ? 1'b0 : fpu_op_fmv_f2i_s_i;
+    wire fpu_op_fmv_f2i_s;
+    gnrl_dfflr #(1) fpu_op_fmv_f2i_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fmv_f2i_s_dnxt,
+        fpu_op_fmv_f2i_s
+    );
+    assign fpu_op_fmv_f2i_s_o = fpu_op_fmv_f2i_s;
+
+    wire fpu_op_fclass_s_dnxt = flush_en ? 1'b0 : fpu_op_fclass_s_i;
+    wire fpu_op_fclass_s;
+    gnrl_dfflr #(1) fpu_op_fclass_s_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op_fclass_s_dnxt,
+        fpu_op_fclass_s
+    );
+    assign fpu_op_fclass_s_o = fpu_op_fclass_s;
+
+    wire [`FREG_DATA_WIDTH-1:0] fpu_op1_dnxt = flush_en ? 32'b0 : fpu_op1_i;
+    wire [`FREG_DATA_WIDTH-1:0] fpu_op1;
+    gnrl_dfflr #(`FREG_DATA_WIDTH) fpu_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op1_dnxt,
+        fpu_op1
+    );
+    assign fpu_op1_o = fpu_op1;
+
+    wire [`FREG_DATA_WIDTH-1:0] fpu_op2_dnxt = flush_en ? 32'b0 : fpu_op2_i;
+    wire [`FREG_DATA_WIDTH-1:0] fpu_op2;
+    gnrl_dfflr #(`FREG_DATA_WIDTH) fpu_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op2_dnxt,
+        fpu_op2
+    );
+    assign fpu_op2_o = fpu_op2;
+
+    wire [`FREG_DATA_WIDTH-1:0] fpu_op3_dnxt = flush_en ? 32'b0 : fpu_op3_i;
+    wire [`FREG_DATA_WIDTH-1:0] fpu_op3;
+    gnrl_dfflr #(`FREG_DATA_WIDTH) fpu_op3_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fpu_op3_dnxt,
+        fpu_op3
+    );
+    assign fpu_op3_o = fpu_op3;
+
+    wire [2:0] frm_dnxt = flush_en ? 3'b0 : frm_i;
+    wire [2:0] frm;
+    gnrl_dfflr #(3) frm_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        frm_dnxt,
+        frm
+    );
+    assign frm_o = frm;
+
+    wire [1:0] fcvt_op_dnxt = flush_en ? 2'b0 : fcvt_op_i;
+    wire [1:0] fcvt_op;
+    gnrl_dfflr #(2) fcvt_op_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        fcvt_op_dnxt,
+        fcvt_op
+    );
+    assign fcvt_op_o = fcvt_op;
 
 endmodule

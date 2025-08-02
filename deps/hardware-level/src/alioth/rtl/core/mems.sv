@@ -169,7 +169,7 @@ module mems #(
     input  wire                                  OM1_AXI_RVALID,
     output wire                                  OM1_AXI_RREADY,
 
-    // CLINT AXI-lite 接口
+    // PLIC AXI-lite 接口
     output wire                                  OM2_AXI_ACLK,
     output wire                                  OM2_AXI_ARESETN,
     output wire [    C_OM2_AXI_ADDR_WIDTH-1 : 0] OM2_AXI_AWADDR,

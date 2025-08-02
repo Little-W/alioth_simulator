@@ -40,14 +40,18 @@ module dispatch (
     input wire [                31:0] dec_imm_i,
     input wire [`INST_ADDR_WIDTH-1:0] dec_pc_i,
     input wire [`INST_DATA_WIDTH-1:0] inst_i,
-    input wire [ `REG_DATA_WIDTH-1:0] rs1_rdata_i,
-    input wire [ `REG_DATA_WIDTH-1:0] rs2_rdata_i,
     input wire                        is_pred_branch_i,
+    input wire [`GREG_DATA_WIDTH-1:0] rs1_rdata_i,
+    input wire [`GREG_DATA_WIDTH-1:0] rs2_rdata_i,
+    input wire [`FREG_DATA_WIDTH-1:0] frs1_rdata_i,
+    input wire [`FREG_DATA_WIDTH-1:0] frs2_rdata_i,
+    input wire [`FREG_DATA_WIDTH-1:0] frs3_rdata_i,
 
     // 寄存器写入信息 - 用于HDU检测冒险
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_i,
+    input wire [`REG_ADDR_WIDTH-1:0] rs1_raddr_i,
+    input wire [`REG_ADDR_WIDTH-1:0] rs2_raddr_i,
+    input wire [`REG_ADDR_WIDTH-1:0] rs3_raddr_i,
     input wire                       reg_we_i,
 
     // 从IDU接收额外的CSR信号
@@ -59,8 +63,10 @@ module dispatch (
     input wire rd_access_inst_valid_i,
 
     // 写回阶段提交信号 - 用于HDU
-    input wire                        commit_valid_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
+    input wire                        commit_valid_int_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_int_i,
+    input wire                        commit_valid_fp_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_fp_i,
 
     // HDU输出信号
     output wire                        hazard_stall_o,
@@ -140,6 +146,30 @@ module dispatch (
     output wire [                31:0] mem_addr_o,
     output wire [                 3:0] mem_wmask_o,
     output wire [                31:0] mem_wdata_o,
+
+    output wire                        req_fpu_o,
+    output wire                        fpu_op_fadd_s_o,
+    output wire                        fpu_op_fsub_s_o,
+    output wire                        fpu_op_fmul_s_o,
+    output wire                        fpu_op_fdiv_s_o,
+    output wire                        fpu_op_fsqrt_s_o,
+    output wire                        fpu_op_fsgnj_s_o,
+    output wire                        fpu_op_fmax_s_o,
+    output wire                        fpu_op_fcmp_s_o,
+    output wire                        fpu_op_fcvt_f2i_s_o,
+    output wire                        fpu_op_fcvt_i2f_s_o,
+    output wire                        fpu_op_fmadd_s_o,
+    output wire                        fpu_op_fmsub_s_o,
+    output wire                        fpu_op_fnmadd_s_o,
+    output wire                        fpu_op_fnmsub_s_o,
+    output wire                        fpu_op_fmv_i2f_s_o,
+    output wire                        fpu_op_fmv_f2i_s_o,
+    output wire                        fpu_op_fclass_s_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_op1_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_op2_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_op3_o,
+    output wire [                 2:0] frm_o,
+    output wire [                 1:0] fcvt_op_o,
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -234,6 +264,30 @@ module dispatch (
     wire                        logic_misaligned_load;
     wire                        logic_misaligned_store;
 
+    wire                        logic_req_fpu;
+    wire                        logic_fpu_op_fadd_s;
+    wire                        logic_fpu_op_fsub_s;
+    wire                        logic_fpu_op_fmul_s;
+    wire                        logic_fpu_op_fdiv_s;
+    wire                        logic_fpu_op_fsqrt_s;
+    wire                        logic_fpu_op_fsgnj_s;
+    wire                        logic_fpu_op_fmax_s;
+    wire                        logic_fpu_op_fcmp_s;
+    wire                        logic_fpu_op_fcvt_f2i_s;
+    wire                        logic_fpu_op_fcvt_i2f_s;
+    wire                        logic_fpu_op_fmadd_s;
+    wire                        logic_fpu_op_fmsub_s;
+    wire                        logic_fpu_op_fnmadd_s;
+    wire                        logic_fpu_op_fnmsub_s;
+    wire                        logic_fpu_op_fmv_i2f_s;
+    wire                        logic_fpu_op_fmv_f2i_s;
+    wire                        logic_fpu_op_fclass_s;
+    wire [`FREG_DATA_WIDTH-1:0] logic_fpu_op1;
+    wire [`FREG_DATA_WIDTH-1:0] logic_fpu_op2;
+    wire [`FREG_DATA_WIDTH-1:0] logic_fpu_op3;
+    wire [                 2:0] logic_frm;
+    wire [                 1:0] logic_fcvt_op;
+
     assign mem_commit_id_o    = commit_id_o;  // 将HDU的commit_id输出到MEM模块
     assign muldiv_commit_id_o = commit_id_o;
     // 实例化HDU模块
@@ -242,23 +296,30 @@ module dispatch (
         .rst_n                (rst_n),
         .inst_valid           (rd_access_inst_valid_i),
         .new_inst_rd_addr     (reg_waddr_i),
-        .new_inst_rs1_addr    (reg1_raddr_i),
-        .new_inst_rs2_addr    (reg2_raddr_i),
+        .new_inst_rs1_addr    (rs1_raddr_i),
+        .new_inst_rs2_addr    (rs2_raddr_i),
+        .new_inst_rs3_addr    (rs3_raddr_i),
         .new_inst_rd_we       (reg_we_i),
-        .commit_valid_i       (commit_valid_i),
-        .commit_id_i          (commit_id_i),
+        .commit_valid_int_i   (commit_valid_int_i),
+        .commit_id_int_i      (commit_id_int_i),
+        .commit_valid_fp_i    (commit_valid_fp_i),
+        .commit_id_fp_i       (commit_id_fp_i),
         .hazard_stall_o       (hazard_stall_o),
         .commit_id_o          (hdu_long_inst_id),
         .long_inst_atom_lock_o(long_inst_atom_lock_o)
     );
 
-    // 实例化dispatch_logic模块
+    // dispatch_logic实例化
     dispatch_logic u_dispatch_logic (
         .dec_info_bus_i(dec_info_bus_i),
         .dec_imm_i     (dec_imm_i),
         .dec_pc_i      (dec_pc_i),
         .rs1_rdata_i   (rs1_rdata_i),
         .rs2_rdata_i   (rs2_rdata_i),
+        // 新增：浮点寄存器数据输入端口
+        .frs1_rdata_i  (frs1_rdata_i),
+        .frs2_rdata_i  (frs2_rdata_i),
+        .frs3_rdata_i  (frs3_rdata_i),
 
         // ALU信号
         .req_alu_o    (logic_req_alu),
@@ -313,7 +374,6 @@ module dispatch (
         .mem_op_lhu_o  (logic_mem_op_lhu),
         .mem_op_load_o (logic_mem_op_load),
         .mem_op_store_o(logic_mem_op_store),
-        // 直接计算的内存地址和掩码/数据
         .mem_addr_o    (logic_mem_addr),
         .mem_wmask_o   (logic_mem_wmask),
         .mem_wdata_o   (logic_mem_wdata),
@@ -328,10 +388,35 @@ module dispatch (
 
         // 未对齐访存异常信号
         .misaligned_load_o (logic_misaligned_load),
-        .misaligned_store_o(logic_misaligned_store)
+        .misaligned_store_o(logic_misaligned_store),
+
+        // FPU接口
+        .req_fpu_o          (logic_req_fpu),
+        .fpu_op_fadd_s_o    (logic_fpu_op_fadd_s),
+        .fpu_op_fsub_s_o    (logic_fpu_op_fsub_s),
+        .fpu_op_fmul_s_o    (logic_fpu_op_fmul_s),
+        .fpu_op_fdiv_s_o    (logic_fpu_op_fdiv_s),
+        .fpu_op_fsqrt_s_o   (logic_fpu_op_fsqrt_s),
+        .fpu_op_fsgnj_s_o   (logic_fpu_op_fsgnj_s),
+        .fpu_op_fmax_s_o    (logic_fpu_op_fmax_s),
+        .fpu_op_fcmp_s_o    (logic_fpu_op_fcmp_s),
+        .fpu_op_fcvt_f2i_s_o(logic_fpu_op_fcvt_f2i_s),
+        .fpu_op_fcvt_i2f_s_o(logic_fpu_op_fcvt_i2f_s),
+        .fpu_op_fmadd_s_o   (logic_fpu_op_fmadd_s),
+        .fpu_op_fmsub_s_o   (logic_fpu_op_fmsub_s),
+        .fpu_op_fnmadd_s_o  (logic_fpu_op_fnmadd_s),
+        .fpu_op_fnmsub_s_o  (logic_fpu_op_fnmsub_s),
+        .fpu_op_fmv_i2f_s_o (logic_fpu_op_fmv_i2f_s),
+        .fpu_op_fmv_f2i_s_o (logic_fpu_op_fmv_f2i_s),
+        .fpu_op_fclass_s_o  (logic_fpu_op_fclass_s),
+        .fpu_op1_o          (logic_fpu_op1),
+        .fpu_op2_o          (logic_fpu_op2),
+        .fpu_op3_o          (logic_fpu_op3),
+        .frm_o              (logic_frm),
+        .fcvt_op_o          (logic_fcvt_op)
     );
 
-    // 实例化dispatch_pipe模块
+    // dispatch_pipe实例化
     dispatch_pipe u_dispatch_pipe (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -350,11 +435,9 @@ module dispatch (
         .csr_raddr_i     (csr_raddr_i),
         .dec_imm_i       (dec_imm_i),
         .dec_info_bus_i  (dec_info_bus_i),
-        // 寄存rs1/rs2数据
         .rs1_rdata_i     (rs1_rdata_i),
         .rs2_rdata_i     (rs2_rdata_i),
-        .is_pred_branch_i(is_pred_branch_i),  // 连接预测分支信号输入
-        // 新增：非法指令信号输入
+        .is_pred_branch_i(is_pred_branch_i),
         .illegal_inst_i  (illegal_inst_i),
 
         // ALU信号输入
@@ -426,12 +509,36 @@ module dispatch (
         .misaligned_load_i (logic_misaligned_load),
         .misaligned_store_i(logic_misaligned_store),
 
+        // FPU信号输入
+        .req_fpu_i          (logic_req_fpu),
+        .fpu_op_fadd_s_i    (logic_fpu_op_fadd_s),
+        .fpu_op_fsub_s_i    (logic_fpu_op_fsub_s),
+        .fpu_op_fmul_s_i    (logic_fpu_op_fmul_s),
+        .fpu_op_fdiv_s_i    (logic_fpu_op_fdiv_s),
+        .fpu_op_fsqrt_s_i   (logic_fpu_op_fsqrt_s),
+        .fpu_op_fsgnj_s_i   (logic_fpu_op_fsgnj_s),
+        .fpu_op_fmax_s_i    (logic_fpu_op_fmax_s),
+        .fpu_op_fcmp_s_i    (logic_fpu_op_fcmp_s),
+        .fpu_op_fcvt_f2i_s_i(logic_fpu_op_fcvt_f2i_s),
+        .fpu_op_fcvt_i2f_s_i(logic_fpu_op_fcvt_i2f_s),
+        .fpu_op_fmadd_s_i   (logic_fpu_op_fmadd_s),
+        .fpu_op_fmsub_s_i   (logic_fpu_op_fmsub_s),
+        .fpu_op_fnmadd_s_i  (logic_fpu_op_fnmadd_s),
+        .fpu_op_fnmsub_s_i  (logic_fpu_op_fnmsub_s),
+        .fpu_op_fmv_i2f_s_i (logic_fpu_op_fmv_i2f_s),
+        .fpu_op_fmv_f2i_s_i (logic_fpu_op_fmv_f2i_s),
+        .fpu_op_fclass_s_i  (logic_fpu_op_fclass_s),
+        .fpu_op1_i          (logic_fpu_op1),
+        .fpu_op2_i          (logic_fpu_op2),
+        .fpu_op3_i          (logic_fpu_op3),
+        .frm_i              (logic_frm),
+        .fcvt_op_i          (logic_fcvt_op),
+
         // 指令地址和ID输出
         .inst_addr_o   (pipe_inst_addr_o),
         .inst_o        (pipe_inst_o),
         .commit_id_o   (commit_id_o),
         .inst_valid_o  (pipe_inst_valid_o),
-        // 额外的IDU信号输出
         .reg_we_o      (pipe_reg_we_o),
         .reg_waddr_o   (pipe_reg_waddr_o),
         .csr_we_o      (pipe_csr_we_o),
@@ -439,7 +546,6 @@ module dispatch (
         .csr_raddr_o   (pipe_csr_raddr_o),
         .dec_imm_o     (pipe_dec_imm_o),
         .dec_info_bus_o(pipe_dec_info_bus_o),
-        // 寄存rs1/rs2数据
         .rs1_rdata_o   (pipe_rs1_rdata_o),
         .rs2_rdata_o   (pipe_rs2_rdata_o),
 
@@ -507,10 +613,35 @@ module dispatch (
         .sys_op_ebreak_o   (sys_op_ebreak_o),
         .sys_op_fence_o    (sys_op_fence_o),
         .sys_op_dret_o     (sys_op_dret_o),
-        .is_pred_branch_o  (is_pred_branch_o),    // 连接预测分支信号输出
+        .is_pred_branch_o  (is_pred_branch_o),
         .misaligned_load_o (misaligned_load_o),
         .misaligned_store_o(misaligned_store_o),
-        .illegal_inst_o    (illegal_inst_o)       // 新增：非法指令信号输出
+        .illegal_inst_o    (illegal_inst_o),
+
+        // FPU信号输出
+        .req_fpu_o          (req_fpu_o),
+        .fpu_op_fadd_s_o    (fpu_op_fadd_s_o),
+        .fpu_op_fsub_s_o    (fpu_op_fsub_s_o),
+        .fpu_op_fmul_s_o    (fpu_op_fmul_s_o),
+        .fpu_op_fdiv_s_o    (fpu_op_fdiv_s_o),
+        .fpu_op_fsqrt_s_o   (fpu_op_fsqrt_s_o),
+        .fpu_op_fsgnj_s_o   (fpu_op_fsgnj_s_o),
+        .fpu_op_fmax_s_o    (fpu_op_fmax_s_o),
+        .fpu_op_fcmp_s_o    (fpu_op_fcmp_s_o),
+        .fpu_op_fcvt_f2i_s_o(fpu_op_fcvt_f2i_s_o),
+        .fpu_op_fcvt_i2f_s_o(fpu_op_fcvt_i2f_s_o),
+        .fpu_op_fmadd_s_o   (fpu_op_fmadd_s_o),
+        .fpu_op_fmsub_s_o   (fpu_op_fmsub_s_o),
+        .fpu_op_fnmadd_s_o  (fpu_op_fnmadd_s_o),
+        .fpu_op_fnmsub_s_o  (fpu_op_fnmsub_s_o),
+        .fpu_op_fmv_i2f_s_o (fpu_op_fmv_i2f_s_o),
+        .fpu_op_fmv_f2i_s_o (fpu_op_fmv_f2i_s_o),
+        .fpu_op_fclass_s_o  (fpu_op_fclass_s_o),
+        .fpu_op1_o          (fpu_op1_o),
+        .fpu_op2_o          (fpu_op2_o),
+        .fpu_op3_o          (fpu_op3_o),
+        .frm_o              (frm_o),
+        .fcvt_op_o          (fcvt_op_o)
     );
 
 endmodule
