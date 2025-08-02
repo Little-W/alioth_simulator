@@ -10,12 +10,16 @@ UM_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32um-p*.
 UA_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32ua-p*.dump))
 UI_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}ui-p*.dump))
 MI_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}mi-p*.dump))
+UF_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32uf-p*.dump))
+UD_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv32ud-p*.dump))
 
 # SELF_TESTS := $(patsubst %.dump,%,$(wildcard ${BUILD_DIR}/test_compiled/rv${XLEN}uc-p*.dump))
 SELF_TESTS += $(UM_TESTS)
 SELF_TESTS += $(UA_TESTS)
 SELF_TESTS += $(UI_TESTS)
 SELF_TESTS += $(MI_TESTS)
+SELF_TESTS += $(UF_TESTS)
+SELF_TESTS += $(UD_TESTS)
 
 # 添加ASM编译目录设置
 ASM_BUILD_DIR := ${BUILD_DIR}/asm_compiled
@@ -180,7 +184,9 @@ test_all: alioth_test compile_test_src
 		UA_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv32ua-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
 		UI_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv${XLEN}ui-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
 		MI_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv${XLEN}mi-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
-		SELF_TESTS="$$UM_TESTS $$UA_TESTS $$UI_TESTS $$MI_TESTS" ; \
+		UF_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv32uf-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
+		UD_TESTS=$$(ls ${BUILD_DIR}/test_compiled/rv32ud-p*.dump 2>/dev/null | sed 's/\.dump$$//') ; \
+		SELF_TESTS="$$UM_TESTS $$UA_TESTS $$UI_TESTS $$MI_TESTS $$UF_TESTS $$UD_TESTS" ; \
 		if [ -n "$$TESTCASE_VALUE" ] ; then \
 			TESTS_TO_RUN="" ; \
 			if echo ",$$TESTCASE_VALUE," | grep -E "um" > /dev/null; then \
@@ -198,6 +204,14 @@ test_all: alioth_test compile_test_src
 			if echo ",$$TESTCASE_VALUE," | grep -E "mi" > /dev/null; then \
 				echo "包含mi测试" ; \
 				TESTS_TO_RUN="$$TESTS_TO_RUN $$MI_TESTS" ; \
+			fi ; \
+			if echo ",$$TESTCASE_VALUE," | grep -E "uf" > /dev/null; then \
+				echo "包含uf测试" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $$UF_TESTS" ; \
+			fi ; \
+			if echo ",$$TESTCASE_VALUE," | grep -E "ud" > /dev/null; then \
+				echo "包含ud测试" ; \
+				TESTS_TO_RUN="$$TESTS_TO_RUN $$UD_TESTS" ; \
 			fi ; \
 			echo "Running selected test categories: $$TESTCASE_VALUE" ; \
 			echo "测试集合: $$TESTS_TO_RUN" ; \
