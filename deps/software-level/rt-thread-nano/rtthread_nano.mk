@@ -47,9 +47,12 @@ CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL)
 CFLAGS += -ffunction-sections -fdata-sections -fno-builtin-printf -fno-builtin-malloc
 CFLAGS += -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4
 CFLAGS += -ffast-math -fno-strict-aliasing
-CFLAGS += -O3
+CFLAGS += -Ofast
+
+COREMARK_CFLAGS := "\"-Ofast -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions -ffast-math -fno-strict-aliasing\""
 
 CFLAGS += -DRTOS_RTTHREAD=1
+CFLAGS += -DFLAGS_STR=$(COREMARK_CFLAGS)
 
 
 # CFLAGS += -DSIMULATION_XLSPIKE
