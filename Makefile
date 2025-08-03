@@ -387,5 +387,20 @@ pkgs_update:
 	@echo "RT_THREAD_ROOT: $(RT_THREAD_ROOT)"
 	@export SIM_ROOT_DIR=$(SIM_ROOT_DIR) && cd $(RT_THREAD_ROOT)/bsp && source $(abspath ${SIM_ROOT_DIR}/deps/tools/env_tools/env.sh) && pkgs --update
 
-.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout rt_thread build_rt_thread sim_rt_thread menuconfig pkgs_update
+rt_thread_nano: alioth_no_timeout
+	@mkdir -p ${BUILD_DIR}/rt_thread_nano_tmp
+	@cp -f ${SIM_ROOT_DIR}/deps/software-level/rt-thread-nano/rtthread_nano.mk ${BUILD_DIR}/rt_thread_nano_tmp/Makefile
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} BSP_DIR=${SIM_ROOT_DIR}/deps/software-level/bsp RT_THREAD_NANO_ROOT=${SIM_ROOT_DIR}/deps/software-level/rt-thread-nano BUILD_DIR=${BUILD_DIR}/rt_thread_nano_tmp RT_THREAD_NANO_ROOT=${SIM_ROOT_DIR}/deps/software-level/rt-thread-nano -C ${BUILD_DIR}/rt_thread_nano_tmp
+	@if [ ! -h ${BUILD_DIR}/Makefile ]; then \
+		ln -s ${HARDWARE_DEPS_ROOT}/Makefile ${BUILD_DIR}/Makefile; \
+	fi
+	@if [ ! -e ${BUILD_DIR}/rt_thread_nano_tmp/main_itcm.verilog ] ; \
+	then \
+		echo "Error: ITCM file not found, please check rt_thread_nano build."; \
+		exit 1; \
+	fi
+	@echo "Simulating with ITCM: ${BUILD_DIR}/rt_thread_nano_tmp/main_itcm.verilog"
+	@echo "Simulating with DTCM: ${BUILD_DIR}/rt_thread_nano_tmp/main_dtcm.verilog"
+	@make SIM_ROOT_DIR=${SIM_ROOT_DIR} DUMPWAVE=${DUMPWAVE} PROGRAM="${BUILD_DIR}/rt_thread_nano_tmp/main" SIM_TOOL=${SIM_TOOL} -C ${BUILD_DIR}
 
+.PHONY: compile install clean all alioth test test_all compile_test_src debug_gdb debug_openocd debug_sim asm run c_src run_csrc sim_csrc alioth_no_timeout rt_thread build_rt_thread sim_rt_thread menuconfig pkgs_update
