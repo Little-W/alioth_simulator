@@ -31,7 +31,7 @@ else:
 if os.getenv('RTT_EXEC_PATH'):
 	EXEC_PATH = os.getenv('RTT_EXEC_PATH')
 
-BUILD = 'debug'
+BUILD = ''
 # Fixed configurations below
 
 # BSP_DIR从环境变量获得，未设置则使用默认值 ../../bsp

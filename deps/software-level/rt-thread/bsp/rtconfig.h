@@ -66,10 +66,11 @@
 #define RT_ALIGN_SIZE 8
 #define RT_THREAD_PRIORITY_32
 #define RT_THREAD_PRIORITY_MAX 32
-#define RT_TICK_PER_SECOND 100
+#define RT_TICK_PER_SECOND 1000
 #define RT_USING_OVERFLOW_CHECK
 #define RT_USING_HOOK
 #define RT_HOOK_USING_FUNC_PTR
+#define RT_USING_HOOKLIST
 #define RT_USING_IDLE_HOOK
 #define RT_IDLE_HOOK_LIST_SIZE 4
 #define IDLE_THREAD_STACK_SIZE 396
@@ -92,6 +93,7 @@
 #define RT_USING_EVENT
 #define RT_USING_MAILBOX
 #define RT_USING_MESSAGEQUEUE
+#define RT_USING_SIGNALS
 /* end of Inter-Thread communication */
 
 /* Memory Management */
@@ -103,7 +105,7 @@
 /* end of Memory Management */
 #define RT_USING_DEVICE
 #define RT_USING_CONSOLE
-#define RT_CONSOLEBUF_SIZE 128
+#define RT_CONSOLEBUF_SIZE 256
 #define RT_CONSOLE_DEVICE_NAME "uart0"
 #define RT_VER_NUM 0x50201
 #define RT_BACKTRACE_LEVEL_MAX_NR 32
@@ -187,6 +189,9 @@
 
 /* Utilities */
 
+#define RT_USING_UTEST
+#define UTEST_THR_STACK_SIZE 4096
+#define UTEST_THR_PRIORITY 20
 /* end of Utilities */
 
 /* Using USB legacy version */
@@ -196,6 +201,60 @@
 
 /* RT-Thread Utestcases */
 
+#define RT_USING_UTESTCASES
+
+/* Utest Self Testcase */
+
+#define UTEST_SELF_PASS_TC
+/* end of Utest Self Testcase */
+
+/* Kernel Testcase */
+
+#define UTEST_SMALL_MEM_TC
+#define UTEST_IRQ_TC
+#define UTEST_SEMAPHORE_TC
+#define UTEST_EVENT_TC
+#define UTEST_TIMER_TC
+#define UTEST_MESSAGEQUEUE_TC
+#define UTEST_SIGNAL_TC
+#define UTEST_MUTEX_TC
+#define UTEST_MAILBOX_TC
+#define UTEST_THREAD_TC
+#define UTEST_DEVICE_TC
+#define UTEST_HOOKLIST_TC
+/* end of Kernel Testcase */
+
+/* CPP11 Testcase */
+
+/* end of CPP11 Testcase */
+
+/* Utest Serial Testcase */
+
+/* end of Utest Serial Testcase */
+
+/* Serial-Bypass Testcase */
+
+/* end of Serial-Bypass Testcase */
+
+/* Utest IPC Testcase */
+
+/* end of Utest IPC Testcase */
+
+/* RTT Posix Testcase */
+
+/* end of RTT Posix Testcase */
+
+/* Memory Management Subsytem Testcase */
+
+/* end of Memory Management Subsytem Testcase */
+
+/* Tmpfs Testcase */
+
+/* end of Tmpfs Testcase */
+
+/* SMP-Call Testcase */
+
+/* end of SMP-Call Testcase */
 /* end of RT-Thread Utestcases */
 
 /* RT-Thread online packages */
