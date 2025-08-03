@@ -44,6 +44,8 @@ module idu_id_pipe (
     input wire                        inst_valid_i,      // 新增：指令有效输入
     input wire                        illegal_inst_i,    // 新增：非法指令输入
     input wire [`INST_DATA_WIDTH-1:0] inst_i,            // 新增：指令内容输入
+    input wire                        inst_jump_i,       // 新增：跳转指令信号输入
+    input wire                        inst_branch_i,     // 新增：分支指令信号输入
 
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -60,7 +62,9 @@ module idu_id_pipe (
     output wire                        is_pred_branch_o,  // 添加预测分支指令标志输出
     output wire                        inst_valid_o,      // 新增：指令有效输出
     output wire                        illegal_inst_o,     // 新增：非法指令输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_o             // 新增：指令内容输出
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 新增：指令内容输出
+    output wire                        inst_jump_o,        // 新增：跳转指令信号输出
+    output wire                        inst_branch_o       // 新增：分支指令信号输出
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -228,5 +232,29 @@ module idu_id_pipe (
         inst
     );
     assign inst_o = inst;
+
+    // 跳转指令信号传递
+    wire inst_jump_dnxt = flush_en ? 1'b0 : inst_jump_i;
+    wire inst_jump;
+    gnrl_dfflr #(1) inst_jump_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_jump_dnxt,
+        inst_jump
+    );
+    assign inst_jump_o = inst_jump;
+
+    // 分支指令信号传递
+    wire inst_branch_dnxt = flush_en ? 1'b0 : inst_branch_i;
+    wire inst_branch;
+    gnrl_dfflr #(1) inst_branch_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_branch_dnxt,
+        inst_branch
+    );
+    assign inst_branch_o = inst_branch;
 
 endmodule

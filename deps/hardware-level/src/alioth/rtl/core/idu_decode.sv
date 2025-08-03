@@ -49,7 +49,9 @@ module idu_decode (
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
     output wire                        csr_we_o,        // 写CSR寄存器标志
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,     // 写CSR寄存器地址
-    output wire                        illegal_inst_o   // 非法指令输出
+    output wire                        illegal_inst_o,  // 非法指令输出
+    output wire                        inst_jump_o,     // 跳转指令信号
+    output wire                        inst_branch_o    // 分支指令信号
 );
 
     assign inst_addr_o = inst_addr_i;
@@ -319,5 +321,11 @@ module idu_decode (
         ((dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) && inst_valid_i)
         || slli_illegal_shamt
     );
+
+    // 跳转指令信号
+    assign inst_jump_o = inst_jalr | inst_mret | inst_ecall | inst_ebreak;
+    
+    // 分支指令信号
+    assign inst_branch_o = inst_type_branch;
 
 endmodule

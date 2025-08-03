@@ -136,9 +136,6 @@ module wbu (
 
     input wire [`REG_ADDR_WIDTH-1:0] idu_reg_waddr_i,
 
-    // 中断信号
-    input wire int_assert_i,
-
     // 长指令完成信号（对接hazard_detection）
     output wire                        commit_valid1_o,  // 指令完成有效信号1
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id1_o,     // 完成指令ID1
@@ -432,10 +429,6 @@ module wbu (
         if (!rst_n) begin
             fifo_count <= {(FIFO_ADDR_WIDTH+1){1'b0}};
             fifo_valid <= {FIFO_DEPTH{1'b0}};
-        end else if (int_assert_i == `INT_ASSERT) begin
-            // 中断时清空FIFO
-            fifo_count <= {(FIFO_ADDR_WIDTH+1){1'b0}};
-            fifo_valid <= {FIFO_DEPTH{1'b0}};
         end else begin
             // 处理新指令入FIFO
             if (!fifo_full) begin
@@ -499,7 +492,7 @@ module wbu (
         if (wb_ch1_valid) begin
             reg1_wdata_o = eu_reg_wdata[wb_ch1_eu];
             reg1_waddr_o = eu_reg_waddr[wb_ch1_eu];
-            reg1_we_o = (int_assert_i != `INT_ASSERT) && eu_reg_we[wb_ch1_eu];
+            reg1_we_o = eu_reg_we[wb_ch1_eu];
         end else begin
             reg1_wdata_o = {`REG_DATA_WIDTH{1'b0}};
             reg1_waddr_o = 5'b0;
@@ -512,7 +505,7 @@ module wbu (
         if (wb_ch2_valid) begin
             reg2_wdata_o = eu_reg_wdata[wb_ch2_eu];
             reg2_waddr_o = eu_reg_waddr[wb_ch2_eu];
-            reg2_we_o = (int_assert_i != `INT_ASSERT) && eu_reg_we[wb_ch2_eu];
+            reg2_we_o = eu_reg_we[wb_ch2_eu];
         end else begin
             reg2_wdata_o = {`REG_DATA_WIDTH{1'b0}};
             reg2_waddr_o = 5'b0;
@@ -525,7 +518,7 @@ module wbu (
         if (wb_ch1_valid && (wb_ch1_eu == EU_CSR1 || wb_ch1_eu == EU_CSR2)) begin
             csr1_wdata_o = eu_csr_wdata[wb_ch1_eu];
             csr1_waddr_o = eu_csr_waddr[wb_ch1_eu];
-            csr1_we_o = (int_assert_i != `INT_ASSERT) && eu_csr_we[wb_ch1_eu];
+            csr1_we_o = eu_csr_we[wb_ch1_eu];
         end else begin
             csr1_wdata_o = {`REG_DATA_WIDTH{1'b0}};
             csr1_waddr_o = {`BUS_ADDR_WIDTH{1'b0}};
@@ -538,7 +531,7 @@ module wbu (
         if (wb_ch2_valid && (wb_ch2_eu == EU_CSR1 || wb_ch2_eu == EU_CSR2)) begin
             csr2_wdata_o = eu_csr_wdata[wb_ch2_eu];
             csr2_waddr_o = eu_csr_waddr[wb_ch2_eu];
-            csr2_we_o = (int_assert_i != `INT_ASSERT) && eu_csr_we[wb_ch2_eu];
+            csr2_we_o = eu_csr_we[wb_ch2_eu];
         end else begin
             csr2_wdata_o = {`REG_DATA_WIDTH{1'b0}};
             csr2_waddr_o = {`BUS_ADDR_WIDTH{1'b0}};
@@ -561,8 +554,8 @@ module wbu (
     assign lsu2_ready_o = ~(waw_conflict_delay[11] | current_cycle_conflict[11]);
     
     // 提交信号生成
-    assign commit_valid1_o = wb_ch1_valid && (int_assert_i != `INT_ASSERT);
-    assign commit_valid2_o = wb_ch2_valid && (int_assert_i != `INT_ASSERT);
+    assign commit_valid1_o = wb_ch1_valid;
+    assign commit_valid2_o = wb_ch2_valid;
     
     // 提交ID生成
     always @(*) begin

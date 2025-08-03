@@ -53,11 +53,17 @@ module dispatch_pipe (
     // 新增：非法指令信号输入
     input wire                       illegal_inst_i,
 
-    // ALU输入端口
-    input wire                     req_alu_i,
-    input wire [             31:0] alu_op1_i,
-    input wire [             31:0] alu_op2_i,
-    input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
+    // ADDER输入端口
+    input wire        req_adder_i,
+    input wire [31:0] adder_op1_i,
+    input wire [31:0] adder_op2_i,
+    input wire [6:0]  adder_op_info_i,  // {op_jump, op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
+
+    // SHIFTER输入端口
+    input wire        req_shifter_i,
+    input wire [31:0] shifter_op1_i,
+    input wire [31:0] shifter_op2_i,
+    input wire [5:0]  shifter_op_info_i,  // {op_and, op_or, op_xor, op_sra, op_srl, op_sll}
 
     // BJP输入端口
     input wire        req_bjp_i,
@@ -144,11 +150,17 @@ module dispatch_pipe (
     output wire [               31:0] rs1_rdata_o,
     output wire [               31:0] rs2_rdata_o,
 
-    // ALU输出端口
-    output wire                     req_alu_o,
-    output wire [             31:0] alu_op1_o,
-    output wire [             31:0] alu_op2_o,
-    output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
+    // ADDER输出端口
+    output wire        req_adder_o,
+    output wire [31:0] adder_op1_o,
+    output wire [31:0] adder_op2_o,
+    output wire [6:0]  adder_op_info_o,  // {op_jump, op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
+
+    // SHIFTER输出端口
+    output wire        req_shifter_o,
+    output wire [31:0] shifter_op1_o,
+    output wire [31:0] shifter_op2_o,
+    output wire [5:0]  shifter_op_info_o,  // {op_and, op_or, op_xor, op_sra, op_srl, op_sll}
 
     // BJP输出端口
     output wire        req_bjp_o,
@@ -331,50 +343,95 @@ module dispatch_pipe (
     );
     assign dec_info_bus_o = dec_info_bus;
 
-    // ALU信号寄存
-    wire req_alu_dnxt = flush_en ? 1'b0 : req_alu_i;
-    wire req_alu;
-    gnrl_dfflr #(1) req_alu_ff (
+    // ADDER信号寄存
+    wire req_adder_dnxt = flush_en ? 1'b0 : req_adder_i;
+    wire req_adder;
+    gnrl_dfflr #(1) req_adder_ff (
         clk,
         rst_n,
         reg_update_en,
-        req_alu_dnxt,
-        req_alu
+        req_adder_dnxt,
+        req_adder
     );
-    assign req_alu_o = req_alu;
+    assign req_adder_o = req_adder;
 
-    wire [31:0] alu_op1_dnxt = flush_en ? `ZeroWord : alu_op1_i;
-    wire [31:0] alu_op1;
-    gnrl_dfflr #(32) alu_op1_ff (
+    wire [31:0] adder_op1_dnxt = flush_en ? `ZeroWord : adder_op1_i;
+    wire [31:0] adder_op1;
+    gnrl_dfflr #(32) adder_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        alu_op1_dnxt,
-        alu_op1
+        adder_op1_dnxt,
+        adder_op1
     );
-    assign alu_op1_o = alu_op1;
+    assign adder_op1_o = adder_op1;
 
-    wire [31:0] alu_op2_dnxt = flush_en ? `ZeroWord : alu_op2_i;
-    wire [31:0] alu_op2;
-    gnrl_dfflr #(32) alu_op2_ff (
+    wire [31:0] adder_op2_dnxt = flush_en ? `ZeroWord : adder_op2_i;
+    wire [31:0] adder_op2;
+    gnrl_dfflr #(32) adder_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        alu_op2_dnxt,
-        alu_op2
+        adder_op2_dnxt,
+        adder_op2
     );
-    assign alu_op2_o = alu_op2;
+    assign adder_op2_o = adder_op2;
 
-    wire [`ALU_OP_WIDTH-1:0] alu_op_info_dnxt = flush_en ? {`ALU_OP_WIDTH{1'b0}} : alu_op_info_i;
-    wire [`ALU_OP_WIDTH-1:0] alu_op_info;
-    gnrl_dfflr #(`ALU_OP_WIDTH) alu_op_info_ff (
+    wire [6:0] adder_op_info_dnxt = flush_en ? 7'b0 : adder_op_info_i;
+    wire [6:0] adder_op_info;
+    gnrl_dfflr #(7) adder_op_info_ff (
         clk,
         rst_n,
         reg_update_en,
-        alu_op_info_dnxt,
-        alu_op_info
+        adder_op_info_dnxt,
+        adder_op_info
     );
-    assign alu_op_info_o = alu_op_info;
+    assign adder_op_info_o = adder_op_info;
+
+    // SHIFTER信号寄存
+    wire req_shifter_dnxt = flush_en ? 1'b0 : req_shifter_i;
+    wire req_shifter;
+    gnrl_dfflr #(1) req_shifter_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        req_shifter_dnxt,
+        req_shifter
+    );
+    assign req_shifter_o = req_shifter;
+
+    wire [31:0] shifter_op1_dnxt = flush_en ? `ZeroWord : shifter_op1_i;
+    wire [31:0] shifter_op1;
+    gnrl_dfflr #(32) shifter_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        shifter_op1_dnxt,
+        shifter_op1
+    );
+    assign shifter_op1_o = shifter_op1;
+
+    wire [31:0] shifter_op2_dnxt = flush_en ? `ZeroWord : shifter_op2_i;
+    wire [31:0] shifter_op2;
+    gnrl_dfflr #(32) shifter_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        shifter_op2_dnxt,
+        shifter_op2
+    );
+    assign shifter_op2_o = shifter_op2;
+
+    wire [5:0] shifter_op_info_dnxt = flush_en ? 6'b0 : shifter_op_info_i;
+    wire [5:0] shifter_op_info;
+    gnrl_dfflr #(6) shifter_op_info_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        shifter_op_info_dnxt,
+        shifter_op_info
+    );
+    assign shifter_op_info_o = shifter_op_info;
 
     // BJP信号寄存
     wire req_bjp_dnxt = flush_en ? 1'b0 : req_bjp_i;

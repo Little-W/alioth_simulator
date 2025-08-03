@@ -41,6 +41,7 @@ module icu (
     input wire [                31:0] inst1_dec_imm_i,
     input wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_i,
     input wire                        inst1_is_pred_branch_i,
+    input wire [`INST_DATA_WIDTH-1:0] inst1_i,
 
     // from idu - 第二路
     input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i,
@@ -54,8 +55,13 @@ module icu (
     input wire [                31:0] inst2_dec_imm_i,
     input wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_i,
     input wire                        inst2_is_pred_branch_i,
+    input wire [`INST_DATA_WIDTH-1:0] inst2_i,
+
+    // from idu-inst1
+    input wire                        inst1_jump_i,        // 新增：指令有效输入
+    input wire                        inst1_branch_i,      // 新增：分支指令信号输入
     
-    // 指令有效信号
+    //from cpu_top  指令有效信号
     input wire                        inst1_valid_i,
     input wire                        inst2_valid_i,
     
@@ -67,6 +73,7 @@ module icu (
     
     // from control 控制信号
     input wire [`CU_BUS_WIDTH-1:0]   stall_flag_i,
+    input wire                       jump_flag_i,   
     
     // 发射指令的完整decode信息
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
@@ -80,6 +87,7 @@ module icu (
     output wire [                31:0] inst1_dec_imm_o,
     output wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_o,
     output wire                        inst1_is_pred_branch_o,
+    output wire [`INST_DATA_WIDTH-1:0] inst1_o,
     
     output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,
     output wire                        inst2_reg_we_o,
@@ -92,6 +100,7 @@ module icu (
     output wire [                31:0] inst2_dec_imm_o,
     output wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_o,
     output wire                        inst2_is_pred_branch_o,
+    output wire [`INST_DATA_WIDTH-1:0] inst2_o,
     
     // HDU输出信号
     output wire                        new_issue_stall_o,
@@ -108,17 +117,14 @@ module icu (
     output wire [31:0] inst2_timestamp_o
 );
 
+
     // hdu与icu_issue之间的连线
     wire [1:0] issue_inst;
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst1_commit_id_o; 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_o;
-
-    wire flush_en = stall_flag_i[`CU_FLUSH];
-    wire other_stall_en = stall_flag_i[`CU_STALL_DISPATCH];
-    wire update_id1 = issue_inst_i[0] & (~other_stall_en);
-    wire update_id2 = issue_inst_i[1] & (~other_stall_en);
-
-
+    wire [31:0] hdu_inst1_timestamp_o;
+    wire [31:0] hdu_inst2_timestamp_o;
+    
 
     // 实例化hdu模块
     hdu u_hdu (
@@ -144,6 +150,11 @@ module icu (
         .commit_id_i            (commit_id_i),
         .commit_valid2_i        (commit_valid2_i),
         .commit_id2_i           (commit_id2_i),
+
+        //跳转控制
+        .jump_flag_i            (jump_flag_i),
+        .inst1_jump_i           (inst1_jump_i),
+        .inst1_branch_i         (inst1_branch_i),
         
         // 输出信号
         //to ctrl
@@ -158,57 +169,12 @@ module icu (
         // 新增输出信号给WBU
         .inst1_rd_addr_o        (inst1_rd_addr_o),
         .inst2_rd_addr_o        (inst2_rd_addr_o),
-        .inst1_timestamp        (inst1_timestamp_o),
-        .inst2_timestamp        (inst2_timestamp_o)
+        .inst1_timestamp        (hdu_inst1_timestamp_o),
+        .inst2_timestamp        (hdu_inst2_timestamp_o)
     );
 
 
-    wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_nxt = flush_en ? 3'b0 : hdu_inst1_commit_id_o; 
-    wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id;
-    gnrl_dfflr #(`COMMIT_ID_WIDTH) inst1_commit_id_ff (
-        clk,
-        rst_n,
-        update_id1,
-        inst1_commit_id_nxt,
-        inst1_commit_id
-    );
-    assign inst1_commit_id_o = inst1_commit_id;
-
-    wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_nxt = flush_en ? 3'b0 : hdu_inst2_commit_id_o;
-    wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id;
-    gnrl_dfflr #(`COMMIT_ID_WIDTH) inst2_commit_id_ff (
-        clk,
-        rst_n,
-        update_id2,
-        inst2_commit_id_nxt,
-        inst2_commit_id
-    );
-    assign inst2_commit_id_o = inst2_commit_id;
-
-    wire [31:0] inst1_timestamp_o_ex_nxt = flush_en ? 32'b0 : inst1_dec_imm_i;
-    wire [31:0] inst1_timestamp_o_ex;
-    gnrl_dfflr #(32) inst1_timestamp_o_ex_ff (
-        clk,
-        rst_n,
-        update_id1,
-        inst1_timestamp_o_ex_nxt,
-        inst1_timestamp_o_ex
-    );
-    assign inst1_timestamp_o_ex = inst1_timestamp_o_ex;
-
-    wire [31:0] inst2_timestamp_o_ex_nxt = flush_en ? 32'b0 : inst2_dec_imm_i;
-    wire [31:0] inst2_timestamp_o_ex;
-    gnrl_dfflr #(32) inst2_timestamp_o_ex_ff (
-        clk,
-        rst_n,
-        update_id2,
-        inst2_timestamp_o_ex_nxt,
-        inst2_timestamp_o_ex
-    );
-    assign inst2_timestamp_o_ex = inst2_timestamp_o_ex;
-
-
-    // 实例化icu_issue模块模块
+    // 实例化icu_issue模块
     icu_issue u_icu_issue (
         .clk                    (clk),
         .rst_n                  (rst_n),
@@ -225,6 +191,7 @@ module icu (
         .inst1_dec_imm_i        (inst1_dec_imm_i),
         .inst1_dec_info_bus_i   (inst1_dec_info_bus_i),
         .inst1_is_pred_branch_i (inst1_is_pred_branch_i),
+        .inst1_i                (inst1_i),
         
         .inst2_addr_i           (inst2_addr_i),
         .inst2_reg_we_i         (inst2_reg_we_i),
@@ -237,9 +204,16 @@ module icu (
         .inst2_dec_imm_i        (inst2_dec_imm_i),
         .inst2_dec_info_bus_i   (inst2_dec_info_bus_i),
         .inst2_is_pred_branch_i (inst2_is_pred_branch_i),
+        .inst2_i                (inst2_i),
         
         // from hdu
         .issue_inst_i           (issue_inst),
+        
+        // 流水线寄存器相关输入
+        .hdu_inst1_commit_id_i  (hdu_inst1_commit_id_o),
+        .hdu_inst2_commit_id_i  (hdu_inst2_commit_id_o),
+        .inst1_timestamp_i      (hdu_inst1_timestamp_o),
+        .inst2_timestamp_i      (hdu_inst2_timestamp_o),
         
         // from control
         .stall_flag_i           (stall_flag_i),
@@ -256,6 +230,7 @@ module icu (
         .inst1_dec_imm_o        (inst1_dec_imm_o),
         .inst1_dec_info_bus_o   (inst1_dec_info_bus_o),
         .inst1_is_pred_branch_o (inst1_is_pred_branch_o),
+        .inst1_o                (inst1_o),
         
         .inst2_addr_o           (inst2_addr_o),
         .inst2_reg_we_o         (inst2_reg_we_o),
@@ -267,7 +242,17 @@ module icu (
         .inst2_csr_we_o         (inst2_csr_we_o),
         .inst2_dec_imm_o        (inst2_dec_imm_o),
         .inst2_dec_info_bus_o   (inst2_dec_info_bus_o),
-        .inst2_is_pred_branch_o (inst2_is_pred_branch_o)
+        .inst2_is_pred_branch_o (inst2_is_pred_branch_o),
+        .inst2_o                (inst2_o),
+        
+        // 流水线寄存器相关输出
+        .inst1_commit_id_o      (inst1_commit_id_o),
+        .inst2_commit_id_o      (inst2_commit_id_o),
+        .inst1_timestamp_o_ex   (inst1_timestamp_o_ex),
+        .inst2_timestamp_o_ex   (inst2_timestamp_o_ex)
     );
+
+    assign inst1_timestamp_o = hdu_inst1_timestamp_o;
+    assign inst2_timestamp_o = hdu_inst2_timestamp_o;
 
 endmodule

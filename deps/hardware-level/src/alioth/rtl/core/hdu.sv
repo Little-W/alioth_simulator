@@ -49,6 +49,11 @@ module hdu (
     input wire                        commit_valid2_i, // 第二条指令完成有效信号
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id2_i,    // 执行完成的指令ID（第二个）
 
+    // 跳转控制信号
+    input wire                        jump_flag_i,     // 跳转标志 
+    input wire                        inst1_jump_i,    // 指令1跳转信号
+    input wire                        inst1_branch_i,  // 指令1分支信号
+
     // 控制信号
     output wire new_issue_stall_o,  // 新发射暂停信号，控制发射级之前的流水线暂停
     output wire [1:0] issue_inst_o,  // 发射指令标志[1:0]，bit0控制指令A，bit1控制指令B
@@ -77,6 +82,8 @@ module hdu (
     reg raw_hazard_inst1_fifo;   // 指令1与FIFO的RAW冒险
     reg raw_hazard_inst2_fifo;   // 指令2与FIFO的RAW冒险
     reg raw_hazard_inst2_inst1;  // 指令2读取指令1写入的寄存器(B读A写的寄存器)
+    reg inst1_jump;  // 指令1跳转信号
+    reg [2:0] pending_inst1_id; // 保存导致阻塞的指令1的ID
     wire fifo_full;              // FIFO满标志
 
     // 检测x0寄存器（x0永远为0，不需要检测冒险）
@@ -87,6 +94,7 @@ module hdu (
     wire inst2_rs1_check = (inst2_rs1_addr != 5'h0) && inst2_valid;
     wire inst2_rs2_check = (inst2_rs2_addr != 5'h0) && inst2_valid;
     wire inst2_rd_check = (inst2_rd_addr != 5'h0) && inst2_rd_we && inst2_valid;
+    wire jump_true = jump_flag_i;
 
     // 时间戳溢出检测
     assign timestamp_full = timestamp[32];  // 监控位
@@ -97,6 +105,7 @@ module hdu (
         raw_hazard_inst1_fifo = 1'b0;
         raw_hazard_inst2_fifo = 1'b0;
         raw_hazard_inst2_inst1 = 1'b0;
+        inst1_jump = 1'b0;
 
         // 检查指令1与FIFO中的每个有效表项
         for (int i = 0; i < 8; i = i + 1) begin
@@ -112,18 +121,21 @@ module hdu (
                     // RAW冒险：指令2读取的寄存器是FIFO中长指令的目标寄存器
                     if ((inst2_rs1_check && inst2_rs1_addr == fifo_rd_addr[i]) || 
                         (inst2_rs2_check && inst2_rs2_addr == fifo_rd_addr[i])) begin
-                        raw_hazard_inst2_fifo = 1'b1;
+                        raw_hazard_inst2_fifo= 1'b1;
                     end
                 end
             end
         end
 
         // 检查指令2读取指令1写入的寄存器(B读A写的寄存器)
-        if (inst1_valid && inst2_valid) begin
+        if (!(commit_valid_i && commit_id_i == pending_inst1_id)) begin
             // RAW冒险：指令2读取的寄存器是指令1写入的寄存器
-            if ((inst2_rs1_check && inst1_rd_check && inst2_rs1_addr == inst1_rd_addr) ||
-                (inst2_rs2_check && inst1_rd_check && inst2_rs2_addr == inst1_rd_addr)) begin
+            if (inst2_rs1_check && inst1_rd_check && inst2_rs1_addr == inst1_rd_addr) begin
                 raw_hazard_inst2_inst1 = 1'b1;
+            end
+            //inst1跳转也视为inst1与inst2存在冒险
+            if (inst1_jump_i || inst1_branch_i) begin 
+                inst1_jump = 1'b1;
             end
         end
     end
@@ -134,10 +146,16 @@ module hdu (
     // 计算发射控制状态
     always @(*) begin
         // 默认状态：两个指令都可以发射
-        issue_inst_reg = 2'b11;
-        
+        issue_inst_reg = 2'b11;  // 默认发射两个指令
+
+        if(inst1_jump) begin
+            // 如果指令1确实跳转，则停止暂停，指令B会被stall_flag_i[`CU_FLUSH]信号被冲刷掉，下个周期新的指令对会进入
+            // 如果指令1没有确认是否跳转，只先发射指令1，指令B位置通过~issue_inst[1]置0
+            //  如果指令1不需要跳转，相当于进行了一次raw冒险，指令1提交后issue_inst变为默认的11，此时B发射
+            issue_inst_reg = jump_true ? 2'b11: 2'b01;
+        end
         // 情况1: 指令A，B与FIFO中指令均无RAW冲突时
-        if (!raw_hazard_inst1_fifo && !raw_hazard_inst2_fifo) begin
+        else if (!raw_hazard_inst1_fifo && !raw_hazard_inst2_fifo) begin
             if (raw_hazard_inst2_inst1) begin
                 // 1.1: 指令B读取指令A要写入的寄存器
                 issue_inst_reg = 2'b01;  // 只发射指令A
@@ -267,6 +285,8 @@ module hdu (
                 fifo_rd_addr[next_id2] <= inst2_rd_addr;
             end
         end
+        // 更新pending_inst1_id
+        pending_inst1_id <= (inst1_valid && raw_hazard_inst2_inst1) ? next_id1 : 3'd0;
     end
 
     // 时间戳更新逻辑
