@@ -38,20 +38,14 @@ module sbpu (
     input wire [`INST_ADDR_WIDTH-1:0] pc1_i,           // 第二条指令PC
     input wire                        any_stall_i,     // 流水线暂停信号
     input wire                        jalr_executed_i, // JALR执行完成信号
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
-    input wire                        inst_valid_i,  // 指令有效信号
-    input wire [`INST_ADDR_WIDTH-1:0] pc_i,          // PC指针
-    input wire                        any_stall_i,   // 流水线暂停信号
 
     // 双指令输出
-    output wire branch_taken_o,                         // 预测是否为分支
-    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,  // 预测的分支地址
-    output wire is_pred_branch_o,                       // 当前指令是经过预测的有条件分支指令
-    output wire wait_for_jalr_o,                        // JALR等待信号
-    output wire branch_inst_slot_o                      // 分支指令所在槽位 (0=第一条, 1=第二条)
-    // 添加新的输出信号传递给EXU
-    output wire is_pred_branch_o  // 当前指令是经过预测的有条件分支指令
-    // 删除与预测验证相关的接口，因为已移至EXU
+    output wire                        branch_taken_o,     // 预测是否为分支
+    output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,      // 预测的分支地址
+    output wire                        is_pred_branch_o,   // 当前指令是经过预测的有条件分支指令
+    output wire                        wait_for_jalr_o,    // JALR等待信号
+    output wire                        branch_inst_slot_o, // 分支指令所在槽位 (0=第一条, 1=第二条)
+    output wire                        inst1_disable_o     // 指令1为JAL时，禁用指令2通道
 );
     // 第一条指令解析
     wire [6:0] opcode0 = inst0_i[6:0];
@@ -87,9 +81,10 @@ module sbpu (
     wire is_pred_branch0 = inst0_valid_i & (inst0_type_branch & inst0_b_type_imm[31]);
     wire is_pred_jal0 = inst0_valid_i & (inst0_jal);
 
-    // 第二条指令预测信号
-    wire is_pred_branch1 = inst1_valid_i & (inst1_type_branch & inst1_b_type_imm[31]);
-    wire is_pred_jal1 = inst1_valid_i & (inst1_jal);
+    // 第二条指令预测信号 - 当指令0为JAL时，指令1被禁用
+    wire inst1_active = inst1_valid_i & ~(inst0_valid_i & inst0_jal);
+    wire is_pred_branch1 = inst1_active & (inst1_type_branch & inst1_b_type_imm[31]);
+    wire is_pred_jal1 = inst1_active & (inst1_jal);
 
     // 分支预测结果（第一条指令优先）
     wire branch_taken0 = is_pred_branch0 | is_pred_jal0;
@@ -98,6 +93,9 @@ module sbpu (
     // 按优先级输出：第一条指令优先，如果第一条不是分支则考虑第二条
     wire final_branch_taken = branch_taken0 | (branch_taken1 & ~branch_taken0);
     wire branch_from_inst1 = branch_taken1 & ~branch_taken0;
+
+    // 指令1为JAL时禁用指令2通道的信号
+    assign inst1_disable_o = inst0_valid_i & inst0_jal;
 
     // 输出分支指令所在的槽位
     assign branch_inst_slot_o = branch_from_inst1;
@@ -143,8 +141,6 @@ module sbpu (
     end
 
     assign wait_for_jalr_o = wait_for_jalr;
-    assign branch_taken_o = branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
-    assign branch_addr_o = branch_addr;
 
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule
