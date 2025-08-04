@@ -24,70 +24,96 @@
 
 `include "defines.svh"
 
-// 乘法模块
-// 使用Booth算法实现32位整数乘法
+/*
+ 乘法模块
+ 分块乘法实现，支持有符号和无符号32位整数乘法指令（MUL/MULH/MULHSU/MULHU）
+ 采用移位相加法，按16位分块，复用乘法器和加法器，4个周期完成运算
+ 支持操作数符号处理，输出高/低32位结果，兼容RISC-V乘法扩展指令
+*/
 module exu_mul (
     input wire clk,
     input wire rst_n,
 
-    // from ex
+    // 来自执行单元的输入
     input wire [`REG_DATA_WIDTH-1:0] multiplicand_i,  // 被乘数
     input wire [`REG_DATA_WIDTH-1:0] multiplier_i,    // 乘数
-    input wire                       start_i,         // 开始信号，与除法器一致，运算期间需保持有效
-    input wire [                3:0] op_i,            // 操作类型
+    input wire start_i,                               // 运算开始信号，运算期间需保持有效
+    input wire [3:0] op_i,                            // 操作类型（指令编码）
 
-    // to ex
-    output reg [`REG_DATA_WIDTH-1:0] result_o,    // 乘法结果
-    output reg                       busy_o,      // 正在运算信号
-    output reg                       valid_o      // 输出有效信号
+    // 输出到执行单元
+    output reg [`REG_DATA_WIDTH-1:0] result_o,        // 乘法结果
+    output reg                       busy_o,          // 运算忙信号
+    output reg                       valid_o          // 结果有效信号
 );
 
-    // 状态定义
+    // 状态机定义
     typedef enum logic [1:0] {
-        IDLE   = 2'b00,
-        CALC   = 2'b01,
-        OUTPUT = 2'b10
+        IDLE   = 2'b00,   // 空闲
+        CALC   = 2'b01,   // 运算中
+        OUTPUT = 2'b10    // 输出结果
     } state_t;
 
     // 内部寄存器
     state_t current_state, next_state;
-    reg  [                  4:0] count;  // 迭代计数器，32位需要16次迭代
-    reg  [                  3:0] op_r;
-    reg  [  `REG_DATA_WIDTH-1:0] multiplicand_r;
-    reg  [  `REG_DATA_WIDTH-1:0] multiplier_r;
+    reg  [2:0] count;  // 迭代计数器，4次分块迭代
+    reg  [3:0] op_r;   // 操作类型寄存器
+    reg  [`REG_DATA_WIDTH-1:0] abs_multiplicand_r; // 被乘数绝对值
+    reg  [`REG_DATA_WIDTH-1:0] abs_multiplier_r;   // 乘数绝对值
+    reg                        result_sign_r;      // 结果符号
 
-    // booth算法相关寄存器
-    reg  [2*`REG_DATA_WIDTH+2:0] add1;  // +1倍被乘数
-    reg  [2*`REG_DATA_WIDTH+2:0] sub1;  // -1倍被乘数
-    reg  [2*`REG_DATA_WIDTH+2:0] add_x2;  // +2倍被乘数
-    reg  [2*`REG_DATA_WIDTH+2:0] sub_x2;  // -2倍被乘数
-    reg  [2*`REG_DATA_WIDTH+2:0] p_reg;  // 部分积
-    reg  [2*`REG_DATA_WIDTH+2:0] temp_result; // Booth算法临时结果
+    // 分块乘法相关寄存器
+    reg  [2*`REG_DATA_WIDTH-1:0] p_reg;            // 部分积寄存器
+    reg  [15:0] a_low, a_high;                     // 被乘数低/高16位
+    reg  [15:0] b_low, b_high;                     // 乘数低/高16位
 
-    // 把高 32 位先拿出来
-    wire [  `REG_DATA_WIDTH-1:0] mult_tmp_high;
-    wire [  `REG_DATA_WIDTH-1:0] mult_tmp_low;
+    // 临时变量
+    wire [31:0] mcand_tmp, mplier_tmp;
 
-    assign mult_tmp_high = p_reg[2*`REG_DATA_WIDTH:(`REG_DATA_WIDTH+1)];
-    assign mult_tmp_low  = p_reg[`REG_DATA_WIDTH:1];
+    // 分块选择逻辑：每次迭代选择对应的16位块参与乘法
+    wire [15:0] mul_a, mul_b;
+    assign mul_a = (count[1] == 1'b0) ? a_low : a_high;
+    assign mul_b = (count[0] == 1'b0) ? b_low : b_high;
 
-    // 含无符号数乘法的结果修复
-    // 如果被乘数最高位是 1，则误多算了 -2^32*multiplier，所以加回 multiplier
-    wire [`REG_DATA_WIDTH-1:0] add_mul;
-    assign add_mul = multiplicand_r[`REG_DATA_WIDTH-1] ? multiplier_r : {`REG_DATA_WIDTH{1'b0}};
+    // 单周期16位乘法器及移位累加逻辑
+    wire [31:0] mul_result;
+    wire [2*`REG_DATA_WIDTH-1:0] add_result;
+    wire [2*`REG_DATA_WIDTH-1:0] shifted_mul_result;
 
-    // 如果乘数最高位是 1，则误多算了 -2^32*multiplicand，所以加回 multiplicand
-    wire [`REG_DATA_WIDTH-1:0] add_mcand;
-    assign add_mcand = multiplier_r[`REG_DATA_WIDTH-1] ? multiplicand_r : {`REG_DATA_WIDTH{1'b0}};
+    assign mul_result = mul_a * mul_b;
+    // 按分块位置移位累加，4次迭代分别对应不同移位量
+    assign shifted_mul_result = {{(2*`REG_DATA_WIDTH-32){1'b0}}, mul_result} << (count == 3'd0 ? 0 :
+                                                                               count == 3'd1 ? 16 :
+                                                                               count == 3'd2 ? 16 : 32);
+    assign add_result = p_reg + shifted_mul_result;
 
-    // 状态转换逻辑
+    // 部分积高/低32位
+    wire [`REG_DATA_WIDTH-1:0] mult_tmp_high;
+    wire [`REG_DATA_WIDTH-1:0] mult_tmp_low;
+
+    assign mult_tmp_high = p_reg[2*`REG_DATA_WIDTH-1:`REG_DATA_WIDTH];
+    assign mult_tmp_low  = p_reg[`REG_DATA_WIDTH-1:0];
+
+    // 操作类型相关信号：用于符号处理和绝对值计算
+    wire mcand_signed    = (op_i == 4'b0001) || (op_i == 4'b0010) || (op_i == 4'b0100); // MUL, MULH, MULHSU
+    wire mplier_signed   = (op_i == 4'b0001) || (op_i == 4'b0010);                      // MUL, MULH
+    wire both_unsigned   = (op_i == 4'b1000);                                           // MULHU
+    wire mcand_is_neg    = mcand_signed && multiplicand_i[`REG_DATA_WIDTH-1];
+    wire mplier_is_neg   = mplier_signed && multiplier_i[`REG_DATA_WIDTH-1];
+
+    // 绝对值选择逻辑
+    assign mcand_tmp  = both_unsigned ? multiplicand_i : (mcand_is_neg ? -multiplicand_i : multiplicand_i);
+    assign mplier_tmp = both_unsigned ? multiplier_i   : (mplier_is_neg ? -multiplier_i : multiplier_i);
+
+    // 状态机转换逻辑
     always @(*) begin
         case (current_state)
-            IDLE:    if (start_i) next_state = CALC;
-                     else next_state = IDLE;
-            CALC:    if (count == 5'd15) next_state = OUTPUT;  // 32位乘法需要16次迭代
-                     else next_state = CALC;
-            OUTPUT:  next_state = IDLE;
+            IDLE:
+                if (start_i) next_state = CALC;
+                else next_state = IDLE;
+            CALC:
+                if (count == 3'd3) next_state = OUTPUT;  // 4次迭代完成
+                else next_state = CALC;
+            OUTPUT: next_state = IDLE;
             default: next_state = IDLE;
         endcase
     end
@@ -98,81 +124,76 @@ module exu_mul (
         else current_state <= next_state;
     end
 
-    // 操作执行
+    // 运算流程
     always @(posedge clk) begin
         if (!rst_n) begin
-            busy_o                              <= 1'b0;
-            result_o                            <= `ZeroWord;
-            valid_o                             <= 1'b0;
-            count                               <= 5'd0;
-            op_r                                <= 4'h0;
-            multiplicand_r                      <= `ZeroWord;
-            multiplier_r                        <= `ZeroWord;
-            {add1, sub1, add_x2, sub_x2, p_reg} <= 0;
+            busy_o             <= 1'b0;
+            result_o           <= `ZeroWord;
+            valid_o            <= 1'b0;
+            count              <= 3'd0;
+            op_r               <= 4'h0;
+            abs_multiplicand_r <= `ZeroWord;
+            abs_multiplier_r   <= `ZeroWord;
+            result_sign_r      <= 1'b0;
+            p_reg              <= 0;
+            {a_low, a_high, b_low, b_high} <= 0;
         end else begin
             case (current_state)
                 IDLE: begin
-                    valid_o            <= 1'b0;
+                    valid_o <= 1'b0;
                     if (start_i) begin
-                        // 保存操作数和指令类型
-                        multiplicand_r <= multiplicand_i;
-                        multiplier_r   <= multiplier_i;
-                        op_r           <= op_i;
+                        op_r <= op_i;
 
-                        // 初始化Booth Radix-4乘法器相关寄存器
-                        add1           <= {{2{multiplicand_i[31]}}, multiplicand_i, {`REG_DATA_WIDTH + 1{1'b0}}};
-                        sub1           <= {-{{2{multiplicand_i[31]}}, multiplicand_i}, {`REG_DATA_WIDTH + 1{1'b0}}};
-                        add_x2         <= {{multiplicand_i[31], multiplicand_i, 1'b0}, {`REG_DATA_WIDTH + 1{1'b0}}};
-                        sub_x2         <= {-{multiplicand_i[31], multiplicand_i, 1'b0}, {`REG_DATA_WIDTH + 1{1'b0}}};
-                        p_reg          <= {{`REG_DATA_WIDTH + 1{1'b0}}, multiplier_i, 1'b0};
+                        // 操作数绝对值计算
+                        abs_multiplicand_r <= both_unsigned ? multiplicand_i : (mcand_is_neg ? -multiplicand_i : multiplicand_i);
+                        abs_multiplier_r   <= both_unsigned ? multiplier_i   : (mplier_is_neg ? -multiplier_i : multiplier_i);
 
-                        count          <= 5'd0;
-                        busy_o         <= 1'b1;
+                        // 结果符号计算（仅有符号乘法需要）
+                        result_sign_r <= both_unsigned ? 1'b0 : ((mcand_is_neg ^ mplier_is_neg) && (mcand_signed || mplier_signed));
+
+                        // 拆分为16位块
+                        a_low  <= mcand_tmp[15:0];
+                        a_high <= mcand_tmp[31:16];
+                        b_low  <= mplier_tmp[15:0];
+                        b_high <= mplier_tmp[31:16];
+
+                        // 初始化部分积
+                        p_reg <= 0;
+                        count <= 3'd0;
+                        busy_o <= 1'b1;
                     end else begin
-                        busy_o         <= 1'b0;
+                        busy_o <= 1'b0;
                     end
                 end
 
                 CALC: begin
                     valid_o <= 1'b0;
-
-                    // Radix-4 Booth算法核心计算 - 根据乘数的低3位决定操作
-                    case (p_reg[2:0])
-                        3'b000, 3'b111: temp_result = p_reg;  // 不操作
-                        3'b001, 3'b010: temp_result = p_reg + add1;  // +1倍被乘数
-                        3'b101, 3'b110: temp_result = p_reg + sub1;  // -1倍被乘数
-                        3'b011:         temp_result = p_reg + add_x2;  // +2倍被乘数
-                        3'b100:         temp_result = p_reg + sub_x2;  // -2倍被乘数
-                        default:        temp_result = p_reg;
+                    // 分块乘法累加，4次迭代，每次累加对应块的乘积
+                    case (count)
+                        3'd0: p_reg <= shifted_mul_result;
+                        3'd1: p_reg <= add_result;
+                        3'd2: p_reg <= add_result;
+                        3'd3: p_reg <= add_result;
                     endcase
-
-                    // 算术右移2位（Radix-4）
-                    p_reg <= {
-                        temp_result[2*`REG_DATA_WIDTH+2],
-                        temp_result[2*`REG_DATA_WIDTH+2],
-                        temp_result[2*`REG_DATA_WIDTH+2:2]
-                    };
-                    count <= count + 5'd1;  // 计数增加
+                    count <= count + 3'd1;
                 end
 
                 OUTPUT: begin
-                    // 根据指令类型选择输出结果
+                    logic [2*`REG_DATA_WIDTH-1:0] final_result;
+                    // MULHU无符号乘法直接输出，其他类型需恢复符号
+                    if (op_r == 4'b1000) begin
+                        final_result = p_reg;
+                    end else begin
+                        final_result = result_sign_r ? -p_reg : p_reg;
+                    end
+
+                    // 指令类型选择输出高/低32位
                     case (op_r)
-                        4'b0001: begin  // MUL - 取低32位
-                            result_o <= mult_tmp_low;
-                        end
-                        4'b0010: begin  // MULH - 有符号*有符号=有符号
-                            result_o <= mult_tmp_high;
-                        end
-                        4'b0100: begin  // MULHSU - 有符号*无符号=有符号
-                            result_o <= mult_tmp_high + add_mcand;
-                        end
-                        4'b1000: begin  // MULHU - 无符号*无符号=无符号
-                            result_o <= mult_tmp_high + add_mul + add_mcand;
-                        end
-                        default: begin
-                            result_o <= mult_tmp_low;
-                        end
+                        4'b0001: result_o <= final_result[`REG_DATA_WIDTH-1:0];                  // MUL，低32位
+                        4'b0010: result_o <= final_result[2*`REG_DATA_WIDTH-1:`REG_DATA_WIDTH];  // MULH，高32位
+                        4'b0100: result_o <= final_result[2*`REG_DATA_WIDTH-1:`REG_DATA_WIDTH];  // MULHSU，高32位
+                        4'b1000: result_o <= final_result[2*`REG_DATA_WIDTH-1:`REG_DATA_WIDTH];  // MULHU，高32位
+                        default: result_o <= final_result[`REG_DATA_WIDTH-1:0];
                     endcase
                     valid_o <= 1'b1;
                     busy_o  <= 1'b0;
