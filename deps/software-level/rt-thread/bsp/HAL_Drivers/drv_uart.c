@@ -49,7 +49,7 @@ static struct alioth_uart_config uart_config[] =
 
 static struct alioth_uart uart_obj[sizeof(uart_config) / sizeof(uart_config[0])] = {0};
 
-void uart_irq_handler(struct rt_serial_device *serial);
+void uart_irq_handler(void *arg);
 static void alioth_uart_isr(struct rt_serial_device *serial); // 前置声明
 
 static rt_err_t alioth_control(struct rt_serial_device *serial, int cmd,
@@ -187,23 +187,13 @@ static void alioth_uart_isr(struct rt_serial_device *serial)
     }
 }
 
-void uart_irq_handler(struct rt_serial_device *serial)
+void uart_irq_handler(void *arg)
 {
+    struct rt_serial_device *serial = (struct rt_serial_device *)arg;
     struct alioth_uart *uart_obj;
     struct alioth_uart_config *uart_cfg;
     rt_interrupt_enter();
-    // uart_obj = (struct alioth_uart *)serial->parent.user_data;
-    // RT_ASSERT(uart_obj != RT_NULL);
-    // uart_cfg = uart_obj->config;
-    // RT_ASSERT(uart_cfg != RT_NULL);
-
-    // rt_kprintf("[uart_irq_handler] serial=%p, serial_rx=%p, name=%s, open_flag=0x%x\n",
-    //     serial, serial->serial_rx, uart_cfg->name, serial->parent.open_flag);
-
-    // uart_disable_rx_th_int(uart_cfg->uart); // 禁用接收中断，防止嵌套
     alioth_uart_isr(serial);
-    // uart_enable_rx_th_int(uart_cfg->uart); // 重新使能接收中断
-    // 处理完中断后，离开中断
     rt_interrupt_leave();
 }
 
@@ -262,5 +252,3 @@ void rt_hw_serial_rcvtsk(void *parameter)
 }
 
 #endif /* RT_USING_SERIAL */
-
-/******************** end of file *******************/

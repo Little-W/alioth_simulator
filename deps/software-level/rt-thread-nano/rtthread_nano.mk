@@ -70,7 +70,7 @@ all: $(TARGET)
 $(TARGET): $(LINK_OBJS) $(LINK_DEPS) Makefile
 	$(CC) $(CFLAGS) $(INCLUDES) $(LINK_OBJS) -o $@ $(LDFLAGS) -lc -lgcc
 	$(OBJCOPY) -O binary $@ ${BUILD_DIR}/main.bin
-	$(OBJDUMP) --disassemble-all $@ > ${BUILD_DIR}/main.dump
+	$(OBJDUMP) -d $@ > ${BUILD_DIR}/main.dump
 	$(OBJCOPY) -O verilog $@ ${BUILD_DIR}/main.verilog
 	@if [ -n "$${SIM_ROOT_DIR}" ]; then \
 		${SIM_ROOT_DIR}/deps/tools/split_memory.sh ${BUILD_DIR}/main.verilog; \

@@ -23,7 +23,7 @@ $(TARGET):
 	@mkdir -p $(BUILD_DIR)
 	@cp $(RTTHREAD_BSP_DIR)/rtthread.elf $(TARGET)
 	$(OBJCOPY) -O binary $(TARGET) ${BUILD_DIR}/main.bin
-	$(OBJDUMP) --disassemble-all $(TARGET) > ${BUILD_DIR}/main.dump
+	$(OBJDUMP) -d $(TARGET) > ${BUILD_DIR}/main.dump
 	$(OBJCOPY) -O verilog $(TARGET) ${BUILD_DIR}/main.verilog
 	@if [ -n "$${SIM_ROOT_DIR}" ]; then \
 		${SIM_ROOT_DIR}/deps/tools/split_memory.sh ${BUILD_DIR}/main.verilog; \

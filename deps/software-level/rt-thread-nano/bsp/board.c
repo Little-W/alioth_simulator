@@ -32,8 +32,13 @@ extern void *_heap_end;
 #define HEAP_BEGIN &_end
 #define HEAP_END &_heap_end
 
-void timer_irq_handler(void);
-void swi_handler(void);
+void timer_irq_handler(int vector, void *param);
+void swi_handler(int vector, void *param);
+
+static void plic_dispatch_wrapper(int vector, void *param)
+{
+    plic_dispatch();
+}
 
 void rt_hw_ticksetup(void)
 {
@@ -43,12 +48,12 @@ void rt_hw_ticksetup(void)
     __enable_timer_irq();
 }
 
-void swi_handler(void)
+void swi_handler(int vector, void *param)
 {
     CLINT_ClearSWIRQ();
 }
 
-void timer_irq_handler(void)
+void timer_irq_handler(int vector, void *param)
 {
     SysTick_Reload(SYSTICK_TICK_CONST);
     rt_tick_increase();
@@ -67,7 +72,7 @@ void rt_hw_board_init(void)
     __enable_sw_irq();
     plic_init();
     __enable_ext_irq();
-    rt_hw_interrupt_install(MachineExternal_IRQn, plic_dispatch, RT_NULL, "plic");
+    rt_hw_interrupt_install(MachineExternal_IRQn, plic_dispatch_wrapper, RT_NULL, "plic");
 
 #ifdef RT_USING_CONSOLE
     nano_uart_init();

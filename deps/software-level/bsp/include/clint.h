@@ -6,7 +6,7 @@ extern "C"
 {
 #endif
 
-#include "sys_defs.h"
+#include "platform.h"
 
     typedef struct
     {

@@ -1,6 +1,14 @@
 #include "platform.h"
 #include "xprintf.h"
 
+void SystemBannerPrint(void)
+{
+#if defined(SDK_BANNER) && (SDK_BANNER == 1)
+    printf("Alioth SDK Build Time: %s, %s\r\n", __DATE__, __TIME__);
+    printf("CPU Frequency %lu Hz\r\n", SYSTEM_CLOCK);
+#endif
+}
+
 void SystemInit(void)
 {
     // 初始化UART0，波特率115200
@@ -11,14 +19,6 @@ void SystemInit(void)
 
     // 打印基本信息
     SystemBannerPrint();
-}
-
-void SystemBannerPrint(void)
-{
-#if defined(SDK_BANNER) && (SDK_BANNER == 1)
-    printf("Alioth SDK Build Time: %s, %s\r\n", __DATE__, __TIME__);
-    printf("CPU Frequency %lu Hz\r\n", SYSTEM_CLOCK);
-#endif
 }
 
 __STATIC_FORCEINLINE uint64_t get_timer_freq(void)

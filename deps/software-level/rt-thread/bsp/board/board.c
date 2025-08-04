@@ -29,8 +29,13 @@ extern void *_heap_end;
 #define HEAP_BEGIN &_end
 #define HEAP_END &_heap_end
 
-void timer_irq_handler(void);
-void swi_handler(void);
+void timer_irq_handler(int vector, void *param);
+void swi_handler(int vector, void *param);
+
+static void plic_dispatch_wrapper(int vector, void *param)
+{
+    plic_dispatch();
+}
 
 rt_weak void rt_hw_ticksetup(void)
 {
@@ -44,7 +49,8 @@ rt_weak void rt_hw_ticksetup(void)
     __enable_timer_irq();                                                               // 使能定时器中断
 }
 
-void swi_handler(void)
+// 修改为符合 rt_isr_handler_t 类型
+void swi_handler(int vector, void *param)
 {
     CLINT_ClearSWIRQ();
 }
@@ -53,7 +59,7 @@ void swi_handler(void)
  * @brief This is the timer interrupt service routine.
  *
  */
-void timer_irq_handler(void)
+void timer_irq_handler(int vector, void *param)
 {
     /* Reload systimer */
     SysTick_Reload(SYSTICK_TICK_CONST);
@@ -81,8 +87,8 @@ void rt_hw_board_init(void)
     rt_hw_interrupt_install(MachineSoftware_IRQn, swi_handler, RT_NULL, "swi");    // 注册软件中断入口函数
     __enable_sw_irq();                                                             // 使能软件中断
     plic_init();                                                                   // 初始化PLIC
-    __enable_ext_irq();                                                         // 使能外部中断 
-    rt_hw_interrupt_install(MachineExternal_IRQn, plic_dispatch, RT_NULL, "plic"); // 注册PLIC中断处理函数
+    __enable_ext_irq();                                                            // 使能外部中断 
+    rt_hw_interrupt_install(MachineExternal_IRQn, plic_dispatch_wrapper, RT_NULL, "plic"); // 注册PLIC中断处理函数
 
 #ifdef RT_USING_HEAP
     rt_system_heap_init((void *)HEAP_BEGIN, (void *)HEAP_END);
