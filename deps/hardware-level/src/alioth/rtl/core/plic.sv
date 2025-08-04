@@ -44,38 +44,25 @@ module plic (
 
     integer                         i;
 
-    // 最高优先级选择逻辑（二分查找）
-    function automatic [$clog2(`PLIC_NUM_SOURCES)-1:0] find_max_id;
-        input [7:0] pri[`PLIC_NUM_SOURCES-1:0];
-        input [`PLIC_NUM_SOURCES-1:0] valid;
-        input integer left, right;
-        reg [$clog2(`PLIC_NUM_SOURCES)-1:0] l_idx, r_idx;
-        reg [7:0] l_pri, r_pri;
-        begin
-            if (left == right) begin
-                if (valid[left]) find_max_id = left[$clog2(`PLIC_NUM_SOURCES)-1:0];
-                else find_max_id = {($clog2(`PLIC_NUM_SOURCES)) {1'b0}};
-            end else begin
-                integer mid;
-                mid   = (left + right) >> 1;
-                l_idx = find_max_id(pri, valid, left, mid);
-                r_idx = find_max_id(pri, valid, mid + 1, right);
-                l_pri = (valid[l_idx]) ? pri[l_idx] : 8'd0;
-                r_pri = (valid[r_idx]) ? pri[r_idx] : 8'd0;
-                // 优先级非零优先，否则选第一个valid
-                if (l_pri > r_pri) find_max_id = l_idx;
-                else if (r_pri > l_pri) find_max_id = r_idx;
-                else if (valid[l_idx]) find_max_id = l_idx;
-                else find_max_id = r_idx;
-            end
-        end
-    endfunction
-
     reg [        `PLIC_NUM_SOURCES-1:0] valid_mask;
     reg [        `PLIC_NUM_SOURCES-1:0] valid_mask_r;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id_next;
     reg                                 irq_valid_next;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id;  // 最高优先级中断号
+
+    // 实例化流水优先级选择模块
+    wire [$clog2(`PLIC_NUM_SOURCES)-1:0] arbiter_max_id;
+    wire                                arbiter_max_valid;
+    plic_priority_arbiter #(
+        .PLIC_NUM_SOURCES(`PLIC_NUM_SOURCES)
+    ) u_plic_priority_arbiter (
+        .clk(clk),
+        .rst_n(rst_n),
+        .pri_in(int_pri),
+        .valid_in(valid_mask_r),
+        .find_max_id_out(arbiter_max_id),
+        .find_max_valid_out(arbiter_max_valid)
+    );
 
     always @(*) begin
         valid_mask = irq_sources & int_en;
@@ -89,8 +76,8 @@ module plic (
 
     // 优先级选择和中断有效判断使用valid_mask_r
     always @(*) begin
-        irq_valid_next = |valid_mask_r;
-        irq_id_next    = find_max_id(int_pri, valid_mask_r, 0, `PLIC_NUM_SOURCES - 1);
+        irq_valid_next = arbiter_max_valid;
+        irq_id_next    = arbiter_max_id; // 用流水模块输出替换原函数
     end
 
     always @(posedge clk or negedge rst_n) begin

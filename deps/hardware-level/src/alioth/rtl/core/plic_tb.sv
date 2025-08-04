@@ -41,11 +41,40 @@ module plic_tb;
 
     integer i;
 
-    // 任务：写寄存器
-    task write_reg(input [`PLIC_AXI_ADDR_WIDTH-1:0] a, input [`PLIC_AXI_DATA_WIDTH-1:0] d);
+    // 任务：按字节写寄存器（支持4字节对齐和部分字节写入，数据自动对齐）
+    task write_reg_b(input [`PLIC_AXI_ADDR_WIDTH-1:0] a, input [7:0] d);
+        reg [3:0] local_wstrb;
+        reg [`PLIC_AXI_ADDR_WIDTH-1:0] aligned_addr;
+        reg [`PLIC_AXI_DATA_WIDTH-1:0] aligned_data;
         begin
+            aligned_addr = {a[`PLIC_AXI_ADDR_WIDTH-1:2], 2'b00};
+            case (a[1:0])
+                2'b00: begin local_wstrb = 4'b0001; aligned_data = {24'b0, d}; end
+                2'b01: begin local_wstrb = 4'b0010; aligned_data = {16'b0, d, 8'b0}; end
+                2'b10: begin local_wstrb = 4'b0100; aligned_data = {8'b0, d, 16'b0}; end
+                2'b11: begin local_wstrb = 4'b1000; aligned_data = {d, 24'b0}; end
+                default: begin local_wstrb = 4'b0000; aligned_data = 0; end
+            endcase
             @(negedge clk);
-            addr  = a;
+            addr  = aligned_addr;
+            wdata = aligned_data;
+            wstrb = local_wstrb;
+            wen   = 1'b1;
+            @(negedge clk);
+            wen   = 1'b0;
+            addr  = 0;
+            wdata = 0;
+            wstrb = 0;
+        end
+    endtask
+
+    // 任务：按字写寄存器（wstrb=4'b1111，写入32位）
+    task write_reg_w(input [`PLIC_AXI_ADDR_WIDTH-1:0] a, input [`PLIC_AXI_DATA_WIDTH-1:0] d);
+        reg [`PLIC_AXI_ADDR_WIDTH-1:0] aligned_addr;
+        begin
+            aligned_addr = {a[`PLIC_AXI_ADDR_WIDTH-1:2], 2'b00};
+            @(negedge clk);
+            addr  = aligned_addr;
             wdata = d;
             wstrb = 4'b1111;
             wen   = 1'b1;
@@ -92,16 +121,16 @@ module plic_tb;
 
         // 配置8个中断源优先级
         for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1) begin
-            write_reg(`PLIC_INT_PRI_ADDR + i, (i+1)); // 优先级1~8
+            write_reg_b(`PLIC_INT_PRI_ADDR + i, (i+1)); // 优先级1~8
         end
 
-        // 配置8个中断源向量地址
+        // 配置8个中断源向量地址（恢复为32位写入）
         for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1) begin
-            write_reg(`PLIC_INT_VECTABLE_ADDR + (i << 2), irq_vec_addr[i]);
+            write_reg_w(`PLIC_INT_VECTABLE_ADDR + (i << 2), irq_vec_addr[i]);
         end
 
-        // 使能所有中断
-        write_reg(`PLIC_INT_EN_ADDR, 32'hFF);
+        // 使能所有中断（恢复为32位写入）
+        write_reg_w(`PLIC_INT_EN_ADDR, 32'hFF);
 
         // 检查优先级和使能寄存器
         for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1) begin
@@ -117,53 +146,73 @@ module plic_tb;
         // 模拟中断输入
         #10;
         irq_sources = 8'b0000_0001; // 只触发中断0
-        #50; // 增加等待时间
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h)", irq_valid, mvec_val, irq_vec_addr[0]);
 
         irq_sources = 8'b0000_1001; // 触发中断0和3
-        #50; // 增加等待时间
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h)", irq_valid, mvec_val, irq_vec_addr[3]);
 
         irq_sources = 8'b1000_1001; // 触发中断0、3、7
-        #50; // 增加等待时间
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h)", irq_valid, mvec_val, irq_vec_addr[7]);
 
         irq_sources = 8'b0000_0000; // 无中断
-        #50; // 增加等待时间
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0)", irq_valid, mvec_val);
 
         // 改变优先级测试
         $display("=== Priority Change Test ===");
-        write_reg(`PLIC_INT_PRI_ADDR + 3, 10); // 提高中断3优先级
-        write_reg(`PLIC_INT_PRI_ADDR + 7, 2);  // 降低中断7优先级
+        write_reg_b(`PLIC_INT_PRI_ADDR + 3, 10); // 提高中断3优先级
+        write_reg_b(`PLIC_INT_PRI_ADDR + 7, 2);  // 降低中断7优先级
         // 重新触发中断0、3、7
         irq_sources = 8'b1000_1001;
-        #50; // 增加等待时间
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, priority 3=10, 7=2)", irq_valid, mvec_val, irq_vec_addr[3]);
 
         // 再次改变优先级
-        write_reg(`PLIC_INT_PRI_ADDR + 7, 15); // 提高中断7优先级
-        #50; // 增加等待时间
+        write_reg_b(`PLIC_INT_PRI_ADDR + 7, 15); // 提高中断7优先级
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, priority 7=15)", irq_valid, mvec_val, irq_vec_addr[7]);
 
-        // 新增测试：7优先级为2，其余为0，只触发3
+        // 7优先级为2，其余为0，只触发3
+        irq_sources = 8'b0000_0000; // 清除所有中断
+        #10;
         $display("=== Only IRQ3 Active, Priority 7=2, Others=0 ===");
         for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1) begin
             if (i == 7)
-                write_reg(`PLIC_INT_PRI_ADDR + i, 2);
+                write_reg_b(`PLIC_INT_PRI_ADDR + i, 2);
             else
-                write_reg(`PLIC_INT_PRI_ADDR + i, 0);
+                write_reg_b(`PLIC_INT_PRI_ADDR + i, 0);
         end
         irq_sources = 8'b0000_1000; // 只触发中断3
-        #50; // 增加等待时间
+        #200; // 增加等待时间
         read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
         $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, only irq3 active, priority 7=2)", irq_valid, mvec_val, irq_vec_addr[3]);
+
+        // 所有优先级相同，多个输入
+        $display("=== All Priorities Same, Multiple IRQs ===");
+        for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1)
+            write_reg_b(`PLIC_INT_PRI_ADDR + i, 5);
+        irq_sources = 8'b1010_1001; // 触发0,3,5,7
+        #200;
+        read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
+        $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, all priorities=5, should pick irq0)", irq_valid, mvec_val, irq_vec_addr[0]);
+
+        // 部分优先级相同，多个输入
+        $display("=== Some Priorities Same, Multiple IRQs ===");
+        for (i = 0; i < `PLIC_NUM_SOURCES; i = i + 1)
+            write_reg_b(`PLIC_INT_PRI_ADDR + i, (i == 3 || i == 5 || i == 7) ? 8 : 2);
+        irq_sources = 8'b1010_1000; // 触发3,5,7
+        #200;
+        read_reg(`PLIC_INT_MVEC_ADDR, mvec_val);
+        $display("irq_valid=%b, mvec=0x%08h (expect 0x%08h, priorities 3/5/7=8, should pick irq3)", irq_valid, mvec_val, irq_vec_addr[3]);
 
         $finish;
     end
