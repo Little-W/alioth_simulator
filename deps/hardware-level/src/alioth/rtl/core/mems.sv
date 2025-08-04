@@ -33,7 +33,17 @@ module mems #(
     // AXI接口参数
     parameter C_AXI_ID_WIDTH   = 2,   // AXI ID宽度
     parameter C_AXI_DATA_WIDTH = 32,  // AXI数据宽度
-    parameter C_AXI_ADDR_WIDTH = 32   // AXI地址宽度
+    parameter C_AXI_ADDR_WIDTH = 32,  // AXI地址宽度
+
+    // APB AXI-Lite接口参数
+    parameter C_OM0_AXI_ADDR_WIDTH = 32,  // APB AXI-Lite 地址宽度
+    parameter C_OM0_AXI_DATA_WIDTH = 32,  // APB AXI-Lite 数据宽度
+    // CLINT AXI-Lite接口参数
+    parameter C_OM1_AXI_ADDR_WIDTH = 32,  // CLINT AXI-Lite 地址宽度
+    parameter C_OM1_AXI_DATA_WIDTH = 32,  // CLINT AXI-Lite 数据宽度
+    // PLIC AXI-Lite接口参数
+    parameter C_OM2_AXI_ADDR_WIDTH = 32,  // PLIC AXI-Lite 地址宽度
+    parameter C_OM2_AXI_DATA_WIDTH = 32   // PLIC AXI-Lite 数据宽度
 ) (
     // 全局信号
     input wire clk,   // 时钟信号
@@ -112,172 +122,76 @@ module mems #(
     output wire                        M1_AXI_RLAST,
     output wire [                 3:0] M1_AXI_RUSER,
     output wire                        M1_AXI_RVALID,
-    input  wire                        M1_AXI_RREADY
+    input  wire                        M1_AXI_RREADY,
+
+    // APB AXI-lite 接口
+    output wire                                  OM0_AXI_ACLK,
+    output wire                                  OM0_AXI_ARESETN,
+    output wire [    C_OM0_AXI_ADDR_WIDTH-1 : 0] OM0_AXI_AWADDR,
+    output wire [                         2 : 0] OM0_AXI_AWPROT,
+    output wire                                  OM0_AXI_AWVALID,
+    input  wire                                  OM0_AXI_AWREADY,
+    output wire [    C_OM0_AXI_DATA_WIDTH-1 : 0] OM0_AXI_WDATA,
+    output wire [(C_OM0_AXI_DATA_WIDTH/8)-1 : 0] OM0_AXI_WSTRB,
+    output wire                                  OM0_AXI_WVALID,
+    input  wire                                  OM0_AXI_WREADY,
+    input  wire [                         1 : 0] OM0_AXI_BRESP,
+    input  wire                                  OM0_AXI_BVALID,
+    output wire                                  OM0_AXI_BREADY,
+    output wire [    C_OM0_AXI_ADDR_WIDTH-1 : 0] OM0_AXI_ARADDR,
+    output wire [                         2 : 0] OM0_AXI_ARPROT,
+    output wire                                  OM0_AXI_ARVALID,
+    input  wire                                  OM0_AXI_ARREADY,
+    input  wire [    C_OM0_AXI_DATA_WIDTH-1 : 0] OM0_AXI_RDATA,
+    input  wire [                         1 : 0] OM0_AXI_RRESP,
+    input  wire                                  OM0_AXI_RVALID,
+    output wire                                  OM0_AXI_RREADY,
+    // CLINT AXI-lite 接口
+    output wire                                  OM1_AXI_ACLK,
+    output wire                                  OM1_AXI_ARESETN,
+    output wire [    C_OM1_AXI_ADDR_WIDTH-1 : 0] OM1_AXI_AWADDR,
+    output wire [                         2 : 0] OM1_AXI_AWPROT,
+    output wire                                  OM1_AXI_AWVALID,
+    input  wire                                  OM1_AXI_AWREADY,
+    output wire [    C_OM1_AXI_DATA_WIDTH-1 : 0] OM1_AXI_WDATA,
+    output wire [(C_OM1_AXI_DATA_WIDTH/8)-1 : 0] OM1_AXI_WSTRB,
+    output wire                                  OM1_AXI_WVALID,
+    input  wire                                  OM1_AXI_WREADY,
+    input  wire [                         1 : 0] OM1_AXI_BRESP,
+    input  wire                                  OM1_AXI_BVALID,
+    output wire                                  OM1_AXI_BREADY,
+    output wire [    C_OM1_AXI_ADDR_WIDTH-1 : 0] OM1_AXI_ARADDR,
+    output wire [                         2 : 0] OM1_AXI_ARPROT,
+    output wire                                  OM1_AXI_ARVALID,
+    input  wire                                  OM1_AXI_ARREADY,
+    input  wire [    C_OM1_AXI_DATA_WIDTH-1 : 0] OM1_AXI_RDATA,
+    input  wire [                         1 : 0] OM1_AXI_RRESP,
+    input  wire                                  OM1_AXI_RVALID,
+    output wire                                  OM1_AXI_RREADY,
+
+    // CLINT AXI-lite 接口
+    output wire                                  OM2_AXI_ACLK,
+    output wire                                  OM2_AXI_ARESETN,
+    output wire [    C_OM2_AXI_ADDR_WIDTH-1 : 0] OM2_AXI_AWADDR,
+    output wire [                         2 : 0] OM2_AXI_AWPROT,
+    output wire                                  OM2_AXI_AWVALID,
+    input  wire                                  OM2_AXI_AWREADY,
+    output wire [    C_OM2_AXI_DATA_WIDTH-1 : 0] OM2_AXI_WDATA,
+    output wire [(C_OM2_AXI_DATA_WIDTH/8)-1 : 0] OM2_AXI_WSTRB,
+    output wire                                  OM2_AXI_WVALID,
+    input  wire                                  OM2_AXI_WREADY,
+    input  wire [                         1 : 0] OM2_AXI_BRESP,
+    input  wire                                  OM2_AXI_BVALID,
+    output wire                                  OM2_AXI_BREADY,
+    output wire [    C_OM2_AXI_ADDR_WIDTH-1 : 0] OM2_AXI_ARADDR,
+    output wire [                         2 : 0] OM2_AXI_ARPROT,
+    output wire                                  OM2_AXI_ARVALID,
+    input  wire                                  OM2_AXI_ARREADY,
+    input  wire [    C_OM2_AXI_DATA_WIDTH-1 : 0] OM2_AXI_RDATA,
+    input  wire [                         1 : 0] OM2_AXI_RRESP,
+    input  wire                                  OM2_AXI_RVALID,
+    output wire                                  OM2_AXI_RREADY
 );
-
-    // 地址解码逻辑
-    wire is_m0_itcm_r = (M0_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M0_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
-    wire is_m1_itcm_r = (M1_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M1_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
-    wire is_m1_dtcm_r = (M1_AXI_ARADDR >= `DTCM_BASE_ADDR) && (M1_AXI_ARADDR < (`DTCM_BASE_ADDR + `DTCM_SIZE));
-
-    wire is_m1_dtcm_w = (M1_AXI_AWADDR >= `DTCM_BASE_ADDR) && (M1_AXI_AWADDR < (`DTCM_BASE_ADDR + `DTCM_SIZE));
-    wire is_m1_itcm_w = (M1_AXI_AWADDR >= `ITCM_BASE_ADDR) && (M1_AXI_AWADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
-
-    // Outstanding事务计数器 - 针对不同内存区域独立追踪
-    wire [3:0] m0_itcm_r_outstanding_cnt;  // M0访问ITCM的读事务计数器
-    wire [3:0] m1_itcm_r_outstanding_cnt;  // M1访问ITCM的读事务计数器
-    wire [3:0] m1_dtcm_r_outstanding_cnt;  // M1访问DTCM的读事务计数器
-    wire [3:0] m1_itcm_w_outstanding_cnt;  // M1访问ITCM的写事务计数器
-    wire [3:0] m1_dtcm_w_outstanding_cnt;  // M1访问DTCM的写事务计数器
-
-    wire m0_has_active_itcm_r = m0_itcm_r_outstanding_cnt > 0;  // M0有未完成的ITCM读事务
-    wire m1_has_active_itcm_r = m1_itcm_r_outstanding_cnt > 0;  // M1有未完成的ITCM读事务
-    wire m1_has_active_dtcm_r = m1_dtcm_r_outstanding_cnt > 0;  // M1有未完成的外设读事务
-    wire m1_has_active_itcm_w = m1_itcm_w_outstanding_cnt > 0;  // M1有未完成的ITCM写事务
-    wire m1_has_active_dtcm_w = m1_dtcm_w_outstanding_cnt > 0;  // M1有未完成的外设写事务
-
-    // 事务跟踪信号
-    wire m0_itcm_ar_trans = M0_AXI_ARVALID && M0_AXI_ARREADY && is_m0_itcm_r;
-    wire m0_itcm_r_trans = M0_AXI_RVALID && M0_AXI_RREADY && M0_AXI_RLAST;
-
-    wire m1_itcm_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_itcm_r;
-    wire m1_dtcm_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_dtcm_r;
-    wire m1_itcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_has_active_itcm_r && !m1_dtcm_has_priority;
-    wire m1_dtcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_has_active_dtcm_r && m1_dtcm_has_priority;
-
-    // 写事务信号
-    wire m1_itcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_itcm_w;
-    wire m1_dtcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_dtcm_w;
-    wire m1_itcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_itcm_w && !m1_has_active_dtcm_w;
-    wire m1_dtcm_b_trans = M1_AXI_BVALID && M1_AXI_BREADY && m1_has_active_dtcm_w;
-
-    // 计数器下一值计算 - 使用与或逻辑实现并行
-    // M0 ITCM读outstanding计数器
-    wire m0_itcm_inc = m0_itcm_ar_trans & ~m0_itcm_r_trans;  // 只增加不减少
-    wire m0_itcm_dec = ~m0_itcm_ar_trans & m0_itcm_r_trans;  // 只减少不增加
-    wire m0_itcm_keep = (m0_itcm_ar_trans & m0_itcm_r_trans) | (~m0_itcm_ar_trans & ~m0_itcm_r_trans); // 保持不变
-
-    wire [3:0] m0_itcm_r_outstanding_cnt_nxt = 
-        ({4{m0_itcm_inc}} & (m0_itcm_r_outstanding_cnt + 4'd1)) |
-        ({4{m0_itcm_dec}} & (m0_itcm_r_outstanding_cnt - 4'd1)) |
-        ({4{m0_itcm_keep}} & m0_itcm_r_outstanding_cnt);
-
-    // M1 ITCM读outstanding计数器
-    wire m1_itcm_inc = m1_itcm_ar_trans & ~m1_itcm_r_trans;
-    wire m1_itcm_dec = ~m1_itcm_ar_trans & m1_itcm_r_trans;
-    wire m1_itcm_keep = (m1_itcm_ar_trans & m1_itcm_r_trans) | (~m1_itcm_ar_trans & ~m1_itcm_r_trans);
-
-    wire [3:0] m1_itcm_r_outstanding_cnt_nxt = 
-        ({4{m1_itcm_inc}} & (m1_itcm_r_outstanding_cnt + 4'd1)) |
-        ({4{m1_itcm_dec}} & (m1_itcm_r_outstanding_cnt - 4'd1)) |
-        ({4{m1_itcm_keep}} & m1_itcm_r_outstanding_cnt);
-
-    // M1 DTCM读outstanding计数器
-    wire m1_dtcm_inc = m1_dtcm_ar_trans & ~m1_dtcm_r_trans;
-    wire m1_dtcm_dec = ~m1_dtcm_ar_trans & m1_dtcm_r_trans;
-    wire m1_dtcm_keep = (m1_dtcm_ar_trans & m1_dtcm_r_trans) | (~m1_dtcm_ar_trans & ~m1_dtcm_r_trans);
-
-    wire [3:0] m1_dtcm_r_outstanding_cnt_nxt = 
-        ({4{m1_dtcm_inc}} & (m1_dtcm_r_outstanding_cnt + 4'd1)) |
-        ({4{m1_dtcm_dec}} & (m1_dtcm_r_outstanding_cnt - 4'd1)) |
-        ({4{m1_dtcm_keep}} & m1_dtcm_r_outstanding_cnt);
-
-    // M1 ITCM写outstanding计数器
-    wire m1_itcm_w_inc = m1_itcm_aw_trans & ~m1_itcm_b_trans;
-    wire m1_itcm_w_dec = ~m1_itcm_aw_trans & m1_itcm_b_trans;
-    wire m1_itcm_w_keep = (m1_itcm_aw_trans & m1_itcm_b_trans) | (~m1_itcm_aw_trans & ~m1_itcm_b_trans);
-
-    wire [3:0] m1_itcm_w_outstanding_cnt_nxt = 
-        ({4{m1_itcm_w_inc}} & (m1_itcm_w_outstanding_cnt + 4'd1)) |
-        ({4{m1_itcm_w_dec}} & (m1_itcm_w_outstanding_cnt - 4'd1)) |
-        ({4{m1_itcm_w_keep}} & m1_itcm_w_outstanding_cnt);
-
-    // M1 DTCM写outstanding计数器
-    wire m1_dtcm_w_inc = m1_dtcm_aw_trans & ~m1_dtcm_b_trans;
-    wire m1_dtcm_w_dec = ~m1_dtcm_aw_trans & m1_dtcm_b_trans;
-    wire m1_dtcm_w_keep = (m1_dtcm_aw_trans & m1_dtcm_b_trans) | (~m1_dtcm_aw_trans & ~m1_dtcm_b_trans);
-
-    wire [3:0] m1_dtcm_w_outstanding_cnt_nxt = 
-        ({4{m1_dtcm_w_inc}} & (m1_dtcm_w_outstanding_cnt + 4'd1)) |
-        ({4{m1_dtcm_w_dec}} & (m1_dtcm_w_outstanding_cnt - 4'd1)) |
-        ({4{m1_dtcm_w_keep}} & m1_dtcm_w_outstanding_cnt);
-
-    wire m0_has_active_itcm_r_nxt = m0_itcm_r_outstanding_cnt_nxt > 0;  // M0有未完成的ITCM读事务
-    wire m1_has_active_itcm_r_nxt = m1_itcm_r_outstanding_cnt_nxt > 0;  // M1有未完成的ITCM读事务
-    wire m1_has_active_dtcm_r_nxt = m1_dtcm_r_outstanding_cnt_nxt > 0;  // M1有未完成的外设读事务
-    wire m1_has_active_itcm_w_nxt = m1_itcm_w_outstanding_cnt_nxt > 0;  // M1有未完成的ITCM写事务
-    wire m1_has_active_dtcm_w_nxt = m1_dtcm_w_outstanding_cnt_nxt > 0;  // M1有未完成的外设写事务
-
-    // 添加优先级跟踪寄存器
-    reg  m1_dtcm_has_priority;  // 当为1时dtcm有优先权，为0时itcm有优先权
-
-    // 优先权切换逻辑 - 实现"谁先获得就保持到完成"的仲裁策略
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            m1_dtcm_has_priority <= 1'b0;  // 复位时，优先权给ITCM（初始状态）
-        end else if (!m1_has_active_dtcm_r_nxt && !m1_has_active_itcm_r_nxt) begin
-            // 初始状态，优先权给ITCM
-            m1_dtcm_has_priority <= 1'b0;
-        end else if (m1_has_active_dtcm_r_nxt && !m1_has_active_itcm_r_nxt) begin
-            // DTCM有未完成事务，ITCM没有，优先权给DTCM
-            m1_dtcm_has_priority <= 1'b1;
-        end else if (!m1_has_active_dtcm_r_nxt && m1_has_active_itcm_r_nxt) begin
-            // ITCM有未完成事务，DTCM没有，优先权给ITCM
-            m1_dtcm_has_priority <= 1'b0;
-        end
-        // 其他情况（两者都有未完成事务）保持当前优先权不变
-    end
-
-    // 使用gnrl_dfflr实例化计数器寄存器
-    gnrl_dfflr #(
-        .DW(4)
-    ) m0_itcm_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),                           // 始终使能
-        .dnxt (m0_itcm_r_outstanding_cnt_nxt),
-        .qout (m0_itcm_r_outstanding_cnt)
-    );
-
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_itcm_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_itcm_r_outstanding_cnt_nxt),
-        .qout (m1_itcm_r_outstanding_cnt)
-    );
-
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_dtcm_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_dtcm_r_outstanding_cnt_nxt),
-        .qout (m1_dtcm_r_outstanding_cnt)
-    );
-
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_itcm_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_itcm_w_outstanding_cnt_nxt),
-        .qout (m1_itcm_w_outstanding_cnt)
-    );
-
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_dtcm_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_dtcm_w_outstanding_cnt_nxt),
-        .qout (m1_dtcm_w_outstanding_cnt)
-    );
 
 
     // ITCM与DTCM的接口信号
@@ -321,10 +235,6 @@ module mems #(
     wire                        dtcm_rvalid;
     wire                        dtcm_rready;
 
-    // 处理读通道ready信号的连接
-    assign itcm_rready = m0_itcm_rready || m1_itcm_rready;
-    assign dtcm_rready = m1_dtcm_rready;
-
     // 写响应通道连接
     wire [C_AXI_ID_WIDTH-1:0] itcm_bid;
     wire [1:0] itcm_bresp;
@@ -337,6 +247,600 @@ module mems #(
     wire dtcm_bvalid;
     wire dtcm_wready;
     wire dtcm_awready;
+
+    // 地址解码逻辑
+    wire is_m0_itcm_r = (M0_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M0_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
+    wire is_m1_itcm_r = (M1_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M1_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
+    wire is_m1_dtcm_r = (M1_AXI_ARADDR >= `DTCM_BASE_ADDR) && (M1_AXI_ARADDR < (`DTCM_BASE_ADDR + `DTCM_SIZE));
+    wire is_m1_apb_r = (M1_AXI_ARADDR >= `APB_BASE_ADDR) && (M1_AXI_ARADDR < (`APB_BASE_ADDR + `APB_SIZE));
+    // CLINT区域地址解码
+    wire is_m1_clint_r = (M1_AXI_ARADDR >= `CLINT_BASE_ADDR) && (M1_AXI_ARADDR < (`CLINT_BASE_ADDR + `CLINT_SIZE));
+    // PLIC区域地址解码
+    wire is_m1_plic_r = (M1_AXI_ARADDR >= `PLIC_BASE_ADDR) && (M1_AXI_ARADDR < (`PLIC_BASE_ADDR + `PLIC_SIZE));
+
+    wire is_m1_dtcm_w = (M1_AXI_AWADDR >= `DTCM_BASE_ADDR) && (M1_AXI_AWADDR < (`DTCM_BASE_ADDR + `DTCM_SIZE));
+    wire is_m1_itcm_w = (M1_AXI_AWADDR >= `ITCM_BASE_ADDR) && (M1_AXI_AWADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
+    wire is_m1_apb_w = (M1_AXI_AWADDR >= `APB_BASE_ADDR) && (M1_AXI_AWADDR < (`APB_BASE_ADDR + `APB_SIZE));
+    // CLINT区域写地址解码
+    wire is_m1_clint_w = (M1_AXI_AWADDR >= `CLINT_BASE_ADDR) && (M1_AXI_AWADDR < (`CLINT_BASE_ADDR + `CLINT_SIZE));
+    // PLIC区域写地址解码
+    wire is_m1_plic_w = (M1_AXI_AWADDR >= `PLIC_BASE_ADDR) && (M1_AXI_AWADDR < (`PLIC_BASE_ADDR + `PLIC_SIZE));
+
+    // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
+    // 定义仲裁相关信号
+    wire m0_has_itcm_ar_req;
+    wire m1_has_itcm_ar_req;
+    wire m0_itcm_ar_grant;
+    wire m1_itcm_ar_grant;
+
+    // ==================== 从机选择逻辑（M1对ITCM vs 外设）====================
+    wire m1_has_dtcm_ar_req;
+    wire m1_has_apb_ar_req;
+    wire m1_has_clint_ar_req;
+    wire m1_has_plic_ar_req;
+    wire m1_dtcm_ar_grant;
+    wire m1_apb_ar_grant;
+    wire m1_clint_ar_grant;
+    wire m1_plic_ar_grant;
+
+    // ==================== 读数据通道仲裁 ====================
+    wire m0_itcm_r_priority;
+    wire m1_itcm_r_priority;
+    wire m1_select_itcm_r;
+    wire m1_select_dtcm_r;
+    wire m1_select_apb_r;
+    wire m1_select_clint_r;
+    wire m1_select_plic_r;
+    wire m0_itcm_rready;
+    wire m1_itcm_rready;
+    wire m1_dtcm_rready;
+
+    // ==================== 写事务仲裁逻辑 ====================
+    wire m1_has_itcm_aw_req;
+    wire m1_has_dtcm_aw_req;
+    wire m1_has_apb_aw_req;
+    wire m1_has_clint_aw_req;
+    wire m1_has_plic_aw_req;
+    wire m1_itcm_aw_grant;
+    wire m1_dtcm_aw_grant;
+    wire m1_apb_aw_grant;
+    wire m1_clint_aw_grant;
+    wire m1_plic_aw_grant;
+    wire m1_select_itcm_w;
+    wire m1_select_dtcm_w;
+    wire m1_select_apb_w;
+    wire m1_select_clint_w;
+    wire m1_select_plic_w;
+    wire m1_select_itcm_b;
+    wire m1_select_dtcm_b;
+    wire m1_select_apb_b;
+    wire m1_select_clint_b;
+    wire m1_select_plic_b;
+    wire itcm_bready;
+    wire dtcm_bready;
+    wire itcm_wvalid;
+    wire dtcm_wvalid;
+
+    // ==================== outstanding计数器和事务信号分组 ====================
+    // ----------- R通道（读）相关 -----------
+    wire [3:0] m0_itcm_r_outstanding_cnt;  // M0访问ITCM的读事务计数器
+    wire [3:0] m1_itcm_r_outstanding_cnt;  // M1访问ITCM的读事务计数器
+    wire [3:0] m1_dtcm_r_outstanding_cnt;  // M1访问DTCM的读事务计数器
+    wire [3:0] m1_apb_r_outstanding_cnt;  // M1访问APB的读事务计数器
+    wire [3:0] m1_clint_r_outstanding_cnt;  // M1访问CLINT的读事务计数器
+    wire [3:0] m1_plic_r_outstanding_cnt;  // M1访问PLIC的读事务计数器
+
+    wire m0_has_active_itcm_r = m0_itcm_r_outstanding_cnt > 0;
+    wire m1_has_active_itcm_r = m1_itcm_r_outstanding_cnt > 0;
+    wire m1_has_active_dtcm_r = m1_dtcm_r_outstanding_cnt > 0;
+    wire m1_has_active_apb_r = m1_apb_r_outstanding_cnt > 0;
+    wire m1_has_active_clint_r = m1_clint_r_outstanding_cnt > 0;
+    wire m1_has_active_plic_r = m1_plic_r_outstanding_cnt > 0;
+
+    // R通道事务信号
+    wire m0_itcm_ar_trans = M0_AXI_ARVALID && M0_AXI_ARREADY && is_m0_itcm_r;
+    wire m0_itcm_r_trans = M0_AXI_RVALID && M0_AXI_RREADY && M0_AXI_RLAST;
+
+    wire m1_itcm_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_itcm_r;
+    wire m1_dtcm_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_dtcm_r;
+    wire m1_apb_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_apb_r;
+    wire m1_clint_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_clint_r;
+    wire m1_plic_ar_trans = M1_AXI_ARVALID && M1_AXI_ARREADY && is_m1_plic_r;
+
+    // 读事务完成条件
+    wire m1_itcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_select_itcm_r;
+    wire m1_dtcm_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && M1_AXI_RLAST && m1_select_dtcm_r;
+    wire m1_apb_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && m1_select_apb_r;
+    wire m1_clint_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && m1_select_clint_r;
+    wire m1_plic_r_trans = M1_AXI_RVALID && M1_AXI_RREADY && m1_select_plic_r;
+
+    // ----------- W通道（写数据）相关 -----------
+    wire [3:0] m1_itcm_w_outstanding_cnt;  // M1访问ITCM的写数据outstanding
+    wire [3:0] m1_dtcm_w_outstanding_cnt;  // M1访问DTCM的写数据outstanding
+    wire [3:0] m1_apb_w_outstanding_cnt;  // M1访问APB的写数据outstanding
+    wire [3:0] m1_clint_w_outstanding_cnt;  // M1访问CLINT的写数据outstanding
+    wire [3:0] m1_plic_w_outstanding_cnt;  // M1访问PLIC的写数据outstanding
+
+    wire m1_has_active_itcm_w = m1_itcm_w_outstanding_cnt > 0;
+    wire m1_has_active_dtcm_w = m1_dtcm_w_outstanding_cnt > 0;
+    wire m1_has_active_apb_w = m1_apb_w_outstanding_cnt > 0;
+    wire m1_has_active_clint_w = m1_clint_w_outstanding_cnt > 0;
+    wire m1_has_active_plic_w = m1_plic_w_outstanding_cnt > 0;
+
+    // AW通道事务信号
+    wire m1_itcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_itcm_w;
+    wire m1_dtcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_dtcm_w;
+    wire m1_apb_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_apb_w;
+    wire m1_clint_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_clint_w;
+    wire m1_plic_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_plic_w;
+
+    // W通道事务信号
+    wire m1_itcm_w_trans = M1_AXI_WVALID && itcm_wready && m1_select_itcm_w;
+    wire m1_dtcm_w_trans = M1_AXI_WVALID && dtcm_wready && m1_select_dtcm_w;
+    wire m1_apb_w_trans = M1_AXI_WVALID && OM0_AXI_WREADY && m1_select_apb_w;
+    wire m1_clint_w_trans = M1_AXI_WVALID && OM1_AXI_WREADY && m1_select_clint_w;
+    wire m1_plic_w_trans = M1_AXI_WVALID && OM2_AXI_WREADY && m1_select_plic_w;
+
+    // ----------- B通道（写响应）相关 -----------
+    wire [3:0] m1_itcm_b_outstanding_cnt;  // M1访问ITCM的写响应outstanding
+    wire [3:0] m1_dtcm_b_outstanding_cnt;  // M1访问DTCM的写响应outstanding
+    wire [3:0] m1_apb_b_outstanding_cnt;  // M1访问APB的写响应outstanding
+    wire [3:0] m1_clint_b_outstanding_cnt;  // M1访问CLINT的写响应outstanding
+    wire [3:0] m1_plic_b_outstanding_cnt;  // M1访问PLIC的写响应outstanding
+
+    wire m1_has_active_itcm_b = m1_itcm_b_outstanding_cnt > 0;
+    wire m1_has_active_dtcm_b = m1_dtcm_b_outstanding_cnt > 0;
+    wire m1_has_active_apb_b = m1_apb_b_outstanding_cnt > 0;
+    wire m1_has_active_clint_b = m1_clint_b_outstanding_cnt > 0;
+    wire m1_has_active_plic_b = m1_plic_b_outstanding_cnt > 0;
+
+    // B通道事务信号
+    wire m1_itcm_b_trans = itcm_bvalid && M1_AXI_BREADY && m1_select_itcm_b;
+    wire m1_dtcm_b_trans = dtcm_bvalid && M1_AXI_BREADY && m1_select_dtcm_b;
+    wire m1_apb_b_trans = OM0_AXI_BVALID && M1_AXI_BREADY && m1_select_apb_b;
+    wire m1_clint_b_trans = OM1_AXI_BVALID && M1_AXI_BREADY && m1_select_clint_b;
+    wire m1_plic_b_trans = OM2_AXI_BVALID && M1_AXI_BREADY && m1_select_plic_b;
+
+    // ==================== outstanding计数器更新逻辑 ====================
+    // 读通道计数器信号定义（下一个周期是否有未完成事务）
+    wire [3:0] m0_itcm_r_outstanding_cnt_nxt;
+    wire [3:0] m1_itcm_r_outstanding_cnt_nxt;
+    wire [3:0] m1_dtcm_r_outstanding_cnt_nxt;
+    wire [3:0] m1_apb_r_outstanding_cnt_nxt;
+    wire [3:0] m1_clint_r_outstanding_cnt_nxt;
+    wire [3:0] m1_itcm_w_outstanding_cnt_nxt;
+    wire [3:0] m1_dtcm_w_outstanding_cnt_nxt;
+    wire [3:0] m1_apb_w_outstanding_cnt_nxt;
+    wire [3:0] m1_clint_w_outstanding_cnt_nxt;
+    wire [3:0] m1_itcm_b_outstanding_cnt_nxt;
+    wire [3:0] m1_dtcm_b_outstanding_cnt_nxt;
+    wire [3:0] m1_apb_b_outstanding_cnt_nxt;
+    wire [3:0] m1_clint_b_outstanding_cnt_nxt;
+    wire [3:0] m1_plic_r_outstanding_cnt_nxt;
+    wire [3:0] m1_plic_w_outstanding_cnt_nxt;
+    wire [3:0] m1_plic_b_outstanding_cnt_nxt;
+
+    wire m1_has_active_itcm_r_nxt = (m1_itcm_r_outstanding_cnt_nxt > 0);
+    wire m1_has_active_dtcm_r_nxt = (m1_dtcm_r_outstanding_cnt_nxt > 0);
+    wire m1_has_active_apb_r_nxt = (m1_apb_r_outstanding_cnt_nxt > 0);
+    wire m1_has_active_clint_r_nxt = (m1_clint_r_outstanding_cnt_nxt > 0);
+    wire m1_has_active_plic_r_nxt = (m1_plic_r_outstanding_cnt_nxt > 0);
+
+    wire m1_has_active_itcm_w_nxt = (m1_itcm_w_outstanding_cnt_nxt > 0);
+    wire m1_has_active_dtcm_w_nxt = (m1_dtcm_w_outstanding_cnt_nxt > 0);
+    wire m1_has_active_apb_w_nxt = (m1_apb_w_outstanding_cnt_nxt > 0);
+    wire m1_has_active_clint_w_nxt = (m1_clint_w_outstanding_cnt_nxt > 0);
+    wire m1_has_active_plic_w_nxt = (m1_plic_w_outstanding_cnt_nxt > 0);
+
+    wire m1_has_active_itcm_b_nxt = (m1_itcm_b_outstanding_cnt_nxt > 0);
+    wire m1_has_active_dtcm_b_nxt = (m1_dtcm_b_outstanding_cnt_nxt > 0);
+    wire m1_has_active_apb_b_nxt = (m1_apb_b_outstanding_cnt_nxt > 0);
+    wire m1_has_active_clint_b_nxt = (m1_clint_b_outstanding_cnt_nxt > 0);
+    wire m1_has_active_plic_b_nxt = (m1_plic_b_outstanding_cnt_nxt > 0);
+
+    // R通道
+    wire m0_itcm_inc = m0_itcm_ar_trans & ~m0_itcm_r_trans;
+    wire m0_itcm_dec = ~m0_itcm_ar_trans & m0_itcm_r_trans;
+    wire m0_itcm_keep = (m0_itcm_ar_trans & m0_itcm_r_trans) | (~m0_itcm_ar_trans & ~m0_itcm_r_trans);
+    assign m0_itcm_r_outstanding_cnt_nxt =
+            ({4{m0_itcm_inc}} & (m0_itcm_r_outstanding_cnt + 4'd1)) |
+            ({4{m0_itcm_dec}} & (m0_itcm_r_outstanding_cnt - 4'd1)) |
+            ({4{m0_itcm_keep}} & m0_itcm_r_outstanding_cnt);
+
+    wire m1_itcm_inc = m1_itcm_ar_trans & ~m1_itcm_r_trans;
+    wire m1_itcm_dec = ~m1_itcm_ar_trans & m1_itcm_r_trans;
+    wire m1_itcm_keep = (m1_itcm_ar_trans & m1_itcm_r_trans) | (~m1_itcm_ar_trans & ~m1_itcm_r_trans);
+    assign m1_itcm_r_outstanding_cnt_nxt =
+            ({4{m1_itcm_inc}} & (m1_itcm_r_outstanding_cnt + 4'd1)) |
+            ({4{m1_itcm_dec}} & (m1_itcm_r_outstanding_cnt - 4'd1)) |
+            ({4{m1_itcm_keep}} & m1_itcm_r_outstanding_cnt);
+
+    wire m1_dtcm_inc = m1_dtcm_ar_trans & ~m1_dtcm_r_trans;
+    wire m1_dtcm_dec = ~m1_dtcm_ar_trans & m1_dtcm_r_trans;
+    wire m1_dtcm_keep = (m1_dtcm_ar_trans & m1_dtcm_r_trans) | (~m1_dtcm_ar_trans & ~m1_dtcm_r_trans);
+    assign m1_dtcm_r_outstanding_cnt_nxt =
+            ({4{m1_dtcm_inc}} & (m1_dtcm_r_outstanding_cnt + 4'd1)) |
+            ({4{m1_dtcm_dec}} & (m1_dtcm_r_outstanding_cnt - 4'd1)) |
+            ({4{m1_dtcm_keep}} & m1_dtcm_r_outstanding_cnt);
+
+    wire m1_apb_r_inc = m1_apb_ar_trans & ~m1_apb_r_trans;
+    wire m1_apb_r_dec = ~m1_apb_ar_trans & m1_apb_r_trans;
+    wire m1_apb_r_keep = (m1_apb_ar_trans & m1_apb_r_trans) | (~m1_apb_ar_trans & ~m1_apb_r_trans);
+    assign m1_apb_r_outstanding_cnt_nxt =
+            ({4{m1_apb_r_inc}} & (m1_apb_r_outstanding_cnt + 4'd1)) |
+            ({4{m1_apb_r_dec}} & (m1_apb_r_outstanding_cnt - 4'd1)) |
+            ({4{m1_apb_r_keep}} & m1_apb_r_outstanding_cnt);
+
+    wire m1_clint_r_inc = m1_clint_ar_trans & ~m1_clint_r_trans;
+    wire m1_clint_r_dec = ~m1_clint_ar_trans & m1_clint_r_trans;
+    wire m1_clint_r_keep = (m1_clint_ar_trans & m1_clint_r_trans) | (~m1_clint_ar_trans & ~m1_clint_r_trans);
+    assign m1_clint_r_outstanding_cnt_nxt =
+            ({4{m1_clint_r_inc}} & (m1_clint_r_outstanding_cnt + 4'd1)) |
+            ({4{m1_clint_r_dec}} & (m1_clint_r_outstanding_cnt - 4'd1)) |
+            ({4{m1_clint_r_keep}} & m1_clint_r_outstanding_cnt);
+
+    // PLIC R通道
+    wire m1_plic_r_inc = m1_plic_ar_trans & ~m1_plic_r_trans;
+    wire m1_plic_r_dec = ~m1_plic_ar_trans & m1_plic_r_trans;
+    wire m1_plic_r_keep = (m1_plic_ar_trans & m1_plic_r_trans) | (~m1_plic_ar_trans & ~m1_plic_r_trans);
+    assign m1_plic_r_outstanding_cnt_nxt =
+            ({4{m1_plic_r_inc}} & (m1_plic_r_outstanding_cnt + 4'd1)) |
+            ({4{m1_plic_r_dec}} & (m1_plic_r_outstanding_cnt - 4'd1)) |
+            ({4{m1_plic_r_keep}} & m1_plic_r_outstanding_cnt);
+    // W通道
+    wire m1_itcm_w_inc = m1_itcm_aw_trans & ~m1_itcm_w_trans;
+    wire m1_itcm_w_dec = ~m1_itcm_aw_trans & m1_itcm_w_trans;
+    wire m1_itcm_w_keep = (m1_itcm_aw_trans & m1_itcm_w_trans) | (~m1_itcm_aw_trans & ~m1_itcm_w_trans);
+    assign m1_itcm_w_outstanding_cnt_nxt =
+            ({4{m1_itcm_w_inc}} & (m1_itcm_w_outstanding_cnt + 4'd1)) |
+            ({4{m1_itcm_w_dec}} & (m1_itcm_w_outstanding_cnt - 4'd1)) |
+            ({4{m1_itcm_w_keep}} & m1_itcm_w_outstanding_cnt);
+
+    wire m1_dtcm_w_inc = m1_dtcm_aw_trans & ~m1_dtcm_w_trans;
+    wire m1_dtcm_w_dec = ~m1_dtcm_aw_trans & m1_dtcm_w_trans;
+    wire m1_dtcm_w_keep = (m1_dtcm_aw_trans & m1_dtcm_w_trans) | (~m1_dtcm_aw_trans & ~m1_dtcm_w_trans);
+    assign m1_dtcm_w_outstanding_cnt_nxt =
+            ({4{m1_dtcm_w_inc}} & (m1_dtcm_w_outstanding_cnt + 4'd1)) |
+            ({4{m1_dtcm_w_dec}} & (m1_dtcm_w_outstanding_cnt - 4'd1)) |
+            ({4{m1_dtcm_w_keep}} & m1_dtcm_w_outstanding_cnt);
+
+    wire m1_apb_w_inc = m1_apb_aw_trans & ~m1_apb_w_trans;
+    wire m1_apb_w_dec = ~m1_apb_aw_trans & m1_apb_w_trans;
+    wire m1_apb_w_keep = (m1_apb_aw_trans & m1_apb_w_trans) | (~m1_apb_aw_trans & ~m1_apb_w_trans);
+    assign m1_apb_w_outstanding_cnt_nxt =
+            ({4{m1_apb_w_inc}} & (m1_apb_w_outstanding_cnt + 4'd1)) |
+            ({4{m1_apb_w_dec}} & (m1_apb_w_outstanding_cnt - 4'd1)) |
+            ({4{m1_apb_w_keep}} & m1_apb_w_outstanding_cnt);
+
+    wire m1_clint_w_inc = m1_clint_aw_trans & ~m1_clint_w_trans;
+    wire m1_clint_w_dec = ~m1_clint_aw_trans & m1_clint_w_trans;
+    wire m1_clint_w_keep = (m1_clint_aw_trans & m1_clint_w_trans) | (~m1_clint_aw_trans & ~m1_clint_w_trans);
+    assign m1_clint_w_outstanding_cnt_nxt =
+            ({4{m1_clint_w_inc}} & (m1_clint_w_outstanding_cnt + 4'd1)) |
+            ({4{m1_clint_w_dec}} & (m1_clint_w_outstanding_cnt - 4'd1)) |
+            ({4{m1_clint_w_keep}} & m1_clint_w_outstanding_cnt);
+
+    // PLIC W通道
+    wire m1_plic_w_inc = m1_plic_aw_trans & ~m1_plic_w_trans;
+    wire m1_plic_w_dec = ~m1_plic_aw_trans & m1_plic_w_trans;
+    wire m1_plic_w_keep = (m1_plic_aw_trans & m1_plic_w_trans) | (~m1_plic_aw_trans & ~m1_plic_w_trans);
+    assign m1_plic_w_outstanding_cnt_nxt =
+            ({4{m1_plic_w_inc}} & (m1_plic_w_outstanding_cnt + 4'd1)) |
+            ({4{m1_plic_w_dec}} & (m1_plic_w_outstanding_cnt - 4'd1)) |
+            ({4{m1_plic_w_keep}} & m1_plic_w_outstanding_cnt);
+    // B通道
+    wire m1_itcm_b_inc = m1_itcm_aw_trans & ~m1_itcm_b_trans;
+    wire m1_itcm_b_dec = ~m1_itcm_aw_trans & m1_itcm_b_trans;
+    wire m1_itcm_b_keep = (m1_itcm_aw_trans & m1_itcm_b_trans) | (~m1_itcm_aw_trans & ~m1_itcm_b_trans);
+    assign m1_itcm_b_outstanding_cnt_nxt =
+            ({4{m1_itcm_b_inc}} & (m1_itcm_b_outstanding_cnt + 4'd1)) |
+            ({4{m1_itcm_b_dec}} & (m1_itcm_b_outstanding_cnt - 4'd1)) |
+            ({4{m1_itcm_b_keep}} & m1_itcm_b_outstanding_cnt);
+
+    wire m1_dtcm_b_inc = m1_dtcm_aw_trans & ~m1_dtcm_b_trans;
+    wire m1_dtcm_b_dec = ~m1_dtcm_aw_trans & m1_dtcm_b_trans;
+    wire m1_dtcm_b_keep = (m1_dtcm_aw_trans & m1_dtcm_b_trans) | (~m1_dtcm_aw_trans & ~m1_dtcm_b_trans);
+    assign m1_dtcm_b_outstanding_cnt_nxt =
+            ({4{m1_dtcm_b_inc}} & (m1_dtcm_b_outstanding_cnt + 4'd1)) |
+            ({4{m1_dtcm_b_dec}} & (m1_dtcm_b_outstanding_cnt - 4'd1)) |
+            ({4{m1_dtcm_b_keep}} & m1_dtcm_b_outstanding_cnt);
+
+    wire m1_apb_b_inc = m1_apb_aw_trans & ~m1_apb_b_trans;
+    wire m1_apb_b_dec = ~m1_apb_aw_trans & m1_apb_b_trans;
+    wire m1_apb_b_keep = (m1_apb_aw_trans & m1_apb_b_trans) | (~m1_apb_aw_trans & ~m1_apb_b_trans);
+    assign m1_apb_b_outstanding_cnt_nxt =
+            ({4{m1_apb_b_inc}} & (m1_apb_b_outstanding_cnt + 4'd1)) |
+            ({4{m1_apb_b_dec}} & (m1_apb_b_outstanding_cnt - 4'd1)) |
+            ({4{m1_apb_b_keep}} & m1_apb_b_outstanding_cnt);
+
+    wire m1_clint_b_inc = m1_clint_aw_trans & ~m1_clint_b_trans;
+    wire m1_clint_b_dec = ~m1_clint_aw_trans & m1_clint_b_trans;
+    wire m1_clint_b_keep = (m1_clint_aw_trans & m1_clint_b_trans) | (~m1_clint_aw_trans & ~m1_clint_b_trans);
+    assign m1_clint_b_outstanding_cnt_nxt =
+            ({4{m1_clint_b_inc}} & (m1_clint_b_outstanding_cnt + 4'd1)) |
+            ({4{m1_clint_b_dec}} & (m1_clint_b_outstanding_cnt - 4'd1)) |
+            ({4{m1_clint_b_keep}} & m1_clint_b_outstanding_cnt);
+
+    // PLIC B通道
+    wire m1_plic_b_inc = m1_plic_aw_trans & ~m1_plic_b_trans;
+    wire m1_plic_b_dec = ~m1_plic_aw_trans & m1_plic_b_trans;
+    wire m1_plic_b_keep = (m1_plic_aw_trans & m1_plic_b_trans) | (~m1_plic_aw_trans & ~m1_plic_b_trans);
+    assign m1_plic_b_outstanding_cnt_nxt =
+            ({4{m1_plic_b_inc}} & (m1_plic_b_outstanding_cnt + 4'd1)) |
+            ({4{m1_plic_b_dec}} & (m1_plic_b_outstanding_cnt - 4'd1)) |
+            ({4{m1_plic_b_keep}} & m1_plic_b_outstanding_cnt);
+
+    // ==================== 优先级跟踪寄存器 ====================
+    // bit 0: ITCM, bit 1: DTCM, bit 2: APB, bit 3: CLINT, bit 4: PLIC
+    reg [4:0] m1_slave_sel_r;  // 读通道优先级
+    reg [4:0] m1_slave_sel_b;  // 写响应通道优先级
+    reg [4:0] m1_slave_sel_w;  // 写数据通道优先级
+
+    // 拼接变量用于case判断（当前周期）
+    wire [4:0] m1_active_r = {
+        m1_has_active_plic_r,
+        m1_has_active_clint_r,
+        m1_has_active_apb_r,
+        m1_has_active_dtcm_r,
+        m1_has_active_itcm_r
+    };
+    wire [4:0] m1_active_w = {
+        m1_has_active_plic_w,
+        m1_has_active_clint_w,
+        m1_has_active_apb_w,
+        m1_has_active_dtcm_w,
+        m1_has_active_itcm_w
+    };
+    wire [4:0] m1_active_b = {
+        m1_has_active_plic_b,
+        m1_has_active_clint_b,
+        m1_has_active_apb_b,
+        m1_has_active_dtcm_b,
+        m1_has_active_itcm_b
+    };
+
+    // 拼接变量用于case判断（下一个周期）
+    wire [4:0] m1_active_r_nxt = {
+        m1_has_active_plic_r_nxt,
+        m1_has_active_clint_r_nxt,
+        m1_has_active_apb_r_nxt,
+        m1_has_active_dtcm_r_nxt,
+        m1_has_active_itcm_r_nxt
+    };
+    wire [4:0] m1_active_w_nxt = {
+        m1_has_active_plic_w_nxt,
+        m1_has_active_clint_w_nxt,
+        m1_has_active_apb_w_nxt,
+        m1_has_active_dtcm_w_nxt,
+        m1_has_active_itcm_w_nxt
+    };
+    wire [4:0] m1_active_b_nxt = {
+        m1_has_active_plic_b_nxt,
+        m1_has_active_clint_b_nxt,
+        m1_has_active_apb_b_nxt,
+        m1_has_active_dtcm_b_nxt,
+        m1_has_active_itcm_b_nxt
+    };
+
+    // 读通道优先权切换逻辑 - case实现
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m1_slave_sel_r <= 5'b00001;
+        end else begin
+            case (m1_active_r_nxt)
+                5'b00000: m1_slave_sel_r <= 5'b00000;
+                5'b00001: m1_slave_sel_r <= 5'b00001;
+                5'b00010: m1_slave_sel_r <= 5'b00010;
+                5'b00100: m1_slave_sel_r <= 5'b00100;
+                5'b01000: m1_slave_sel_r <= 5'b01000;
+                5'b10000: m1_slave_sel_r <= 5'b10000;
+                default:  m1_slave_sel_r <= m1_slave_sel_r;  // 多个同时有效时保持
+            endcase
+        end
+    end
+
+    // 写响应通道优先权切换逻辑 - 使用b通道nxt信号
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m1_slave_sel_b <= 5'b00001;
+        end else begin
+            case (m1_active_b_nxt)
+                5'b00000: m1_slave_sel_b <= 5'b00000;
+                5'b00001: m1_slave_sel_b <= 5'b00001;
+                5'b00010: m1_slave_sel_b <= 5'b00010;
+                5'b00100: m1_slave_sel_b <= 5'b00100;
+                5'b01000: m1_slave_sel_b <= 5'b01000;
+                5'b10000: m1_slave_sel_b <= 5'b10000;
+                default:  m1_slave_sel_b <= m1_slave_sel_b;
+            endcase
+        end
+    end
+
+    // 写数据通道优先权切换逻辑 - 使用w通道nxt信号
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            m1_slave_sel_w <= 5'b00001;
+        end else begin
+            case (m1_active_w_nxt)
+                5'b00000: m1_slave_sel_w <= 5'b00000;
+                5'b00001: m1_slave_sel_w <= 5'b00001;
+                5'b00010: m1_slave_sel_w <= 5'b00010;
+                5'b00100: m1_slave_sel_w <= 5'b00100;
+                5'b01000: m1_slave_sel_w <= 5'b01000;
+                5'b10000: m1_slave_sel_w <= 5'b10000;
+                default:  m1_slave_sel_w <= m1_slave_sel_w;
+            endcase
+        end
+    end
+
+    // ==================== outstanding计数器寄存器实例化 ====================
+    // R通道
+    gnrl_dfflr #(
+        .DW(4)
+    ) m0_itcm_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m0_itcm_r_outstanding_cnt_nxt),
+        .qout (m0_itcm_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_itcm_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_itcm_r_outstanding_cnt_nxt),
+        .qout (m1_itcm_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_dtcm_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_dtcm_r_outstanding_cnt_nxt),
+        .qout (m1_dtcm_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_apb_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_apb_r_outstanding_cnt_nxt),
+        .qout (m1_apb_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_clint_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_clint_r_outstanding_cnt_nxt),
+        .qout (m1_clint_r_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_plic_r_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_plic_r_outstanding_cnt_nxt),
+        .qout (m1_plic_r_outstanding_cnt)
+    );
+
+    // W通道
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_itcm_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_itcm_w_outstanding_cnt_nxt),
+        .qout (m1_itcm_w_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_dtcm_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_dtcm_w_outstanding_cnt_nxt),
+        .qout (m1_dtcm_w_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_apb_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_apb_w_outstanding_cnt_nxt),
+        .qout (m1_apb_w_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_clint_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_clint_w_outstanding_cnt_nxt),
+        .qout (m1_clint_w_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_plic_w_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_plic_w_outstanding_cnt_nxt),
+        .qout (m1_plic_w_outstanding_cnt)
+    );
+
+    // B通道
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_itcm_b_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_itcm_b_outstanding_cnt_nxt),
+        .qout (m1_itcm_b_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_dtcm_b_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_dtcm_b_outstanding_cnt_nxt),
+        .qout (m1_dtcm_b_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_apb_b_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_apb_b_outstanding_cnt_nxt),
+        .qout (m1_apb_b_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_clint_b_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_clint_b_outstanding_cnt_nxt),
+        .qout (m1_clint_b_outstanding_cnt)
+    );
+
+    gnrl_dfflr #(
+        .DW(4)
+    ) m1_plic_b_cnt_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (1'b1),
+        .dnxt (m1_plic_b_outstanding_cnt_nxt),
+        .qout (m1_plic_b_outstanding_cnt)
+    );
+
+    // 为M0添加读响应FIFO - 用于缓存ITCM的读响应
+    // FIFO深度设置为4，足够缓存一般的突发传输
+    localparam RDATA_FIFO_DEPTH = 4;
+    localparam RDATA_FIFO_ADDR_WIDTH = $clog2(RDATA_FIFO_DEPTH);
 
     // 读响应FIFO寄存器
     reg [C_AXI_ID_WIDTH-1:0] m0_rdata_rid[RDATA_FIFO_DEPTH-1:0];
@@ -363,6 +867,12 @@ module mems #(
             m0_rdata_wr_ptr <= 0;
             m0_rdata_rd_ptr <= 0;
             m0_rdata_count  <= 0;
+            for(integer i = 0; i < RDATA_FIFO_DEPTH; i = i + 1) begin
+                m0_rdata_rid[i] <= 0;
+                m0_rdata_rdata[i] <= 0;
+                m0_rdata_rresp[i] <= 0;
+                m0_rdata_rlast[i] <= 0;
+            end
         end else begin
             // 同时推入和弹出
             if (m0_rdata_push && m0_rdata_pop) begin
@@ -385,78 +895,94 @@ module mems #(
         end
     end
 
-    // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
-    // M0和M1同时访问ITCM时的仲裁标志
-    wire m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
-    wire m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求
 
+    // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
+    assign m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
+    assign m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求
 
     // 主机间仲裁逻辑：
     // 1. 如果一方有未完成事务，优先保证其完成
     // 2. 如果都没有未完成事务或都有未完成事务，M1优先
     // 3. 地址通道可以立即切换，所以优先处理新请求
-    wire m0_itcm_ar_grant = !m1_has_itcm_ar_req;
-
-    wire m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
+    assign m0_itcm_ar_grant = m0_has_itcm_ar_req && !m1_has_itcm_ar_req;
+    assign m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
 
     // ==================== 从机选择逻辑（M1对ITCM vs 外设）====================
-    wire m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;  // M1有外设读请求
-
+    assign m1_has_dtcm_ar_req = M1_AXI_ARVALID && is_m1_dtcm_r;  // M1有DTCM读请求
+    assign m1_has_apb_ar_req = M1_AXI_ARVALID && is_m1_apb_r;  // M1有APB读请求
+    assign m1_has_clint_ar_req = M1_AXI_ARVALID && is_m1_clint_r;  // M1有CLINT读请求
+    assign m1_has_plic_ar_req = M1_AXI_ARVALID && is_m1_plic_r;  // M1有PLIC读请求
     // 地址通道可以立即切换
-    wire m1_dtcm_ar_grant = m1_has_dtcm_ar_req;  // 地址通道授权可立即给DTCM
-    wire m1_dtcm_grant = m1_dtcm_ar_grant;  // M1访问DTCM的授权
+    assign m1_dtcm_ar_grant = m1_has_dtcm_ar_req;  // 地址通道授权可立即给DTCM
+    assign m1_apb_ar_grant = m1_has_apb_ar_req;  // 地址通道授权可立即给APB
+    assign m1_clint_ar_grant = m1_has_clint_ar_req;  // 地址通道授权可立即给CLINT
+    assign m1_plic_ar_grant = m1_has_plic_ar_req;  // 地址通道授权可立即给PLIC
 
     // ==================== 读数据通道仲裁 ====================
     // 处理M0与M1对ITCM的读数据通道竞争
-    wire m0_itcm_r_priority = m0_has_active_itcm_r;  // M0已有未完成事务时具有优先权
-    wire m1_itcm_r_priority = m1_has_active_itcm_r ||
+    assign m0_itcm_r_priority = m0_has_active_itcm_r;  // M0已有未完成事务时具有优先权
+    assign m1_itcm_r_priority = m1_has_active_itcm_r ||
                              (!m0_has_active_itcm_r && m1_itcm_ar_grant); // M1已有未完成事务或M0无未完成事务且M1获得读地址授权时具有优先权
 
     // 处理M1对ITCM与外设的读数据通道选择 - 基于优先权寄存器决定
     // 谁有优先权，谁就获得读数据通道
-    wire m1_select_dtcm_r = m1_dtcm_has_priority && m1_has_active_dtcm_r;
-    wire m1_select_itcm_r = !m1_dtcm_has_priority && m1_has_active_itcm_r;
+    assign m1_select_itcm_r = m1_slave_sel_r[0] && m1_has_active_itcm_r;
+    assign m1_select_dtcm_r = m1_slave_sel_r[1] && m1_has_active_dtcm_r;
+    assign m1_select_apb_r = m1_slave_sel_r[2] && m1_has_active_apb_r;
+    assign m1_select_clint_r = m1_slave_sel_r[3] && m1_has_active_clint_r;
+    assign m1_select_plic_r = m1_slave_sel_r[4] && m1_has_active_plic_r;
 
     // 读通道ready信号连接 - 确保信号只连接到当前优先级对应的设备
-    wire m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
-    wire m1_itcm_rready = m1_select_itcm_r && M1_AXI_RREADY;
-    wire m1_dtcm_rready = m1_select_dtcm_r && M1_AXI_RREADY;
+    assign m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
+    assign m1_itcm_rready = m1_select_itcm_r && M1_AXI_RREADY;
+    assign m1_dtcm_rready = m1_select_dtcm_r && M1_AXI_RREADY;
 
     // ==================== 写事务仲裁逻辑 ====================
-    // 写事务活动状态跟踪
-    wire m1_has_itcm_aw_req = M1_AXI_AWVALID && is_m1_itcm_w;  // M1有ITCM写请求
-    wire m1_has_dtcm_aw_req = M1_AXI_AWVALID && is_m1_dtcm_w;  // M1有外设写请求
+    // 写地址通道请求信号
+    assign m1_has_itcm_aw_req = M1_AXI_AWVALID && is_m1_itcm_w;  // M1有ITCM写请求
+    assign m1_has_dtcm_aw_req = M1_AXI_AWVALID && is_m1_dtcm_w;  // M1有DTCM写请求
+    assign m1_has_apb_aw_req = M1_AXI_AWVALID && is_m1_apb_w;  // M1有APB写请求
+    assign m1_has_clint_aw_req = M1_AXI_AWVALID && is_m1_clint_w;  // M1有CLINT写请求
+    assign m1_has_plic_aw_req = M1_AXI_AWVALID && is_m1_plic_w;  // M1有PLIC写请求
 
     // 写地址通道授权
-    wire m1_itcm_aw_grant = m1_has_itcm_aw_req;  // M1的ITCM写地址通道授权
-    wire m1_dtcm_aw_grant = m1_has_dtcm_aw_req;  // M1的DTCM写地址通道授权
+    assign m1_itcm_aw_grant = m1_has_itcm_aw_req;
+    assign m1_dtcm_aw_grant = m1_has_dtcm_aw_req;
+    assign m1_apb_aw_grant = m1_has_apb_aw_req;
+    assign m1_clint_aw_grant = m1_has_clint_aw_req;
+    assign m1_plic_aw_grant = m1_has_plic_aw_req;
 
-    // 写数据通道授权 - 与写地址通道一致
-    wire m1_itcm_w_grant = m1_itcm_aw_grant;  // M1的ITCM写数据通道授权
-    wire m1_dtcm_w_grant = m1_dtcm_aw_grant;  // M1的DTCM写数据通道授权
+    // 写数据通道授权
+    assign m1_select_itcm_w = (m1_slave_sel_w[0] && m1_has_active_itcm_w) || (!m1_active_w && m1_itcm_aw_grant);
+    assign m1_select_dtcm_w = (m1_slave_sel_w[1] && m1_has_active_dtcm_w) || (!m1_active_w && m1_dtcm_aw_grant);
+    assign m1_select_apb_w  = (m1_slave_sel_w[2] && m1_has_active_apb_w)  || (!m1_active_w && m1_apb_aw_grant);
+    assign m1_select_clint_w= (m1_slave_sel_w[3] && m1_has_active_clint_w) || (!m1_active_w && m1_clint_aw_grant);
+    assign m1_select_plic_w = (m1_slave_sel_w[4] && m1_has_active_plic_w) || (!m1_active_w && m1_plic_aw_grant);
+    // 写响应通道授权
+    assign m1_select_itcm_b = (m1_slave_sel_b[0] && m1_has_active_itcm_b) || (!m1_active_b && m1_itcm_aw_grant);
+    assign m1_select_dtcm_b = (m1_slave_sel_b[1] && m1_has_active_dtcm_b) || (!m1_active_b && m1_dtcm_aw_grant);
+    assign m1_select_apb_b  = (m1_slave_sel_b[2] && m1_has_active_apb_b)  || (!m1_active_b && m1_apb_aw_grant);
+    assign m1_select_clint_b= (m1_slave_sel_b[3] && m1_has_active_clint_b) || (!m1_active_b && m1_clint_aw_grant);
+    assign m1_select_plic_b = (m1_slave_sel_b[4] && m1_has_active_plic_b) || (!m1_active_b && m1_plic_aw_grant);
 
-    // ==================== 写响应通道仲裁（仅M1） ====================
-    // 处理M1对ITCM与DTCM的写响应通道选择
-    // 优先级：1. 有未完成事务的存储区域 2. 无未完成事务时根据最近发出的地址请求
-    wire m1_select_itcm_b = m1_has_active_itcm_w || (!m1_has_active_dtcm_w && m1_itcm_aw_grant);
+    // 写响应通道ready信号
+    assign itcm_bready = m1_select_itcm_b && M1_AXI_BREADY;
+    assign dtcm_bready = m1_select_dtcm_b && M1_AXI_BREADY;
 
-    wire m1_select_dtcm_b = m1_has_active_dtcm_w || (!m1_has_active_itcm_w && m1_dtcm_aw_grant);
-
-    // 写响应通道ready信号连接
-    wire itcm_bready = m1_select_itcm_b && M1_AXI_BREADY;
-    wire dtcm_bready = m1_select_dtcm_b && M1_AXI_BREADY;
+    assign itcm_wvalid = m1_select_itcm_w && M1_AXI_WVALID;
+    assign dtcm_wvalid = m1_select_dtcm_w && M1_AXI_WVALID;
 
     // ==================== 端口连接信号 ====================
 
     // 根据仲裁结果选择ITCM的输入
-    assign itcm_arid = m1_itcm_ar_grant ? M1_AXI_ARID : M0_AXI_ARID;
-    assign itcm_araddr = m1_itcm_ar_grant ? M1_AXI_ARADDR : M0_AXI_ARADDR;
-    assign itcm_arlen = m1_itcm_ar_grant ? M1_AXI_ARLEN : M0_AXI_ARLEN;
-    assign itcm_arsize = m1_itcm_ar_grant ? M1_AXI_ARSIZE : M0_AXI_ARSIZE;
-    assign itcm_arburst = m1_itcm_ar_grant ? M1_AXI_ARBURST : M0_AXI_ARBURST;
-    assign itcm_arlock = m1_itcm_ar_grant ? M1_AXI_ARLOCK : M0_AXI_ARLOCK;
-    assign itcm_arcache = m1_itcm_ar_grant ? M1_AXI_ARCACHE : M0_AXI_ARCACHE;
-    assign itcm_arprot = m1_itcm_ar_grant ? M1_AXI_ARPROT : M0_AXI_ARPROT;
+    assign itcm_arid = m1_itcm_ar_grant ? M1_AXI_ARID : (m0_itcm_ar_grant ? M0_AXI_ARID : '0);
+    assign itcm_araddr = m1_itcm_ar_grant ? M1_AXI_ARADDR : (m0_itcm_ar_grant ? M0_AXI_ARADDR : '0);
+    assign itcm_arlen = m1_itcm_ar_grant ? M1_AXI_ARLEN : (m0_itcm_ar_grant ? M0_AXI_ARLEN : '0);
+    assign itcm_arsize = m1_itcm_ar_grant ? M1_AXI_ARSIZE : (m0_itcm_ar_grant ? M0_AXI_ARSIZE : '0);
+    assign itcm_arburst = m1_itcm_ar_grant ? M1_AXI_ARBURST : (m0_itcm_ar_grant ? M0_AXI_ARBURST : '0);
+    assign itcm_arlock = m1_itcm_ar_grant ? M1_AXI_ARLOCK : (m0_itcm_ar_grant ? M0_AXI_ARLOCK : '0);
+    assign itcm_arcache = m1_itcm_ar_grant ? M1_AXI_ARCACHE : (m0_itcm_ar_grant ? M0_AXI_ARCACHE : '0);
+    assign itcm_arprot = m1_itcm_ar_grant ? M1_AXI_ARPROT : (m0_itcm_ar_grant ? M0_AXI_ARPROT : '0);
     assign itcm_arvalid = m1_itcm_ar_grant ? M1_AXI_ARVALID : (m0_itcm_ar_grant ? M0_AXI_ARVALID : 1'b0);
 
     // DTCM只在被授权时连接到端口1
@@ -468,12 +994,7 @@ module mems #(
     assign dtcm_arlock = M1_AXI_ARLOCK;
     assign dtcm_arcache = M1_AXI_ARCACHE;
     assign dtcm_arprot = M1_AXI_ARPROT;
-    assign dtcm_arvalid = m1_dtcm_grant ? M1_AXI_ARVALID : 1'b0;
-
-    // 为M0添加读响应FIFO - 用于缓存ITCM的读响应
-    // FIFO深度设置为8，足够缓存一般的突发传输
-    localparam RDATA_FIFO_DEPTH = 2;
-    localparam RDATA_FIFO_ADDR_WIDTH = $clog2(RDATA_FIFO_DEPTH);
+    assign dtcm_arvalid = m1_dtcm_ar_grant ? M1_AXI_ARVALID : 1'b0;
 
     // 端口输出连接
     // 端口0连接
@@ -487,38 +1008,108 @@ module mems #(
     // RVALID信号也需要考虑FIFO中的数据
     assign M0_AXI_RVALID = !m0_rdata_empty || (itcm_rvalid && m0_has_active_itcm_r);
 
-    // 端口1连接
+    // APB接口连接到外部
+    assign OM0_AXI_ACLK = clk;
+    assign OM0_AXI_ARESETN = rst_n;
+    // CLINT接口连接到外部
+    assign OM1_AXI_ACLK = clk;
+    assign OM1_AXI_ARESETN = rst_n;
+    // PLIC接口连接到外部
+    assign OM2_AXI_ACLK = clk;
+    assign OM2_AXI_ARESETN = rst_n;
     // 读地址通道
-    assign M1_AXI_ARREADY = (is_m1_itcm_r && itcm_arready && m1_itcm_ar_grant) || 
-                           (is_m1_dtcm_r && dtcm_arready && m1_dtcm_grant);
+    assign OM0_AXI_ARADDR = M1_AXI_ARADDR;
+    assign OM0_AXI_ARPROT = M1_AXI_ARPROT;
+    assign OM0_AXI_ARVALID = m1_apb_ar_grant;
+    assign OM1_AXI_ARADDR = M1_AXI_ARADDR;
+    assign OM1_AXI_ARPROT = M1_AXI_ARPROT;
+    assign OM1_AXI_ARVALID = m1_clint_ar_grant;
+    assign OM2_AXI_ARADDR = M1_AXI_ARADDR;
+    assign OM2_AXI_ARPROT = M1_AXI_ARPROT;
+    assign OM2_AXI_ARVALID = m1_plic_ar_grant;
+    // 写地址通道
+    assign OM0_AXI_AWADDR = M1_AXI_AWADDR;
+    assign OM0_AXI_AWPROT = M1_AXI_AWPROT;
+    assign OM0_AXI_AWVALID = m1_apb_aw_grant;
+    assign OM1_AXI_AWADDR = M1_AXI_AWADDR;
+    assign OM1_AXI_AWPROT = M1_AXI_AWPROT;
+    assign OM1_AXI_AWVALID = m1_clint_aw_grant;
+    assign OM2_AXI_AWADDR = M1_AXI_AWADDR;
+    assign OM2_AXI_AWPROT = M1_AXI_AWPROT;
+    assign OM2_AXI_AWVALID = m1_plic_aw_grant;
+    // 写数据通道
+    assign OM0_AXI_WDATA = M1_AXI_WDATA;
+    assign OM0_AXI_WSTRB = M1_AXI_WSTRB;
+    assign OM0_AXI_WVALID = M1_AXI_WVALID && is_m1_apb_w;
+    assign OM1_AXI_WDATA = M1_AXI_WDATA;
+    assign OM1_AXI_WSTRB = M1_AXI_WSTRB;
+    assign OM1_AXI_WVALID = M1_AXI_WVALID && is_m1_clint_w;
+    assign OM2_AXI_WDATA = M1_AXI_WDATA;
+    assign OM2_AXI_WSTRB = M1_AXI_WSTRB;
+    assign OM2_AXI_WVALID = M1_AXI_WVALID && is_m1_plic_w;
+    // 响应通道
+    assign OM0_AXI_BREADY = M1_AXI_BREADY && m1_select_apb_b;
+    assign OM1_AXI_BREADY = M1_AXI_BREADY && m1_select_clint_b;
+    assign OM2_AXI_BREADY = M1_AXI_BREADY && m1_select_plic_b;
+    assign OM0_AXI_RREADY = M1_AXI_RREADY && m1_select_apb_r;
+    assign OM1_AXI_RREADY = M1_AXI_RREADY && m1_select_clint_r;
+    assign OM2_AXI_RREADY = M1_AXI_RREADY && m1_select_plic_r;
 
-    // 读数据通道 - 基于优先级寄存器选择源
-    assign M1_AXI_RID = m1_select_dtcm_r ? dtcm_rid : m1_select_itcm_r ? itcm_rid : 0;
-    assign M1_AXI_RDATA = m1_select_dtcm_r ? dtcm_rdata : m1_select_itcm_r ? itcm_rdata : 0;
-    assign M1_AXI_RRESP = m1_select_dtcm_r ? dtcm_rresp : m1_select_itcm_r ? itcm_rresp : 0;
-    assign M1_AXI_RLAST = m1_select_dtcm_r ? dtcm_rlast : m1_select_itcm_r ? itcm_rlast : 0;
-    assign M1_AXI_RVALID = m1_select_dtcm_r ? dtcm_rvalid : m1_select_itcm_r ? itcm_rvalid : 1'b0;
+    // 处理读通道ready信号的连接
+    assign itcm_rready = m0_itcm_rready || m1_itcm_rready;
+    assign dtcm_rready = m1_dtcm_rready;
 
-    // 输出连接 - M1写通道
-    // 写地址通道可以立即切换
-    assign M1_AXI_AWREADY = (m1_itcm_aw_grant && itcm_awready) || 
-                           (m1_dtcm_aw_grant && dtcm_awready);
+    // 端口1读数据通道的选择逻辑
+    assign M1_AXI_RID = m1_select_itcm_r ? itcm_rid :
+                        m1_select_dtcm_r ? dtcm_rid : 0; // APB/CLINT/PLIC是AXI-Lite，无ID
+    assign M1_AXI_RDATA = m1_select_itcm_r ? itcm_rdata :
+                          m1_select_dtcm_r ? dtcm_rdata :
+                          m1_select_apb_r ? OM0_AXI_RDATA :
+                          m1_select_clint_r ? OM1_AXI_RDATA :
+                          m1_select_plic_r ? OM2_AXI_RDATA : 0;
+    assign M1_AXI_RRESP = m1_select_itcm_r ? itcm_rresp :
+                          m1_select_dtcm_r ? dtcm_rresp :
+                          m1_select_apb_r ? OM0_AXI_RRESP :
+                          m1_select_clint_r ? OM1_AXI_RRESP :
+                          m1_select_plic_r ? OM2_AXI_RRESP : 0;
+    assign M1_AXI_RLAST = m1_select_itcm_r ? itcm_rlast :
+                          m1_select_dtcm_r ? dtcm_rlast :
+                          (m1_select_apb_r || m1_select_clint_r || m1_select_plic_r) ? 1'b1 : 0; // AXI-Lite每次传输都是LAST
+    assign M1_AXI_RVALID = m1_select_itcm_r ? itcm_rvalid :
+                           m1_select_dtcm_r ? dtcm_rvalid :
+                           m1_select_apb_r ? OM0_AXI_RVALID :
+                           m1_select_clint_r ? OM1_AXI_RVALID :
+                           m1_select_plic_r ? OM2_AXI_RVALID : 0;
+    // 端口1写响应通道的选择逻辑
+    assign M1_AXI_BID = m1_select_itcm_b ? itcm_bid :
+                        m1_select_dtcm_b ? dtcm_bid : 0; // APB/CLINT/PLIC是AXI-Lite，无ID
+    assign M1_AXI_BRESP = m1_select_itcm_b ? itcm_bresp :
+                          m1_select_dtcm_b ? dtcm_bresp :
+                          m1_select_apb_b ? OM0_AXI_BRESP :
+                          m1_select_clint_b ? OM1_AXI_BRESP :
+                          m1_select_plic_b ? OM2_AXI_BRESP : 0;
+    assign M1_AXI_BVALID = m1_select_itcm_b ? itcm_bvalid :
+                           m1_select_dtcm_b ? dtcm_bvalid :
+                           m1_select_apb_b ? OM0_AXI_BVALID :
+                           m1_select_clint_b ? OM1_AXI_BVALID :
+                           m1_select_plic_b ? OM2_AXI_BVALID : 0;
 
-    // 写数据通道可以立即切换，跟随写地址通道
-    assign M1_AXI_WREADY = (m1_itcm_w_grant && itcm_wready) || (m1_dtcm_w_grant && dtcm_wready);
-
-    // 输出连接 - M1写响应通道
-    assign M1_AXI_BVALID = (m1_select_itcm_b && itcm_bvalid) || (m1_select_dtcm_b && dtcm_bvalid);
-    assign M1_AXI_BID = m1_select_itcm_b ? itcm_bid : dtcm_bid;
-    assign M1_AXI_BRESP = m1_select_itcm_b ? itcm_bresp : dtcm_bresp;
-
-    // ITCM实例化的写通道连接
-    wire itcm_awvalid = m1_itcm_aw_grant && M1_AXI_AWVALID;
-    wire itcm_wvalid = m1_itcm_w_grant && M1_AXI_WVALID;
-
-    // DTCM实例化的写通道连接
-    wire dtcm_awvalid = m1_dtcm_aw_grant && M1_AXI_AWVALID;
-    wire dtcm_wvalid = m1_dtcm_w_grant && M1_AXI_WVALID;
+    // 更新Ready信号连接
+    assign M1_AXI_ARREADY = (is_m1_itcm_r && itcm_arready) || 
+                            (is_m1_dtcm_r && dtcm_arready) ||
+                            (is_m1_apb_r && OM0_AXI_ARREADY) ||
+                            (is_m1_clint_r && OM1_AXI_ARREADY) ||
+                            (is_m1_plic_r && OM2_AXI_ARREADY);
+    assign M1_AXI_AWREADY = (is_m1_itcm_w && itcm_awready) || 
+                            (is_m1_dtcm_w && dtcm_awready) ||
+                            (is_m1_apb_w && OM0_AXI_AWREADY) ||
+                            (is_m1_clint_w && OM1_AXI_AWREADY) ||
+                            (is_m1_plic_w && OM2_AXI_AWREADY);
+    assign M1_AXI_WREADY = (m1_select_itcm_w && itcm_wready) ||
+                           (m1_select_dtcm_w && dtcm_wready) ||
+                           (m1_select_apb_w && OM0_AXI_WREADY) ||
+                           (m1_select_clint_w && OM1_AXI_WREADY) ||
+                           (m1_select_plic_w && OM2_AXI_WREADY);
 
     // ITCM实例连接
     gnrl_ram_pseudo_dual_axi #(
@@ -543,7 +1134,7 @@ module mems #(
         .S_AXI_AWLOCK (M1_AXI_AWLOCK),
         .S_AXI_AWCACHE(M1_AXI_AWCACHE),
         .S_AXI_AWPROT (M1_AXI_AWPROT),
-        .S_AXI_AWVALID(itcm_awvalid),
+        .S_AXI_AWVALID(itcm_wvalid),
         .S_AXI_AWREADY(itcm_awready),
 
         // 写数据通道
@@ -602,7 +1193,7 @@ module mems #(
         .S_AXI_AWLOCK (M1_AXI_AWLOCK),
         .S_AXI_AWCACHE(M1_AXI_AWCACHE),
         .S_AXI_AWPROT (M1_AXI_AWPROT),
-        .S_AXI_AWVALID(dtcm_awvalid),
+        .S_AXI_AWVALID(dtcm_wvalid),
         .S_AXI_AWREADY(dtcm_awready),
 
         // 写数据通道
@@ -638,6 +1229,5 @@ module mems #(
         .S_AXI_RVALID(dtcm_rvalid),
         .S_AXI_RREADY(dtcm_rready)
     );
-
 
 endmodule

@@ -23,12 +23,12 @@ itcm_file="${dir}/${basename}_itcm.verilog"
 dtcm_file="${dir}/${basename}_dtcm.verilog"
 
 # 定义地址范围 (按字节地址计算)
-# ITCM: 0x80000000 - 0x8000FFFF (64KB)
-# DTCM: 0x80100000 - 0x8010FFFF (64KB)
+# ITCM: 0x80000000 - 0x8003FFFF (256KB)
+# DTCM: 0x80100000 - 0x8013FFFF (256KB)
 ITCM_START=$((0x80000000))
-ITCM_END=$((0x8000FFFF))
+ITCM_END=$((0x8003FFFF))
 DTCM_START=$((0x80100000))
-DTCM_END=$((0x8010FFFF))
+DTCM_END=$((0x8013FFFF))
 
 # 清空输出文件
 > "$itcm_file"

@@ -26,9 +26,9 @@
 
 // 指令获取模块的AXI主机接口
 module ifu_axi_master #(
-    parameter C_M_AXI_ID_WIDTH   = 2,   // AXI ID宽度
-    parameter C_M_AXI_ADDR_WIDTH = 32,  // AXI地址宽度
-    parameter C_M_AXI_DATA_WIDTH = 32   // AXI数据宽度
+    parameter C_M_AXI_ID_WIDTH   = 3,                 // AXI ID宽度，3位支持8个并发事务
+    parameter C_M_AXI_ADDR_WIDTH = 32,                // AXI地址宽度
+    parameter C_M_AXI_DATA_WIDTH = 64                 // AXI数据宽度，64位双发射总线
 ) (
     // 基本信号
     input wire clk,
@@ -70,9 +70,9 @@ module ifu_axi_master #(
     output wire                          M_AXI_RREADY
 );
 
-    localparam FIFO_DEPTH = 4;  // FIFO深度参数化
+    localparam FIFO_DEPTH = 8;  // 双发射FIFO深度，支持更多outstanding事务
     // AXI参数定义
-    localparam C_M_AXI_BURST_LEN = 1;  // 突发长度为1，每次只读取一条指令
+    localparam C_M_AXI_BURST_LEN = 1;  // 突发长度为1，每次读取8字节（双发射：两个32位指令）
 
     // 内部寄存器
     reg error_reg;  // 错误寄存器
@@ -126,7 +126,7 @@ module ifu_axi_master #(
     assign M_AXI_ARID      = arid_reg;  // 使用ARID寄存器
     assign M_AXI_ARADDR    = pc_i;  // 直接使用PC指针作为地址
     assign M_AXI_ARLEN     = C_M_AXI_BURST_LEN - 1;  // 突发长度
-    assign M_AXI_ARSIZE    = $clog2((C_M_AXI_DATA_WIDTH / 8));  // 数据宽度
+    assign M_AXI_ARSIZE    = 3'b011;  // 64位数据宽度(8字节)，用于双发射取两个32位指令
     assign M_AXI_ARBURST   = 2'b01;  // INCR类型突发
     assign M_AXI_ARLOCK    = 1'b0;
     assign M_AXI_ARCACHE   = 4'b0010;  // Normal Non-cacheable Non-bufferable
@@ -171,9 +171,12 @@ module ifu_axi_master #(
                         fifo_count <= fifo_count + 1'd1;
                     end
                     2'b01: begin  // 只弹出
-                        rd_ptr <= rd_ptr + 1'd1;  // 循环指针
-                        if (rd_ptr == FIFO_DEPTH - 1) rd_ptr <= 0;  // 循环回到0
-                        fifo_count <= fifo_count - 1'd1;
+                        if (fifo_count > 0) begin
+                            // 仅当FIFO非空时才弹出
+                            rd_ptr <= rd_ptr + 1'd1;  // 循环指针
+                            if (rd_ptr == FIFO_DEPTH - 1) rd_ptr <= 0;  // 循环回到0
+                            fifo_count <= fifo_count - 1'd1;
+                        end
                     end
                     2'b11: begin  // 同时推入和弹出
                         fifo_addr[wr_ptr] <= M_AXI_ARADDR;  // 仅保存地址

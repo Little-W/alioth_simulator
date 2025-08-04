@@ -31,8 +31,8 @@ module dispatch_pipe (
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     // 新增：指令有效信号输入
-    input wire inst_valid_i,
-    input wire [`INST_DATA_WIDTH-1:0] inst_i,      // 指令内容
+    input wire                        inst_valid_i,
+    input wire [`INST_DATA_WIDTH-1:0] inst_i,        // 指令内容
 
     // 指令信息输入端口
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -49,7 +49,7 @@ module dispatch_pipe (
     // 新增：寄存rs1/rs2数据
     input wire [               31:0] rs1_rdata_i,
     input wire [               31:0] rs2_rdata_i,
-    input wire                       is_pred_branch_i, // 新增：预测分支信号输入
+    input wire                       is_pred_branch_i,  // 新增：预测分支信号输入
     // 新增：非法指令信号输入
     input wire                       illegal_inst_i,
 
@@ -71,7 +71,7 @@ module dispatch_pipe (
     input wire [31:0] bjp_op2_i,
     input wire [31:0] bjp_jump_op1_i,
     input wire [31:0] bjp_jump_op2_i,
-    input wire        bjp_op_jump_i,
+    input wire        bjp_op_jal_i,
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
     input wire        bjp_op_blt_i,
@@ -136,7 +136,7 @@ module dispatch_pipe (
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
     // 新增：指令有效信号输出
     output wire                        inst_valid_o,
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,      // 指令内容
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,        // 指令内容
 
     // 新增：额外的信号输出到其他模块
     output wire                       reg_we_o,
@@ -168,7 +168,7 @@ module dispatch_pipe (
     output wire [31:0] bjp_op2_o,
     output wire [31:0] bjp_jump_op1_o,
     output wire [31:0] bjp_jump_op2_o,
-    output wire        bjp_op_jump_o,
+    output wire        bjp_op_jal_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
     output wire        bjp_op_blt_o,
@@ -233,6 +233,7 @@ module dispatch_pipe (
 
     wire                        flush_en = |stall_flag_i;
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
+    wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器
@@ -489,16 +490,16 @@ module dispatch_pipe (
     );
     assign bjp_jump_op2_o = bjp_jump_op2;
 
-    wire bjp_op_jump_dnxt = flush_en ? 1'b0 : bjp_op_jump_i;
-    wire bjp_op_jump;
-    gnrl_dfflr #(1) bjp_op_jump_ff (
+    wire bjp_op_jal_dnxt = flush_en ? 1'b0 : bjp_op_jal_i;
+    wire bjp_op_jal;
+    gnrl_dfflr #(1) bjp_op_jal_ff (
         clk,
         rst_n,
         reg_update_en,
-        bjp_op_jump_dnxt,
-        bjp_op_jump
+        bjp_op_jal_dnxt,
+        bjp_op_jal
     );
-    assign bjp_op_jump_o = bjp_op_jump;
+    assign bjp_op_jal_o = bjp_op_jal;
 
     wire bjp_op_beq_dnxt = flush_en ? 1'b0 : bjp_op_beq_i;
     wire bjp_op_beq;

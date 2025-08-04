@@ -67,15 +67,24 @@ module ifu (
 );
     // 内部信号定义
     wire [`INST_ADDR_WIDTH-1:0] pc;  // 内部PC信号
-    wire [`INST_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的指令数据
+    wire [`BUS_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的64位指令数据
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 从AXI读取的指令地址
-    wire inst_valid;  // 指令有效信号
+    wire inst_valid_axi;  // AXI控制器的指令有效信号
+    wire wait_for_jalr;  // 等待JALR指令的信号
+    wire inst_valid = inst_valid_axi & ~wait_for_jalr;  // 有效指令信号，排除JALR等待状态
+
+    // 双指令解析
+    wire [`INST_DATA_WIDTH-1:0] inst0_data = inst_data[31:0];   // 第一条指令（低32位）
+    wire [`INST_DATA_WIDTH-1:0] inst1_data = inst_data[63:32];  // 第二条指令（高32位）
+    wire [`INST_ADDR_WIDTH-1:0] inst0_addr = inst_addr;        // 第一条指令地址
+    wire [`INST_ADDR_WIDTH-1:0] inst1_addr = inst_addr + 4;    // 第二条指令地址
 
     // 分支预测相关信号
     wire branch_taken;  // 分支预测结果：是否跳转
     wire [`INST_ADDR_WIDTH-1:0] branch_addr;  // 预测的分支目标地址
     wire is_pred_branch;  // 当前指令是否为预测分支指令
     wire is_pred_branch_r;  // 预测分支信号寄存后
+    wire branch_inst_slot;  // 分支指令所在槽位
 
     // 合并跳转信号和地址
     wire jump_flag = jump_flag_i | branch_taken;  // 跳转标志
@@ -88,17 +97,23 @@ module ifu (
     wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
     wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
-    // 实例化静态分支预测单元
+    // 实例化静态分支预测单元（双发射版本）
     sbpu u_sbpu (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_data),        // 指令内容
-        .inst_valid_i    (inst_valid),       // 指令有效信号
-        .pc_i            (inst_addr),        // 指令地址
+        .inst0_i         (inst0_data),       // 第一条指令内容
+        .inst1_i         (inst1_data),       // 第二条指令内容
+        .inst0_valid_i   (inst_valid),       // 第一条指令有效信号
+        .inst1_valid_i   (inst_valid),       // 第二条指令有效信号
+        .pc0_i           (inst0_addr),       // 第一条指令地址
+        .pc1_i           (inst1_addr),       // 第二条指令地址
         .any_stall_i     (stall_axi),        // 流水线暂停信号
+        .jalr_executed_i (jalr_executed_i),  // JALR执行信号输入
         .branch_taken_o  (branch_taken),     // 预测是否为分支
         .branch_addr_o   (branch_addr),      // 预测的分支地址
-        .is_pred_branch_o(is_pred_branch)  // 当前指令是否为预测分支
+        .is_pred_branch_o(is_pred_branch),   // 当前指令是否为预测分支
+        .wait_for_jalr_o (wait_for_jalr),    // JALR等待信号输出
+        .branch_inst_slot_o(branch_inst_slot) // 分支指令所在槽位
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
@@ -117,9 +132,9 @@ module ifu (
     ifu_pipe u_ifu_pipe (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_data),        // 使用从AXI读取的指令
-        .inst_addr_i     (inst_addr),        // 使用从AXI读取的指令地址
-        .is_pred_branch_i(is_pred_branch),   // 连接预测分支信号
+        .inst_i          (inst_data),         // 使用从AXI读取的64位指令数据
+        .inst_addr_i     (inst_addr),         // 使用从AXI读取的指令地址
+        .is_pred_branch_i(is_pred_branch),    // 连接预测分支信号
         .flush_flag_i    (flush_flag),
         .inst_valid_i    (inst_valid),       // 从AXI控制器获取的有效信号
         .stall_i         (stall_if),         // 连接IF阶段暂停信号

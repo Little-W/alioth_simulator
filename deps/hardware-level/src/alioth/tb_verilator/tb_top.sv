@@ -1,3 +1,6 @@
+`define verilator5
+`define verilator5
+`define DISABLE_TIMEOUT
 `timescale 1 ns / 1 ps
 
 `include "defines.svh"
@@ -8,12 +11,20 @@
 
 // 宏定义控制寄存器调试输出
 // `define DEBUG_DISPLAY_REGS 1
-
+// `define ENABLE_IRQ_MONITOR // 监控IRQ相关信号变化
+// `define ENABLE_EXT_IRQ_MONITOR // 监控外部中断源变化 
+`define ENABLE_DUMP_EN
 // ToHost程序地址,用于监控测试是否结束
+`ifdef ENABLE_PC_WRITE_TOHOST
 `define PC_WRITE_TOHOST 32'h80000040
+`endif
 
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
+
+// 支持dump使能区间
+parameter DUMP_START_CYCLE = 133262798;
+parameter DUMP_END_CYCLE = 136262728;  // 可根据需要修改，默认最大32位无符号数
 
 module tb_top (
     input clk,
@@ -23,19 +34,29 @@ module tb_top (
     input  tck_i,
     input  tms_i,
     input  tdi_i,
-    output tdo_o
+    output tdo_o,
+    output dump_en, // 新增dump_en输出端口
+
+    // UART接口引脚
+    output uart_tx,
+    input  uart_rx
 );
 
     // 通用寄存器访问 - 仅用于错误信息显示
-    wire    [   31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
+    wire [31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire    [   31:0] pc = alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o;
-    wire    [   63:0] csr_cycle = alioth_soc_top_0.u_cpu_top.u_csr.mcycle[31:0];
-    wire    [   31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
+    wire [31:0] pc = alioth_soc_top_0.u_cpu_top.u_dispatch.pipe_inst_addr_o;
+    wire [31:0] csr_cyclel = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
+    wire [31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
+    wire [31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
+    wire swi = alioth_soc_top_0.u_cpu_top.u_clint.soft_irq;
+    wire timer_irq = alioth_soc_top_0.u_cpu_top.u_clint.timer_irq;
+    wire [10:0] irq_sources = alioth_soc_top_0.u_cpu_top.u_plic.irq_sources;  // 修改为11位
+    wire irq_valid = alioth_soc_top_0.u_cpu_top.u_plic.irq_valid;
 
-    integer           r;
-    reg     [8*300:1] testcase;
-    integer           dumpwave;
+    integer r;
+    reg [8*300:1] testcase;
+    integer dumpwave;
 
     // 计算ITCM和DTCM的深度和字节大小
     localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数
@@ -44,18 +65,39 @@ module tb_top (
     localparam DTCM_BYTE_SIZE = DTCM_DEPTH * 4;  // 总字节数
 
     // 创建与ITCM和DTCM容量相同的临时字节数组
-    reg [7:0] itcm_prog_mem[0:ITCM_BYTE_SIZE-1];
-    reg [7:0] dtcm_prog_mem[0:DTCM_BYTE_SIZE-1];
-    integer i;
+    reg     [ 7:0] itcm_prog_mem                                             [0:ITCM_BYTE_SIZE-1];
+    reg     [ 7:0] dtcm_prog_mem                                             [0:DTCM_BYTE_SIZE-1];
+    integer        i;
 
+    wire    [63:0] cycle = {csr_cycleh, csr_cyclel};  // 合并cycle高低位
+    wire    [31:0] current_cycle = csr_cyclel[31:0];
+    wire    [31:0] current_cycleh = csr_cycleh[31:0];
+
+`ifdef ENABLE_DUMP_EN
+    reg dump_en_reg;
+    assign dump_en = dump_en_reg;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            dump_en_reg <= 1'b0;
+        end else begin
+            // 支持dump使能区间
+            if (cycle >= DUMP_START_CYCLE && cycle < DUMP_END_CYCLE) dump_en_reg <= 1'b1;
+            else dump_en_reg <= 1'b0;
+        end
+    end
+`else
+    assign dump_en = 1'b1;
+`endif
+
+`ifdef ENABLE_PC_WRITE_TOHOST
     // 添加PC监控变量
-    reg [31:0] pc_write_to_host_cnt;
-    reg [31:0] pc_write_to_host_cycle;
-    reg pc_write_to_host_flag;
-    reg [31:0] last_pc;  // 保留用于监测PC变化
+    reg  [31:0] pc_write_to_host_cnt;
+    reg  [31:0] pc_write_to_host_cycle;
+    reg         pc_write_to_host_flag;
+    reg  [31:0] last_pc;  // 保留用于监测PC变化
 
     // 不再自己维护周期和指令计数，直接从CSR获取
-    wire [31:0] current_cycle = csr_cycle[31:0];
     wire [31:0] current_instructions = csr_instret[31:0];
 
     // 周期计数器 - 简化为只更新last_pc
@@ -86,18 +128,46 @@ module tb_top (
             pc_write_to_host_cycle = 32'b0;
         end
     end
+`endif
 
-    // 超时监控 - 使用CSR的cycle计数
+    // 超时监控 - 使用mcycleh的最高位作为超时
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             // Reset logic
         end else begin
 `ifndef NO_TIMEOUT
+`ifndef DISABLE_TIMEOUT
             if (current_cycle[20] == 1'b1) begin
                 $display("Time Out !!!");
                 $finish;
             end
 `endif
+`endif
+        end
+    end
+
+    // PC卡死检测相关变量
+    reg [31:0] pc_last;
+    reg [ 7:0] pc_stuck_cnt;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pc_last      <= 32'b0;
+            pc_stuck_cnt <= 8'b0;
+        end else begin
+            // PC stuck detection: if PC does not change for 100 cycles, terminate simulation
+            if (pc == pc_last) begin
+                pc_stuck_cnt <= pc_stuck_cnt + 1'b1;
+            end else begin
+                pc_stuck_cnt <= 8'b0;
+                pc_last      <= pc;
+            end
+            if (pc_stuck_cnt >= 8'd100) begin
+                $display(
+                    "PC stuck detection: PC has not changed for 100 cycles, simulation terminated!");
+                $display("PC value when stuck: 0x%08x", pc_last);
+                $finish;
+            end
         end
     end
 
@@ -127,12 +197,22 @@ module tb_top (
 
         // 处理小端序格式并更新到ITCM
         for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
-            `ITCM.mem_r[i] = {itcm_prog_mem[i*4+3], itcm_prog_mem[i*4+2], itcm_prog_mem[i*4+1], itcm_prog_mem[i*4+0]};
+            `ITCM.mem_r[i] = {
+                itcm_prog_mem[i*4+3],
+                itcm_prog_mem[i*4+2],
+                itcm_prog_mem[i*4+1],
+                itcm_prog_mem[i*4+0]
+            };
         end
 
         // 处理小端序格式并更新到DTCM
         for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个字
-            `DTCM.mem_r[i] = {dtcm_prog_mem[i*4+3], dtcm_prog_mem[i*4+2], dtcm_prog_mem[i*4+1], dtcm_prog_mem[i*4+0]};
+            `DTCM.mem_r[i] = {
+                dtcm_prog_mem[i*4+3],
+                dtcm_prog_mem[i*4+2],
+                dtcm_prog_mem[i*4+1],
+                dtcm_prog_mem[i*4+0]
+            };
         end
 
         $display("Successfully loaded instructions to ITCM and data to DTCM");
@@ -145,6 +225,7 @@ module tb_top (
         $display("DTCM 0x01: %h", `DTCM.mem_r[1]);
     end
 
+`ifdef ENABLE_PC_WRITE_TOHOST
     // 对pc_write_to_host_cnt的变化进行监控
     always @(pc_write_to_host_cnt) begin
         if (pc_write_to_host_cnt == 32'd2) begin
@@ -200,6 +281,7 @@ module tb_top (
             $finish;
         end
     end
+`endif
 
     // 添加一个任务来显示处理过的testcase名称
     task automatic display_testcase_name;
@@ -251,10 +333,26 @@ module tb_top (
 `endif
     */
 
+    // 主时钟64分频，生成低速时钟 lfextclk
+    wire       lfextclk;
+    reg  [5:0] cnt;
+    always @(posedge clk or negedge rst_n) begin
+        if (rst_n == 1'b0) begin
+            cnt <= 0;
+        end else begin
+            cnt <= cnt + 1;
+        end
+    end
+    assign lfextclk = cnt[5];
+
     // 实例化顶层模块
     alioth_soc_top alioth_soc_top_0 (
-        .clk  (clk),
-        .rst_n(rst_n)
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .low_speed_clk_i(lfextclk),
+        // UART端口连接
+        .tx_o           (uart_tx),
+        .rx_i           (uart_rx)
     );
 
     // 添加可选的寄存器调试输出功能
@@ -288,4 +386,62 @@ module tb_top (
     end
 `endif
 
+`ifdef ENABLE_IRQ_MONITOR
+    // 监控swi变化并打印pc和cycle
+    reg swi_last;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            swi_last <= 1'b0;
+        end else begin
+            if (swi != swi_last) begin
+                $display("------------------------------------------------------------");
+                $display("swi changed to %b at pc=0x%08x, cycle=%0d", swi, pc, cycle);
+                $display("------------------------------------------------------------");
+                swi_last <= swi;
+            end
+        end
+    end
+
+    // 监控timer_irq变化并打印pc和cycle
+    reg timer_irq_last;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            timer_irq_last <= 1'b0;
+        end else begin
+            if (timer_irq != timer_irq_last) begin
+                $display("------------------------------------------------------------");
+                $display("timer_irq changed to %b at pc=0x%08x, cycle=%0d", timer_irq, pc, cycle);
+                $display("------------------------------------------------------------");
+                timer_irq_last <= timer_irq;
+            end
+        end
+    end
+`endif
+
+`ifdef ENABLE_EXT_IRQ_MONITOR
+    // 新增：监控irq_sources和irq_valid变化
+    reg [10:0] irq_sources_last;  // 修改为11位
+    reg        irq_valid_last;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            irq_sources_last <= 11'b0;  // 修改为11位
+            irq_valid_last   <= 1'b0;
+        end else begin
+            if (irq_sources != irq_sources_last) begin
+                $display("------------------------------------------------------------");
+                $display("irq_sources changed to %b at pc=0x%08x, cycle=%0d", irq_sources, pc,
+                         cycle);
+                $display("------------------------------------------------------------");
+                irq_sources_last <= irq_sources;
+            end
+            if (irq_valid != irq_valid_last) begin
+                $display("------------------------------------------------------------");
+                $display("irq_valid changed to %b at pc=0x%08x, cycle=%0d", irq_valid, pc, cycle);
+                $display("------------------------------------------------------------");
+                irq_valid_last <= irq_valid;
+            end
+        end
+    end
+
+`endif
 endmodule

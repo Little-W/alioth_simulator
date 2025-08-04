@@ -1,0 +1,15 @@
+# RT-Thread building script for bridge
+
+import os
+from building import *
+
+Import('rtconfig')
+
+cwd   = GetCurrentDir()
+group = []
+list  = os.listdir(cwd)
+
+# 始终添加alioth文件夹下的SConscript
+group += SConscript(os.path.join('alioth', 'SConscript'))
+
+Return('group')

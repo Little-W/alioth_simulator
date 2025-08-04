@@ -23,6 +23,11 @@ SIM_OPTIONS   += --exe --trace --trace-structs --trace-params --trace-max-array 
 SIM_OPTIONS   += -CFLAGS "-Wall -DTOPLEVEL_NAME=tb_top -g -O0" -LDFLAGS "-pthread -lutil -lelf"
 SIM_OPTIONS   += -Wno-WIDTH -Wno-CASEINCOMPLETE -Wno-UNOPTFLAT -Wno-TIMESCALEMOD -Wno-fatal
 
+# 仅当 ENABLE_UART_SIM=1 时追加
+ifeq ($(ENABLE_UART_SIM),1)
+SIM_OPTIONS   += -CFLAGS -DENABLE_UART_SIM
+endif
+
 ifeq ($(SIM_TOOL),verilator5)
 SIM_OPTIONS   += --no-timing
 endif
@@ -70,16 +75,17 @@ ifeq ($(TRUE_SIM_TOOL),verilator)
 
 
 ifeq ($(wildcard $(VERILATOR_BIN_DIR)),)
+	ifeq ($(wildcard ${VERILATOR_ROOT_DIR}/bin/verilator),)
 	ifeq ($(ARCH),x86_64)
 	ifeq ($(SIM_TOOL),verilator4)
-		shell := $(shell  rm x86_64_verilator-4.228.tar.xz)
+		shell := $(shell rm -f x86_64_verilator-4.228.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_verilator-4.228.tar.xz || rm x86_64_verilator-4.228.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv x86_64_verilator-4.228.tar.xz $(VERILATOR_ROOT_DIR))
 		shell := $(shell cd $(VERILATOR_ROOT_DIR) && tar -xvf x86_64_verilator-4.228.tar.xz && rm x86_64_verilator-4.228.tar.xz)
 		shell := $(shell cp -f ${SIM_ROOT_DIR}/deps/tools/update_pkgconfig.sh $(VERILATOR_ROOT_DIR) && cd $(VERILATOR_ROOT_DIR) && sh update_pkgconfig.sh)
 	else
-		shell := $(shell rm x86_64_verilator-5.016.tar.xz)
+		shell := $(shell rm -f x86_64_verilator-5.016.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_verilator-5.016.tar.xz || rm x86_64_verilator-5.016.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv x86_64_verilator-5.016.tar.xz $(VERILATOR_ROOT_DIR))
@@ -88,14 +94,14 @@ ifeq ($(wildcard $(VERILATOR_BIN_DIR)),)
 	endif
 	else ifeq ($(ARCH),aarch64)
 	ifeq ($(SIM_TOOL),verilator4)
-		shell := $(shell rm arm64_verilator-4.228.tar.xz)
+		shell := $(shell rm -f arm64_verilator-4.228.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64_verilator-4.228.tar.xz || rm arm64_verilator-4.228.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv arm64_verilator-4.228.tar.xz $(VERILATOR_ROOT_DIR))
 		shell := $(shell cd $(VERILATOR_ROOT_DIR) && tar -xvf arm64_verilator-4.228.tar.xz && rm arm64_verilator-4.228.tar.xz)
 		shell := $(shell cp -f ${SIM_ROOT_DIR}/deps/tools/update_pkgconfig.sh $(VERILATOR_ROOT_DIR) && cd $(VERILATOR_ROOT_DIR) && sh update_pkgconfig.sh)
 	else
-		shell := $(shell rm arm64_verilator-5.016.tar.xz)
+		shell := $(shell rm -f arm64_verilator-5.016.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64_verilator-5.016.tar.xz || rm arm64_verilator-5.016.tar.xz)
 		shell := $(shell rm -rf $(VERILATOR_ROOT_DIR))
 		shell := $(shell sudo mkdir -p $(VERILATOR_ROOT_DIR) && sudo chmod 777 $(VERILATOR_ROOT_DIR) && mv arm64_verilator-5.016.tar.xz $(VERILATOR_ROOT_DIR))
@@ -104,6 +110,7 @@ ifeq ($(wildcard $(VERILATOR_BIN_DIR)),)
 	endif
 	else
 		$(error Unsupported architecture: $(ARCH))
+	endif
 	endif
 endif
 
@@ -171,28 +178,36 @@ ARCH := $(shell uname -m)
 ifeq ($(ARCH),x86_64)
 	ifeq ($(wildcard $(CC)),)
 		ifeq ($(USE_OPEN_GNU_GCC),0)
-		shell := $(shell rm x86_64-riscv-gnu-toolchain.tar.xz)
+		ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/gcc/bin/$(COMPILE_PREFIX)gcc),)
+		shell := $(shell rm -f x86_64-riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64-riscv-gnu-toolchain.tar.xz || rm x86_64-riscv-gnu-toolchain.tar.xz)
 		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc)
 		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc && mv x86_64-riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc && cd ${SOTFWARE_TOOLS_DIR}/gcc && tar -xvf x86_64-riscv-gnu-toolchain.tar.xz && rm x86_64-riscv-gnu-toolchain.tar.xz)
+		endif
 		else
-		shell := $(shell rm x86_64-open_riscv-gnu-toolchain.tar.xz)
+		ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/gcc_open/bin/$(COMPILE_PREFIX)gcc),)
+		shell := $(shell rm -f x86_64-open_riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64-open_riscv-gnu-toolchain.tar.xz || rm x86_64-open_riscv-gnu-toolchain.tar.xz)
 		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc_open)
 		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc_open && mv x86_64-open_riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc_open && cd ${SOTFWARE_TOOLS_DIR}/gcc_open && tar -xvf x86_64-open_riscv-gnu-toolchain.tar.xz && rm x86_64-open_riscv-gnu-toolchain.tar.xz)
 		endif
+		endif
 	endif
 	ifeq ($(wildcard $(OPENOCD)),)
-	shell := $(shell rm openocd-12.0_x86_64.tar.xz)
+	ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/openocd/bin/openocd),)
+	shell := $(shell rm -f openocd-12.0_x86_64.tar.xz)
 	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/openocd-12.0_x86_64.tar.xz ||  rm openocd-12.0_x86_64.tar.xz)
 	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/openocd)
 	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/openocd && mv openocd-12.0_x86_64.tar.xz ${SOTFWARE_TOOLS_DIR}/openocd && cd ${SOTFWARE_TOOLS_DIR}/openocd && tar -xvf openocd-12.0_x86_64.tar.xz && rm openocd-12.0_x86_64.tar.xz)
 	endif
+	endif
 	ifeq ($(wildcard $(QEMU_EXEC)),)
-	shell := $(shell rm openocd-12.0_x86_64.tar.xz)
-	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_qemu-riscv.tar.xz || rm openocd-12.0_x86_64.tar.xz)
+	ifeq ($(wildcard ${SOTFWARE_TOOLS_DIR}/qemu/bin/qemu-riscv32),)
+	shell := $(shell rm -f x86_64_qemu-riscv.tar.xz)
+	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64_qemu-riscv.tar.xz || rm x86_64_qemu-riscv.tar.xz)
 	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/qemu)
 	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/qemu && mv x86_64_qemu-riscv.tar.xz ${SOTFWARE_TOOLS_DIR}/qemu && cd ${SOTFWARE_TOOLS_DIR}/qemu && tar -xvf x86_64_qemu-riscv.tar.xz && rm x86_64_qemu-riscv.tar.xz)
+	endif
 	endif
 
 else ifeq ($(ARCH),aarch64)
@@ -201,26 +216,26 @@ else ifeq ($(ARCH),aarch64)
 		ifeq ($(USE_OPEN_GNU_GCC),0)
 		shell := $(shell rm arm64-riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64-riscv-gnu-toolchain.tar.xz || rm arm64-riscv-gnu-toolchain.tar.xz)
-		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc)
-		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc && mv arm64-riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc && cd ${SOTFWARE_TOOLS_DIR}/gcc && tar -xvf arm64-riscv-gnu-toolchain.tar.xz && rm arm64-riscv-gnu-toolchain.tar.xz)
+		shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/gcc)
+		shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/gcc && mv arm64-riscv-gnu-toolchain.tar.xz ${SOFTWARE_TOOLS_DIR}/gcc && cd ${SOFTWARE_TOOLS_DIR}/gcc && tar -xvf arm64-riscv-gnu-toolchain.tar.xz && rm arm64-riscv-gnu-toolchain.tar.xz)
 		else
 		shell := $(shell rm arm64-open_riscv-gnu-toolchain.tar.xz)
 		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64-open_riscv-gnu-toolchain.tar.xz || rm arm64-open_riscv-gnu-toolchain.tar.xz)
-		shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/gcc_open)
-		shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/gcc_open && mv arm64-open_riscv-gnu-toolchain.tar.xz ${SOTFWARE_TOOLS_DIR}/gcc_open && cd ${SOTFWARE_TOOLS_DIR}/gcc_open && tar -xvf arm64-open_riscv-gnu-toolchain.tar.xz && rm arm64-open_riscv-gnu-toolchain.tar.xz)
+		shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/gcc_open)
+		shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/gcc_open && mv arm64-open_riscv-gnu-toolchain.tar.xz ${SOFTWARE_TOOLS_DIR}/gcc_open && cd ${SOFTWARE_TOOLS_DIR}/gcc_open && tar -xvf arm64-open_riscv-gnu-toolchain.tar.xz && rm arm64-open_riscv-gnu-toolchain.tar.xz)
 		endif
 	endif
 	ifeq ($(wildcard $(OPENOCD)),)
 	shell := $(shell rm openocd-12.0_arm64.tar.xz)
 	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/openocd-12.0_arm64.tar.xz || rm openocd-12.0_arm64.tar.xz)
-	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/openocd)
-	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/openocd && mv openocd-12.0_arm64.tar.xz ${SOTFWARE_TOOLS_DIR}/openocd && cd ${SOTFWARE_TOOLS_DIR}/openocd && tar -xvf openocd-12.0_arm64.tar.xz && rm openocd-12.0_arm64.tar.xz)
+	shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/openocd)
+	shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/openocd && mv openocd-12.0_arm64.tar.xz ${SOFTWARE_TOOLS_DIR}/openocd && cd ${SOFTWARE_TOOLS_DIR}/openocd && tar -xvf openocd-12.0_arm64.tar.xz && rm openocd-12.0_arm64.tar.xz)
 	endif
 	ifeq ($(wildcard $(QEMU_EXEC)),)
 	shell := $(shell rm arm64_qemu-riscv.tar.xz)
 	shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/arm64_qemu-riscv.tar.xz || rm arm64_qemu-riscv.tar.xz)
-	shell := $(shell rm -rf ${SOTFWARE_TOOLS_DIR}/qemu)
-	shell := $(shell mkdir -p ${SOTFWARE_TOOLS_DIR}/qemu && mv arm64_qemu-riscv.tar.xz ${SOTFWARE_TOOLS_DIR}/qemu && cd ${SOTFWARE_TOOLS_DIR}/qemu && tar -xvf arm64_qemu-riscv.tar.xz && rm arm64_qemu-riscv.tar.xz)
+	shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/qemu)
+	shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/qemu && mv arm64_qemu-riscv.tar.xz ${SOFTWARE_TOOLS_DIR}/qemu && cd ${SOFTWARE_TOOLS_DIR}/qemu && tar -xvf arm64_qemu-riscv.tar.xz && rm arm64_qemu-riscv.tar.xz)
 	endif
 
 else
@@ -281,6 +296,17 @@ TEST_WAV_FILE      := ${TEST_RUNDIR}/tb_top.vcd
 SIM_WAV_FILE 	   := ${SIM_OUT_DIR}/tb_top.vcd
 endif
 
+# 支持PC_WRITE_TOHOST参数，控制tb_top.sv中的宏定义
+PC_WRITE_TOHOST ?= 0
+
+define enable_pc_write_tohost
+	@sed -i '/^\/\/ ToHost程序地址,用于监控测试是否结束$$/a\`define ENABLE_PC_WRITE_TOHOST' ${VTB_DIR}/tb_top.sv
+endef
+
+define disable_pc_write_tohost
+	@sed -i '/^`define ENABLE_PC_WRITE_TOHOST$$/d' ${VTB_DIR}/tb_top.sv
+endef
+
 all: run
 
 compile.flg: ${RTL_V_FILES} ${TB_V_FILES}
@@ -288,6 +314,11 @@ compile.flg: ${RTL_V_FILES} ${TB_V_FILES}
 	@rm -rf ${CPU_EXEC_DIR}
 	@mkdir -p ${CPU_EXEC_DIR}
 	@sed -i '1i\`define ${SIM_TOOL}\'  ${VTB_DIR}/tb_top.sv
+ifeq ($(PC_WRITE_TOHOST),1)
+	$(enable_pc_write_tohost)
+else
+	$(disable_pc_write_tohost)
+endif
 	${SIM_TOOL_EXEC} ${SIM_OPTIONS}  ${RTL_V_FILES} ${TB_V_FILES} ${VERILATOR_CC_FILE} ${SIM_OPTIONS_BACK}
 	${VERILATOR_COMPILE_CMD}
 	${EXEC_POST_PROC}

@@ -29,7 +29,7 @@ module exu_muldiv_ctrl (
     input wire clk,
     input wire rst_n,
     input wire wb_ready,
-    input wire hazard_stall_i,  // 添加数据冒险检测信号
+    input wire hazard_stall_i, // 添加数据冒险检测信号
 
     // 指令和操作数输入
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -91,6 +91,10 @@ module exu_muldiv_ctrl (
     wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id;
 
+    // 添加第二级寄存器
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id_stage2;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_stage2;
+
     // 添加状态寄存器，用于控制写回
     wire                        div_result_we;
     wire                        mul_result_we;
@@ -106,8 +110,8 @@ module exu_muldiv_ctrl (
     assign mul_op_sel = {muldiv_op_mulhu_i, muldiv_op_mulhsu_i, muldiv_op_mulh_i, muldiv_op_mul_i};
 
     // 直接使用输入的总乘法和总除法信号
-    wire is_mul_op = muldiv_op_mul_all_i;
-    wire is_div_op = muldiv_op_div_all_i;
+    wire is_mul_op = muldiv_op_mul_all_i && !int_assert_i;
+    wire is_div_op = muldiv_op_div_all_i && !int_assert_i;
 
     // 定义控制信号
     wire div_start_cond = is_div_op && !div_busy_i && !div_result_we;
@@ -222,6 +226,62 @@ module exu_muldiv_ctrl (
         .qout (saved_mul_result)
     );
 
+    // 第二级 commit_id 更新条件
+    wire                        saved_div_commit_id_stage2_en = div_valid_i;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div_commit_id_stage2_nxt = saved_div_commit_id;
+
+    wire                        saved_mul_commit_id_stage2_en = mul_valid_i;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_stage2_nxt = saved_mul_commit_id;
+
+    gnrl_dfflr #(
+        .DW(`COMMIT_ID_WIDTH)
+    ) saved_div_commit_id_stage2_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_div_commit_id_stage2_en),
+        .dnxt (saved_div_commit_id_stage2_nxt),
+        .qout (saved_div_commit_id_stage2)
+    );
+
+    gnrl_dfflr #(
+        .DW(`COMMIT_ID_WIDTH)
+    ) saved_mul_commit_id_stage2_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_mul_commit_id_stage2_en),
+        .dnxt (saved_mul_commit_id_stage2_nxt),
+        .qout (saved_mul_commit_id_stage2)
+    );
+
+    // 第二级 waddr 更新条件
+    wire                       saved_div_waddr_stage2_en = div_result_we_en;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr_stage2_nxt = saved_div_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div_waddr_stage2;
+
+    wire                       saved_mul_waddr_stage2_en = mul_result_we_en;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr_stage2_nxt = saved_mul_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr_stage2;
+
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) saved_div_waddr_stage2_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_div_waddr_stage2_en),
+        .dnxt (saved_div_waddr_stage2_nxt),
+        .qout (saved_div_waddr_stage2)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) saved_mul_waddr_stage2_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (saved_mul_waddr_stage2_en),
+        .dnxt (saved_mul_waddr_stage2_nxt),
+        .qout (saved_mul_waddr_stage2)
+    );
+
     // 操作数和操作类型输出 - 可以保持为组合逻辑
     assign div_dividend_o     = reg1_rdata_i;
     assign div_divisor_o      = reg2_rdata_i;
@@ -234,37 +294,35 @@ module exu_muldiv_ctrl (
     wire muldiv_busy = div_busy_i || mul_busy_i;
 
     // 除法启动控制逻辑 - 条件定义
-    wire div_int_cond = int_assert_i;
     wire div_op_busy_cond = is_div_op && div_busy_i;
     wire div_op_ready_cond = is_div_op && !div_busy_i;
     wire div_op_start_cond = is_div_op && !div_busy_i && !div_result_we && !hazard_stall_i;
     wire div_busy_cond = !is_div_op && div_busy_i;
 
     // 除法启动控制逻辑 - 只在需要启动新的除法操作时为高，并在中断时禁止启动
-    assign div_start_o = (int_assert_i == `INT_ASSERT) ? 1'b0 : div_op_start_cond;
+    assign div_start_o = div_op_start_cond;
 
     // 乘法启动控制逻辑 - 条件定义
-    wire mul_int_cond = int_assert_i;
     wire mul_op_busy_cond = is_mul_op && mul_busy_i;
     wire mul_op_ready_cond = is_mul_op && !mul_busy_i;
     wire mul_op_start_cond = is_mul_op && !mul_busy_i && !mul_result_we && !hazard_stall_i;
     wire mul_busy_cond = !is_mul_op && mul_busy_i;
 
     // 乘法启动控制逻辑 - 只在需要启动新的乘法操作时为高，并在中断时禁止启动
-    assign mul_start_o = (int_assert_i == `INT_ASSERT) ? 1'b0 : mul_op_start_cond;
+    assign mul_start_o = mul_op_start_cond;
 
     // 条件信号定义 - 用于流水线保持逻辑
     wire stall_mul_cond = is_mul_op && (mul_busy_i || mul_result_we);
     wire stall_div_cond = is_div_op && (div_busy_i || div_result_we);
-    wire stall_result_pending = div_result_we || mul_result_we; // 增加结果等待写回的保持条件
+    wire stall_result_pending = div_result_we || mul_result_we;
 
     // 流水线保持控制逻辑
     assign muldiv_stall_flag_o = stall_mul_cond | stall_div_cond;
 
     // 结果写回数据和地址选择逻辑 - 使用保存的结果和寄存器地址
     assign reg_wdata_o = sel_mul ? saved_mul_result : (sel_div ? saved_div_result : 0);
-    assign reg_waddr_o = sel_mul ? saved_mul_waddr : (sel_div ? saved_div_waddr : 0);
-    assign commit_id_o = sel_mul ? saved_mul_commit_id : (sel_div ? saved_div_commit_id : 0);
+    assign reg_waddr_o = sel_mul ? saved_mul_waddr_stage2 : (sel_div ? saved_div_waddr_stage2 : 0);
+    assign commit_id_o = sel_mul ? saved_mul_commit_id_stage2 : (sel_div ? saved_div_commit_id_stage2 : 0);
 
     // 结果写回使能控制逻辑
     assign reg_we_o = (sel_mul | sel_div);
