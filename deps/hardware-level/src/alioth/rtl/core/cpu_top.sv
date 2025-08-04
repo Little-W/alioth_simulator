@@ -378,7 +378,7 @@ module cpu_top (
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_flush_flag_o),     // 添加连接到clint的flush信号
         .stall_flag_clint_i(clint_stall_flag_o),
-        .stall_flag_hdu_i  (new_issue_stall_flag_o),  // 修改为从dispatch获取HDU暂停信号
+        .stall_flag_hdu_i  (new_issue_stall_flag_o),  // 修改为从icu获取数据冒险暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)

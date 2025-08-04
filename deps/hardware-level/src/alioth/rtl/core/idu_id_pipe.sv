@@ -46,6 +46,7 @@ module idu_id_pipe (
     input wire [`INST_DATA_WIDTH-1:0] inst_i,            // 新增：指令内容输入
     input wire                        inst_jump_i,       // 新增：跳转指令信号输入
     input wire                        inst_branch_i,     // 新增：分支指令信号输入
+    input wire                        inst_csr_type_i,   // 新增：CSR类型指令信号输入
 
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -64,7 +65,8 @@ module idu_id_pipe (
     output wire                        illegal_inst_o,     // 新增：非法指令输出
     output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 新增：指令内容输出
     output wire                        inst_jump_o,        // 新增：跳转指令信号输出
-    output wire                        inst_branch_o       // 新增：分支指令信号输出
+    output wire                        inst_branch_o,      // 新增：分支指令信号输出
+    output wire                        inst_csr_type_o     // 新增：CSR类型指令信号输出
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -256,5 +258,17 @@ module idu_id_pipe (
         inst_branch
     );
     assign inst_branch_o = inst_branch;
+
+    // CSR类型指令信号传递
+    wire inst_csr_type_dnxt = flush_en ? 1'b0 : inst_csr_type_i;
+    wire inst_csr_type;
+    gnrl_dfflr #(1) inst_csr_type_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        inst_csr_type_dnxt,
+        inst_csr_type
+    );
+    assign inst_csr_type_o = inst_csr_type;
 
 endmodule

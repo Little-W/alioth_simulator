@@ -153,21 +153,13 @@ module dispatch (
     output wire                        inst2_muldiv_op_div_all_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_muldiv_commit_id_o,
 
-    // dispatch to CSR (第一路)
-    output wire        inst1_req_csr_o,
-    output wire [31:0] inst1_csr_op1_o,
-    output wire [31:0] inst1_csr_addr_o,
-    output wire        inst1_csr_csrrw_o,
-    output wire        inst1_csr_csrrs_o,
-    output wire        inst1_csr_csrrc_o,
-
-    // dispatch to CSR (第二路)
-    output wire        inst2_req_csr_o,
-    output wire [31:0] inst2_csr_op1_o,
-    output wire [31:0] inst2_csr_addr_o,
-    output wire        inst2_csr_csrrw_o,
-    output wire        inst2_csr_csrrs_o,
-    output wire        inst2_csr_csrrc_o,
+    // dispatch to CSR (合并单路输出)
+    output wire        req_csr_o,
+    output wire [31:0] csr_op1_o,
+    output wire [31:0] csr_addr_o,
+    output wire        csr_csrrw_o,
+    output wire        csr_csrrs_o,
+    output wire        csr_csrrc_o,
 
     // dispatch to MEM (第一路)
     output wire                        inst1_req_mem_o,
@@ -713,12 +705,12 @@ module dispatch (
         .muldiv_op_div_all_o(inst1_muldiv_op_div_all_o),
 
         // CSR信号输出 (第一路)
-        .req_csr_o  (inst1_req_csr_o),
-        .csr_op1_o  (inst1_csr_op1_o),
-        .csr_addr_o (inst1_csr_addr_o),
-        .csr_csrrw_o(inst1_csr_csrrw_o),
-        .csr_csrrs_o(inst1_csr_csrrs_o),
-        .csr_csrrc_o(inst1_csr_csrrc_o),
+        .req_csr_o  (inst1_req_csr),
+        .csr_op1_o  (inst1_csr_op1),
+        .csr_addr_o (inst1_csr_addr),
+        .csr_csrrw_o(inst1_csr_csrrw),
+        .csr_csrrs_o(inst1_csr_csrrs),
+        .csr_csrrc_o(inst1_csr_csrrc),
 
         // MEM信号输出 (第一路)
         .req_mem_o     (inst1_req_mem_o),
@@ -797,6 +789,14 @@ module dispatch (
     wire        inst2_csr_csrrw;
     wire        inst2_csr_csrrs;
     wire        inst2_csr_csrrc;
+
+    // 第一路CSR内部信号
+    wire        inst1_req_csr;
+    wire [31:0] inst1_csr_op1;
+    wire [31:0] inst1_csr_addr;
+    wire        inst1_csr_csrrw;
+    wire        inst1_csr_csrrs;
+    wire        inst1_csr_csrrc;
 
     wire                        inst2_req_mem;
     wire                        inst2_mem_op_lb;
@@ -978,12 +978,12 @@ module dispatch (
         .muldiv_op_div_all_o(inst2_muldiv_op_div_all_o),
 
         // CSR信号输出 (第二路)
-        .req_csr_o  (inst2_req_csr_o),
-        .csr_op1_o  (inst2_csr_op1_o),
-        .csr_addr_o (inst2_csr_addr_o),
-        .csr_csrrw_o(inst2_csr_csrrw_o),
-        .csr_csrrs_o(inst2_csr_csrrs_o),
-        .csr_csrrc_o(inst2_csr_csrrc_o),
+        .req_csr_o  (inst2_req_csr),
+        .csr_op1_o  (inst2_csr_op1),
+        .csr_addr_o (inst2_csr_addr),
+        .csr_csrrw_o(inst2_csr_csrrw),
+        .csr_csrrs_o(inst2_csr_csrrs),
+        .csr_csrrc_o(inst2_csr_csrrc),
 
         // MEM信号输出 (第二路)
         .req_mem_o     (inst2_req_mem_o),
@@ -1010,5 +1010,18 @@ module dispatch (
         .misaligned_store_o(inst2_misaligned_store),
         .illegal_inst_o    (inst2_illegal_inst)
     );
+
+    // CSR合并逻辑
+    // 由于ICU已经处理了两个指令都是CSR的情况（通过RAW冒险检测），
+    // 这里只需要简单的OR逻辑来合并两路CSR输出
+    // 优先级：如果第一路有有效的CSR请求，则使用第一路；否则使用第二路
+    assign req_csr_o = inst1_req_csr | inst2_req_csr;
+    
+    // 当第一路有CSR请求时，使用第一路的信号；否则使用第二路的信号
+    assign csr_op1_o  = inst1_req_csr ? inst1_csr_op1  : inst2_csr_op1;
+    assign csr_addr_o = inst1_req_csr ? inst1_csr_addr : inst2_csr_addr;
+    assign csr_csrrw_o = inst1_req_csr ? inst1_csr_csrrw : inst2_csr_csrrw;
+    assign csr_csrrs_o = inst1_req_csr ? inst1_csr_csrrs : inst2_csr_csrrs;
+    assign csr_csrrc_o = inst1_req_csr ? inst1_csr_csrrc : inst2_csr_csrrc;
 
 endmodule

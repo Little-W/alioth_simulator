@@ -51,7 +51,8 @@ module idu_decode (
     output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,     // 写CSR寄存器地址
     output wire                        illegal_inst_o,  // 非法指令输出
     output wire                        inst_jump_o,     // 跳转指令信号
-    output wire                        inst_branch_o    // 分支指令信号
+    output wire                        inst_branch_o,   // 分支指令信号
+    output wire                        inst_csr_type_o  // CSR类型指令信号
 );
 
     assign inst_addr_o = inst_addr_i;
@@ -327,5 +328,8 @@ module idu_decode (
     
     // 分支指令信号
     assign inst_branch_o = inst_type_branch;
+
+    // CSR类型指令信号
+    assign inst_csr_type_o = op_csr;
 
 endmodule

@@ -89,29 +89,18 @@ module wbu (
     input  wire [`TIMESTAMP_WIDTH-1:0] div2_timestamp_exu,
     output wire                        div2_ready_o,
 
-    // 来自EXU的CSR数据 (双发射)
-    input  wire [ `REG_DATA_WIDTH-1:0] csr1_wdata_i,
-    input  wire                        csr1_we_i,
-    input  wire [ `BUS_ADDR_WIDTH-1:0] csr1_waddr_i,
-    input  wire [`COMMIT_ID_WIDTH-1:0] csr1_commit_id_i,
-    input  wire [`TIMESTAMP_WIDTH-1:0] csr1_timestamp_exu,
-    output wire                        csr1_ready_o,
+    // 来自EXU的CSR数据 (单路)
+    input  wire [ `REG_DATA_WIDTH-1:0] csr_wdata_i,
+    input  wire                        csr_we_i,
+    input  wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input  wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_i,
+    input  wire [`TIMESTAMP_WIDTH-1:0] csr_timestamp_exu,
+    output wire                        csr_ready_o,
 
-    input  wire [ `REG_DATA_WIDTH-1:0] csr2_wdata_i,
-    input  wire                        csr2_we_i,
-    input  wire [ `BUS_ADDR_WIDTH-1:0] csr2_waddr_i,
-    input  wire [`COMMIT_ID_WIDTH-1:0] csr2_commit_id_i,
-    input  wire [`TIMESTAMP_WIDTH-1:0] csr2_timestamp_exu,
-    output wire                        csr2_ready_o,
-
-    // CSR寄存器写数据输入 (双发射)
-    input wire [`REG_DATA_WIDTH-1:0] csr1_reg_wdata_i,
-    input wire [`REG_ADDR_WIDTH-1:0] csr1_reg_waddr_i,
-    input wire                       csr1_reg_we_i,
-
-    input wire [`REG_DATA_WIDTH-1:0] csr2_reg_wdata_i,
-    input wire [`REG_ADDR_WIDTH-1:0] csr2_reg_waddr_i,
-    input wire                       csr2_reg_we_i,
+    // CSR寄存器写数据输入 (单路)
+    input wire [`REG_DATA_WIDTH-1:0] csr_reg_wdata_i,
+    input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_i,
+    input wire                       csr_reg_we_i,
 
     // 来自EXU的LSU数据 (双发射)
     input wire [ `REG_DATA_WIDTH-1:0] lsu1_reg_wdata_i,
@@ -151,14 +140,10 @@ module wbu (
     output wire                       reg2_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] reg2_waddr_o,
 
-    // 双CSR寄存器写回接口
-    output wire [`REG_DATA_WIDTH-1:0] csr1_wdata_o,
-    output wire                       csr1_we_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] csr1_waddr_o,
-
-    output wire [`REG_DATA_WIDTH-1:0] csr2_wdata_o,
-    output wire                       csr2_we_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] csr2_waddr_o
+    // 单CSR寄存器写回接口
+    output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
+    output wire                       csr_we_o,
+    output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o
 );
 
     // ========================================================================
@@ -174,10 +159,9 @@ module wbu (
     localparam EU_MUL2     = 4'd5;
     localparam EU_DIV1     = 4'd6;
     localparam EU_DIV2     = 4'd7;
-    localparam EU_CSR1     = 4'd8;
-    localparam EU_CSR2     = 4'd9;
-    localparam EU_LSU1     = 4'd10;
-    localparam EU_LSU2     = 4'd11;
+    localparam EU_CSR      = 4'd8;
+    localparam EU_LSU1     = 4'd9;
+    localparam EU_LSU2     = 4'd10;
     
     // FIFO参数
     localparam FIFO_DEPTH = 8;
@@ -198,21 +182,21 @@ module wbu (
     assign fifo_write_ptr = fifo_count[FIFO_ADDR_WIDTH-1:0];
     
     // 当前周期执行单元写回请求
-    wire [11:0] eu_reg_we;
-    wire [11:0] eu_csr_we;
-    wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:11];
-    wire [4:0] eu_reg_waddr [0:11];               // 5位地址
-    wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:11];
-    wire [31:0] eu_timestamp [0:11];              // 32位时间戳
-    wire [`BUS_ADDR_WIDTH-1:0] eu_csr_waddr [0:11];
-    wire [`REG_DATA_WIDTH-1:0] eu_csr_wdata [0:11];
+    wire [10:0] eu_reg_we;
+    wire [10:0] eu_csr_we;
+    wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:10];
+    wire [4:0] eu_reg_waddr [0:10];               // 5位地址
+    wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:10];
+    wire [31:0] eu_timestamp [0:10];              // 32位时间戳
+    wire [`BUS_ADDR_WIDTH-1:0] eu_csr_waddr [0:10];
+    wire [`REG_DATA_WIDTH-1:0] eu_csr_wdata [0:10];
     
     // 组织执行单元输入信号
-    assign eu_reg_we = {lsu2_reg_we_i, lsu1_reg_we_i, csr2_reg_we_i, csr1_reg_we_i,
+    assign eu_reg_we = {lsu2_reg_we_i, lsu1_reg_we_i, csr_reg_we_i,
                        div2_reg_we_i, div1_reg_we_i, mul2_reg_we_i, mul1_reg_we_i,
                        shifter2_reg_we_i, shifter1_reg_we_i, adder2_reg_we_i, adder1_reg_we_i};
     
-    assign eu_csr_we = {2'b0, csr2_we_i, csr1_we_i, 8'b0};
+    assign eu_csr_we = {2'b0, csr_we_i, 8'b0};
     
     assign eu_reg_wdata[0] = adder1_reg_wdata_i;
     assign eu_reg_wdata[1] = adder2_reg_wdata_i;
@@ -222,10 +206,9 @@ module wbu (
     assign eu_reg_wdata[5] = mul2_reg_wdata_i;
     assign eu_reg_wdata[6] = div1_reg_wdata_i;
     assign eu_reg_wdata[7] = div2_reg_wdata_i;
-    assign eu_reg_wdata[8] = csr1_reg_wdata_i;
-    assign eu_reg_wdata[9] = csr2_reg_wdata_i;
-    assign eu_reg_wdata[10] = lsu1_reg_wdata_i;
-    assign eu_reg_wdata[11] = lsu2_reg_wdata_i;
+    assign eu_reg_wdata[8] = csr_reg_wdata_i;
+    assign eu_reg_wdata[9] = lsu1_reg_wdata_i;
+    assign eu_reg_wdata[10] = lsu2_reg_wdata_i;
     
     assign eu_reg_waddr[0] = adder1_reg_waddr_i;
     assign eu_reg_waddr[1] = adder2_reg_waddr_i;
@@ -235,10 +218,9 @@ module wbu (
     assign eu_reg_waddr[5] = mul2_reg_waddr_i;
     assign eu_reg_waddr[6] = div1_reg_waddr_i;
     assign eu_reg_waddr[7] = div2_reg_waddr_i;
-    assign eu_reg_waddr[8] = csr1_reg_waddr_i;
-    assign eu_reg_waddr[9] = csr2_reg_waddr_i;
-    assign eu_reg_waddr[10] = lsu1_reg_waddr_i;
-    assign eu_reg_waddr[11] = lsu2_reg_waddr_i;
+    assign eu_reg_waddr[8] = csr_reg_waddr_i;
+    assign eu_reg_waddr[9] = lsu1_reg_waddr_i;
+    assign eu_reg_waddr[10] = lsu2_reg_waddr_i;
     
     assign eu_commit_id[0] = adder1_commit_id_i;
     assign eu_commit_id[1] = adder2_commit_id_i;
@@ -248,10 +230,9 @@ module wbu (
     assign eu_commit_id[5] = mul2_commit_id_i;
     assign eu_commit_id[6] = div1_commit_id_i;
     assign eu_commit_id[7] = div2_commit_id_i;
-    assign eu_commit_id[8] = csr1_commit_id_i;
-    assign eu_commit_id[9] = csr2_commit_id_i;
-    assign eu_commit_id[10] = lsu1_commit_id_i;
-    assign eu_commit_id[11] = lsu2_commit_id_i;
+    assign eu_commit_id[8] = csr_commit_id_i;
+    assign eu_commit_id[9] = lsu1_commit_id_i;
+    assign eu_commit_id[10] = lsu2_commit_id_i;
     
     assign eu_timestamp[0] = adder1_timestamp_exu;
     assign eu_timestamp[1] = adder2_timestamp_exu;
@@ -261,23 +242,20 @@ module wbu (
     assign eu_timestamp[5] = mul2_timestamp_exu;
     assign eu_timestamp[6] = div1_timestamp_exu;
     assign eu_timestamp[7] = div2_timestamp_exu;
-    assign eu_timestamp[8] = csr1_timestamp_exu;
-    assign eu_timestamp[9] = csr2_timestamp_exu;
-    assign eu_timestamp[10] = lsu1_timestamp_exu;
-    assign eu_timestamp[11] = lsu2_timestamp_exu;
+    assign eu_timestamp[8] = csr_timestamp_exu;
+    assign eu_timestamp[9] = lsu1_timestamp_exu;
+    assign eu_timestamp[10] = lsu2_timestamp_exu;
     
-    assign eu_csr_waddr[8] = csr1_waddr_i;
-    assign eu_csr_waddr[9] = csr2_waddr_i;
-    assign eu_csr_wdata[8] = csr1_wdata_i;
-    assign eu_csr_wdata[9] = csr2_wdata_i;
+    assign eu_csr_waddr[8] = csr_waddr_i;
+    assign eu_csr_wdata[8] = csr_wdata_i;
     
     // WAW冲突检测逻辑
-    reg [11:0] waw_conflict_delay;     // 需要延迟写回的执行单元
+    reg [10:0] waw_conflict_delay;     // 需要延迟写回的执行单元
     
     always @(*) begin
-        waw_conflict_delay = 12'b0;
+        waw_conflict_delay = 11'b0;
         
-        for (integer eu_idx = 0; eu_idx < 12; eu_idx = eu_idx + 1) begin
+        for (integer eu_idx = 0; eu_idx < 11; eu_idx = eu_idx + 1) begin
             if (eu_reg_we[eu_idx] || eu_csr_we[eu_idx]) begin
                 for (integer fifo_idx = 0; fifo_idx < FIFO_DEPTH; fifo_idx = fifo_idx + 1) begin
                     if (fifo_valid[fifo_idx] && 
@@ -299,12 +277,12 @@ module wbu (
     end
     
     // 同周期内的WAW冲突检测
-    reg [11:0] current_cycle_conflict;
+    reg [10:0] current_cycle_conflict;
     always @(*) begin
-        current_cycle_conflict = 12'b0;
+        current_cycle_conflict = 11'b0;
         
-        for (integer i = 0; i < 12; i = i + 1) begin
-            for (integer j = i + 1; j < 12; j = j + 1) begin
+        for (integer i = 0; i < 11; i = i + 1) begin
+            for (integer j = i + 1; j < 11; j = j + 1) begin
                 if ((eu_reg_we[i] || eu_csr_we[i]) && 
                     (eu_reg_we[j] || eu_csr_we[j]) &&
                     eu_reg_waddr[i] == eu_reg_waddr[j]) begin
@@ -322,7 +300,7 @@ module wbu (
     end
     
     // 当前周期可以直接写回的执行单元
-    wire [11:0] eu_can_writeback;
+    wire [10:0] eu_can_writeback;
     assign eu_can_writeback = (eu_reg_we | eu_csr_we) & 
                              (~waw_conflict_delay) & 
                              (~current_cycle_conflict);
@@ -338,11 +316,11 @@ module wbu (
         wb_ch2_eu = 4'd0;
         
         // 从当前周期请求中选择最高优先级的
-        // 按优先级顺序检查：LSU2, LSU1, DIV2, DIV1, MUL2, MUL1, CSR2, CSR1, ADDER2, ADDER1, SHIFTER2, SHIFTER1
-        if (eu_can_writeback[11]) begin
+        // 按优先级顺序检查：LSU2, LSU1, DIV2, DIV1, MUL2, MUL1, CSR, ADDER2, ADDER1, SHIFTER2, SHIFTER1
+        if (eu_can_writeback[10]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_LSU2;
-        end else if (eu_can_writeback[10]) begin
+        end else if (eu_can_writeback[9]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_LSU1;
         end else if (eu_can_writeback[7]) begin
@@ -357,12 +335,9 @@ module wbu (
         end else if (eu_can_writeback[4]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_MUL1;
-        end else if (eu_can_writeback[9]) begin
-            wb_ch1_valid = 1'b1;
-            wb_ch1_eu = EU_CSR2;
         end else if (eu_can_writeback[8]) begin
             wb_ch1_valid = 1'b1;
-            wb_ch1_eu = EU_CSR1;
+            wb_ch1_eu = EU_CSR;
         end else if (eu_can_writeback[1]) begin
             wb_ch1_valid = 1'b1;
             wb_ch1_eu = EU_ADDER2;
@@ -380,10 +355,10 @@ module wbu (
         // 选择第二个写回通道（排除已选择的）
         if (wb_ch1_valid) begin
             // 屏蔽已选择的执行单元
-            if (eu_can_writeback[11] && wb_ch1_eu != EU_LSU2) begin
+            if (eu_can_writeback[10] && wb_ch1_eu != EU_LSU2) begin
                 wb_ch2_valid = 1'b1;
                 wb_ch2_eu = EU_LSU2;
-            end else if (eu_can_writeback[10] && wb_ch1_eu != EU_LSU1) begin
+            end else if (eu_can_writeback[9] && wb_ch1_eu != EU_LSU1) begin
                 wb_ch2_valid = 1'b1;
                 wb_ch2_eu = EU_LSU1;
             end else if (eu_can_writeback[7] && wb_ch1_eu != EU_DIV2) begin
@@ -398,12 +373,9 @@ module wbu (
             end else if (eu_can_writeback[4] && wb_ch1_eu != EU_MUL1) begin
                 wb_ch2_valid = 1'b1;
                 wb_ch2_eu = EU_MUL1;
-            end else if (eu_can_writeback[9] && wb_ch1_eu != EU_CSR2) begin
+            end else if (eu_can_writeback[8] && wb_ch1_eu != EU_CSR) begin
                 wb_ch2_valid = 1'b1;
-                wb_ch2_eu = EU_CSR2;
-            end else if (eu_can_writeback[8] && wb_ch1_eu != EU_CSR1) begin
-                wb_ch2_valid = 1'b1;
-                wb_ch2_eu = EU_CSR1;
+                wb_ch2_eu = EU_CSR;
             end else if (eu_can_writeback[1] && wb_ch1_eu != EU_ADDER2) begin
                 wb_ch2_valid = 1'b1;
                 wb_ch2_eu = EU_ADDER2;
@@ -513,29 +485,23 @@ module wbu (
         end
     end
     
-    // CSR写回通道1输出
+    // CSR写回输出
     always @(*) begin
-        if (wb_ch1_valid && (wb_ch1_eu == EU_CSR1 || wb_ch1_eu == EU_CSR2)) begin
-            csr1_wdata_o = eu_csr_wdata[wb_ch1_eu];
-            csr1_waddr_o = eu_csr_waddr[wb_ch1_eu];
-            csr1_we_o = eu_csr_we[wb_ch1_eu];
+        if ((wb_ch1_valid && wb_ch1_eu == EU_CSR) || (wb_ch2_valid && wb_ch2_eu == EU_CSR)) begin
+            // 优先选择通道1，如果通道1不是CSR则选择通道2
+            if (wb_ch1_valid && wb_ch1_eu == EU_CSR) begin
+                csr_wdata_o = eu_csr_wdata[wb_ch1_eu];
+                csr_waddr_o = eu_csr_waddr[wb_ch1_eu];
+                csr_we_o = eu_csr_we[wb_ch1_eu];
+            end else begin
+                csr_wdata_o = eu_csr_wdata[wb_ch2_eu];
+                csr_waddr_o = eu_csr_waddr[wb_ch2_eu];
+                csr_we_o = eu_csr_we[wb_ch2_eu];
+            end
         end else begin
-            csr1_wdata_o = {`REG_DATA_WIDTH{1'b0}};
-            csr1_waddr_o = {`BUS_ADDR_WIDTH{1'b0}};
-            csr1_we_o = 1'b0;
-        end
-    end
-    
-    // CSR写回通道2输出
-    always @(*) begin
-        if (wb_ch2_valid && (wb_ch2_eu == EU_CSR1 || wb_ch2_eu == EU_CSR2)) begin
-            csr2_wdata_o = eu_csr_wdata[wb_ch2_eu];
-            csr2_waddr_o = eu_csr_waddr[wb_ch2_eu];
-            csr2_we_o = eu_csr_we[wb_ch2_eu];
-        end else begin
-            csr2_wdata_o = {`REG_DATA_WIDTH{1'b0}};
-            csr2_waddr_o = {`BUS_ADDR_WIDTH{1'b0}};
-            csr2_we_o = 1'b0;
+            csr_wdata_o = {`REG_DATA_WIDTH{1'b0}};
+            csr_waddr_o = {`BUS_ADDR_WIDTH{1'b0}};
+            csr_we_o = 1'b0;
         end
     end
     
@@ -548,10 +514,9 @@ module wbu (
     assign mul2_ready_o = ~(waw_conflict_delay[5] | current_cycle_conflict[5]);
     assign div1_ready_o = ~(waw_conflict_delay[6] | current_cycle_conflict[6]);
     assign div2_ready_o = ~(waw_conflict_delay[7] | current_cycle_conflict[7]);
-    assign csr1_ready_o = ~(waw_conflict_delay[8] | current_cycle_conflict[8]);
-    assign csr2_ready_o = ~(waw_conflict_delay[9] | current_cycle_conflict[9]);
-    assign lsu1_ready_o = ~(waw_conflict_delay[10] | current_cycle_conflict[10]);
-    assign lsu2_ready_o = ~(waw_conflict_delay[11] | current_cycle_conflict[11]);
+    assign csr_ready_o = ~(waw_conflict_delay[8] | current_cycle_conflict[8]);
+    assign lsu1_ready_o = ~(waw_conflict_delay[9] | current_cycle_conflict[9]);
+    assign lsu2_ready_o = ~(waw_conflict_delay[10] | current_cycle_conflict[10]);
     
     // 提交信号生成
     assign commit_valid1_o = wb_ch1_valid;

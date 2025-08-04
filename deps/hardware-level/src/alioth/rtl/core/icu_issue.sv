@@ -106,29 +106,44 @@ module icu_issue (
         // 控制信号解析
     wire other_flush_en = stall_flag_i[`CU_FLUSH];
     
-    // 静态变量，记录指令是否已经被发射过
-    reg inst1_issued = 1'b0;
-    reg inst2_issued = 1'b0;
+    // 静态变量，记录上一周期的指令信息，用于检测指令是否发生变化
+    reg [`INST_ADDR_WIDTH-1:0] prev_inst1_addr = {`INST_ADDR_WIDTH{1'b0}};
+    reg [`INST_ADDR_WIDTH-1:0] prev_inst2_addr = {`INST_ADDR_WIDTH{1'b0}};
+    reg prev_inst1_issued = 1'b0;
+    reg prev_inst2_issued = 1'b0;
     
-    // 在更新输出时，如果指令被发射，则将已发射标志置为1
+    // 检测指令是否与上一周期相同
+    wire inst1_same_as_prev = (prev_inst1_addr == inst1_addr_i) && (inst1_addr_i != {`INST_ADDR_WIDTH{1'b0}});
+    wire inst2_same_as_prev = (prev_inst2_addr == inst2_addr_i) && (inst2_addr_i != {`INST_ADDR_WIDTH{1'b0}});
+    
+    // 更新历史记录
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
-            inst1_issued <= 1'b0;
-            inst2_issued <= 1'b0;
+            prev_inst1_addr <= {`INST_ADDR_WIDTH{1'b0}};
+            prev_inst2_addr <= {`INST_ADDR_WIDTH{1'b0}};
+            prev_inst1_issued <= 1'b0;
+            prev_inst2_issued <= 1'b0;
         end else if (other_flush_en) begin
-            // 当发生flush时，清除已发射标志
-            inst1_issued <= 1'b0;
-            inst2_issued <= 1'b0;
+            // 当发生flush时，清除历史记录
+            prev_inst1_addr <= {`INST_ADDR_WIDTH{1'b0}};
+            prev_inst2_addr <= {`INST_ADDR_WIDTH{1'b0}};
+            prev_inst1_issued <= 1'b0;
+            prev_inst2_issued <= 1'b0;
         end else if (~stall_flag_i[`CU_STALL_DISPATCH]) begin
-            // 只有在非stall状态下才更新已发射标志
-            if (issue_inst_i[0]) inst1_issued <= 1'b1;
-            if (issue_inst_i[1]) inst2_issued <= 1'b1;
+            // 记录本周期的指令信息和发射状态
+            prev_inst1_addr <= inst1_addr_i;
+            prev_inst2_addr <= inst2_addr_i;
+            prev_inst1_issued <= issue_inst_i[0];
+            prev_inst2_issued <= issue_inst_i[1];
         end
     end
     
-    // 指令只有在未发射过且当前需要发射时才有效，否则清零
-    wire flush_en_1 = other_flush_en || (~issue_inst_i[0]) || inst1_issued;
-    wire flush_en_2 = other_flush_en || (~issue_inst_i[1]) || inst2_issued;
+    // 发射控制逻辑：
+    // 1. 如果指令与上一周期相同且上一周期已经发射过，则不再发射（防止重复发射）
+    // 2. 如果指令与上一周期不同，则可以正常发射（新指令）
+    // 3. 如果当前不要求发射，则清零输出
+    wire flush_en_1 = other_flush_en || (~issue_inst_i[0]) || (inst1_same_as_prev && prev_inst1_issued);
+    wire flush_en_2 = other_flush_en || (~issue_inst_i[1]) || (inst2_same_as_prev && prev_inst2_issued);
     
     wire other_stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire update_output = ~other_stall_en; 

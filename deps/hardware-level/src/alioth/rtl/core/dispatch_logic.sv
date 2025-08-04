@@ -96,8 +96,8 @@ module dispatch_logic (
 
     // 直接计算的内存地址和掩码/数据
     output wire [31:0] mem_addr_o,
-    output wire [ 3:0] mem_wmask_o,
-    output wire [31:0] mem_wdata_o,
+    output wire [ 7:0] mem_wmask_o,
+    output wire [63:0] mem_wdata_o,
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -266,52 +266,66 @@ module dispatch_logic (
 
     // 直接计算内存地址
     wire [31:0] mem_addr = rs1_rdata_i + dec_imm_i;
-    wire [ 1:0] mem_addr_index = mem_addr[1:0];  // 地址低两位用于字节选择
+    wire [ 2:0] mem_addr_index = mem_addr[2:0];  // 地址低三位用于字节选择（64位总线）
     wire        valid_op = op_mem;  // 仅在内存操作有效时计算
 
     // 存储操作的掩码和数据计算
     // 字节存储掩码和数据
-    wire [ 3:0] sb_mask;
-    wire [31:0] sb_data;
+    wire [ 7:0] sb_mask;
+    wire [63:0] sb_data;
 
-    assign sb_mask = ({4{mem_addr_index == 2'b00}} & 4'b0001) |
-                     ({4{mem_addr_index == 2'b01}} & 4'b0010) |
-                     ({4{mem_addr_index == 2'b10}} & 4'b0100) |
-                     ({4{mem_addr_index == 2'b11}} & 4'b1000);
+    assign sb_mask = ({8{mem_addr_index == 3'b000}} & 8'b00000001) |
+                     ({8{mem_addr_index == 3'b001}} & 8'b00000010) |
+                     ({8{mem_addr_index == 3'b010}} & 8'b00000100) |
+                     ({8{mem_addr_index == 3'b011}} & 8'b00001000) |
+                     ({8{mem_addr_index == 3'b100}} & 8'b00010000) |
+                     ({8{mem_addr_index == 3'b101}} & 8'b00100000) |
+                     ({8{mem_addr_index == 3'b110}} & 8'b01000000) |
+                     ({8{mem_addr_index == 3'b111}} & 8'b10000000);
 
-    assign sb_data = ({32{mem_addr_index == 2'b00}} & {24'b0, rs2_rdata_i[7:0]}) |
-                     ({32{mem_addr_index == 2'b01}} & {16'b0, rs2_rdata_i[7:0], 8'b0}) |
-                     ({32{mem_addr_index == 2'b10}} & {8'b0, rs2_rdata_i[7:0], 16'b0}) |
-                     ({32{mem_addr_index == 2'b11}} & {rs2_rdata_i[7:0], 24'b0});
+    assign sb_data = ({64{mem_addr_index == 3'b000}} & {56'b0, rs2_rdata_i[7:0]}) |
+                     ({64{mem_addr_index == 3'b001}} & {48'b0, rs2_rdata_i[7:0], 8'b0}) |
+                     ({64{mem_addr_index == 3'b010}} & {40'b0, rs2_rdata_i[7:0], 16'b0}) |
+                     ({64{mem_addr_index == 3'b011}} & {32'b0, rs2_rdata_i[7:0], 24'b0}) |
+                     ({64{mem_addr_index == 3'b100}} & {24'b0, rs2_rdata_i[7:0], 32'b0}) |
+                     ({64{mem_addr_index == 3'b101}} & {16'b0, rs2_rdata_i[7:0], 40'b0}) |
+                     ({64{mem_addr_index == 3'b110}} & {8'b0, rs2_rdata_i[7:0], 48'b0}) |
+                     ({64{mem_addr_index == 3'b111}} & {rs2_rdata_i[7:0], 56'b0});
 
     // 半字存储掩码和数据
-    wire [ 3:0] sh_mask;
-    wire [31:0] sh_data;
+    wire [ 7:0] sh_mask;
+    wire [63:0] sh_data;
 
-    assign sh_mask = ({4{mem_addr_index[1] == 1'b0}} & 4'b0011) | 
-                     ({4{mem_addr_index[1] == 1'b1}} & 4'b1100);
+    assign sh_mask = ({8{mem_addr_index[2:1] == 2'b00}} & 8'b00000011) | 
+                     ({8{mem_addr_index[2:1] == 2'b01}} & 8'b00001100) |
+                     ({8{mem_addr_index[2:1] == 2'b10}} & 8'b00110000) |
+                     ({8{mem_addr_index[2:1] == 2'b11}} & 8'b11000000);
 
-    assign sh_data = ({32{mem_addr_index[1] == 1'b0}} & {16'b0, rs2_rdata_i[15:0]}) |
-                     ({32{mem_addr_index[1] == 1'b1}} & {rs2_rdata_i[15:0], 16'b0});
+    assign sh_data = ({64{mem_addr_index[2:1] == 2'b00}} & {48'b0, rs2_rdata_i[15:0]}) |
+                     ({64{mem_addr_index[2:1] == 2'b01}} & {32'b0, rs2_rdata_i[15:0], 16'b0}) |
+                     ({64{mem_addr_index[2:1] == 2'b10}} & {16'b0, rs2_rdata_i[15:0], 32'b0}) |
+                     ({64{mem_addr_index[2:1] == 2'b11}} & {rs2_rdata_i[15:0], 48'b0});
 
     // 字存储掩码和数据
-    wire [ 3:0] sw_mask;
-    wire [31:0] sw_data;
+    wire [ 7:0] sw_mask;
+    wire [63:0] sw_data;
 
-    assign sw_mask = 4'b1111;
-    assign sw_data = rs2_rdata_i;
+    assign sw_mask = ({8{mem_addr_index[2] == 1'b0}} & 8'b00001111) |
+                     ({8{mem_addr_index[2] == 1'b1}} & 8'b11110000);
+    assign sw_data = ({64{mem_addr_index[2] == 1'b0}} & {32'b0, rs2_rdata_i}) |
+                     ({64{mem_addr_index[2] == 1'b1}} & {rs2_rdata_i, 32'b0});
 
     // 并行选择最终的存储掩码和数据
-    wire [ 3:0] mem_wmask;
-    wire [31:0] mem_wdata;
+    wire [ 7:0] mem_wmask;
+    wire [63:0] mem_wdata;
 
-    assign mem_wmask = ({4{valid_op & mem_op_sb}} & sb_mask) |
-                       ({4{valid_op & mem_op_sh}} & sh_mask) |
-                       ({4{valid_op & mem_op_sw}} & sw_mask);
+    assign mem_wmask = ({8{valid_op & mem_op_sb}} & sb_mask) |
+                       ({8{valid_op & mem_op_sh}} & sh_mask) |
+                       ({8{valid_op & mem_op_sw}} & sw_mask);
 
-    assign mem_wdata = ({32{valid_op & mem_op_sb}} & sb_data) |
-                       ({32{valid_op & mem_op_sh}} & sh_data) |
-                       ({32{valid_op & mem_op_sw}} & sw_data);
+    assign mem_wdata = ({64{valid_op & mem_op_sb}} & sb_data) |
+                       ({64{valid_op & mem_op_sh}} & sh_data) |
+                       ({64{valid_op & mem_op_sw}} & sw_data);
 
     // 输出计算结果
     assign mem_addr_o = mem_addr;

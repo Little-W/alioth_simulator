@@ -54,6 +54,9 @@ module hdu (
     input wire                        inst1_jump_i,    // 指令1跳转信号
     input wire                        inst1_branch_i,  // 指令1分支信号
 
+    input wire                        inst1_csr_type_i,    // 指令1 CSR类型信号
+    input wire                        inst2_csr_type_i,    // 指令2 CSR类型信号
+
     // 控制信号
     output wire new_issue_stall_o,  // 新发射暂停信号，控制发射级之前的流水线暂停
     output wire [1:0] issue_inst_o,  // 发射指令标志[1:0]，bit0控制指令A，bit1控制指令B
@@ -130,7 +133,9 @@ module hdu (
         // 检查指令2读取指令1写入的寄存器(B读A写的寄存器)
         if (!(commit_valid_i && commit_id_i == pending_inst1_id)) begin
             // RAW冒险：指令2读取的寄存器是指令1写入的寄存器
-            if (inst2_rs1_check && inst1_rd_check && inst2_rs1_addr == inst1_rd_addr) begin
+            // 注意：如果指令1和2都是CSR指令，也通过raw冒险处理
+            if ((inst2_rs1_check && inst1_rd_check && inst2_rs1_addr == inst1_rd_addr)
+            || (inst1_csr_type_i == inst2_csr_type_i)) begin
                 raw_hazard_inst2_inst1 = 1'b1;
             end
             //inst1跳转也视为inst1与inst2存在冒险
