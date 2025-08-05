@@ -50,7 +50,7 @@ module ifu_ifetch (
     assign pc_nxt = (!rst_n) ? `PC_RESET_ADDR :  // 复位
         (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
         (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
-        pc_o + 4'h4;  // 地址加4
+        pc_o + 4'h8;  // 地址加4
 
     // 非对齐判断：PC最低两位不为0即为非对齐
     assign pc_misaligned_o = |pc_o[1:0];

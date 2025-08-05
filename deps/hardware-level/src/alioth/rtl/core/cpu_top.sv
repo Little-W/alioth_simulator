@@ -165,6 +165,8 @@ module cpu_top (
     wire clint_int_assert_o;
     wire clint_int_jump_o;  // 添加中断跳转信号
     wire clint_req_valid_o;  // 添加中断请求有效信号
+    wire clint_flush_flag_o;  // 添加CLINT flush信号
+    wire clint_stall_flag_o;  // 添加CLINT stall信号
 
     // 新增信号定义
     wire ifu_read_resp_error_o;
@@ -199,13 +201,13 @@ module cpu_top (
     wire misaligned_fetch_o;  // EXU输出misaligned fetch信号
 
     // 给dispatch和HDU的译码信息
+    wire ext_int_req;
     wire inst_valid = (ctrl_stall_flag_o == 0);
-    wire inst_exu_valid = (ctrl_stall_flag_o == 0) && (dispatch_inst_valid_o);
-    // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
-    // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
-    // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire rd_access_inst_valid = idu_inst1_reg_we_o && !ctrl_stall_flag_o;
-    wire dis_is_pred_branch_o;
+    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+                        (idu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    wire inst_clint_valid = !dis_is_pred_branch_o && (dispatch_inst_valid_o);
+    wire rd_access_inst_valid = idu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
     // AXI接口信号 - IFU
     wire [`BUS_ID_WIDTH-1:0] ifu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
     wire [`INST_ADDR_WIDTH-1:0] ifu_axi_araddr;
@@ -220,7 +222,7 @@ module cpu_top (
     wire ifu_axi_arvalid;
     wire ifu_axi_arready;
     wire [`BUS_ID_WIDTH-1:0] ifu_axi_rid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [`INST_DATA_WIDTH-1:0] ifu_axi_rdata;
+    wire [`BUS_DATA_WIDTH-1:0] ifu_axi_rdata;  // 保持64位用于获取两条指令
     wire [1:0] ifu_axi_rresp;
     wire ifu_axi_rlast;
     wire [3:0] ifu_axi_ruser;
@@ -282,7 +284,7 @@ module cpu_top (
     wire [31:0] dispatch_dec_imm_o;
     wire [`DECINFO_WIDTH-1:0] dispatch_dec_info_bus_o;
     wire [`INST_ADDR_WIDTH-1:0] dispatch_inst_addr_o;
-    wire [`INST_DATA_WIDTH-1:0] dispatch_inst_o;  // 新增：指令内容输出
+    wire [31:0] dispatch_inst_o;  // 修改为32位：指令内容输出
 
     // dispatch to MEM
     wire dispatch_req_mem;
@@ -422,10 +424,12 @@ module cpu_top (
         .jump_flag_i      (ctrl_jump_flag_o),
         .jump_addr_i      (ctrl_jump_addr_o),
         .stall_flag_i     (ctrl_stall_flag_o),
-        .inst_o           (if_inst_o),
-        .inst_addr_o      (if_inst_addr_o),
+        .inst1_o          (if_inst1_o),
+        .inst1_addr_o     (if_inst1_addr_o),
+        .inst2_o          (if_inst2_o),
+        .inst2_addr_o     (if_inst2_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
-        .is_pred_branch_o (if_is_pred_branch_o),    // 连接预测分支信号输出
+        .is_pred_branch_o (if_inst1_is_pred_branch_o),    // 连接预测分支信号输出
         .inst_valid_o     (if_inst1_valid_o),        // 添加指令有效信号输出
 
         // AXI接口
@@ -1229,4 +1233,7 @@ module cpu_top (
 
     // 定义原子操作忙信号 - 使用dispatch提供的HDU原子锁信号
     assign atom_opt_busy = icu_long_inst_atom_lock_o | exu_mem_store_busy_o;
+
+    // 声明dis_is_pred_branch_o信号
+    wire dis_is_pred_branch_o;
 endmodule

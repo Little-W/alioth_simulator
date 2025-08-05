@@ -36,10 +36,13 @@ module ifu (
     input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,    // 流水线暂停标志
 
     // 输出到ID阶段的信息
-    output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,        // 指令地址
+    output wire [31:0] inst1_o,             // 第一条指令内容
+    output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,        // 第一条指令地址
+    output wire [31:0] inst2_o,             // 第二条指令内容
+    output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,        // 第二条指令地址
     output wire                        read_resp_error_o,  // AXI读响应错误信号
-    output wire                        is_pred_branch_o,   // 添加预测分支指令标志输出
+    output wire                        is_pred_branch1_o,  // 第一条指令预测分支标志输出
+    output wire                        is_pred_branch2_o,  // 第二条指令预测分支标志输出
     output wire                        inst_valid_o,        // 添加指令有效信号输出
 
     // AXI接口
@@ -74,16 +77,18 @@ module ifu (
     wire inst_valid = inst_valid_axi & ~wait_for_jalr;  // 有效指令信号，排除JALR等待状态
 
     // 双指令解析
-    wire [`INST_DATA_WIDTH-1:0] inst0_data = inst_data[31:0];   // 第一条指令（低32位）
-    wire [`INST_DATA_WIDTH-1:0] inst1_data = inst_data[63:32];  // 第二条指令（高32位）
+    wire [31:0] inst0_data = inst_data[31:0];   // 第一条指令（低32位）
+    wire [31:0] inst1_data = inst_data[63:32];  // 第二条指令（高32位）
     wire [`INST_ADDR_WIDTH-1:0] inst0_addr = inst_addr;        // 第一条指令地址
     wire [`INST_ADDR_WIDTH-1:0] inst1_addr = inst_addr + 4;    // 第二条指令地址
 
     // 分支预测相关信号
     wire branch_taken;  // 分支预测结果：是否跳转
     wire [`INST_ADDR_WIDTH-1:0] branch_addr;  // 预测的分支目标地址
-    wire is_pred_branch;  // 当前指令是否为预测分支指令
-    wire is_pred_branch_r;  // 预测分支信号寄存后
+    wire is_pred_branch0;  // 第一条指令是否为预测分支指令
+    wire is_pred_branch1;  // 第二条指令是否为预测分支指令
+    wire is_pred_branch0_r;  // 预测分支信号寄存后（第一条指令）
+    wire is_pred_branch1_r;  // 预测分支信号寄存后（第二条指令）
     wire branch_inst_slot;  // 分支指令所在槽位
 
     // 合并跳转信号和地址
@@ -111,7 +116,8 @@ module ifu (
         .jalr_executed_i (jalr_executed_i),  // JALR执行信号输入
         .branch_taken_o  (branch_taken),     // 预测是否为分支
         .branch_addr_o   (branch_addr),      // 预测的分支地址
-        .is_pred_branch_o(is_pred_branch),   // 当前指令是否为预测分支
+        .is_pred_branch0_o(is_pred_branch0), // 第一条指令预测分支信号
+        .is_pred_branch1_o(is_pred_branch1), // 第二条指令预测分支信号
         .wait_for_jalr_o (wait_for_jalr),    // JALR等待信号输出
         .branch_inst_slot_o(branch_inst_slot) // 分支指令所在槽位
     );
@@ -132,20 +138,27 @@ module ifu (
     ifu_pipe u_ifu_pipe (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_data),         // 使用从AXI读取的64位指令数据
-        .inst_addr_i     (inst_addr),         // 使用从AXI读取的指令地址
-        .is_pred_branch_i(is_pred_branch),    // 连接预测分支信号
+        .inst1_i         (inst0_data),        // 第一条指令数据
+        .inst1_addr_i    (inst0_addr),        // 第一条指令地址
+        .inst2_i         (inst1_data),        // 第二条指令数据  
+        .inst2_addr_i    (inst1_addr),        // 第二条指令地址
+        .is_pred_branch1_i(is_pred_branch0),  // 第一条指令预测分支信号
+        .is_pred_branch2_i(is_pred_branch1),  // 第二条指令预测分支信号
         .flush_flag_i    (flush_flag),
         .inst_valid_i    (inst_valid),       // 从AXI控制器获取的有效信号
         .stall_i         (stall_if),         // 连接IF阶段暂停信号
-        .inst_o          (inst_o),           // 指令输出
-        .inst_addr_o     (inst_addr_o),      // 指令地址输出
-        .is_pred_branch_o(is_pred_branch_r), // 连接预测分支信号输出
+        .inst1_o         (inst1_o),          // 第一条指令输出
+        .inst1_addr_o    (inst1_addr_o),     // 第一条指令地址输出
+        .inst2_o         (inst2_o),          // 第二条指令输出
+        .inst2_addr_o    (inst2_addr_o),     // 第二条指令地址输出
+        .is_pred_branch1_o(is_pred_branch0_r), // 第一条指令预测分支信号输出
+        .is_pred_branch2_o(is_pred_branch1_r), // 第二条指令预测分支信号输出
         .inst_valid_o    (inst_valid_o)      // 连接指令有效信号输出
     );
 
     // 将内部信号连接到输出端口
-    assign is_pred_branch_o = is_pred_branch_r;
+    assign is_pred_branch1_o = is_pred_branch0_r;
+    assign is_pred_branch2_o = is_pred_branch1_r;
 
     // 实例化AXI主机模块
     ifu_axi_master #(
@@ -161,7 +174,7 @@ module ifu (
         .read_resp_error_o(read_resp_error_o),
         .inst_data_o      (inst_data),          // 连接指令数据输出
         .inst_addr_o      (inst_addr),          // 连接指令地址输出
-        .inst_valid_o     (inst_valid),         // 连接指令有效信号输出
+        .inst_valid_o     (inst_valid_axi),     // 连接指令有效信号输出
         .pc_stall_o       (axi_pc_stall),       // 连接PC暂停信号输出
 
         // AXI读地址通道

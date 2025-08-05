@@ -35,7 +35,7 @@
 `define BUS_ADDR_WIDTH 32
 `define BUS_ID_WIDTH 3          // 双发射：3位ID支持8个并发事务，匹配FIFO深度
 
-`define INST_DATA_WIDTH 64      // 双发射：64位指令数据（两个32位指令）
+`define INST_DATA_WIDTH 32      // 修改为32位：单条指令数据宽度
 `define INST_ADDR_WIDTH 32
 
 // IFU FIFO配置

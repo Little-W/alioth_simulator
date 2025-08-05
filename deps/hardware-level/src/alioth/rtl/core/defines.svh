@@ -46,6 +46,8 @@
 `define CU_STALL 1
 `define CU_STALL_DISPATCH 2
 
+`define TIMESTAMP_WIDTH 32
+
 // I type inst
 `define INST_TYPE_I 7'b0010011
 `define INST_ADDI 3'b000
