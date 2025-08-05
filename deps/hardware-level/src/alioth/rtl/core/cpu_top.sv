@@ -79,6 +79,7 @@ module cpu_top (
     // exu模块输出信号
     wire exu_stall_flag_o;
     wire exu_jump_flag_o;
+    wire exu_bru_jump_ready_o;
     wire [`INST_ADDR_WIDTH-1:0] exu_jump_addr_o;
     wire [`REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
     wire exu_csr_we_o;
@@ -338,13 +339,15 @@ module cpu_top (
     wire dis_is_pred_branch_o;
     wire ext_int_req;
     wire inst_valid = (ctrl_stall_flag_o == 0);
-    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
-                        (idu_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) &&
+                          !exu_jump_flag_o && !clint_int_assert_o &&
+                          (dispatch_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     wire inst_clint_valid = !dis_is_pred_branch_o && (dispatch_inst_valid_o);
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && 
+                                !clint_req_valid_o && !exu_bru_jump_ready_o;
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
 
     // CLINT AXI-Lite接口信号
@@ -436,6 +439,8 @@ module cpu_top (
         .rst_n             (rst_n),
         .jump_flag_i       (exu_jump_flag_o),
         .jump_addr_i       (exu_jump_addr_o),
+        .int_jump_i        (clint_int_jump_o),       // 添加中断跳转信号
+        .int_addr_i        (clint_int_addr_o),
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
@@ -642,8 +647,6 @@ module cpu_top (
         .dec_info_bus_i(dispatch_dec_info_bus_o),     // 修改为从dispatch pipe获取译码信息总线
         .dec_imm_i(dispatch_dec_imm_o),  // 修改为从dispatch pipe获取立即数
         .int_assert_i(clint_int_assert_o),
-        .int_jump_i(clint_int_jump_o),  // 添加中断跳转信号输入
-        .int_addr_i(clint_int_addr_o),
         .is_pred_branch_i(dis_is_pred_branch_o),  // 连接预测分支信号输入
 
         // 从dispatch获取长指令ID
@@ -761,6 +764,7 @@ module cpu_top (
         .stall_flag_o(exu_stall_flag_o),
         .jump_flag_o (exu_jump_flag_o),
         .jump_addr_o (exu_jump_addr_o),
+        .bru_jump_ready_o(exu_bru_jump_ready_o),  // 新增：连接Bru跳转准备信号
 
         // 系统操作信号输出
         .exu_op_ecall_o (exu_ecall_o),

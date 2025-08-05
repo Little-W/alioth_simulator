@@ -111,12 +111,11 @@ module clint (
     typedef enum logic [6:0] {
         S_INT_IDLE         = 7'b0000001,
         S_INT_PENDING      = 7'b0000010,
-        // S_INT_MRET        = 7'b0000100, // 删除
-        S_INT_MEPC         = 7'b0001000,
-        S_INT_MSTATUS      = 7'b0010000,
-        S_INT_MTVAL        = 7'b0100000,
-        S_INT_MCAUSE       = 7'b1000000,
-        S_INT_MSTATUS_MRET = 7'b0000011
+        S_INT_MEPC         = 7'b0000100,
+        S_INT_MSTATUS      = 7'b0001000,
+        S_INT_MTVAL        = 7'b0010000,
+        S_INT_MCAUSE       = 7'b0100000,
+        S_INT_MSTATUS_MRET = 7'b1000000
     } int_state_e;
 
     int_state_e                        int_state;  // 合并后的状态机
@@ -147,9 +146,8 @@ module clint (
     wire soft_irq_en = soft_irq & MSIE;
 
     // === exception_req/int_req/jump_flag_i/inst_valid_i/inst_addr_i/inst_data_i打一拍 ===
-    wire exception_req = (sys_op_ecall_i || sys_op_ebreak_i || illegal_inst_i
-                            || misaligned_load_i || misaligned_store_i
-                            || misaligned_fetch_i);
+    wire exception_req = (sys_op_ecall_i || sys_op_ebreak_i || misaligned_fetch_i ||
+                         (illegal_inst_i || misaligned_load_i || misaligned_store_i) && !jump_flag_i);
 
     wire int_env_valid = (atom_opt_busy_i == 1'b0);
 
@@ -199,6 +197,9 @@ module clint (
                     end
                 end
                 S_INT_PENDING: begin
+                    if (jump_flag_i) begin
+                        saved_pc <= jump_addr_i;
+                    end
                     if (int_env_valid) begin
                         // 判断mret_req分支
                         if (mret_req) int_state <= S_INT_MSTATUS_MRET;

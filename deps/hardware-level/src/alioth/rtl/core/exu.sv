@@ -37,8 +37,6 @@ module exu (
     input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] csr_rdata_i,
     input wire                        int_assert_i,
-    input wire                        int_jump_i,
-    input wire [`INST_ADDR_WIDTH-1:0] int_addr_i,
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
@@ -165,6 +163,7 @@ module exu (
 
     // to ctrl
     output wire                        stall_flag_o,
+    output wire                        bru_jump_ready_o,  // 跳转准备好信号
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
@@ -175,6 +174,7 @@ module exu (
     output wire exu_op_ecall_o,
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
+    output wire exu_bjp_assert_o,
 
     // misaligned_fetch信号输出
     output wire                     misaligned_fetch_o,
@@ -268,8 +268,11 @@ module exu (
     wire                        bjp_cmp_res;
 
 
-    // 新增：misaligned_fetch信号连线
+    wire                        int_bjp_assert;
     wire                        misaligned_fetch_bru;
+    wire                        bru_jump_ready;
+
+    assign int_bjp_assert = int_assert_i | bru_jump_flag;
     // wire misaligned_fetch_alu; // 目前ALU不产生该信号，仅作为输入
 
     // 地址生成单元模块例化 
@@ -293,7 +296,7 @@ module exu (
         .mem_wdata_i   (mem_wdata_i),
         .mem_wmask_i   (mem_wmask_i),
         .commit_id_i   (mem_commit_id),
-        .int_assert_i  (int_assert_i),
+        .int_assert_i  (int_bjp_assert),
         .mem_stall_o   (mem_stall_o),
         .mem_busy_o    (mem_store_busy_o),
         .reg_wdata_o   (lsu_reg_wdata_o),
@@ -360,7 +363,7 @@ module exu (
         .wb_ready_i        (alu_wb_ready_i),
         .reg_we_i          (reg_we_i),
         .alu_stall_o       (alu_stall),
-        .int_assert_i      (int_assert_i),
+        .int_assert_i      (int_bjp_assert),
         // 新增：连接misaligned_fetch信号
         .misaligned_fetch_i(misaligned_fetch_bru),
         .result_o          (alu_reg_wdata_o),
@@ -371,6 +374,7 @@ module exu (
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
+        .clk               (clk),
         .rst_n             (rst_n),
         .req_bjp_i         (req_bjp_i),
         .bjp_op1_i         (bjp_op1_i),
@@ -385,10 +389,11 @@ module exu (
         .bjp_op_bge_i      (bjp_op_bge_i),
         .bjp_op_bgeu_i     (bjp_op_bgeu_i),
         .bjp_op_jalr_i     (bjp_op_jalr_i),
-        .is_pred_branch_i  (is_pred_branch_i),     // 新增：预测分支指令标志输入
+        .exu_stall_i       (stall_flag_o),         // 来自其他单元的暂停信号
+        .is_pred_branch_i  (is_pred_branch_i),     // 预测分支指令标志输入
         .sys_op_fence_i    (sys_op_fence_i),
-        .int_assert_i      (int_assert_i),
-        .int_addr_i        (int_addr_i),
+        .int_assert_i      (int_bjp_assert),
+        .jump_ready_o      (bru_jump_ready),
         .jump_flag_o       (bru_jump_flag),
         .jump_addr_o       (bru_jump_addr),
         // 新增：连接misaligned_fetch信号
@@ -413,7 +418,7 @@ module exu (
         .reg_waddr_i (reg_waddr_i),
         .wb_ready_i  (csr_wb_ready_i),
         .csr_stall_o (csr_stall),
-        .int_assert_i(int_assert_i),
+        .int_assert_i(int_bjp_assert),
         .csr_wdata_o (csr_wdata_o),
         .csr_we_o    (csr_we_o),
         .csr_waddr_o (csr_waddr_o),
@@ -437,7 +442,7 @@ module exu (
         .mul_op_mulh_i   (mul_op_mulh_i),
         .mul_op_mulhsu_i (mul_op_mulhsu_i),
         .mul_op_mulhu_i  (mul_op_mulhu_i),
-        .int_assert_i    (int_assert_i),
+        .int_assert_i    (int_bjp_assert),
         .mul_stall_flag_o(mul_stall_flag),
         .reg_wdata_o     (mul_reg_wdata),
         .reg_we_o        (mul_reg_we),
@@ -459,7 +464,7 @@ module exu (
         .div_op_divu_i   (div_op_divu_i),
         .div_op_rem_i    (div_op_rem_i),
         .div_op_remu_i   (div_op_remu_i),
-        .int_assert_i    (int_assert_i),
+        .int_assert_i    (int_bjp_assert),
         .div_stall_flag_o(div_stall_flag),
         .reg_wdata_o     (div_reg_wdata),
         .reg_we_o        (div_reg_we),
@@ -478,15 +483,16 @@ module exu (
     assign div_commit_id_o = div_commit_id;
 
     assign stall_flag_o = mul_stall_flag | div_stall_flag | alu_stall | csr_stall | mem_stall_o;
-    assign jump_flag_o = bru_jump_flag || int_jump_i;
-    assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
+    assign jump_flag_o = bru_jump_flag;
+    assign jump_addr_o = bru_jump_addr;
+    assign bru_jump_ready_o = bru_jump_ready;
 
     // 将SYS操作信号连接到输出
-    assign exu_op_ecall_o = sys_op_ecall_i;
-    assign exu_op_ebreak_o = sys_op_ebreak_i;
-    assign exu_op_mret_o = sys_op_mret_i;
+    assign exu_op_ecall_o = int_bjp_assert ? 1'b0 : sys_op_ecall_i;
+    assign exu_op_ebreak_o = int_bjp_assert ? 1'b0 : sys_op_ebreak_i;
+    assign exu_op_mret_o = int_bjp_assert ? 1'b0 : sys_op_mret_i;
 
-    // 新增：misaligned_fetch信号输出
+    // misaligned_fetch信号输出
     assign misaligned_fetch_o = misaligned_fetch_bru;
 
 endmodule
