@@ -54,20 +54,23 @@ module dispatch_logic (
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
 
-    // dispatch to MULDIV
-    output wire        req_muldiv_o,
-    output wire [31:0] muldiv_op1_o,
-    output wire [31:0] muldiv_op2_o,
-    output wire        muldiv_op_mul_o,
-    output wire        muldiv_op_mulh_o,
-    output wire        muldiv_op_mulhsu_o,
-    output wire        muldiv_op_mulhu_o,
-    output wire        muldiv_op_div_o,
-    output wire        muldiv_op_divu_o,
-    output wire        muldiv_op_rem_o,
-    output wire        muldiv_op_remu_o,
-    output wire        muldiv_op_mul_all_o,
-    output wire        muldiv_op_div_all_o,
+    // dispatch to MUL
+    output wire [31:0] mul_op1_o,
+    output wire [31:0] mul_op2_o,
+    output wire        mul_op_mul_o,
+    output wire        mul_op_mulh_o,
+    output wire        mul_op_mulhsu_o,
+    output wire        mul_op_mulhu_o,
+    output wire        req_mul_o,
+
+    // dispatch to DIV
+    output wire [31:0] div_op1_o,
+    output wire [31:0] div_op2_o,
+    output wire        div_op_div_o,
+    output wire        div_op_divu_o,
+    output wire        div_op_rem_o,
+    output wire        div_op_remu_o,
+    output wire        req_div_o,
 
     // dispatch to CSR
     output wire        req_csr_o,
@@ -145,21 +148,27 @@ module dispatch_logic (
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
     wire [`DECINFO_WIDTH-1:0] muldiv_info = {`DECINFO_WIDTH{op_muldiv}} & dec_info_bus_i;
     // MULDIV op1
-    assign muldiv_op1_o        = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
+    wire [31:0] muldiv_op1 = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
     // MULDIV op2
-    assign muldiv_op2_o        = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
-    assign muldiv_op_mul_o     = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
-    assign muldiv_op_mulh_o    = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
-    assign muldiv_op_mulhu_o   = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
-    assign muldiv_op_mulhsu_o  = muldiv_info[`DECINFO_MULDIV_MULHSU];  // MULHSU指令
-    assign muldiv_op_div_o     = muldiv_info[`DECINFO_MULDIV_DIV];  // DIV指令
-    assign muldiv_op_divu_o    = muldiv_info[`DECINFO_MULDIV_DIVU];  // DIVU指令
-    assign muldiv_op_rem_o     = muldiv_info[`DECINFO_MULDIV_REM];  // REM指令
-    assign muldiv_op_remu_o    = muldiv_info[`DECINFO_MULDIV_REMU];  // REMU指令
-    // 总的乘法和除法操作信号
-    assign muldiv_op_mul_all_o = muldiv_info[`DECINFO_MULDIV_OP_MUL];  // 所有乘法指令
-    assign muldiv_op_div_all_o = muldiv_info[`DECINFO_MULDIV_OP_DIV];  // 所有除法指令
-    assign req_muldiv_o        = op_muldiv;
+    wire [31:0] muldiv_op2 = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
+
+    // MUL signals
+    assign req_mul_o         = muldiv_info[`DECINFO_MULDIV_OP_MUL];  // 所有乘法指令
+    assign mul_op1_o         = req_mul_o ? muldiv_op1 : 32'h0;
+    assign mul_op2_o         = req_mul_o ? muldiv_op2 : 32'h0;
+    assign mul_op_mul_o      = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
+    assign mul_op_mulh_o     = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
+    assign mul_op_mulhu_o    = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
+    assign mul_op_mulhsu_o   = muldiv_info[`DECINFO_MULDIV_MULHSU];  // MULHSU指令
+
+    // DIV signals
+    assign req_div_o         = muldiv_info[`DECINFO_MULDIV_OP_DIV];  // 所有除法指令
+    assign div_op1_o         = req_div_o ? muldiv_op1 : 32'h0;
+    assign div_op2_o         = req_div_o ? muldiv_op2 : 32'h0;
+    assign div_op_div_o      = muldiv_info[`DECINFO_MULDIV_DIV];  // DIV指令
+    assign div_op_divu_o     = muldiv_info[`DECINFO_MULDIV_DIVU];  // DIVU指令
+    assign div_op_rem_o      = muldiv_info[`DECINFO_MULDIV_REM];  // REM指令
+    assign div_op_remu_o     = muldiv_info[`DECINFO_MULDIV_REMU];  // REMU指令
 
     // Bru info
 

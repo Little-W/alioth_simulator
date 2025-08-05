@@ -43,10 +43,11 @@ module exu (
     input wire [                31:0] dec_imm_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
-    input wire alu_wb_ready_i,     // ALU写回握手信号
-    input wire muldiv_wb_ready_i,  // MULDIV写回握手信号
-    input wire csr_wb_ready_i,     // CSR写回握手信号
-    input wire is_pred_branch_i,   // 添加预测分支指令标志输入
+    input wire alu_wb_ready_i,   // ALU写回握手信号
+    input wire mul_wb_ready_i,   // MUL写回握手信号
+    input wire div_wb_ready_i,   // DIV写回握手信号
+    input wire csr_wb_ready_i,   // CSR写回握手信号
+    input wire is_pred_branch_i, // 添加预测分支指令标志输入
 
     // from regs
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
@@ -76,21 +77,25 @@ module exu (
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,
 
-    // dispatch to MULDIV
-    input wire                        req_muldiv_i,
-    input wire [                31:0] muldiv_op1_i,
-    input wire [                31:0] muldiv_op2_i,
-    input wire                        muldiv_op_mul_i,
-    input wire                        muldiv_op_mulh_i,
-    input wire                        muldiv_op_mulhsu_i,
-    input wire                        muldiv_op_mulhu_i,
-    input wire                        muldiv_op_div_i,
-    input wire                        muldiv_op_divu_i,
-    input wire                        muldiv_op_rem_i,
-    input wire                        muldiv_op_remu_i,
-    input wire                        muldiv_op_mul_all_i,
-    input wire                        muldiv_op_div_all_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id_i,
+    // dispatch to MUL
+    input wire [                31:0] mul_op1_i,
+    input wire [                31:0] mul_op2_i,
+    input wire                        mul_op_mul_i,
+    input wire                        mul_op_mulh_i,
+    input wire                        mul_op_mulhsu_i,
+    input wire                        mul_op_mulhu_i,
+    input wire                        req_mul_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] mul_commit_id_i,
+
+    // dispatch to DIV
+    input wire [                31:0] div_op1_i,
+    input wire [                31:0] div_op2_i,
+    input wire                        div_op_div_i,
+    input wire                        div_op_divu_i,
+    input wire                        div_op_rem_i,
+    input wire                        div_op_remu_i,
+    input wire                        req_div_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] div_commit_id_i,
 
     // dispatch to CSR
     input wire        req_csr_i,
@@ -132,10 +137,15 @@ module exu (
     output wire [ `REG_ADDR_WIDTH-1:0] alu_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] alu_commit_id_o,
 
-    output wire [ `REG_DATA_WIDTH-1:0] muldiv_reg_wdata_o,
-    output wire                        muldiv_reg_we_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] muldiv_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id_o,
+    output wire [ `REG_DATA_WIDTH-1:0] mul_reg_wdata_o,
+    output wire                        mul_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] mul_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] mul_commit_id_o,
+
+    output wire [ `REG_DATA_WIDTH-1:0] div_reg_wdata_o,
+    output wire                        div_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] div_commit_id_o,
 
     output wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_o,
     output wire                        lsu_reg_we_o,
@@ -160,9 +170,6 @@ module exu (
 
     // 输出LSU未完成传输事务信号
     output wire mem_store_busy_o,
-
-    // to clint
-    output wire muldiv_started_o,
 
     // 添加系统操作信号输出到顶层
     output wire exu_op_ecall_o,
@@ -220,31 +227,6 @@ module exu (
     output wire                     M_AXI_RREADY
 );
     // 内部连线定义
-    // 除法器信号
-    wire                        div_ready;
-    wire [ `REG_DATA_WIDTH-1:0] div_result;
-    wire                        div_busy;
-    wire                        div_valid;
-    wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr;
-    // 除法器信号
-    wire                        div_start;
-    wire [ `REG_DATA_WIDTH-1:0] div_dividend;
-    wire [ `REG_DATA_WIDTH-1:0] div_divisor;
-    wire [                 3:0] div_op;
-    wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr_o;
-
-    // 乘法器信号
-    wire                        mul_ready;
-    wire [ `REG_DATA_WIDTH-1:0] mul_result;
-    wire                        mul_busy;
-    wire                        mul_valid;
-    wire [ `REG_ADDR_WIDTH-1:0] mul_reg_waddr;
-    // 新增乘法器缺失信号
-    wire                        mul_start;
-    wire [ `REG_DATA_WIDTH-1:0] mul_multiplicand;
-    wire [ `REG_DATA_WIDTH-1:0] mul_multiplier;
-    wire [                 3:0] mul_op;
-
     wire [`COMMIT_ID_WIDTH-1:0] alu_commit_id;
 
     wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id = mem_commit_id_i;
@@ -270,13 +252,16 @@ module exu (
     wire [ `REG_DATA_WIDTH-1:0] csr_unit_wdata;
     wire [ `REG_DATA_WIDTH-1:0] csr_unit_reg_wdata;
 
-    wire                        muldiv_stall_flag;
-    wire [`INST_ADDR_WIDTH-1:0] muldiv_jump_addr;
-    wire [ `REG_DATA_WIDTH-1:0] muldiv_wdata;
-
-    wire                        muldiv_we;
-    wire [ `REG_ADDR_WIDTH-1:0] muldiv_waddr;
-    wire [`COMMIT_ID_WIDTH-1:0] muldiv_commit_id;
+    wire                        mul_stall_flag;
+    wire                        div_stall_flag;
+    wire [ `REG_DATA_WIDTH-1:0] mul_reg_wdata;
+    wire                        mul_reg_we;
+    wire [ `REG_ADDR_WIDTH-1:0] mul_reg_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] mul_commit_id;
+    wire [ `REG_DATA_WIDTH-1:0] div_reg_wdata;
+    wire                        div_reg_we;
+    wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] div_commit_id;
 
     // 来自ALU的分支比较结果
     wire [                31:0] bjp_res;
@@ -286,32 +271,6 @@ module exu (
     // 新增：misaligned_fetch信号连线
     wire                        misaligned_fetch_bru;
     // wire misaligned_fetch_alu; // 目前ALU不产生该信号，仅作为输入
-
-    // 除法器模块例化
-    exu_div u_div (
-        .clk       (clk),
-        .rst_n     (rst_n),
-        .dividend_i(div_dividend),
-        .divisor_i (div_divisor),
-        .start_i   (div_start),
-        .op_i      (div_op),
-        .result_o  (div_result),
-        .busy_o    (div_busy),
-        .valid_o   (div_valid)
-    );
-
-    // 乘法器模块例化
-    exu_mul u_mul (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .multiplicand_i(mul_multiplicand),
-        .multiplier_i  (mul_multiplier),
-        .start_i       (mul_start),
-        .op_i          (mul_op),
-        .result_o      (mul_result),
-        .busy_o        (mul_busy),
-        .valid_o       (mul_valid)
-    );
 
     // 地址生成单元模块例化 
     exu_lsu #(
@@ -464,60 +423,64 @@ module exu (
         .csr_reg_we_o(csr_reg_we_o)
     );
 
-    // 乘除法控制逻辑
-    exu_muldiv_ctrl u_muldiv_ctrl (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .wb_ready      (muldiv_wb_ready_i),  // 使用MULDIV专用写回准备信号
-        .hazard_stall_i(0),                  // 连接数据冒险暂停信号
-        .reg_waddr_i   (reg_waddr_i),
-        .reg1_rdata_i  (reg1_rdata_i),
-        .reg2_rdata_i  (reg2_rdata_i),
-        .commit_id_i   (muldiv_commit_id_i), // 直接使用3位
-
-        // 连接dispatch模块的译码信号
-        .req_muldiv_i       (req_muldiv_i),
-        .muldiv_op_mul_i    (muldiv_op_mul_i),
-        .muldiv_op_mulh_i   (muldiv_op_mulh_i),
-        .muldiv_op_mulhsu_i (muldiv_op_mulhsu_i),
-        .muldiv_op_mulhu_i  (muldiv_op_mulhu_i),
-        .muldiv_op_div_i    (muldiv_op_div_i),
-        .muldiv_op_divu_i   (muldiv_op_divu_i),
-        .muldiv_op_rem_i    (muldiv_op_rem_i),
-        .muldiv_op_remu_i   (muldiv_op_remu_i),
-        .muldiv_op_mul_all_i(muldiv_op_mul_all_i),
-        .muldiv_op_div_all_i(muldiv_op_div_all_i),
-
-        .div_result_i(div_result),
-        .div_busy_i  (div_busy),
-        .div_valid_i (div_valid),
-        .mul_result_i(mul_result),
-        .mul_busy_i  (mul_busy),
-        .mul_valid_i (mul_valid),
-        .int_assert_i(int_assert_i),
-
-        .div_start_o        (div_start),
-        .div_dividend_o     (div_dividend),
-        .div_divisor_o      (div_divisor),
-        .div_op_o           (div_op),
-        .mul_start_o        (mul_start),
-        .mul_multiplicand_o (mul_multiplicand),
-        .mul_multiplier_o   (mul_multiplier),
-        .mul_op_o           (mul_op),
-        .muldiv_stall_flag_o(muldiv_stall_flag),
-        .reg_wdata_o        (muldiv_reg_wdata_o),
-        .reg_we_o           (muldiv_reg_we_o),
-        .reg_waddr_o        (muldiv_reg_waddr_o),
-        .commit_id_o        (muldiv_commit_id_o)   // 3位commit_id输出
+    // 乘法单元
+    exu_mul u_mul (
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .wb_ready        (mul_wb_ready_i),
+        .reg_waddr_i     (reg_waddr_i),
+        .reg1_rdata_i    (mul_op1_i),
+        .reg2_rdata_i    (mul_op2_i),
+        .commit_id_i     (mul_commit_id_i),
+        .req_mul_i       (req_mul_i),
+        .mul_op_mul_i    (mul_op_mul_i),
+        .mul_op_mulh_i   (mul_op_mulh_i),
+        .mul_op_mulhsu_i (mul_op_mulhsu_i),
+        .mul_op_mulhu_i  (mul_op_mulhu_i),
+        .mul_op_mul_all_i(req_mul_i),
+        .int_assert_i    (int_assert_i),
+        .mul_stall_flag_o(mul_stall_flag),
+        .reg_wdata_o     (mul_reg_wdata),
+        .reg_we_o        (mul_reg_we),
+        .reg_waddr_o     (mul_reg_waddr),
+        .commit_id_o     (mul_commit_id)
     );
 
-    // 输出选择逻辑
-    assign stall_flag_o = muldiv_stall_flag | alu_stall | csr_stall | mem_stall_o;
+    // 除法单元
+    exu_div u_div (
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .wb_ready        (div_wb_ready_i),
+        .reg_waddr_i     (reg_waddr_i),
+        .reg1_rdata_i    (div_op1_i),
+        .reg2_rdata_i    (div_op2_i),
+        .commit_id_i     (div_commit_id_i),
+        .req_div_i       (req_div_i),
+        .div_op_div_i    (div_op_div_i),
+        .div_op_divu_i   (div_op_divu_i),
+        .div_op_rem_i    (div_op_rem_i),
+        .div_op_remu_i   (div_op_remu_i),
+        .int_assert_i    (int_assert_i),
+        .div_stall_flag_o(div_stall_flag),
+        .reg_wdata_o     (div_reg_wdata),
+        .reg_we_o        (div_reg_we),
+        .reg_waddr_o     (div_reg_waddr),
+        .commit_id_o     (div_commit_id)
+    );
+
+    assign mul_reg_wdata_o = mul_reg_wdata;
+    assign mul_reg_we_o = mul_reg_we;
+    assign mul_reg_waddr_o = mul_reg_waddr;
+    assign mul_commit_id_o = mul_commit_id;
+
+    assign div_reg_wdata_o = div_reg_wdata;
+    assign div_reg_we_o = div_reg_we;
+    assign div_reg_waddr_o = div_reg_waddr;
+    assign div_commit_id_o = div_commit_id;
+
+    assign stall_flag_o = mul_stall_flag | div_stall_flag | alu_stall | csr_stall | mem_stall_o;
     assign jump_flag_o = bru_jump_flag || int_jump_i;
     assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
-
-    // 将乘除法开始信号输出给clint
-    assign muldiv_started_o = div_start | mul_start;
 
     // 将SYS操作信号连接到输出
     assign exu_op_ecall_o = sys_op_ecall_i;

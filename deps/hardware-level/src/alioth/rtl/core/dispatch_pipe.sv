@@ -74,20 +74,23 @@ module dispatch_pipe (
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,
 
-    // MULDIV输入端口
-    input wire        req_muldiv_i,
-    input wire [31:0] muldiv_op1_i,
-    input wire [31:0] muldiv_op2_i,
-    input wire        muldiv_op_mul_i,
-    input wire        muldiv_op_mulh_i,
-    input wire        muldiv_op_mulhsu_i,
-    input wire        muldiv_op_mulhu_i,
-    input wire        muldiv_op_div_i,
-    input wire        muldiv_op_divu_i,
-    input wire        muldiv_op_rem_i,
-    input wire        muldiv_op_remu_i,
-    input wire        muldiv_op_mul_all_i,
-    input wire        muldiv_op_div_all_i,
+    // MUL输入端口
+    input wire        req_mul_i,
+    input wire [31:0] mul_op1_i,
+    input wire [31:0] mul_op2_i,
+    input wire        mul_op_mul_i,
+    input wire        mul_op_mulh_i,
+    input wire        mul_op_mulhsu_i,
+    input wire        mul_op_mulhu_i,
+
+    // DIV输入端口
+    input wire        req_div_i,
+    input wire [31:0] div_op1_i,
+    input wire [31:0] div_op2_i,
+    input wire        div_op_div_i,
+    input wire        div_op_divu_i,
+    input wire        div_op_rem_i,
+    input wire        div_op_remu_i,
 
     // CSR输入端口
     input wire        req_csr_i,
@@ -165,20 +168,23 @@ module dispatch_pipe (
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
 
-    // MULDIV输出端口
-    output wire        req_muldiv_o,
-    output wire [31:0] muldiv_op1_o,
-    output wire [31:0] muldiv_op2_o,
-    output wire        muldiv_op_mul_o,
-    output wire        muldiv_op_mulh_o,
-    output wire        muldiv_op_mulhsu_o,
-    output wire        muldiv_op_mulhu_o,
-    output wire        muldiv_op_div_o,
-    output wire        muldiv_op_divu_o,
-    output wire        muldiv_op_rem_o,
-    output wire        muldiv_op_remu_o,
-    output wire        muldiv_op_mul_all_o,
-    output wire        muldiv_op_div_all_o,
+    // MUL输出端口
+    output wire        req_mul_o,
+    output wire [31:0] mul_op1_o,
+    output wire [31:0] mul_op2_o,
+    output wire        mul_op_mul_o,
+    output wire        mul_op_mulh_o,
+    output wire        mul_op_mulhsu_o,
+    output wire        mul_op_mulhu_o,
+
+    // DIV输出端口
+    output wire        req_div_o,
+    output wire [31:0] div_op1_o,
+    output wire [31:0] div_op2_o,
+    output wire        div_op_div_o,
+    output wire        div_op_divu_o,
+    output wire        div_op_rem_o,
+    output wire        div_op_remu_o,
 
     // CSR输出端口
     output wire        req_csr_o,
@@ -521,149 +527,162 @@ module dispatch_pipe (
     );
     assign bjp_op_jalr_o = bjp_op_jalr;
 
-    // MULDIV信号寄存
-    wire req_muldiv_dnxt = flush_en ? 1'b0 : req_muldiv_i;
-    wire req_muldiv;
-    gnrl_dfflr #(1) req_muldiv_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        req_muldiv_dnxt,
-        req_muldiv
-    );
-    assign req_muldiv_o = req_muldiv;
 
-    wire [31:0] muldiv_op1_dnxt = flush_en ? `ZeroWord : muldiv_op1_i;
-    wire [31:0] muldiv_op1;
-    gnrl_dfflr #(32) muldiv_op1_ff (
+    // MUL信号寄存器
+    wire req_mul_dnxt = flush_en ? 1'b0 : req_mul_i;
+    wire req_mul;
+    gnrl_dfflr #(1) req_mul_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op1_dnxt,
-        muldiv_op1
+        req_mul_dnxt,
+        req_mul
     );
-    assign muldiv_op1_o = muldiv_op1;
+    assign req_mul_o = req_mul;
 
-    wire [31:0] muldiv_op2_dnxt = flush_en ? `ZeroWord : muldiv_op2_i;
-    wire [31:0] muldiv_op2;
-    gnrl_dfflr #(32) muldiv_op2_ff (
+    wire [31:0] mul_op1_dnxt = flush_en ? `ZeroWord : mul_op1_i;
+    wire [31:0] mul_op1;
+    gnrl_dfflr #(32) mul_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op2_dnxt,
-        muldiv_op2
+        mul_op1_dnxt,
+        mul_op1
     );
-    assign muldiv_op2_o = muldiv_op2;
+    assign mul_op1_o = mul_op1;
 
-    wire muldiv_op_mul_dnxt = flush_en ? 1'b0 : muldiv_op_mul_i;
-    wire muldiv_op_mul;
-    gnrl_dfflr #(1) muldiv_op_mul_ff (
+    wire [31:0] mul_op2_dnxt = flush_en ? `ZeroWord : mul_op2_i;
+    wire [31:0] mul_op2;
+    gnrl_dfflr #(32) mul_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_mul_dnxt,
-        muldiv_op_mul
+        mul_op2_dnxt,
+        mul_op2
     );
-    assign muldiv_op_mul_o = muldiv_op_mul;
+    assign mul_op2_o = mul_op2;
 
-    wire muldiv_op_mulh_dnxt = flush_en ? 1'b0 : muldiv_op_mulh_i;
-    wire muldiv_op_mulh;
-    gnrl_dfflr #(1) muldiv_op_mulh_ff (
+    wire mul_op_mul_dnxt = flush_en ? 1'b0 : mul_op_mul_i;
+    wire mul_op_mul;
+    gnrl_dfflr #(1) mul_op_mul_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_mulh_dnxt,
-        muldiv_op_mulh
+        mul_op_mul_dnxt,
+        mul_op_mul
     );
-    assign muldiv_op_mulh_o = muldiv_op_mulh;
+    assign mul_op_mul_o = mul_op_mul;
 
-    wire muldiv_op_mulhsu_dnxt = flush_en ? 1'b0 : muldiv_op_mulhsu_i;
-    wire muldiv_op_mulhsu;
-    gnrl_dfflr #(1) muldiv_op_mulhsu_ff (
+    wire mul_op_mulh_dnxt = flush_en ? 1'b0 : mul_op_mulh_i;
+    wire mul_op_mulh;
+    gnrl_dfflr #(1) mul_op_mulh_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_mulhsu_dnxt,
-        muldiv_op_mulhsu
+        mul_op_mulh_dnxt,
+        mul_op_mulh
     );
-    assign muldiv_op_mulhsu_o = muldiv_op_mulhsu;
+    assign mul_op_mulh_o = mul_op_mulh;
 
-    wire muldiv_op_mulhu_dnxt = flush_en ? 1'b0 : muldiv_op_mulhu_i;
-    wire muldiv_op_mulhu;
-    gnrl_dfflr #(1) muldiv_op_mulhu_ff (
+    wire mul_op_mulhsu_dnxt = flush_en ? 1'b0 : mul_op_mulhsu_i;
+    wire mul_op_mulhsu;
+    gnrl_dfflr #(1) mul_op_mulhsu_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_mulhu_dnxt,
-        muldiv_op_mulhu
+        mul_op_mulhsu_dnxt,
+        mul_op_mulhsu
     );
-    assign muldiv_op_mulhu_o = muldiv_op_mulhu;
+    assign mul_op_mulhsu_o = mul_op_mulhsu;
 
-    wire muldiv_op_div_dnxt = flush_en ? 1'b0 : muldiv_op_div_i;
-    wire muldiv_op_div;
-    gnrl_dfflr #(1) muldiv_op_div_ff (
+    wire mul_op_mulhu_dnxt = flush_en ? 1'b0 : mul_op_mulhu_i;
+    wire mul_op_mulhu;
+    gnrl_dfflr #(1) mul_op_mulhu_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_div_dnxt,
-        muldiv_op_div
+        mul_op_mulhu_dnxt,
+        mul_op_mulhu
     );
-    assign muldiv_op_div_o = muldiv_op_div;
+    assign mul_op_mulhu_o = mul_op_mulhu;
 
-    wire muldiv_op_divu_dnxt = flush_en ? 1'b0 : muldiv_op_divu_i;
-    wire muldiv_op_divu;
-    gnrl_dfflr #(1) muldiv_op_divu_ff (
+    // DIV信号寄存器
+    wire req_div_dnxt = flush_en ? 1'b0 : req_div_i;
+    wire req_div;
+    gnrl_dfflr #(1) req_div_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_divu_dnxt,
-        muldiv_op_divu
+        req_div_dnxt,
+        req_div
     );
-    assign muldiv_op_divu_o = muldiv_op_divu;
+    assign req_div_o = req_div;
 
-    wire muldiv_op_rem_dnxt = flush_en ? 1'b0 : muldiv_op_rem_i;
-    wire muldiv_op_rem;
-    gnrl_dfflr #(1) muldiv_op_rem_ff (
+    wire [31:0] div_op1_dnxt = flush_en ? `ZeroWord : div_op1_i;
+    wire [31:0] div_op1;
+    gnrl_dfflr #(32) div_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_rem_dnxt,
-        muldiv_op_rem
+        div_op1_dnxt,
+        div_op1
     );
-    assign muldiv_op_rem_o = muldiv_op_rem;
+    assign div_op1_o = div_op1;
 
-    wire muldiv_op_remu_dnxt = flush_en ? 1'b0 : muldiv_op_remu_i;
-    wire muldiv_op_remu;
-    gnrl_dfflr #(1) muldiv_op_remu_ff (
+    wire [31:0] div_op2_dnxt = flush_en ? `ZeroWord : div_op2_i;
+    wire [31:0] div_op2;
+    gnrl_dfflr #(32) div_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_remu_dnxt,
-        muldiv_op_remu
+        div_op2_dnxt,
+        div_op2
     );
-    assign muldiv_op_remu_o = muldiv_op_remu;
+    assign div_op2_o = div_op2;
 
-    wire muldiv_op_mul_all_dnxt = flush_en ? 1'b0 : muldiv_op_mul_all_i;
-    wire muldiv_op_mul_all;
-    gnrl_dfflr #(1) muldiv_op_mul_all_ff (
+    wire div_op_div_dnxt = flush_en ? 1'b0 : div_op_div_i;
+    wire div_op_div;
+    gnrl_dfflr #(1) div_op_div_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_mul_all_dnxt,
-        muldiv_op_mul_all
+        div_op_div_dnxt,
+        div_op_div
     );
-    assign muldiv_op_mul_all_o = muldiv_op_mul_all;
+    assign div_op_div_o = div_op_div;
 
-    wire muldiv_op_div_all_dnxt = flush_en ? 1'b0 : muldiv_op_div_all_i;
-    wire muldiv_op_div_all;
-    gnrl_dfflr #(1) muldiv_op_div_all_ff (
+    wire div_op_divu_dnxt = flush_en ? 1'b0 : div_op_divu_i;
+    wire div_op_divu;
+    gnrl_dfflr #(1) div_op_divu_ff (
         clk,
         rst_n,
         reg_update_en,
-        muldiv_op_div_all_dnxt,
-        muldiv_op_div_all
+        div_op_divu_dnxt,
+        div_op_divu
     );
-    assign muldiv_op_div_all_o = muldiv_op_div_all;
+    assign div_op_divu_o = div_op_divu;
+
+    wire div_op_rem_dnxt = flush_en ? 1'b0 : div_op_rem_i;
+    wire div_op_rem;
+    gnrl_dfflr #(1) div_op_rem_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_op_rem_dnxt,
+        div_op_rem
+    );
+    assign div_op_rem_o = div_op_rem;
+
+    wire div_op_remu_dnxt = flush_en ? 1'b0 : div_op_remu_i;
+    wire div_op_remu;
+    gnrl_dfflr #(1) div_op_remu_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_op_remu_dnxt,
+        div_op_remu
+    );
+    assign div_op_remu_o = div_op_remu;
 
     // CSR信号寄存
     wire req_csr_dnxt = flush_en ? 1'b0 : req_csr_i;

@@ -83,7 +83,6 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
     wire exu_csr_we_o;
     wire [`BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
-    wire exu_muldiv_started_o;
 
     // 系统操作信号
     wire exu_ecall_o;
@@ -98,7 +97,8 @@ module cpu_top (
     // EXU的Commit ID信号
     wire [`COMMIT_ID_WIDTH-1:0] exu_csr_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_alu_commit_id_o;
-    wire [`COMMIT_ID_WIDTH-1:0] exu_muldiv_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] exu_mul_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] exu_div_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_lsu_commit_id_o;
 
     // EXU到WBU的数据通路信号
@@ -106,9 +106,13 @@ module cpu_top (
     wire exu_alu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_alu_reg_waddr_o;
 
-    wire [`REG_DATA_WIDTH-1:0] exu_muldiv_reg_wdata_o;
-    wire exu_muldiv_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] exu_muldiv_reg_waddr_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_mul_reg_wdata_o;
+    wire exu_mul_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_mul_reg_waddr_o;
+
+    wire [`REG_DATA_WIDTH-1:0] exu_div_reg_wdata_o;
+    wire exu_div_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_div_reg_waddr_o;
 
     wire [`REG_DATA_WIDTH-1:0] exu_lsu_reg_wdata_o;
     wire exu_lsu_reg_we_o;
@@ -160,7 +164,8 @@ module cpu_top (
     wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] wbu_commit_id_o;
     wire wbu_alu_ready_o;
-    wire wbu_muldiv_ready_o;
+    wire wbu_mul_ready_o;
+    wire wbu_div_ready_o;
     wire wbu_csr_ready_o;
     // 显式声明原子操作忙信号，避免隐式定义
     wire atom_opt_busy;
@@ -221,21 +226,25 @@ module cpu_top (
     wire dispatch_bjp_op_bgeu;
     wire dispatch_bjp_op_jalr;
 
-    // dispatch to MULDIV
-    wire dispatch_req_muldiv;
-    wire [31:0] dispatch_muldiv_op1;
-    wire [31:0] dispatch_muldiv_op2;
-    wire dispatch_muldiv_op_mul;
-    wire dispatch_muldiv_op_mulh;
-    wire dispatch_muldiv_op_mulhsu;
-    wire dispatch_muldiv_op_mulhu;
-    wire dispatch_muldiv_op_div;
-    wire dispatch_muldiv_op_divu;
-    wire dispatch_muldiv_op_rem;
-    wire dispatch_muldiv_op_remu;
-    wire dispatch_muldiv_op_mul_all;
-    wire dispatch_muldiv_op_div_all;
-    wire [1:0] dispatch_muldiv_commit_id;
+    // dispatch to MUL
+    wire dispatch_req_mul;
+    wire [31:0] dispatch_mul_op1;
+    wire [31:0] dispatch_mul_op2;
+    wire dispatch_mul_op_mul;
+    wire dispatch_mul_op_mulh;
+    wire dispatch_mul_op_mulhsu;
+    wire dispatch_mul_op_mulhu;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_mul_commit_id;
+
+    // dispatch to DIV
+    wire dispatch_req_div;
+    wire [31:0] dispatch_div_op1;
+    wire [31:0] dispatch_div_op2;
+    wire dispatch_div_op_div;
+    wire dispatch_div_op_divu;
+    wire dispatch_div_op_rem;
+    wire dispatch_div_op_remu;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_div_commit_id;
 
     // dispatch to CSR
     wire dispatch_req_csr;
@@ -571,20 +580,22 @@ module cpu_top (
         .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
         .bjp_op_jalr_o (dispatch_bjp_op_jalr),
 
-        .req_muldiv_o       (dispatch_req_muldiv),
-        .muldiv_op1_o       (dispatch_muldiv_op1),
-        .muldiv_op2_o       (dispatch_muldiv_op2),
-        .muldiv_op_mul_o    (dispatch_muldiv_op_mul),
-        .muldiv_op_mulh_o   (dispatch_muldiv_op_mulh),
-        .muldiv_op_mulhsu_o (dispatch_muldiv_op_mulhsu),
-        .muldiv_op_mulhu_o  (dispatch_muldiv_op_mulhu),
-        .muldiv_op_div_o    (dispatch_muldiv_op_div),
-        .muldiv_op_divu_o   (dispatch_muldiv_op_divu),
-        .muldiv_op_rem_o    (dispatch_muldiv_op_rem),
-        .muldiv_op_remu_o   (dispatch_muldiv_op_remu),
-        .muldiv_op_mul_all_o(dispatch_muldiv_op_mul_all),
-        .muldiv_op_div_all_o(dispatch_muldiv_op_div_all),
-        .muldiv_commit_id_o (dispatch_muldiv_commit_id),
+        .req_mul_o      (dispatch_req_mul),
+        .mul_op1_o      (dispatch_mul_op1),
+        .mul_op2_o      (dispatch_mul_op2),
+        .mul_op_mul_o   (dispatch_mul_op_mul),
+        .mul_op_mulh_o  (dispatch_mul_op_mulh),
+        .mul_op_mulhsu_o(dispatch_mul_op_mulhsu),
+        .mul_op_mulhu_o (dispatch_mul_op_mulhu),
+        .req_div_o      (dispatch_req_div),
+        .div_op1_o      (dispatch_div_op1),
+        .div_op2_o      (dispatch_div_op2),
+        .div_op_div_o   (dispatch_div_op_div),
+        .div_op_divu_o  (dispatch_div_op_divu),
+        .div_op_rem_o   (dispatch_div_op_rem),
+        .div_op_remu_o  (dispatch_div_op_remu),
+        .mul_commit_id_o(dispatch_mul_commit_id),
+        .div_commit_id_o(dispatch_div_commit_id),
 
         .req_csr_o  (dispatch_req_csr),
         .csr_op1_o  (dispatch_csr_op1),
@@ -639,9 +650,10 @@ module cpu_top (
         .commit_id_i(dispatch_commit_id_o),
 
         // 写回握手信号
-        .alu_wb_ready_i   (wbu_alu_ready_o),
-        .muldiv_wb_ready_i(wbu_muldiv_ready_o),
-        .csr_wb_ready_i   (wbu_csr_ready_o),
+        .alu_wb_ready_i(wbu_alu_ready_o),
+        .mul_wb_ready_i(wbu_mul_ready_o),
+        .div_wb_ready_i(wbu_div_ready_o),
+        .csr_wb_ready_i(wbu_csr_ready_o),
 
         .reg1_rdata_i(dispatch_rs1_rdata),
         .reg2_rdata_i(dispatch_rs2_rdata),
@@ -668,20 +680,22 @@ module cpu_top (
         .bjp_op_bgeu_i (dispatch_bjp_op_bgeu),
         .bjp_op_jalr_i (dispatch_bjp_op_jalr),
 
-        .req_muldiv_i       (dispatch_req_muldiv),
-        .muldiv_op1_i       (dispatch_muldiv_op1),
-        .muldiv_op2_i       (dispatch_muldiv_op2),
-        .muldiv_op_mul_i    (dispatch_muldiv_op_mul),
-        .muldiv_op_mulh_i   (dispatch_muldiv_op_mulh),
-        .muldiv_op_mulhsu_i (dispatch_muldiv_op_mulhsu),
-        .muldiv_op_mulhu_i  (dispatch_muldiv_op_mulhu),
-        .muldiv_op_div_i    (dispatch_muldiv_op_div),
-        .muldiv_op_divu_i   (dispatch_muldiv_op_divu),
-        .muldiv_op_rem_i    (dispatch_muldiv_op_rem),
-        .muldiv_op_remu_i   (dispatch_muldiv_op_remu),
-        .muldiv_op_mul_all_i(dispatch_muldiv_op_mul_all),
-        .muldiv_op_div_all_i(dispatch_muldiv_op_div_all),
-        .muldiv_commit_id_i (dispatch_muldiv_commit_id),
+        .req_mul_i      (dispatch_req_mul),
+        .mul_op1_i      (dispatch_mul_op1),
+        .mul_op2_i      (dispatch_mul_op2),
+        .mul_op_mul_i   (dispatch_mul_op_mul),
+        .mul_op_mulh_i  (dispatch_mul_op_mulh),
+        .mul_op_mulhsu_i(dispatch_mul_op_mulhsu),
+        .mul_op_mulhu_i (dispatch_mul_op_mulhu),
+        .req_div_i      (dispatch_req_div),
+        .div_op1_i      (dispatch_div_op1),
+        .div_op2_i      (dispatch_div_op2),
+        .div_op_div_i   (dispatch_div_op_div),
+        .div_op_divu_i  (dispatch_div_op_divu),
+        .div_op_rem_i   (dispatch_div_op_rem),
+        .div_op_remu_i  (dispatch_div_op_remu),
+        .mul_commit_id_i(dispatch_mul_commit_id),
+        .div_commit_id_i(dispatch_div_commit_id),
 
         .req_csr_i  (dispatch_req_csr),
         .csr_op1_i  (dispatch_csr_op1),
@@ -718,10 +732,16 @@ module cpu_top (
         .alu_reg_waddr_o(exu_alu_reg_waddr_o),
         .alu_commit_id_o(exu_alu_commit_id_o),
 
-        .muldiv_reg_wdata_o(exu_muldiv_reg_wdata_o),
-        .muldiv_reg_we_o   (exu_muldiv_reg_we_o),
-        .muldiv_reg_waddr_o(exu_muldiv_reg_waddr_o),
-        .muldiv_commit_id_o(exu_muldiv_commit_id_o),
+        // MUL/DIV结果输出
+        .mul_reg_wdata_o(exu_mul_reg_wdata_o),
+        .mul_reg_we_o   (exu_mul_reg_we_o),
+        .mul_reg_waddr_o(exu_mul_reg_waddr_o),
+        .mul_commit_id_o(exu_mul_commit_id_o),
+
+        .div_reg_wdata_o(exu_div_reg_wdata_o),
+        .div_reg_we_o   (exu_div_reg_we_o),
+        .div_reg_waddr_o(exu_div_reg_waddr_o),
+        .div_commit_id_o(exu_div_commit_id_o),
 
         .lsu_reg_wdata_o(exu_lsu_reg_wdata_o),
         .lsu_reg_we_o   (exu_lsu_reg_we_o),
@@ -738,10 +758,9 @@ module cpu_top (
         .csr_we_o   (exu_csr_we_o),
         .csr_waddr_o(exu_csr_waddr_o),
 
-        .stall_flag_o    (exu_stall_flag_o),
-        .jump_flag_o     (exu_jump_flag_o),
-        .jump_addr_o     (exu_jump_addr_o),
-        .muldiv_started_o(exu_muldiv_started_o),
+        .stall_flag_o(exu_stall_flag_o),
+        .jump_flag_o (exu_jump_flag_o),
+        .jump_addr_o (exu_jump_addr_o),
 
         // 系统操作信号输出
         .exu_op_ecall_o (exu_ecall_o),
@@ -794,7 +813,7 @@ module cpu_top (
         .M_AXI_RREADY      (exu_axi_rready)
     );
 
-    // wbu模块例化 - 更新commit_id相关连接
+    // wbu模块例化
     wbu u_wbu (
         .clk  (clk),
         .rst_n(rst_n),
@@ -805,11 +824,17 @@ module cpu_top (
         .alu_commit_id_i(exu_alu_commit_id_o),  // 连接ALU commit_id
         .alu_ready_o    (wbu_alu_ready_o),
 
-        .muldiv_reg_wdata_i(exu_muldiv_reg_wdata_o),
-        .muldiv_reg_we_i   (exu_muldiv_reg_we_o),
-        .muldiv_reg_waddr_i(exu_muldiv_reg_waddr_o),
-        .muldiv_commit_id_i(exu_muldiv_commit_id_o),  // 直接使用全宽度
-        .muldiv_ready_o    (wbu_muldiv_ready_o),
+        // MUL和DIV结果输入
+        .mul_reg_wdata_i(exu_mul_reg_wdata_o),
+        .mul_reg_we_i   (exu_mul_reg_we_o),
+        .mul_reg_waddr_i(exu_mul_reg_waddr_o),
+        .mul_commit_id_i(exu_mul_commit_id_o),
+        .div_reg_wdata_i(exu_div_reg_wdata_o),
+        .div_reg_we_i   (exu_div_reg_we_o),
+        .div_reg_waddr_i(exu_div_reg_waddr_o),
+        .div_commit_id_i(exu_div_commit_id_o),
+        .mul_ready_o    (wbu_mul_ready_o),
+        .div_ready_o    (wbu_div_ready_o),
 
         .csr_wdata_i    (exu_csr_wdata_o),
         .csr_we_i       (exu_csr_we_o),
