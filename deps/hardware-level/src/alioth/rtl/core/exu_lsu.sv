@@ -342,7 +342,7 @@ module exu_lsu #(
             axi_read_state <= AXI_IDLE;
             axi_write_state <= AXI_IDLE;
             axi_read_processing_idx <= '0;
-            axi_write_processing_idx <= '0;
+            axi_write_processing_idx <= '0';
         end else begin
             axi_read_state <= axi_read_state_next;
             axi_write_state <= axi_write_state_next;
@@ -590,7 +590,11 @@ module exu_lsu #(
     end
     
     // ===================================================================
+        end
+    
+    // ===================================================================
     // 写回接口 - 优化的Load结果输出
+    // ===================================================================
     // ===================================================================
     
     always_comb begin

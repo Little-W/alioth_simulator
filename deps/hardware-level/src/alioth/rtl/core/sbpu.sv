@@ -42,7 +42,8 @@ module sbpu (
     // 双指令输出
     output wire                        branch_taken_o,     // 预测是否为分支
     output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,      // 预测的分支地址
-    output wire                        is_pred_branch_o,   // 当前指令是经过预测的有条件分支指令
+    output wire                        is_pred_branch0_o,  // 第一条指令是经过预测的有条件分支指令
+    output wire                        is_pred_branch1_o,  // 第二条指令是经过预测的有条件分支指令
     output wire                        wait_for_jalr_o,    // JALR等待信号
     output wire                        branch_inst_slot_o, // 分支指令所在槽位 (0=第一条, 1=第二条)
     output wire                        inst1_disable_o     // 指令1为JAL时，禁用指令2通道
@@ -100,8 +101,9 @@ module sbpu (
     // 输出分支指令所在的槽位
     assign branch_inst_slot_o = branch_from_inst1;
     
-    // 输出是否为预测分支（任一条指令是预测分支）
-    assign is_pred_branch_o = is_pred_branch0 | (is_pred_branch1 & ~branch_taken0);
+    // 输出每条指令的预测分支信号
+    assign is_pred_branch0_o = is_pred_branch0;
+    assign is_pred_branch1_o = is_pred_branch1;
 
     reg  [31:0] branch_addr;
 
