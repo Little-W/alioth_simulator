@@ -437,7 +437,6 @@ module exu (
         .mul_op_mulh_i   (mul_op_mulh_i),
         .mul_op_mulhsu_i (mul_op_mulhsu_i),
         .mul_op_mulhu_i  (mul_op_mulhu_i),
-        .mul_op_mul_all_i(req_mul_i),
         .int_assert_i    (int_assert_i),
         .mul_stall_flag_o(mul_stall_flag),
         .reg_wdata_o     (mul_reg_wdata),

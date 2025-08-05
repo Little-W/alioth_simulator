@@ -42,7 +42,6 @@ module exu_mul (
     input wire mul_op_mulh_i,
     input wire mul_op_mulhsu_i,
     input wire mul_op_mulhu_i,
-    input wire mul_op_mul_all_i,
 
     // 中断信号
     input wire int_assert_i,
@@ -58,8 +57,8 @@ module exu_mul (
 );
 
     // 添加寄存器保存乘法指令的写回信息
-    wire [ `REG_ADDR_WIDTH-1:0] saved_mul0_waddr;
-    wire [ `REG_ADDR_WIDTH-1:0] saved_mul1_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id;
 
@@ -68,35 +67,23 @@ module exu_mul (
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id_stage2;
 
     // 添加状态寄存器，用于控制写回
-    wire                        mul0_result_we;
-    wire                        mul1_result_we;
-    wire [ `REG_DATA_WIDTH-1:0] saved_mul0_result;
-    wire [ `REG_DATA_WIDTH-1:0] saved_mul1_result;
+    wire mul0_result_we;
+    wire mul1_result_we;
+    wire [`REG_DATA_WIDTH-1:0] saved_mul0_result;
+    wire [`REG_DATA_WIDTH-1:0] saved_mul1_result;
 
-    // 生成mul_op_o的组合逻辑
-    wire [                 3:0] mul_op_sel;
-    assign mul_op_sel = {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
-
-    // 补充操作类型信号定义
+    wire [3:0] mul_op_sel_mux;
     wire [3:0] mul0_op;
     wire [3:0] mul1_op;
-    wire       ctrl_ready0;
-    wire       ctrl_ready1;
-    wire       mul0_start;
-    wire       mul1_start;
-
-    assign mul0_op = mul_op_sel;
-    assign mul1_op = mul_op_sel;
+    wire ctrl_ready0;
+    wire ctrl_ready1;
+    wire mul0_start;
+    wire mul1_start;
 
     wire [`REG_DATA_WIDTH-1:0] mul0_multiplicand;
     wire [`REG_DATA_WIDTH-1:0] mul0_multiplier;
     wire [`REG_DATA_WIDTH-1:0] mul1_multiplicand;
     wire [`REG_DATA_WIDTH-1:0] mul1_multiplier;
-
-    assign mul0_multiplicand = reg1_rdata_i;
-    assign mul0_multiplier   = reg2_rdata_i;
-    assign mul1_multiplicand = reg1_rdata_i;
-    assign mul1_multiplier   = reg2_rdata_i;
 
     // 乘法器输出信号
     wire [`REG_DATA_WIDTH-1:0] mul0_result;
@@ -109,25 +96,47 @@ module exu_mul (
     // 直接使用输入的总乘法信号
     wire is_mul_op = req_mul_i && !int_assert_i;
 
+    // Buffer寄存器定义
+    reg [`REG_ADDR_WIDTH-1:0] waddr_buffer;
+    reg [`REG_DATA_WIDTH-1:0] multiplicand_buffer;
+    reg [`REG_DATA_WIDTH-1:0] multiplier_buffer;
+    reg [`COMMIT_ID_WIDTH-1:0] commit_id_buffer;
+    reg [3:0] mul_op_buffer;  // 4位：mul_op_mul_i, mul_op_mulh_i, mul_op_mulhsu_i, mul_op_mulhu_i
+    reg buffer_req_valid;
+
+    // Buffer数据选择
+    wire use_buffer = buffer_req_valid;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? multiplicand_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? multiplier_buffer : reg2_rdata_i;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
+    wire [3:0] mul_op_mux = use_buffer ? mul_op_buffer : {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
+
+    // mul_op_sel调整为mux后的数据
+    assign mul_op_sel_mux    = mul_op_mux;
+    assign mul0_op           = mul_op_sel_mux;
+    assign mul1_op           = mul_op_sel_mux;
+    // 乘法器输入调整为mux后的数据
+    assign mul0_multiplicand = reg1_rdata_mux;
+    assign mul0_multiplier = reg2_rdata_mux;
+    assign mul1_multiplicand = reg1_rdata_mux;
+    assign mul1_multiplier = reg2_rdata_mux;
+
     // 定义控制信号
     wire sel_mul0 = mul0_result_we;
     wire sel_mul1 = mul1_result_we;
 
-    // 乘法寄存器更新条件
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr_nxt = reg_waddr_i;
-
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id_nxt = commit_id_i;
+    // 写回地址和commit_id调整为mux后的数据
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id_nxt = commit_id_mux;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id_nxt = commit_id_mux;
 
     wire mul0_result_we_en = (mul0_valid && ctrl_ready0) | (mul0_result_we && wb_ready);
     wire mul0_result_we_nxt = mul0_valid ? 1'b1 : 1'b0;
 
     wire saved_mul0_result_en = mul0_valid;
     wire [`REG_DATA_WIDTH-1:0] saved_mul0_result_nxt = mul0_result;
-
-    // 乘法寄存器更新条件
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr_nxt = reg_waddr_i;
-
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id_nxt = commit_id_i;
 
     wire mul1_result_we_en = (mul1_valid && ctrl_ready1) | (mul1_result_we && wb_ready && !sel_mul0);
     wire mul1_result_we_nxt = mul1_valid ? 1'b1 : 1'b0;
@@ -280,18 +289,41 @@ module exu_mul (
     wire mul1_result_pending = mul1_result_we && mul1_valid;
     wire stall_mul_cond = is_mul_op && (mul_busy || mul0_result_pending || mul1_result_pending);
 
-    // 流水线保持控制逻辑
-    assign mul_stall_flag_o = stall_mul_cond;
-    assign ctrl_ready0 = wb_ready || !mul0_result_we;
-    assign ctrl_ready1 = wb_ready && !sel_mul0 || !mul1_result_we;
-
     // 乘法可用信号
     wire mul0_available = !mul0_busy && !mul0_result_pending;
     wire mul1_available = !mul1_busy && !mul1_result_pending;
 
-    // 乘法启动控制逻辑 - 只在需要启动新的乘法操作时为高，并在中断时禁止启动
-    assign mul0_start = is_mul_op && mul0_available;
-    assign mul1_start = is_mul_op && !mul0_available && mul1_available;
+    // Buffer写入条件
+    wire buffer_write_en = stall_mul_cond;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            buffer_req_valid    <= 1'b0;
+            waddr_buffer        <= {`REG_ADDR_WIDTH{1'b0}};
+            multiplicand_buffer <= {`REG_DATA_WIDTH{1'b0}};
+            multiplier_buffer   <= {`REG_DATA_WIDTH{1'b0}};
+            commit_id_buffer    <= {`COMMIT_ID_WIDTH{1'b0}};
+            mul_op_buffer       <= 4'b0;
+        end else if (buffer_write_en && !buffer_req_valid) begin
+            buffer_req_valid    <= 1'b1;
+            waddr_buffer        <= reg_waddr_i;
+            multiplicand_buffer <= reg1_rdata_i;
+            multiplier_buffer   <= reg2_rdata_i;
+            commit_id_buffer    <= commit_id_i;
+            mul_op_buffer       <= {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
+        end else if (mul0_start || mul1_start) begin
+            buffer_req_valid <= 1'b0;
+        end
+    end
+
+    // 流水线保持控制逻辑
+    assign mul_stall_flag_o = buffer_req_valid & is_mul_op;
+    assign ctrl_ready0 = wb_ready || !mul0_result_we;
+    assign ctrl_ready1 = wb_ready && !sel_mul0 || !mul1_result_we;
+
+    // 启动条件调整
+    assign mul0_start = (is_mul_op || buffer_req_valid) && mul0_available;
+    assign mul1_start = (is_mul_op || buffer_req_valid) && !mul0_available && mul1_available;
 
     // 结果写回数据和地址选择逻辑 - 使用保存的结果和寄存器地址
     assign reg_wdata_o = sel_mul0 ? saved_mul0_result : (sel_mul1 ? saved_mul1_result : 0);

@@ -57,8 +57,8 @@ module exu_div (
 );
 
     // 保存除法指令写回信息
-    wire [ `REG_ADDR_WIDTH-1:0] saved_div0_waddr;
-    wire [ `REG_ADDR_WIDTH-1:0] saved_div1_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id;
 
@@ -67,34 +67,22 @@ module exu_div (
     wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_stage2;
 
     // 状态寄存器
-    wire                        div0_result_we;
-    wire                        div1_result_we;
-    wire [ `REG_DATA_WIDTH-1:0] saved_div0_result;
-    wire [ `REG_DATA_WIDTH-1:0] saved_div1_result;
-
-    // 生成div_op_sel
-    wire [                 3:0] div_op_sel;
-    assign div_op_sel = {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
-
+    wire div0_result_we;
+    wire div1_result_we;
+    wire [`REG_DATA_WIDTH-1:0] saved_div0_result;
+    wire [`REG_DATA_WIDTH-1:0] saved_div1_result;
+    wire [3:0] div_op_sel_mux;
     wire [3:0] div0_op;
     wire [3:0] div1_op;
-    wire       ctrl_ready0;
-    wire       ctrl_ready1;
-    wire       div0_start;
-    wire       div1_start;
-
-    assign div0_op = div_op_sel;
-    assign div1_op = div_op_sel;
+    wire ctrl_ready0;
+    wire ctrl_ready1;
+    wire div0_start;
+    wire div1_start;
 
     wire [`REG_DATA_WIDTH-1:0] div0_dividend;
     wire [`REG_DATA_WIDTH-1:0] div0_divisor;
     wire [`REG_DATA_WIDTH-1:0] div1_dividend;
     wire [`REG_DATA_WIDTH-1:0] div1_divisor;
-
-    assign div0_dividend = reg1_rdata_i;
-    assign div0_divisor  = reg2_rdata_i;
-    assign div1_dividend = reg1_rdata_i;
-    assign div1_divisor  = reg2_rdata_i;
 
     // 除法器输出信号
     wire [`REG_DATA_WIDTH-1:0] div0_result;
@@ -104,29 +92,57 @@ module exu_div (
     wire div1_busy;
     wire div1_valid;
 
-    // 总除法信号
+    // 直接使用输入的总除法信号
     wire is_div_op = req_div_i && !int_assert_i;
+
+    // Buffer寄存器定义
+    reg [`REG_ADDR_WIDTH-1:0] waddr_buffer;
+    reg [`REG_DATA_WIDTH-1:0] dividend_buffer;
+    reg [`REG_DATA_WIDTH-1:0] divisor_buffer;
+    reg [`COMMIT_ID_WIDTH-1:0] commit_id_buffer;
+    reg [3:0] div_op_buffer;  // 4位：div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i
+    reg buffer_req_valid;
+
+    // Buffer数据选择
+    wire use_buffer = buffer_req_valid;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? dividend_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? divisor_buffer : reg2_rdata_i;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
+    wire [3:0] div_op_mux = use_buffer ? div_op_buffer : {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
+
+    // div_op_sel调整为mux后的数据
+    assign div_op_sel_mux = div_op_mux;
+    assign div0_op        = div_op_sel_mux;
+    assign div1_op        = div_op_sel_mux;
+    assign div0_dividend  = reg1_rdata_mux;
+    assign div0_divisor   = reg2_rdata_mux;
+    assign div1_dividend  = reg1_rdata_mux;
+    assign div1_divisor   = reg2_rdata_mux;
 
     // 控制信号
     wire sel_div0 = div0_result_we;
     wire sel_div1 = div1_result_we;
 
-    // 除法寄存器更新条件
-    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_i;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id_nxt = commit_id_i;
+    // 写回地址和commit_id调整为mux后的数据
+    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id_nxt = commit_id_mux;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_nxt = commit_id_mux;
+
     wire div0_result_we_en = (div0_valid && ctrl_ready0) | (div0_result_we && wb_ready);
     wire div0_result_we_nxt = div0_valid ? 1'b1 : 1'b0;
+
     wire saved_div0_result_en = div0_valid;
     wire [`REG_DATA_WIDTH-1:0] saved_div0_result_nxt = div0_result;
 
-    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_i;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_nxt = commit_id_i;
     wire div1_result_we_en = (div1_valid && ctrl_ready1) | (div1_result_we && wb_ready && !sel_div0);
     wire div1_result_we_nxt = div1_valid ? 1'b1 : 1'b0;
+
     wire saved_div1_result_en = div1_valid;
     wire [`REG_DATA_WIDTH-1:0] saved_div1_result_nxt = div1_result;
 
-    // 时序逻辑
+    // 使用gnrl_dfflr实现时序逻辑
     gnrl_dfflr #(
         .DW(`REG_ADDR_WIDTH)
     ) saved_div0_waddr_dfflr (
@@ -136,6 +152,7 @@ module exu_div (
         .dnxt (saved_div0_waddr_nxt),
         .qout (saved_div0_waddr)
     );
+
     gnrl_dfflr #(
         .DW(`COMMIT_ID_WIDTH)
     ) saved_div0_commit_id_dfflr (
@@ -145,6 +162,7 @@ module exu_div (
         .dnxt (saved_div0_commit_id_nxt),
         .qout (saved_div0_commit_id)
     );
+
     gnrl_dfflr #(
         .DW(1)
     ) div0_result_we_dfflr (
@@ -154,6 +172,7 @@ module exu_div (
         .dnxt (div0_result_we_nxt),
         .qout (div0_result_we)
     );
+
     gnrl_dfflr #(
         .DW(`REG_DATA_WIDTH)
     ) saved_div0_result_dfflr (
@@ -163,6 +182,7 @@ module exu_div (
         .dnxt (saved_div0_result_nxt),
         .qout (saved_div0_result)
     );
+
     gnrl_dfflr #(
         .DW(`REG_ADDR_WIDTH)
     ) saved_div1_waddr_dfflr (
@@ -172,6 +192,7 @@ module exu_div (
         .dnxt (saved_div1_waddr_nxt),
         .qout (saved_div1_waddr)
     );
+
     gnrl_dfflr #(
         .DW(`COMMIT_ID_WIDTH)
     ) saved_div1_commit_id_dfflr (
@@ -181,6 +202,7 @@ module exu_div (
         .dnxt (saved_div1_commit_id_nxt),
         .qout (saved_div1_commit_id)
     );
+
     gnrl_dfflr #(
         .DW(1)
     ) div1_result_we_dfflr (
@@ -190,6 +212,7 @@ module exu_div (
         .dnxt (div1_result_we_nxt),
         .qout (div1_result_we)
     );
+
     gnrl_dfflr #(
         .DW(`REG_DATA_WIDTH)
     ) saved_div1_result_dfflr (
@@ -200,11 +223,13 @@ module exu_div (
         .qout (saved_div1_result)
     );
 
-    // 第二级 commit_id
+    // 第二级 commit_id 更新条件
     wire                        saved_div0_commit_id_stage2_en = div0_valid;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id_stage2_nxt = saved_div0_commit_id;
+
     wire                        saved_div1_commit_id_stage2_en = div1_valid;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_stage2_nxt = saved_div1_commit_id;
+
     gnrl_dfflr #(
         .DW(`COMMIT_ID_WIDTH)
     ) saved_div0_commit_id_stage2_dfflr (
@@ -214,6 +239,7 @@ module exu_div (
         .dnxt (saved_div0_commit_id_stage2_nxt),
         .qout (saved_div0_commit_id_stage2)
     );
+
     gnrl_dfflr #(
         .DW(`COMMIT_ID_WIDTH)
     ) saved_div1_commit_id_stage2_dfflr (
@@ -224,13 +250,15 @@ module exu_div (
         .qout (saved_div1_commit_id_stage2)
     );
 
-    // 第二级 waddr
+    // 第二级 waddr 更新条件
     wire                       saved_div0_waddr_stage2_en = div0_result_we_en;
     wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_stage2_nxt = saved_div0_waddr;
     wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_stage2;
+
     wire                       saved_div1_waddr_stage2_en = div1_result_we_en;
     wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_stage2_nxt = saved_div1_waddr;
     wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_stage2;
+
     gnrl_dfflr #(
         .DW(`REG_ADDR_WIDTH)
     ) saved_div0_waddr_stage2_dfflr (
@@ -240,6 +268,7 @@ module exu_div (
         .dnxt (saved_div0_waddr_stage2_nxt),
         .qout (saved_div0_waddr_stage2)
     );
+
     gnrl_dfflr #(
         .DW(`REG_ADDR_WIDTH)
     ) saved_div1_waddr_stage2_dfflr (
@@ -253,30 +282,53 @@ module exu_div (
     // 除法忙信号
     wire div_busy = div0_busy && div1_busy;
 
-    // 条件信号
+    // 条件信号定义 - 用于流水线保持逻辑
     wire div0_result_pending = div0_result_we && div0_valid;
     wire div1_result_pending = div1_result_we && div1_valid;
     wire stall_div_cond = is_div_op && (div_busy || div0_result_pending || div1_result_pending);
 
-    // 流水线保持控制逻辑
-    assign div_stall_flag_o = stall_div_cond;
-    assign ctrl_ready0 = wb_ready || !div0_result_we;
-    assign ctrl_ready1 = wb_ready && !sel_div0 || !div1_result_we;
-
-    // 除法可用信号 - 检查除法器是否空闲且结果未准备好
+    // 除法可用信号
     wire div0_available = !div0_busy && !div0_result_pending;
     wire div1_available = !div1_busy && !div1_result_pending;
 
-    // 除法启动控制逻辑
-    assign div0_start = is_div_op && div0_available;
-    assign div1_start = is_div_op && !div0_available && div1_available;
+    // Buffer写入条件
+    wire buffer_write_en = stall_div_cond;
 
-    // 结果写回数据和地址选择逻辑
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            buffer_req_valid <= 1'b0;
+            waddr_buffer     <= {`REG_ADDR_WIDTH{1'b0}};
+            dividend_buffer  <= {`REG_DATA_WIDTH{1'b0}};
+            divisor_buffer   <= {`REG_DATA_WIDTH{1'b0}};
+            commit_id_buffer <= {`COMMIT_ID_WIDTH{1'b0}};
+            div_op_buffer    <= 4'b0;
+        end else if (buffer_write_en && !buffer_req_valid) begin
+            buffer_req_valid <= 1'b1;
+            waddr_buffer     <= reg_waddr_i;
+            dividend_buffer  <= reg1_rdata_i;
+            divisor_buffer   <= reg2_rdata_i;
+            commit_id_buffer <= commit_id_i;
+            div_op_buffer    <= {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
+        end else if (div0_start || div1_start) begin
+            buffer_req_valid <= 1'b0;
+        end
+    end
+
+    // 流水线保持控制逻辑
+    assign div_stall_flag_o = buffer_req_valid & is_div_op;
+    assign ctrl_ready0 = wb_ready || !div0_result_we;
+    assign ctrl_ready1 = wb_ready && !sel_div0 || !div1_result_we;
+
+    // 启动条件调整
+    assign div0_start = (is_div_op || buffer_req_valid) && div0_available;
+    assign div1_start = (is_div_op || buffer_req_valid) && !div0_available && div1_available;
+
+    // 结果写回数据和地址选择逻辑 - 使用保存的结果和寄存器地址
     assign reg_wdata_o = sel_div0 ? saved_div0_result : (sel_div1 ? saved_div1_result : 0);
     assign reg_waddr_o = sel_div0 ? saved_div0_waddr_stage2 : (sel_div1 ? saved_div1_waddr_stage2 : 0);
     assign commit_id_o = sel_div0 ? saved_div0_commit_id_stage2 : (sel_div1 ? saved_div1_commit_id_stage2 : 0);
 
-    // 结果写回使能
+    // 结果写回使能控制逻辑
     assign reg_we_o = (sel_div0 | sel_div1);
 
     div u_div0 (
