@@ -260,7 +260,7 @@ module exu_lsu #(
     // FIFO管理逻辑 - 支持Load/Store并行处理
     // ===================================================================
     
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             fifo_head <= '0;
             fifo_tail <= '0;
@@ -332,7 +332,7 @@ module exu_lsu #(
     // AXI状态机 - 分离读写通道实现并行处理
     // ===================================================================
     
-    always_ff @(posedge clk or negedge rst_n) begin
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             axi_read_state <= AXI_IDLE;
             axi_write_state <= AXI_IDLE;
