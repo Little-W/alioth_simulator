@@ -231,7 +231,7 @@ module dispatch_pipe (
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器
-    wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;
+    wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = inst_addr_i;
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
     gnrl_dfflr #(32) inst_addr_ff (
         clk,
@@ -255,7 +255,7 @@ module dispatch_pipe (
     assign commit_id_o = commit_id;
 
     // 新增：寄存器写使能寄存器
-    wire reg_we_dnxt = flush_en ? 1'b0 : reg_we_i;
+    wire reg_we_dnxt = reg_we_i;
     wire reg_we;
     gnrl_dfflr #(1) reg_we_ff (
         clk,
@@ -267,7 +267,7 @@ module dispatch_pipe (
     assign reg_we_o = reg_we;
 
     // 新增：寄存器写地址寄存器
-    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = flush_en ? {`REG_ADDR_WIDTH{1'b0}} : reg_waddr_i;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = reg_waddr_i;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
     gnrl_dfflr #(`REG_ADDR_WIDTH) reg_waddr_ff (
         clk,
@@ -279,7 +279,7 @@ module dispatch_pipe (
     assign reg_waddr_o = reg_waddr;
 
     // 新增：CSR写使能寄存器
-    wire csr_we_dnxt = flush_en ? 1'b0 : csr_we_i;
+    wire csr_we_dnxt = csr_we_i;
     wire csr_we;
     gnrl_dfflr #(1) csr_we_ff (
         clk,
@@ -291,7 +291,7 @@ module dispatch_pipe (
     assign csr_we_o = csr_we;
 
     // 新增：CSR写地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_waddr_i;
+    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_dnxt = csr_waddr_i;
     wire [`BUS_ADDR_WIDTH-1:0] csr_waddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) csr_waddr_ff (
         clk,
@@ -303,7 +303,7 @@ module dispatch_pipe (
     assign csr_waddr_o = csr_waddr;
 
     // 新增：CSR读地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_raddr_i;
+    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = csr_raddr_i;
     wire [`BUS_ADDR_WIDTH-1:0] csr_raddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) csr_raddr_ff (
         clk,
@@ -315,7 +315,7 @@ module dispatch_pipe (
     assign csr_raddr_o = csr_raddr;
 
     // 新增：立即数寄存器
-    wire [31:0] dec_imm_dnxt = flush_en ? 32'b0 : dec_imm_i;
+    wire [31:0] dec_imm_dnxt = dec_imm_i;
     wire [31:0] dec_imm;
     gnrl_dfflr #(32) dec_imm_ff (
         clk,
@@ -350,7 +350,7 @@ module dispatch_pipe (
     );
     assign req_alu_o = req_alu;
 
-    wire [31:0] alu_op1_dnxt = flush_en ? `ZeroWord : alu_op1_i;
+    wire [31:0] alu_op1_dnxt = alu_op1_i;
     wire [31:0] alu_op1;
     gnrl_dfflr #(32) alu_op1_ff (
         clk,
@@ -361,7 +361,7 @@ module dispatch_pipe (
     );
     assign alu_op1_o = alu_op1;
 
-    wire [31:0] alu_op2_dnxt = flush_en ? `ZeroWord : alu_op2_i;
+    wire [31:0] alu_op2_dnxt = alu_op2_i;
     wire [31:0] alu_op2;
     gnrl_dfflr #(32) alu_op2_ff (
         clk,
@@ -372,7 +372,7 @@ module dispatch_pipe (
     );
     assign alu_op2_o = alu_op2;
 
-    wire [`ALU_OP_WIDTH-1:0] alu_op_info_dnxt = flush_en ? {`ALU_OP_WIDTH{1'b0}} : alu_op_info_i;
+    wire [`ALU_OP_WIDTH-1:0] alu_op_info_dnxt = alu_op_info_i;
     wire [`ALU_OP_WIDTH-1:0] alu_op_info;
     gnrl_dfflr #(`ALU_OP_WIDTH) alu_op_info_ff (
         clk,
@@ -395,7 +395,7 @@ module dispatch_pipe (
     );
     assign req_bjp_o = req_bjp;
 
-    wire [31:0] bjp_op1_dnxt = flush_en ? `ZeroWord : bjp_op1_i;
+    wire [31:0] bjp_op1_dnxt = bjp_op1_i;
     wire [31:0] bjp_op1;
     gnrl_dfflr #(32) bjp_op1_ff (
         clk,
@@ -406,7 +406,7 @@ module dispatch_pipe (
     );
     assign bjp_op1_o = bjp_op1;
 
-    wire [31:0] bjp_op2_dnxt = flush_en ? `ZeroWord : bjp_op2_i;
+    wire [31:0] bjp_op2_dnxt = bjp_op2_i;
     wire [31:0] bjp_op2;
     gnrl_dfflr #(32) bjp_op2_ff (
         clk,
@@ -417,7 +417,7 @@ module dispatch_pipe (
     );
     assign bjp_op2_o = bjp_op2;
 
-    wire [31:0] bjp_jump_op1_dnxt = flush_en ? `ZeroWord : bjp_jump_op1_i;
+    wire [31:0] bjp_jump_op1_dnxt = bjp_jump_op1_i;
     wire [31:0] bjp_jump_op1;
     gnrl_dfflr #(32) bjp_jump_op1_ff (
         clk,
@@ -428,7 +428,7 @@ module dispatch_pipe (
     );
     assign bjp_jump_op1_o = bjp_jump_op1;
 
-    wire [31:0] bjp_jump_op2_dnxt = flush_en ? `ZeroWord : bjp_jump_op2_i;
+    wire [31:0] bjp_jump_op2_dnxt = bjp_jump_op2_i;
     wire [31:0] bjp_jump_op2;
     gnrl_dfflr #(32) bjp_jump_op2_ff (
         clk,
@@ -439,7 +439,7 @@ module dispatch_pipe (
     );
     assign bjp_jump_op2_o = bjp_jump_op2;
 
-    wire bjp_op_jal_dnxt = flush_en ? 1'b0 : bjp_op_jal_i;
+    wire bjp_op_jal_dnxt = bjp_op_jal_i;
     wire bjp_op_jal;
     gnrl_dfflr #(1) bjp_op_jal_ff (
         clk,
@@ -450,7 +450,7 @@ module dispatch_pipe (
     );
     assign bjp_op_jal_o = bjp_op_jal;
 
-    wire bjp_op_beq_dnxt = flush_en ? 1'b0 : bjp_op_beq_i;
+    wire bjp_op_beq_dnxt = bjp_op_beq_i;
     wire bjp_op_beq;
     gnrl_dfflr #(1) bjp_op_beq_ff (
         clk,
@@ -461,7 +461,7 @@ module dispatch_pipe (
     );
     assign bjp_op_beq_o = bjp_op_beq;
 
-    wire bjp_op_bne_dnxt = flush_en ? 1'b0 : bjp_op_bne_i;
+    wire bjp_op_bne_dnxt = bjp_op_bne_i;
     wire bjp_op_bne;
     gnrl_dfflr #(1) bjp_op_bne_ff (
         clk,
@@ -472,7 +472,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bne_o = bjp_op_bne;
 
-    wire bjp_op_blt_dnxt = flush_en ? 1'b0 : bjp_op_blt_i;
+    wire bjp_op_blt_dnxt = bjp_op_blt_i;
     wire bjp_op_blt;
     gnrl_dfflr #(1) bjp_op_blt_ff (
         clk,
@@ -483,7 +483,7 @@ module dispatch_pipe (
     );
     assign bjp_op_blt_o = bjp_op_blt;
 
-    wire bjp_op_bltu_dnxt = flush_en ? 1'b0 : bjp_op_bltu_i;
+    wire bjp_op_bltu_dnxt = bjp_op_bltu_i;
     wire bjp_op_bltu;
     gnrl_dfflr #(1) bjp_op_bltu_ff (
         clk,
@@ -494,7 +494,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bltu_o = bjp_op_bltu;
 
-    wire bjp_op_bge_dnxt = flush_en ? 1'b0 : bjp_op_bge_i;
+    wire bjp_op_bge_dnxt = bjp_op_bge_i;
     wire bjp_op_bge;
     gnrl_dfflr #(1) bjp_op_bge_ff (
         clk,
@@ -505,7 +505,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bge_o = bjp_op_bge;
 
-    wire bjp_op_bgeu_dnxt = flush_en ? 1'b0 : bjp_op_bgeu_i;
+    wire bjp_op_bgeu_dnxt = bjp_op_bgeu_i;
     wire bjp_op_bgeu;
     gnrl_dfflr #(1) bjp_op_bgeu_ff (
         clk,
@@ -516,7 +516,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bgeu_o = bjp_op_bgeu;
 
-    wire bjp_op_jalr_dnxt = flush_en ? 1'b0 : bjp_op_jalr_i;
+    wire bjp_op_jalr_dnxt = bjp_op_jalr_i;
     wire bjp_op_jalr;
     gnrl_dfflr #(1) bjp_op_jalr_ff (
         clk,
@@ -526,7 +526,6 @@ module dispatch_pipe (
         bjp_op_jalr
     );
     assign bjp_op_jalr_o = bjp_op_jalr;
-
 
     // MUL信号寄存器
     wire req_mul_dnxt = flush_en ? 1'b0 : req_mul_i;
@@ -540,7 +539,7 @@ module dispatch_pipe (
     );
     assign req_mul_o = req_mul;
 
-    wire [31:0] mul_op1_dnxt = flush_en ? `ZeroWord : mul_op1_i;
+    wire [31:0] mul_op1_dnxt = mul_op1_i;
     wire [31:0] mul_op1;
     gnrl_dfflr #(32) mul_op1_ff (
         clk,
@@ -551,7 +550,7 @@ module dispatch_pipe (
     );
     assign mul_op1_o = mul_op1;
 
-    wire [31:0] mul_op2_dnxt = flush_en ? `ZeroWord : mul_op2_i;
+    wire [31:0] mul_op2_dnxt = mul_op2_i;
     wire [31:0] mul_op2;
     gnrl_dfflr #(32) mul_op2_ff (
         clk,
@@ -562,7 +561,7 @@ module dispatch_pipe (
     );
     assign mul_op2_o = mul_op2;
 
-    wire mul_op_mul_dnxt = flush_en ? 1'b0 : mul_op_mul_i;
+    wire mul_op_mul_dnxt = mul_op_mul_i;
     wire mul_op_mul;
     gnrl_dfflr #(1) mul_op_mul_ff (
         clk,
@@ -573,7 +572,7 @@ module dispatch_pipe (
     );
     assign mul_op_mul_o = mul_op_mul;
 
-    wire mul_op_mulh_dnxt = flush_en ? 1'b0 : mul_op_mulh_i;
+    wire mul_op_mulh_dnxt = mul_op_mulh_i;
     wire mul_op_mulh;
     gnrl_dfflr #(1) mul_op_mulh_ff (
         clk,
@@ -584,7 +583,7 @@ module dispatch_pipe (
     );
     assign mul_op_mulh_o = mul_op_mulh;
 
-    wire mul_op_mulhsu_dnxt = flush_en ? 1'b0 : mul_op_mulhsu_i;
+    wire mul_op_mulhsu_dnxt = mul_op_mulhsu_i;
     wire mul_op_mulhsu;
     gnrl_dfflr #(1) mul_op_mulhsu_ff (
         clk,
@@ -595,7 +594,7 @@ module dispatch_pipe (
     );
     assign mul_op_mulhsu_o = mul_op_mulhsu;
 
-    wire mul_op_mulhu_dnxt = flush_en ? 1'b0 : mul_op_mulhu_i;
+    wire mul_op_mulhu_dnxt = mul_op_mulhu_i;
     wire mul_op_mulhu;
     gnrl_dfflr #(1) mul_op_mulhu_ff (
         clk,
@@ -618,7 +617,7 @@ module dispatch_pipe (
     );
     assign req_div_o = req_div;
 
-    wire [31:0] div_op1_dnxt = flush_en ? `ZeroWord : div_op1_i;
+    wire [31:0] div_op1_dnxt = div_op1_i;
     wire [31:0] div_op1;
     gnrl_dfflr #(32) div_op1_ff (
         clk,
@@ -629,7 +628,7 @@ module dispatch_pipe (
     );
     assign div_op1_o = div_op1;
 
-    wire [31:0] div_op2_dnxt = flush_en ? `ZeroWord : div_op2_i;
+    wire [31:0] div_op2_dnxt = div_op2_i;
     wire [31:0] div_op2;
     gnrl_dfflr #(32) div_op2_ff (
         clk,
@@ -640,7 +639,7 @@ module dispatch_pipe (
     );
     assign div_op2_o = div_op2;
 
-    wire div_op_div_dnxt = flush_en ? 1'b0 : div_op_div_i;
+    wire div_op_div_dnxt = div_op_div_i;
     wire div_op_div;
     gnrl_dfflr #(1) div_op_div_ff (
         clk,
@@ -651,7 +650,7 @@ module dispatch_pipe (
     );
     assign div_op_div_o = div_op_div;
 
-    wire div_op_divu_dnxt = flush_en ? 1'b0 : div_op_divu_i;
+    wire div_op_divu_dnxt = div_op_divu_i;
     wire div_op_divu;
     gnrl_dfflr #(1) div_op_divu_ff (
         clk,
@@ -662,7 +661,7 @@ module dispatch_pipe (
     );
     assign div_op_divu_o = div_op_divu;
 
-    wire div_op_rem_dnxt = flush_en ? 1'b0 : div_op_rem_i;
+    wire div_op_rem_dnxt = div_op_rem_i;
     wire div_op_rem;
     gnrl_dfflr #(1) div_op_rem_ff (
         clk,
@@ -673,7 +672,7 @@ module dispatch_pipe (
     );
     assign div_op_rem_o = div_op_rem;
 
-    wire div_op_remu_dnxt = flush_en ? 1'b0 : div_op_remu_i;
+    wire div_op_remu_dnxt = div_op_remu_i;
     wire div_op_remu;
     gnrl_dfflr #(1) div_op_remu_ff (
         clk,
@@ -696,7 +695,7 @@ module dispatch_pipe (
     );
     assign req_csr_o = req_csr;
 
-    wire [31:0] csr_op1_dnxt = flush_en ? `ZeroWord : csr_op1_i;
+    wire [31:0] csr_op1_dnxt = csr_op1_i;
     wire [31:0] csr_op1;
     gnrl_dfflr #(32) csr_op1_ff (
         clk,
@@ -707,7 +706,7 @@ module dispatch_pipe (
     );
     assign csr_op1_o = csr_op1;
 
-    wire [31:0] csr_addr_dnxt = flush_en ? `ZeroWord : csr_addr_i;
+    wire [31:0] csr_addr_dnxt = csr_addr_i;
     wire [31:0] csr_addr;
     gnrl_dfflr #(32) csr_addr_ff (
         clk,
@@ -718,7 +717,7 @@ module dispatch_pipe (
     );
     assign csr_addr_o = csr_addr;
 
-    wire csr_csrrw_dnxt = flush_en ? 1'b0 : csr_csrrw_i;
+    wire csr_csrrw_dnxt = csr_csrrw_i;
     wire csr_csrrw;
     gnrl_dfflr #(1) csr_csrrw_ff (
         clk,
@@ -729,7 +728,7 @@ module dispatch_pipe (
     );
     assign csr_csrrw_o = csr_csrrw;
 
-    wire csr_csrrs_dnxt = flush_en ? 1'b0 : csr_csrrs_i;
+    wire csr_csrrs_dnxt = csr_csrrs_i;
     wire csr_csrrs;
     gnrl_dfflr #(1) csr_csrrs_ff (
         clk,
@@ -740,7 +739,7 @@ module dispatch_pipe (
     );
     assign csr_csrrs_o = csr_csrrs;
 
-    wire csr_csrrc_dnxt = flush_en ? 1'b0 : csr_csrrc_i;
+    wire csr_csrrc_dnxt = csr_csrrc_i;
     wire csr_csrrc;
     gnrl_dfflr #(1) csr_csrrc_ff (
         clk,
@@ -763,7 +762,7 @@ module dispatch_pipe (
     );
     assign req_mem_o = req_mem;
 
-    wire mem_op_lb_dnxt = flush_en ? 1'b0 : mem_op_lb_i;
+    wire mem_op_lb_dnxt = mem_op_lb_i;
     wire mem_op_lb;
     gnrl_dfflr #(1) mem_op_lb_ff (
         clk,
@@ -774,7 +773,7 @@ module dispatch_pipe (
     );
     assign mem_op_lb_o = mem_op_lb;
 
-    wire mem_op_lh_dnxt = flush_en ? 1'b0 : mem_op_lh_i;
+    wire mem_op_lh_dnxt = mem_op_lh_i;
     wire mem_op_lh;
     gnrl_dfflr #(1) mem_op_lh_ff (
         clk,
@@ -785,7 +784,7 @@ module dispatch_pipe (
     );
     assign mem_op_lh_o = mem_op_lh;
 
-    wire mem_op_lw_dnxt = flush_en ? 1'b0 : mem_op_lw_i;
+    wire mem_op_lw_dnxt = mem_op_lw_i;
     wire mem_op_lw;
     gnrl_dfflr #(1) mem_op_lw_ff (
         clk,
@@ -796,7 +795,7 @@ module dispatch_pipe (
     );
     assign mem_op_lw_o = mem_op_lw;
 
-    wire mem_op_lbu_dnxt = flush_en ? 1'b0 : mem_op_lbu_i;
+    wire mem_op_lbu_dnxt = mem_op_lbu_i;
     wire mem_op_lbu;
     gnrl_dfflr #(1) mem_op_lbu_ff (
         clk,
@@ -807,7 +806,7 @@ module dispatch_pipe (
     );
     assign mem_op_lbu_o = mem_op_lbu;
 
-    wire mem_op_lhu_dnxt = flush_en ? 1'b0 : mem_op_lhu_i;
+    wire mem_op_lhu_dnxt = mem_op_lhu_i;
     wire mem_op_lhu;
     gnrl_dfflr #(1) mem_op_lhu_ff (
         clk,
@@ -818,7 +817,7 @@ module dispatch_pipe (
     );
     assign mem_op_lhu_o = mem_op_lhu;
 
-    wire mem_op_load_dnxt = flush_en ? 1'b0 : mem_op_load_i;
+    wire mem_op_load_dnxt = mem_op_load_i;
     wire mem_op_load;
     gnrl_dfflr #(1) mem_op_load_ff (
         clk,
@@ -829,7 +828,7 @@ module dispatch_pipe (
     );
     assign mem_op_load_o = mem_op_load;
 
-    wire mem_op_store_dnxt = flush_en ? 1'b0 : mem_op_store_i;
+    wire mem_op_store_dnxt = mem_op_store_i;
     wire mem_op_store;
     gnrl_dfflr #(1) mem_op_store_ff (
         clk,
@@ -841,7 +840,7 @@ module dispatch_pipe (
     assign mem_op_store_o = mem_op_store;
 
     // SYS信号寄存
-    wire sys_op_nop_dnxt = flush_en ? 1'b0 : sys_op_nop_i;
+    wire sys_op_nop_dnxt = sys_op_nop_i;
     wire sys_op_nop;
     gnrl_dfflr #(1) sys_op_nop_ff (
         clk,
@@ -908,7 +907,7 @@ module dispatch_pipe (
     assign sys_op_dret_o = sys_op_dret;
 
     // 新增：rs1_rdata寄存器
-    wire [31:0] rs1_rdata_dnxt = flush_en ? 32'b0 : rs1_rdata_i;
+    wire [31:0] rs1_rdata_dnxt = rs1_rdata_i;
     wire [31:0] rs1_rdata;
     gnrl_dfflr #(32) rs1_rdata_ff (
         clk,
@@ -920,7 +919,7 @@ module dispatch_pipe (
     assign rs1_rdata_o = rs1_rdata;
 
     // 新增：rs2_rdata寄存器
-    wire [31:0] rs2_rdata_dnxt = flush_en ? 32'b0 : rs2_rdata_i;
+    wire [31:0] rs2_rdata_dnxt = rs2_rdata_i;
     wire [31:0] rs2_rdata;
     gnrl_dfflr #(32) rs2_rdata_ff (
         clk,
@@ -932,7 +931,7 @@ module dispatch_pipe (
     assign rs2_rdata_o = rs2_rdata;
 
     // 新增：预测分支信号寄存器
-    wire is_pred_branch_dnxt = flush_en ? 1'b0 : is_pred_branch_i;
+    wire is_pred_branch_dnxt = is_pred_branch_i;
     wire is_pred_branch;
     gnrl_dfflr #(1) is_pred_branch_ff (
         clk,
@@ -944,7 +943,7 @@ module dispatch_pipe (
     assign is_pred_branch_o = is_pred_branch;
 
     // 新增：内存地址寄存器
-    wire [31:0] mem_addr_dnxt = flush_en ? `ZeroWord : mem_addr_i;
+    wire [31:0] mem_addr_dnxt = mem_addr_i;
     wire [31:0] mem_addr;
     gnrl_dfflr #(32) mem_addr_ff (
         clk,
@@ -956,7 +955,7 @@ module dispatch_pipe (
     assign mem_addr_o = mem_addr;
 
     // 新增：内存写掩码寄存器
-    wire [3:0] mem_wmask_dnxt = flush_en ? 4'b0 : mem_wmask_i;
+    wire [3:0] mem_wmask_dnxt = mem_wmask_i;
     wire [3:0] mem_wmask;
     gnrl_dfflr #(4) mem_wmask_ff (
         clk,
@@ -968,7 +967,7 @@ module dispatch_pipe (
     assign mem_wmask_o = mem_wmask;
 
     // 新增：内存写数据寄存器
-    wire [31:0] mem_wdata_dnxt = flush_en ? `ZeroWord : mem_wdata_i;
+    wire [31:0] mem_wdata_dnxt = mem_wdata_i;
     wire [31:0] mem_wdata;
     gnrl_dfflr #(32) mem_wdata_ff (
         clk,
@@ -1015,7 +1014,7 @@ module dispatch_pipe (
     assign misaligned_store_o = misaligned_store;
 
     // 新增：指令内容流水线寄存器
-    wire [31:0] inst_dnxt = flush_en ? 32'b0 : inst_i;
+    wire [31:0] inst_dnxt = inst_i;
     wire [31:0] inst;
     gnrl_dfflr #(32) inst_ff (
         clk,
