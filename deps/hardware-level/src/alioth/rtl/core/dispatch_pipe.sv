@@ -116,8 +116,9 @@ module dispatch_pipe (
 
     // 直接计算的内存地址和掩码/数据输入
     input wire [31:0] mem_addr_i,
-    input wire [ 3:0] mem_wmask_i,
-    input wire [31:0] mem_wdata_i,
+    // 访存数据输入 - 适配双发射64位数据总线
+    input wire [ 7:0] mem_wmask_i,  // 升级到8位掩码
+    input wire [63:0] mem_wdata_i,  // 升级到64位数据
 
     // 新增：未对齐访存异常输入
     input wire misaligned_load_i,
@@ -210,10 +211,10 @@ module dispatch_pipe (
     output wire mem_op_load_o,
     output wire mem_op_store_o,
 
-    // 保留这些计算好的内存地址和掩码/数据输出
+    // 保留这些计算好的内存地址和掩码/数据输出 - 适配双发射
     output wire [31:0] mem_addr_o,
-    output wire [ 3:0] mem_wmask_o,
-    output wire [31:0] mem_wdata_o,
+    output wire [ 7:0] mem_wmask_o,  // 升级到8位掩码
+    output wire [63:0] mem_wdata_o,  // 升级到64位数据
 
     // 新增：未对齐访存异常输出
     output wire misaligned_load_o,
@@ -993,10 +994,10 @@ module dispatch_pipe (
     );
     assign mem_addr_o = mem_addr;
 
-    // 新增：内存写掩码寄存器
-    wire [3:0] mem_wmask_dnxt = flush_en ? 4'b0 : mem_wmask_i;
-    wire [3:0] mem_wmask;
-    gnrl_dfflr #(4) mem_wmask_ff (
+    // 新增：内存写掩码寄存器 - 适配双发射8位掩码
+    wire [7:0] mem_wmask_dnxt = flush_en ? 8'b0 : mem_wmask_i;
+    wire [7:0] mem_wmask;
+    gnrl_dfflr #(8) mem_wmask_ff (
         clk,
         rst_n,
         reg_update_en,
@@ -1005,10 +1006,10 @@ module dispatch_pipe (
     );
     assign mem_wmask_o = mem_wmask;
 
-    // 新增：内存写数据寄存器
-    wire [31:0] mem_wdata_dnxt = flush_en ? `ZeroWord : mem_wdata_i;
-    wire [31:0] mem_wdata;
-    gnrl_dfflr #(32) mem_wdata_ff (
+    // 新增：内存写数据寄存器 - 适配双发射64位数据
+    wire [63:0] mem_wdata_dnxt = flush_en ? 64'b0 : mem_wdata_i;
+    wire [63:0] mem_wdata;
+    gnrl_dfflr #(64) mem_wdata_ff (
         clk,
         rst_n,
         reg_update_en,

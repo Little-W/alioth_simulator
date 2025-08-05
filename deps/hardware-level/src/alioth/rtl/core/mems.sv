@@ -30,9 +30,9 @@ module mems #(
     parameter DTCM_ADDR_WIDTH = 16,  // DTCM地址宽度
     parameter DATA_WIDTH      = 32,  // RAM数据宽度
 
-    // AXI接口参数
-    parameter C_AXI_ID_WIDTH   = 2,   // AXI ID宽度
-    parameter C_AXI_DATA_WIDTH = 32,  // AXI数据宽度
+    // AXI接口参数 - 双发射适配
+    parameter C_AXI_ID_WIDTH   = 3,   // AXI ID宽度：升级到3位支持8个并发事务
+    parameter C_AXI_DATA_WIDTH = 64,  // AXI数据宽度：升级到64位支持双发射
     parameter C_AXI_ADDR_WIDTH = 32,  // AXI地址宽度
 
     // APB AXI-Lite接口参数

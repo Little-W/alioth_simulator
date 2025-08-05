@@ -172,8 +172,8 @@ module dispatch (
     output wire                        inst1_mem_op_store_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_mem_commit_id_o,
     output wire [                31:0] inst1_mem_addr_o,
-    output wire [                 3:0] inst1_mem_wmask_o,
-    output wire [                31:0] inst1_mem_wdata_o,
+    output wire [                 7:0] inst1_mem_wmask_o,  // 升级到8位掩码
+    output wire [                63:0] inst1_mem_wdata_o,  // 升级到64位数据
 
     // dispatch to MEM (第二路)
     output wire                        inst2_req_mem_o,
@@ -186,8 +186,8 @@ module dispatch (
     output wire                        inst2_mem_op_store_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_mem_commit_id_o,
     output wire [                31:0] inst2_mem_addr_o,
-    output wire [                 3:0] inst2_mem_wmask_o,
-    output wire [                31:0] inst2_mem_wdata_o,
+    output wire [                 7:0] inst2_mem_wmask_o,  // 升级到8位掩码
+    output wire [                63:0] inst2_mem_wdata_o,  // 升级到64位数据
 
     // dispatch to SYS (第一路)
     output wire inst1_sys_op_nop_o,
@@ -273,8 +273,8 @@ module dispatch (
     wire                        inst1_logic_mem_op_load;
     wire                        inst1_logic_mem_op_store;
     wire [                31:0] inst1_logic_mem_addr;
-    wire [                 3:0] inst1_logic_mem_wmask;
-    wire [                31:0] inst1_logic_mem_wdata;
+    wire [                 7:0] inst1_logic_mem_wmask;  // 升级到8位掩码
+    wire [                63:0] inst1_logic_mem_wdata;  // 升级到64位数据
 
     wire                        inst1_logic_sys_op_nop;
     wire                        inst1_logic_sys_op_mret;
@@ -342,8 +342,8 @@ module dispatch (
     wire                        inst2_logic_mem_op_load;
     wire                        inst2_logic_mem_op_store;
     wire [                31:0] inst2_logic_mem_addr;
-    wire [                 3:0] inst2_logic_mem_wmask;
-    wire [                31:0] inst2_logic_mem_wdata;
+    wire [                 7:0] inst2_logic_mem_wmask;  // 升级到8位掩码
+    wire [                63:0] inst2_logic_mem_wdata;  // 升级到64位数据
 
     wire                        inst2_logic_sys_op_nop;
     wire                        inst2_logic_sys_op_mret;

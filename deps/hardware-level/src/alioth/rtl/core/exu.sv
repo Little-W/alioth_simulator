@@ -127,7 +127,7 @@ module exu (
     input wire        bjp_op_jalr_i,
     input wire        is_pred_branch_i,
 
-    // LSU0接口
+    // LSU0接口 - 适配双发射64位数据总线
     input wire                        req_mem0_i,
     input wire                        mem0_op_lb_i,
     input wire                        mem0_op_lh_i,
@@ -138,13 +138,13 @@ module exu (
     input wire                        mem0_op_store_i,
     input wire [              4:0]    mem0_rd_i,
     input wire [             31:0]    mem0_addr_i,
-    input wire [             31:0]    mem0_wdata_i,
-    input wire [              3:0]    mem0_wmask_i,
+    input wire [             63:0]    mem0_wdata_i,  // 升级到64位数据
+    input wire [              7:0]    mem0_wmask_i,  // 升级到8位掩码
     input wire [`COMMIT_ID_WIDTH-1:0] mem0_commit_id_i,
     input wire                        mem0_reg_we_i,
     input wire                        mem0_wb_ready_i,
 
-    // LSU1接口
+    // LSU1接口 - 适配双发射64位数据总线
     input wire                        req_mem1_i,
     input wire                        mem1_op_lb_i,
     input wire                        mem1_op_lh_i,
@@ -155,8 +155,8 @@ module exu (
     input wire                        mem1_op_store_i,
     input wire [              4:0]    mem1_rd_i,
     input wire [             31:0]    mem1_addr_i,
-    input wire [             31:0]    mem1_wdata_i,
-    input wire [              3:0]    mem1_wmask_i,
+    input wire [             63:0]    mem1_wdata_i,  // 升级到64位数据
+    input wire [              7:0]    mem1_wmask_i,  // 升级到8位掩码
     input wire [`COMMIT_ID_WIDTH-1:0] mem1_commit_id_i,
     input wire                        mem1_reg_we_i,
     input wire                        mem1_wb_ready_i,

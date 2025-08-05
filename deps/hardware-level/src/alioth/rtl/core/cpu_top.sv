@@ -295,8 +295,9 @@ module cpu_top (
     wire dispatch_mem_op_store;
     wire [1:0] dispatch_mem_commit_id;
     wire [31:0] dispatch_mem_addr;
-    wire [31:0] dispatch_mem_wdata;
-    wire [3:0] dispatch_mem_wmask;
+    // 双发射适配：64位数据和8位掩码
+    wire [63:0] dispatch_mem_wdata;  // 升级到64位数据
+    wire [7:0] dispatch_mem_wmask;   // 升级到8位掩码
 
     // dispatch to SYS
     wire dispatch_sys_op_nop;
@@ -1088,7 +1089,7 @@ module cpu_top (
         .C_OM1_AXI_ADDR_WIDTH(32),
         .C_OM1_AXI_DATA_WIDTH(32),
         .C_OM2_AXI_ADDR_WIDTH(`PLIC_ADDR_WIDTH),
-        .C_OM2_AXI_DATA_WIDTH(`BUS_DATA_WIDTH)
+        .C_OM2_AXI_DATA_WIDTH(32)  // PLIC保持32位，与defines.svh中定义一致
     ) u_mems (
         .clk  (clk),
         .rst_n(rst_n),
