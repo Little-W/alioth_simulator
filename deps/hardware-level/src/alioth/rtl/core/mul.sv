@@ -67,6 +67,9 @@ module mul (
     reg [15:0] a_low, a_high;  // 被乘数低/高16位
     reg [15:0] b_low, b_high;  // 乘数低/高16位
 
+    // 新增分块乘法结果暂存寄存器
+    reg [31:0] mul_blk[0:3];
+
     // 临时变量
     wire [31:0] mcand_tmp, mplier_tmp;
 
@@ -76,16 +79,9 @@ module mul (
     assign mul_b = (count[0] == 1'b0) ? b_low : b_high;
 
     // 单周期16位乘法器及移位累加逻辑
-    wire [                 31:0] mul_result;
-    wire [2*`REG_DATA_WIDTH-1:0] add_result;
-    wire [2*`REG_DATA_WIDTH-1:0] shifted_mul_result;
+    wire [31:0] mul_result;
 
     assign mul_result = mul_a * mul_b;
-    // 按分块位置移位累加，4次迭代分别对应不同移位量
-    assign shifted_mul_result = {{(2*`REG_DATA_WIDTH-32){1'b0}}, mul_result} << (count == 3'd0 ? 0 :
-                                                                               count == 3'd1 ? 16 :
-                                                                               count == 3'd2 ? 16 : 32);
-    assign add_result = p_reg + shifted_mul_result;
 
     // 部分积高/低32位
     wire [`REG_DATA_WIDTH-1:0] mult_tmp_high;
@@ -138,6 +134,11 @@ module mul (
             result_sign_r                  <= 1'b0;
             p_reg                          <= 0;
             {a_low, a_high, b_low, b_high} <= 0;
+            // 新增清零分块乘法结果寄存器
+            mul_blk[0]                     <= 32'b0;
+            mul_blk[1]                     <= 32'b0;
+            mul_blk[2]                     <= 32'b0;
+            mul_blk[3]                     <= 32'b0;
         end else begin
             case (current_state)
                 IDLE: begin
@@ -163,6 +164,11 @@ module mul (
                             p_reg <= 0;
                             count <= 3'd0;
                             busy_o <= 1'b1;
+                            // 清零分块乘法结果寄存器
+                            mul_blk[0] <= 32'b0;
+                            mul_blk[1] <= 32'b0;
+                            mul_blk[2] <= 32'b0;
+                            mul_blk[3] <= 32'b0;
                         end else begin
                             busy_o <= 1'b0;
                         end
@@ -170,24 +176,24 @@ module mul (
                 end
 
                 CALC: begin
-                    valid_o <= 1'b0;
-                    // 分块乘法累加，4次迭代，每次累加对应块的乘积
-                    case (count)
-                        3'd0: p_reg <= shifted_mul_result;
-                        3'd1: p_reg <= add_result;
-                        3'd2: p_reg <= add_result;
-                        3'd3: p_reg <= add_result;
-                    endcase
-                    count <= count + 3'd1;
+                    valid_o        <= 1'b0;
+                    // 只计算分块乘法结果，复用乘法器，暂存到mul_blk
+                    mul_blk[count] <= mul_result;
+                    count          <= count + 3'd1;
                 end
 
                 OUTPUT: begin
                     logic [2*`REG_DATA_WIDTH-1:0] final_result;
+                    // 统一移位和累加
+                    final_result = {32'b0, mul_blk[0]} +
+                                   ({16'b0, mul_blk[1], 16'b0}) +
+                                   ({16'b0, mul_blk[2], 16'b0}) +
+                                   ({mul_blk[3], 32'b0});
                     // MULHU无符号乘法直接输出，其他类型需恢复符号
                     if (op_r == 4'b1000) begin
-                        final_result = p_reg;
+                        // 无符号乘法
                     end else begin
-                        final_result = result_sign_r ? -p_reg : p_reg;
+                        final_result = result_sign_r ? -final_result : final_result;
                     end
 
                     // 指令类型选择输出高/低32位
