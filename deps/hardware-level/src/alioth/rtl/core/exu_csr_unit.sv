@@ -86,7 +86,7 @@ module exu_csr_unit (
     wire csr_we_nxt = (valid_csr_op & csr_we_i) ? `WriteEnable : `WriteDisable;
 
     // 握手失败时输出stall信号
-    assign csr_stall_o = csr_we_o & ~wb_ready_i & valid_csr_op;
+    assign csr_stall_o = csr_reg_we_o & ~wb_ready_i & csr_reg_we_nxt;
 
     // 使用gnrl_dfflr实例化输出级寄存器
     wire [ `REG_DATA_WIDTH-1:0] csr_wdata_r;

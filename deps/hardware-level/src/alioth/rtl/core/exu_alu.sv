@@ -214,7 +214,7 @@ module exu_alu (
     //////////////////////////////////////////////////////////////
     wire [31:0] alu_res =
         ({32{int_assert_i == `INT_ASSERT}} & 32'h0) |
-        ({32{!req_alu_i && !op_jump}} & 32'h0) |
+        ({32{!req_alu_i}} & 32'h0) |
         ({32{op_add | op_auipc | op_jump}} & adder_res[31:0]) |
         ({32{op_sub}} & adder_res[31:0]) |
         ({32{op_xor}} & xor_res) |
@@ -244,7 +244,7 @@ module exu_alu (
     wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;  // commit ID寄存器
 
     // 握手失败时输出stall信号
-    assign alu_stall_o = reg_we_r & ~wb_ready_i && alu_r_we;
+    assign alu_stall_o = reg_we_o & ~wb_ready_i & alu_r_we;
 
     // 结果寄存器
     gnrl_dfflr #(
