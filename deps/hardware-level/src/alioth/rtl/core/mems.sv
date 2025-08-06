@@ -196,44 +196,44 @@ module mems #(
 
     // ITCM与DTCM的接口信号
     // ITCM读地址通道
-    wire                        itcm_arready;
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_arid;
+    wire itcm_arready;
+    wire [C_AXI_ID_WIDTH-1:0] itcm_arid;
     wire [C_AXI_ADDR_WIDTH-1:0] itcm_araddr;
-    wire [                 7:0] itcm_arlen;
-    wire [                 2:0] itcm_arsize;
-    wire [                 1:0] itcm_arburst;
-    wire                        itcm_arlock;
-    wire [                 3:0] itcm_arcache;
-    wire [                 2:0] itcm_arprot;
-    wire                        itcm_arvalid;
+    wire [7:0] itcm_arlen;
+    wire [2:0] itcm_arsize;
+    wire [1:0] itcm_arburst;
+    wire itcm_arlock;
+    wire [3:0] itcm_arcache;
+    wire [2:0] itcm_arprot;
+    wire itcm_arvalid;
 
     // ITCM读数据通道
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_rid;
+    wire [C_AXI_ID_WIDTH-1:0] itcm_rid;
     wire [C_AXI_DATA_WIDTH-1:0] itcm_rdata;
-    wire [                 1:0] itcm_rresp;
-    wire                        itcm_rlast;
-    wire                        itcm_rvalid;
-    wire                        itcm_rready;
+    wire [1:0] itcm_rresp;
+    wire itcm_rlast;
+    wire itcm_rvalid;
+    wire itcm_rready;
 
     // DTCM读地址通道
-    wire                        dtcm_arready;
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_arid;
+    wire dtcm_arready;
+    wire [C_AXI_ID_WIDTH-1:0] dtcm_arid;
     wire [C_AXI_ADDR_WIDTH-1:0] dtcm_araddr;
-    wire [                 7:0] dtcm_arlen;
-    wire [                 2:0] dtcm_arsize;
-    wire [                 1:0] dtcm_arburst;
-    wire                        dtcm_arlock;
-    wire [                 3:0] dtcm_arcache;
-    wire [                 2:0] dtcm_arprot;
-    wire                        dtcm_arvalid;
+    wire [7:0] dtcm_arlen;
+    wire [2:0] dtcm_arsize;
+    wire [1:0] dtcm_arburst;
+    wire dtcm_arlock;
+    wire [3:0] dtcm_arcache;
+    wire [2:0] dtcm_arprot;
+    wire dtcm_arvalid;
 
     // DTCM读数据通道
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_rid;
+    wire [C_AXI_ID_WIDTH-1:0] dtcm_rid;
     wire [C_AXI_DATA_WIDTH-1:0] dtcm_rdata;
-    wire [                 1:0] dtcm_rresp;
-    wire                        dtcm_rlast;
-    wire                        dtcm_rvalid;
-    wire                        dtcm_rready;
+    wire [1:0] dtcm_rresp;
+    wire dtcm_rlast;
+    wire dtcm_rvalid;
+    wire dtcm_rready;
 
     // 写响应通道连接
     wire [C_AXI_ID_WIDTH-1:0] itcm_bid;
@@ -284,8 +284,7 @@ module mems #(
     wire m1_plic_ar_grant;
 
     // ==================== 读数据通道仲裁 ====================
-    wire m0_itcm_r_priority;
-    wire m1_itcm_r_priority;
+    wire m0_select_itcm_r;
     wire m1_select_itcm_r;
     wire m1_select_dtcm_r;
     wire m1_select_apb_r;
@@ -851,14 +850,15 @@ module mems #(
     // FIFO指针和控制信号
     reg [RDATA_FIFO_ADDR_WIDTH-1:0] m0_rdata_wr_ptr;
     reg [RDATA_FIFO_ADDR_WIDTH-1:0] m0_rdata_rd_ptr;
-    reg [RDATA_FIFO_ADDR_WIDTH:0] m0_rdata_count;  // 额外位用于区分满和空
+    reg [RDATA_FIFO_ADDR_WIDTH:0] m0_rdata_count;
 
     wire m0_rdata_empty = (m0_rdata_count == 0);
     wire m0_rdata_full = (m0_rdata_count == RDATA_FIFO_DEPTH);
+    wire m0_rdata_all_cached = (m0_rdata_count == m0_itcm_r_outstanding_cnt);
 
     // FIFO操作控制
-    wire m0_rdata_push = itcm_rvalid && m0_has_active_itcm_r && !m1_has_active_itcm_r &&
-                        ((!M0_AXI_RREADY && M1_AXI_ARVALID) || m0_rdata_count > 0);
+    wire m0_rdata_push = itcm_rvalid && m0_select_itcm_r &&
+                        ((!M0_AXI_RREADY) || m0_rdata_count > 0);
     wire m0_rdata_pop = !m0_rdata_empty && M0_AXI_RREADY;
 
     // FIFO控制逻辑
@@ -867,8 +867,8 @@ module mems #(
             m0_rdata_wr_ptr <= 0;
             m0_rdata_rd_ptr <= 0;
             m0_rdata_count  <= 0;
-            for(integer i = 0; i < RDATA_FIFO_DEPTH; i = i + 1) begin
-                m0_rdata_rid[i] <= 0;
+            for (integer i = 0; i < RDATA_FIFO_DEPTH; i = i + 1) begin
+                m0_rdata_rid[i]   <= 0;
                 m0_rdata_rdata[i] <= 0;
                 m0_rdata_rresp[i] <= 0;
                 m0_rdata_rlast[i] <= 0;
@@ -876,6 +876,11 @@ module mems #(
         end else begin
             // 同时推入和弹出
             if (m0_rdata_push && m0_rdata_pop) begin
+                // 同时推入和弹出时，推入数据并移动指针
+                m0_rdata_rid[m0_rdata_wr_ptr] <= itcm_rid;
+                m0_rdata_rdata[m0_rdata_wr_ptr] <= itcm_rdata;
+                m0_rdata_rresp[m0_rdata_wr_ptr] <= itcm_rresp;
+                m0_rdata_rlast[m0_rdata_wr_ptr] <= itcm_rlast;
                 m0_rdata_wr_ptr <= (m0_rdata_wr_ptr == RDATA_FIFO_DEPTH - 1) ? 0 : m0_rdata_wr_ptr + 1;
                 m0_rdata_rd_ptr <= (m0_rdata_rd_ptr == RDATA_FIFO_DEPTH - 1) ? 0 : m0_rdata_rd_ptr + 1;
                 // m0_rdata_count保持不变
@@ -898,13 +903,13 @@ module mems #(
 
     // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
     assign m0_has_itcm_ar_req = M0_AXI_ARVALID && is_m0_itcm_r;  // M0有ITCM读请求
-    assign m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求
+    assign m1_has_itcm_ar_req = M1_AXI_ARVALID && is_m1_itcm_r;  // M1有ITCM读请求且没有未完成事务
 
     // 主机间仲裁逻辑：
     // 1. 如果一方有未完成事务，优先保证其完成
     // 2. 如果都没有未完成事务或都有未完成事务，M1优先
     // 3. 地址通道可以立即切换，所以优先处理新请求
-    assign m0_itcm_ar_grant = m0_has_itcm_ar_req && !m1_has_itcm_ar_req;
+    assign m0_itcm_ar_grant = m0_has_itcm_ar_req && !m1_has_itcm_ar_req && !m1_has_active_itcm_r;
     assign m1_itcm_ar_grant = m1_has_itcm_ar_req;  // M1总是优先获得ITCM读地址通道
 
     // ==================== 从机选择逻辑（M1对ITCM vs 外设）====================
@@ -920,20 +925,17 @@ module mems #(
 
     // ==================== 读数据通道仲裁 ====================
     // 处理M0与M1对ITCM的读数据通道竞争
-    assign m0_itcm_r_priority = m0_has_active_itcm_r;  // M0已有未完成事务时具有优先权
-    assign m1_itcm_r_priority = m1_has_active_itcm_r ||
-                             (!m0_has_active_itcm_r && m1_itcm_ar_grant); // M1已有未完成事务或M0无未完成事务且M1获得读地址授权时具有优先权
-
+    assign m0_select_itcm_r = m0_has_active_itcm_r && !m1_select_itcm_r;
     // 处理M1对ITCM与外设的读数据通道选择 - 基于优先权寄存器决定
     // 谁有优先权，谁就获得读数据通道
-    assign m1_select_itcm_r = m1_slave_sel_r[0] && m1_has_active_itcm_r;
+    assign m1_select_itcm_r = m1_slave_sel_r[0] && m1_has_active_itcm_r && m0_rdata_all_cached;
     assign m1_select_dtcm_r = m1_slave_sel_r[1] && m1_has_active_dtcm_r;
     assign m1_select_apb_r = m1_slave_sel_r[2] && m1_has_active_apb_r;
     assign m1_select_clint_r = m1_slave_sel_r[3] && m1_has_active_clint_r;
     assign m1_select_plic_r = m1_slave_sel_r[4] && m1_has_active_plic_r;
 
     // 读通道ready信号连接 - 确保信号只连接到当前优先级对应的设备
-    assign m0_itcm_rready = (m0_itcm_r_priority && M0_AXI_RREADY) || m0_rdata_push;
+    assign m0_itcm_rready = ((m0_select_itcm_r && M0_AXI_RREADY) || m0_rdata_push) && !(m0_rdata_full && !M0_AXI_RREADY);
     assign m1_itcm_rready = m1_select_itcm_r && M1_AXI_RREADY;
     assign m1_dtcm_rready = m1_select_dtcm_r && M1_AXI_RREADY;
 
@@ -1006,7 +1008,7 @@ module mems #(
     assign M0_AXI_RUSER = 4'b0;
 
     // RVALID信号也需要考虑FIFO中的数据
-    assign M0_AXI_RVALID = !m0_rdata_empty || (itcm_rvalid && m0_has_active_itcm_r);
+    assign M0_AXI_RVALID = !m0_rdata_empty || (itcm_rvalid && m0_select_itcm_r);
 
     // APB接口连接到外部
     assign OM0_AXI_ACLK = clk;

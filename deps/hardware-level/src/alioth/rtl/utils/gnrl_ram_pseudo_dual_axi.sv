@@ -104,7 +104,7 @@ module gnrl_ram_pseudo_dual_axi #(
     // 读FIFO相关信号定义
     reg [PTR_WIDTH-1:0] rfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] rfifo_wr_ptr;
-    reg [PTR_WIDTH-1:0] rd_fifo_count;
+    reg [PTR_WIDTH:0] rd_fifo_count;
     reg [C_S_AXI_ID_WIDTH-1:0] fifo_arid[0:FIFO_DEPTH-1];  // 添加FIFO ID存储
     wire [1:0] rd_fifo_op;
     wire rd_fifo_full = (rd_fifo_count == FIFO_DEPTH - 1);
@@ -112,7 +112,7 @@ module gnrl_ram_pseudo_dual_axi #(
     // 读数据FIFO相关信号
     reg [PTR_WIDTH-1:0] rdata_fifo_rd_ptr;
     reg [PTR_WIDTH-1:0] rdata_fifo_wr_ptr;
-    reg [PTR_WIDTH-1:0] rdata_fifo_count;
+    reg [PTR_WIDTH:0] rdata_fifo_count;
     reg [C_S_AXI_DATA_WIDTH-1:0] rdata_fifo[0:FIFO_DEPTH-1];  // 读数据FIFO
     reg [C_S_AXI_ID_WIDTH-1:0] rdata_fifo_rid[0:FIFO_DEPTH-1];  // 读数据对应的ID
     reg rdata_fifo_last[0:FIFO_DEPTH-1];  // 读数据是否为最后一个
@@ -122,7 +122,7 @@ module gnrl_ram_pseudo_dual_axi #(
     // 写FIFO相关信号定义
     reg [PTR_WIDTH-1:0] wfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] wfifo_wr_ptr;
-    reg [PTR_WIDTH-1:0] wr_fifo_count;
+    reg [PTR_WIDTH:0] wr_fifo_count;
     reg [C_S_AXI_ADDR_WIDTH-1:0] wr_fifo_addr[0:FIFO_DEPTH-1];
     reg [C_S_AXI_ID_WIDTH-1:0] wr_fifo_id[0:FIFO_DEPTH-1];  // 添加写FIFO ID存储
     wire [1:0] wr_fifo_op;
@@ -131,7 +131,7 @@ module gnrl_ram_pseudo_dual_axi #(
     // 写响应FIFO相关信号定义
     reg [PTR_WIDTH-1:0] bfifo_rd_ptr;
     reg [PTR_WIDTH-1:0] bfifo_wr_ptr;
-    reg [PTR_WIDTH-1:0] bfifo_count;
+    reg [PTR_WIDTH:0] bfifo_count;
     reg [C_S_AXI_ID_WIDTH-1:0] bfifo_id[0:FIFO_DEPTH-1];
     reg [1:0] bfifo_resp[0:FIFO_DEPTH-1];
     reg bfifo_valid[0:FIFO_DEPTH-1];
