@@ -359,3 +359,13 @@
 `define PLIC_INT_VECTABLE_ADDR 16'h2000
 `define PLIC_INT_OBJS_ADDR 16'h3000
 `define PLIC_NUM_SOURCES 11
+
+// 外设模块使能宏定义
+// `define ENABLE_TIMER      1
+// `define ENABLE_SPI        1
+// `define ENABLE_I2C0       1
+// `define ENABLE_I2C1       1
+`define ENABLE_UART0      1
+// `define ENABLE_UART1      1
+`define ENABLE_GPIO0      1
+// `define ENABLE_GPIO1      1

@@ -91,6 +91,7 @@ module perip_top #(
 );
 
     // Timer instance (PSEL[0])
+`ifdef ENABLE_TIMER
     apb_adv_timer #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) timer_inst (
@@ -113,8 +114,10 @@ module perip_top #(
         .ch_2_o         (ch_2_o),
         .ch_3_o         (ch_3_o)
     );
+`endif
 
     // SPI instance (PSEL[1])
+`ifdef ENABLE_SPI
     apb_spi_master #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) spi_inst (
@@ -147,8 +150,10 @@ module perip_top #(
         .spi_sdi2(spi_sdi2),
         .spi_sdi3(spi_sdi3)
     );
+`endif
 
     // I2C0 instance (PSEL[2])
+`ifdef ENABLE_I2C0
     apb_i2c #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) i2c0_inst (
@@ -170,8 +175,10 @@ module perip_top #(
         .sda_pad_o   (sda0_pad_o),
         .sda_padoen_o(sda0_padoen_o)
     );
+`endif
 
     // I2C1 instance (PSEL[3])
+`ifdef ENABLE_I2C1
     apb_i2c #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) i2c1_inst (
@@ -193,8 +200,10 @@ module perip_top #(
         .sda_pad_o   (sda1_pad_o),
         .sda_padoen_o(sda1_padoen_o)
     );
+`endif
 
     // UART0 instance (PSEL[4])
+`ifdef ENABLE_UART0
     apb_uart_sv #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) uart0_inst (
@@ -212,8 +221,10 @@ module perip_top #(
         .tx_o   (tx0_o),
         .event_o(uart0_event_o)
     );
+`endif
 
     // UART1 instance (PSEL[5])
+`ifdef ENABLE_UART1
     apb_uart_sv #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) uart1_inst (
@@ -231,8 +242,10 @@ module perip_top #(
         .tx_o   (tx1_o),
         .event_o(uart1_event_o)
     );
+`endif
 
     // GPIO0 instance (PSEL[6])
+`ifdef ENABLE_GPIO0
     apb_gpio #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) gpio0_inst (
@@ -254,8 +267,10 @@ module perip_top #(
         .gpio_iof    (gpio0_iof),
         .interrupt   (gpio0_interrupt)
     );
+`endif
 
     // GPIO1 instance (PSEL[7])
+`ifdef ENABLE_GPIO1
     apb_gpio #(
         .APB_ADDR_WIDTH(APB_SLAVE_ADDR_WIDTH)
     ) gpio1_inst (
@@ -277,5 +292,6 @@ module perip_top #(
         .gpio_iof    (gpio1_iof),
         .interrupt   (gpio1_interrupt)
     );
+`endif
 
 endmodule
