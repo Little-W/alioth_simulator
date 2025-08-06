@@ -42,25 +42,16 @@ Original Author: Shay Gal-on
 #include <stdio.h>
 #endif
 #if HAS_PRINTF
-#if(HAS_FLOAT)
-#define ee_printf printf
-#else
-#define ee_printf rt_kprintf
-#endif
+#define ee_printf rt_fkprintf
 #endif
 
 /* Actual benchmark execution in iterate */
 void *iterate(void *pres);
 
 /* Typedef: secs_ret
-	For machines that have floating point support, get number of seconds as a double. 
-	Otherwise an unsigned int.
+	Always return number of seconds as a double whether the platform supports floating point or not.
 */
-#if HAS_FLOAT
 typedef double secs_ret;
-#else
-typedef ee_u32 secs_ret;
-#endif
 
 #if MAIN_HAS_NORETURN
 #define MAIN_RETURN_VAL 

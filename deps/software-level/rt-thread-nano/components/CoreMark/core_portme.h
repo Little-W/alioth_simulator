@@ -22,6 +22,9 @@ Original Author: Shay Gal-on
 #ifndef CORE_PORTME_H
 #define CORE_PORTME_H
 
+#include <stdint.h>
+#include <stddef.h>
+
 #ifndef FLAGS_STR
 #define FLAGS_STR "-O2 -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4"
 #endif
@@ -67,8 +70,7 @@ Original Author: Shay Gal-on
 /* Configuration : CORE_TICKS
 	Define type of return from the timing functions.
  */
-#include <time.h>
-typedef clock_t CORE_TICKS;
+#define CORE_TICKS uint64_t
 
 /* Definitions : COMPILER_VERSION, COMPILER_FLAGS, MEM_LOCATION
 	Initialize these strings per platform
@@ -189,6 +191,7 @@ typedef struct CORE_PORTABLE_S {
 /* target specific init/fini */
 void portable_init(core_portable *p, int *argc, char *argv[]);
 void portable_fini(core_portable *p);
+void rt_fkprintf(const char *fmt, ...);
 
 #if !defined(PROFILE_RUN) && !defined(PERFORMANCE_RUN) && !defined(VALIDATION_RUN)
 #if (TOTAL_DATA_SIZE==1200)

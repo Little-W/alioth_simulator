@@ -3,7 +3,6 @@
 #include "../include/utils.h"
 
 
-
 uint64_t get_cycle_value()
 {
     uint64_t cycle;

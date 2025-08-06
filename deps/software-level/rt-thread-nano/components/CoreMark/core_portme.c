@@ -20,6 +20,7 @@ Original Author: Shay Gal-on
 #include <stdlib.h>
 #include <rtthread.h>
 #include "coremark.h"
+#include "utils.h"
 
 #if VALIDATION_RUN
 	volatile ee_s32 seed1_volatile=0x3415;
@@ -38,27 +39,8 @@ Original Author: Shay Gal-on
 #endif
 	volatile ee_s32 seed4_volatile=ITERATIONS;
 	volatile ee_s32 seed5_volatile=0;
-/* Porting : Timing functions
-	How to capture time and convert to seconds must be ported to whatever is supported by the platform.
-	e.g. Read value from on board RTC, read value from cpu clock cycles performance counter etc. 
-	Sample implementation for standard time.h and windows.h definitions included.
-*/
-/* Define : TIMER_RES_DIVIDER
-	Divider to trade off timer resolution and total time that can be measured.
+static CORE_TICKS t0, t1;
 
-	Use lower values to increase resolution, but make sure that overflow does not occur.
-	If there are issues with the return value overflowing, increase this value.
-	*/
-#define NSECS_PER_SEC RT_TICK_PER_SECOND
-#define CORETIMETYPE rt_tick_t  
-#define GETMYTIME(_t) (*_t=rt_tick_get())
-#define MYTIMEDIFF(fin,ini) ((fin)-(ini))
-#define TIMER_RES_DIVIDER 1
-#define SAMPLE_TIME_IMPLEMENTATION 1
-#define EE_TICKS_PER_SEC (NSECS_PER_SEC / TIMER_RES_DIVIDER)
-
-/** Define Host specific (POSIX), or target specific global time variables. */
-static CORETIMETYPE start_time_val, stop_time_val;
 
 /* Function : start_time
 	This function will be called right before starting the timed portion of the benchmark.
@@ -66,8 +48,9 @@ static CORETIMETYPE start_time_val, stop_time_val;
 	Implementation may be capturing a system timer (as implemented in the example code) 
 	or zeroing some system parameters - e.g. setting the cpu clocks cycles to 0.
 */
-void start_time(void) {
-	GETMYTIME(&start_time_val );      
+void start_time(void)
+{
+  t0 = get_cycle_value();
 }
 /* Function : stop_time
 	This function will be called right after ending the timed portion of the benchmark.
@@ -75,8 +58,9 @@ void start_time(void) {
 	Implementation may be capturing a system timer (as implemented in the example code) 
 	or other system parameters - e.g. reading the current value of cpu cycles counter.
 */
-void stop_time(void) {
-	GETMYTIME(&stop_time_val );      
+void stop_time(void)
+{
+  t1 = get_cycle_value();
 }
 /* Function : get_time
 	Return an abstract "ticks" number that signifies time on the system.
@@ -87,9 +71,9 @@ void stop_time(void) {
 	The sample implementation returns millisecs by default, 
 	and the resolution is controlled by <TIMER_RES_DIVIDER>
 */
-CORE_TICKS get_time(void) {
-	CORE_TICKS elapsed=(CORE_TICKS)(MYTIMEDIFF(stop_time_val, start_time_val));
-	return elapsed;
+CORE_TICKS get_time(void)
+{
+  return t1 - t0;
 }
 /* Function : time_in_secs
 	Convert the value returned by get_time to seconds.
@@ -98,7 +82,7 @@ CORE_TICKS get_time(void) {
 	Default implementation implemented by the EE_TICKS_PER_SEC macro above.
 */
 secs_ret time_in_secs(CORE_TICKS ticks) {
-	secs_ret retval=((secs_ret)ticks) / (secs_ret)EE_TICKS_PER_SEC;
+	secs_ret retval=((secs_ret)ticks) / (secs_ret)CPU_FREQ_HZ;
 	return retval;
 }
 
