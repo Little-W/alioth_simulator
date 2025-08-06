@@ -198,6 +198,8 @@ module wbu (
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
     wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;
+    wire reg_we_r;
+    wire commit_valid_r;
 
     assign reg_wdata_r =
         ({`REG_DATA_WIDTH{lsu_active}}      & lsu_reg_wdata_i)   |
@@ -232,20 +234,45 @@ module wbu (
         ({`COMMIT_ID_WIDTH{alu_en}}         & alu_commit_id_i)   |
         ({`COMMIT_ID_WIDTH{csr_en}}         & csr_commit_id_i);
 
-    // 输出到寄存器文件的信号
-    assign reg_we_o = mul_buf_en || div_buf_en || alu_buf_en || csr_buf_en ||
+    assign reg_we_r = mul_buf_en || div_buf_en || alu_buf_en || csr_buf_en ||
                       mul_en || div_en || alu_en || csr_en || lsu_active;
-    assign reg_wdata_o = reg_wdata_r;
-    assign reg_waddr_o = reg_waddr_r;
+    assign commit_valid_r = reg_we_r;
+
+    // === 写回输出一级流水寄存器 ===
+    reg [`REG_DATA_WIDTH-1:0] reg_wdata_ff;
+    reg [`REG_ADDR_WIDTH-1:0] reg_waddr_ff;
+    reg [`COMMIT_ID_WIDTH-1:0] commit_id_ff;
+    reg reg_we_ff;
+    reg commit_valid_ff;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            reg_wdata_ff    <= '0;
+            reg_waddr_ff    <= '0;
+            commit_id_ff    <= '0;
+            reg_we_ff       <= 1'b0;
+            commit_valid_ff <= 1'b0;
+        end else begin
+            reg_wdata_ff    <= reg_wdata_r;
+            reg_waddr_ff    <= reg_waddr_r;
+            commit_id_ff    <= commit_id_r;
+            reg_we_ff       <= reg_we_r;
+            commit_valid_ff <= commit_valid_r;
+        end
+    end
+
+    // 输出到寄存器文件的信号（改为流水寄存器输出）
+    assign reg_we_o      = reg_we_ff;
+    assign reg_wdata_o   = reg_wdata_ff;
+    assign reg_waddr_o   = reg_waddr_ff;
 
     // CSR寄存器写回信号无需仲裁和缓冲
-    assign csr_we_o = csr_we_i;
-    assign csr_wdata_o = csr_wdata_i;
-    assign csr_waddr_o = csr_waddr_i;
+    assign csr_we_o      = csr_we_i;
+    assign csr_wdata_o   = csr_wdata_i;
+    assign csr_waddr_o   = csr_waddr_i;
 
-    // 长指令完成信号（缓冲区优先）
-    assign commit_valid_o = mul_buf_en || div_buf_en || alu_buf_en || csr_buf_en ||
-                            mul_en || div_en || alu_en || csr_en || lsu_active;
-    assign commit_id_o = commit_id_r;
+    // 长指令完成信号（改为流水寄存器输出）
+    assign commit_valid_o = commit_valid_ff;
+    assign commit_id_o    = commit_id_ff;
 
 endmodule
