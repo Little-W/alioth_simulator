@@ -44,6 +44,8 @@ module idu_id_pipe (
     input wire                        inst_valid_i,      // 新增：指令有效输入
     input wire                        illegal_inst_i,    // 新增：非法指令输入
     input wire [`INST_DATA_WIDTH-1:0] inst_i,            // 新增：指令内容输入
+    input wire                        rs1_re,            // 新增：rs1寄存器是否需要访问
+    input wire                        rs2_re,            // 新增：rs2寄存器是否需要访问
 
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -60,7 +62,9 @@ module idu_id_pipe (
     output wire                        is_pred_branch_o,  // 添加预测分支指令标志输出
     output wire                        inst_valid_o,      // 新增：指令有效输出
     output wire                        illegal_inst_o,     // 新增：非法指令输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_o             // 新增：指令内容输出
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,            // 新增：指令内容输出
+    output wire                        rs1_re_o,
+    output wire                        rs2_re_o
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -228,5 +232,29 @@ module idu_id_pipe (
         inst
     );
     assign inst_o = inst;
+
+    // 传递rs1_re
+    wire rs1_re_dnxt = flush_en ? 1'b0 : rs1_re;
+    wire rs1_re_q;
+    gnrl_dfflr #(1) rs1_re_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        rs1_re_dnxt,
+        rs1_re_q
+    );
+    assign rs1_re_o = rs1_re_q;
+
+    // 传递rs2_re
+    wire rs2_re_dnxt = flush_en ? 1'b0 : rs2_re;
+    wire rs2_re_q;
+    gnrl_dfflr #(1) rs2_re_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        rs2_re_dnxt,
+        rs2_re_q
+    );
+    assign rs2_re_o = rs2_re_q;
 
 endmodule

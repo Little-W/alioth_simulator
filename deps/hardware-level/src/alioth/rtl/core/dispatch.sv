@@ -49,7 +49,9 @@ module dispatch (
     input wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_i,
     input wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_i,
     input wire                       reg_we_i,
-
+    // 新增：rs1和rs2寄存器是否需要访问
+    input wire                       rs1_re_i,
+    input wire                       rs2_re_i,
     // 从IDU接收额外的CSR信号
     input wire                       csr_we_i,
     input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
@@ -252,10 +254,12 @@ module dispatch (
         .clk                  (clk),
         .rst_n                (rst_n),
         .inst_valid           (rd_access_inst_valid_i),
-        .new_inst_rd_addr     (reg_waddr_i),
-        .new_inst_rs1_addr    (reg1_raddr_i),
-        .new_inst_rs2_addr    (reg2_raddr_i),
-        .new_inst_rd_we       (reg_we_i),
+        .rd_addr              (reg_waddr_i),
+        .rs1_addr             (reg1_raddr_i),
+        .rs2_addr             (reg2_raddr_i),
+        .rd_we                (reg_we_i),
+        .rs1_re               (rs1_re_i),
+        .rs2_re               (rs2_re_i),
         .commit_valid_i       (commit_valid_i),
         .commit_id_i          (commit_id_i),
         .hazard_stall_o       (hazard_stall_o),

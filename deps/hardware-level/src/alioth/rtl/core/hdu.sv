@@ -30,11 +30,13 @@ module hdu (
     input wire rst_n, // 复位信号，低电平有效
 
     // 新指令信息
-    input wire                       inst_valid,         // 新长指令有效
-    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rd_addr,   // 新指令写寄存器地址
-    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs1_addr,  // 新指令读寄存器1地址
-    input wire [`REG_ADDR_WIDTH-1:0] new_inst_rs2_addr,  // 新指令读寄存器2地址
-    input wire                       new_inst_rd_we,     // 新指令是否写寄存器
+    input wire                       inst_valid,  // 新长指令有效
+    input wire [`REG_ADDR_WIDTH-1:0] rd_addr,     // 新指令写寄存器地址
+    input wire [`REG_ADDR_WIDTH-1:0] rs1_addr,    // 新指令读寄存器1地址
+    input wire [`REG_ADDR_WIDTH-1:0] rs2_addr,    // 新指令读寄存器2地址
+    input wire                       rd_we,       // 新指令是否写寄存器
+    input wire                       rs1_re,      // 是否检测rs1
+    input wire                       rs2_re,      // 是否检测rs2
 
     // 长指令完成信号
     input wire                        commit_valid_i,  // 长指令执行完成有效信号
@@ -47,44 +49,30 @@ module hdu (
 );
 
     // 定义FIFO表项结构
-    reg [3:0] fifo_valid;  // 有效位
-    reg [`REG_ADDR_WIDTH-1:0] fifo_rd_addr[0:3];  // 目标寄存器地址
+    reg  [                3:0] fifo_valid;  // 有效位
+    reg  [`REG_ADDR_WIDTH-1:0] fifo_rd_addr                   [0:3];  // 目标寄存器地址
 
     // 冒险检测信号
-    reg raw_hazard;  // 读后写冒险
-    reg waw_hazard;  // 写后写冒险
-    wire hazard;  // 总冒险信号
+    reg                        raw_hazard;  // 读后写冒险
+    reg                        waw_hazard;  // 写后写冒险
+    wire                       hazard;  // 总冒险信号
 
-    // 寄存器为x0时不需要检测冒险（x0永远为0）
-    wire rs1_check = (new_inst_rs1_addr != 5'h0);
-    wire rs2_check = (new_inst_rs2_addr != 5'h0);
-    wire rd_check = (new_inst_rd_addr != 5'h0) && new_inst_rd_we;
+    // 并行冒险检测信号
+    wire [                3:0] raw_hazard_vec;
+    wire [                3:0] waw_hazard_vec;
 
-    // 冒险检测逻辑
-    always @(*) begin
-        // 默认无冒险
-        raw_hazard = 1'b0;
-        waw_hazard = 1'b0;
-
-        // 检查FIFO中的每个有效表项
-        for (int i = 0; i < 4; i = i + 1) begin
-            if (fifo_valid[i]) begin
-                // RAW冒险：新指令读取的寄存器是FIFO中长指令的目标寄存器
-                // 如果该长指令正在完成(commit_valid_i=1且commit_id_i=i)，则跳过冒险检测
-                if (!(commit_valid_i && commit_id_i == i)) begin
-                    if (((rs1_check && new_inst_rs1_addr == fifo_rd_addr[i]) || 
-                    (rs2_check && new_inst_rs2_addr == fifo_rd_addr[i]))) begin
-                        raw_hazard = 1'b1;
-                    end
-
-                    // WAW冒险：新指令写入的寄存器是FIFO中长指令的目标寄存器
-                    if (rd_check && new_inst_rd_addr == fifo_rd_addr[i]) begin
-                        waw_hazard = 1'b1;
-                    end
-                end
-            end
+    genvar i;
+    generate
+        for (i = 0; i < 4; i = i + 1) begin : hazard_vec_gen
+            assign raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
+                ((rs1_re && rs1_addr == fifo_rd_addr[i]) || (rs2_re && rs2_addr == fifo_rd_addr[i]));
+            assign waw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
+                (rd_we && rd_addr == fifo_rd_addr[i]);
         end
-    end
+    endgenerate
+
+    assign raw_hazard = |raw_hazard_vec;
+    assign waw_hazard = |waw_hazard_vec;
 
     // 只有在有新指令且存在冒险时才暂停流水线
     assign hazard = (raw_hazard || waw_hazard);
@@ -115,7 +103,7 @@ module hdu (
             if (inst_valid && ~hazard) begin
                 // 使用组合逻辑分配的ID更新FIFO
                 fifo_valid[commit_id_o]   <= 1'b1;
-                fifo_rd_addr[commit_id_o] <= new_inst_rd_addr;
+                fifo_rd_addr[commit_id_o] <= rd_addr;
             end
         end
     end

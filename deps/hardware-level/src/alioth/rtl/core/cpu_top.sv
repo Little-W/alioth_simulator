@@ -75,6 +75,9 @@ module cpu_top (
     wire [31:0] idu_dec_imm_o;
     wire [`DECINFO_WIDTH-1:0] idu_dec_info_bus_o;
     wire idu_is_pred_branch_o;  // 添加预测分支指令标志输出
+    // 新增rs1/rs2读使能信号
+    wire idu_rs1_re_o;
+    wire idu_rs2_re_o;
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -502,7 +505,10 @@ module cpu_top (
         .is_pred_branch_o(idu_is_pred_branch_o),  // 连接预测分支信号输出
         .inst_valid_o    (idu_inst_valid_o),      // 添加指令有效信号输出
         .illegal_inst_o  (idu_illegal_inst_o),
-        .inst_o          (idu_inst_o)             // 添加非法指令值输出
+        .inst_o          (idu_inst_o),            // 添加非法指令值输出
+        // 新增rs1/rs2读使能信号输出
+        .rs1_re_o        (idu_rs1_re_o),
+        .rs2_re_o        (idu_rs2_re_o)
     );
 
     // 添加dispatch模块例化 - 修改增加新的接口
@@ -527,6 +533,9 @@ module cpu_top (
         .reg1_raddr_i(idu_reg1_raddr_o),
         .reg2_raddr_i(idu_reg2_raddr_o),
         .reg_we_i    (idu_reg_we_o),
+        // 新增rs1/rs2读使能信号输入
+        .rs1_re_i    (idu_rs1_re_o),
+        .rs2_re_i    (idu_rs2_re_o),
 
         // 从IDU接收CSR信号
         .csr_we_i   (idu_csr_we_o),

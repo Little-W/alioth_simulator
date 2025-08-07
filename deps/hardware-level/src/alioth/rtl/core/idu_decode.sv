@@ -38,6 +38,9 @@ module idu_decode (
     output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,  // 读通用寄存器1地址
     output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
 
+    output wire                       rs1_re_o,
+    output wire                       rs2_re_o,
+
     // to csr reg
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
 
@@ -291,10 +294,13 @@ module idu_decode (
                       (~inst_nop) & (~inst_fence) & (~inst_fence_i) & (~inst_mret);
 
     assign reg1_raddr_o = access_rs1 ? rs1 : 5'h0;
+    assign rs1_re_o = access_rs1 && (rs1 != 0);
+
     // 是否需要访问rs2寄存器
     wire access_rs2 = opcode_0110011 | inst_type_store | inst_type_branch;
 
     assign reg2_raddr_o = access_rs2 ? rs2 : 5'h0;
+    assign rs2_re_o = access_rs2 && (rs2 != 0);
 
     // 是否需要访问rd寄存器，优化逻辑：
     // 1. 只有真正需要写回的指令才会置位access_rd

@@ -55,7 +55,9 @@ module idu (
     output wire                        is_pred_branch_o,  // 添加预测分支指令标志输出
     output wire                        inst_valid_o,      // 新增：指令有效输出
     output wire                        illegal_inst_o,    // 新增：非法指令输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_o             // 新增：指令内容输出
+    output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 新增：指令内容输出
+    output wire                        rs1_re_o,            // 新增：rs1寄存器是否需要访问
+    output wire                        rs2_re_o             // 新增：rs2寄存器是否需要
 );
 
     // 内部连线，连接id和id_pipe
@@ -70,6 +72,15 @@ module idu (
     wire [                31:0] id_dec_imm;
     wire [  `DECINFO_WIDTH-1:0] id_dec_info_bus;
     wire                        id_illegal_inst;  // 新增：非法指令信号
+    // 新增rs1_re/rs2_re信号连线
+    wire                        id_rs1_re;
+    wire                        id_rs2_re;
+    wire                        id_pipe_rs1_re;
+    wire                        id_pipe_rs2_re;
+
+    // 输出最终rs1_re/rs2_re信号
+    assign rs1_re_o = id_pipe_rs1_re;
+    assign rs2_re_o = id_pipe_rs2_re;
 
     // 实例化id模块
     idu_decode u_idu_decode (
@@ -83,6 +94,9 @@ module idu (
         // to regs
         .reg1_raddr_o(id_reg1_raddr),
         .reg2_raddr_o(id_reg2_raddr),
+        // 新增
+        .rs1_re_o(id_rs1_re),
+        .rs2_re_o(id_rs2_re),
 
         // to csr reg
         .csr_raddr_o(id_csr_raddr),
@@ -110,6 +124,9 @@ module idu (
         .reg_waddr_i     (id_reg_waddr),
         .reg1_raddr_i    (id_reg1_raddr),
         .reg2_raddr_i    (id_reg2_raddr),
+        // 新增
+        .rs1_re          (id_rs1_re),
+        .rs2_re          (id_rs2_re),
         .csr_we_i        (id_csr_we),
         .csr_waddr_i     (id_csr_waddr),
         .csr_raddr_i     (id_csr_raddr),
@@ -136,7 +153,9 @@ module idu (
         .is_pred_branch_o(is_pred_branch_o),  // 添加预测分支信号输出
         .inst_valid_o    (inst_valid_o),      // 新增：指令有效输出
         .illegal_inst_o  (illegal_inst_o),    // 新增：非法指令输出
-        .inst_o          (inst_o)             // 新增：指令内容输出
+        .inst_o          (inst_o),             // 新增：指令内容输出
+        .rs1_re_o        (id_pipe_rs1_re),    // 新增：rs1寄存器是否需要访问
+        .rs2_re_o        (id_pipe_rs2_re)     // 新增：rs2寄存器是否需要访问
     );
 
 endmodule
