@@ -46,8 +46,8 @@ module idu (
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
     // to csr reg
-    output wire [31:0] csr_raddr_o,   // 读CSR寄存器地址
-    output wire [31:0] csr_raddr2_o,  // 第二路读CSR寄存器地址
+    output wire [31:0] inst1_csr_raddr_o,   // 读CSR寄存器地址
+    output wire [31:0] inst2_csr_raddr_o,  // 第二路读CSR寄存器地址
 
     // to ex - 第一路
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,          // 指令地址

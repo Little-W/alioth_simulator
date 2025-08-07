@@ -42,6 +42,10 @@ module icu (
     input wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_i,
     input wire                        inst1_is_pred_branch_i,
     input wire [`INST_DATA_WIDTH-1:0] inst1_i,
+    input wire                        inst1_illegal_inst_i,
+    input wire                        inst1_valid_i,
+    input wire                        inst1_jump_i,        // 新增：指令有效输入
+    input wire                        inst1_branch_i,      // 新增：分支指令信号输入
 
     // from idu - 第二路
     input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i,
@@ -56,13 +60,7 @@ module icu (
     input wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_i,
     input wire                        inst2_is_pred_branch_i,
     input wire [`INST_DATA_WIDTH-1:0] inst2_i,
-
-    // from idu-inst1
-    input wire                        inst1_jump_i,        // 新增：指令有效输入
-    input wire                        inst1_branch_i,      // 新增：分支指令信号输入
-    
-    //from cpu_top  指令有效信号
-    input wire                        inst1_valid_i,
+    input wire                        inst2_illegal_inst_i,
     input wire                        inst2_valid_i,
     
     // 指令完成信号
@@ -88,6 +86,8 @@ module icu (
     output wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_o,
     output wire                        inst1_is_pred_branch_o,
     output wire [`INST_DATA_WIDTH-1:0] inst1_o,
+    output wire                        inst1_illegal_inst_o,
+    output wire                        inst1_valid_o,
     
     output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,
     output wire                        inst2_reg_we_o,
@@ -101,6 +101,8 @@ module icu (
     output wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_o,
     output wire                        inst2_is_pred_branch_o,
     output wire [`INST_DATA_WIDTH-1:0] inst2_o,
+    output wire                        inst2_illegal_inst_o,
+    output wire                        inst2_valid_o,
     
     // HDU输出信号 - to control
     output wire                        new_issue_stall_o,
@@ -108,14 +110,14 @@ module icu (
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,
     output wire                        long_inst_atom_lock_o,
-    output wire [31:0] inst1_timestamp_o_ex,
-    output wire [31:0] inst2_timestamp_o_ex,
-    
+    output wire [31:0] inst1_timestamp_o_dispatch,
+    output wire [31:0] inst2_timestamp_o_dispatch,
+
     // 新增输出信号给WBU
     output wire [`REG_ADDR_WIDTH-1:0] inst1_rd_addr_o,
     output wire [`REG_ADDR_WIDTH-1:0] inst2_rd_addr_o,
-    output wire [31:0] inst1_timestamp_o,
-    output wire [31:0] inst2_timestamp_o
+    output wire [31:0] inst1_timestamp_o_wbu,
+    output wire [31:0] inst2_timestamp_o_wbu
 );
 
 
@@ -125,7 +127,9 @@ module icu (
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_o;
     wire [31:0] hdu_inst1_timestamp_o;
     wire [31:0] hdu_inst2_timestamp_o;
-    
+
+    assign inst1_timestamp_o_wbu = hdu_inst1_timestamp_o;
+    assign inst2_timestamp_o_wbu = hdu_inst2_timestamp_o;
 
     // 实例化hdu模块
     hdu u_hdu (
@@ -218,7 +222,10 @@ module icu (
         
         // from control
         .stall_flag_i           (stall_flag_i),
-        
+
+        .inst1_illegal_inst_i    (inst1_illegal_inst_i),
+        .inst2_illegal_inst_i    (inst2_illegal_inst_i),
+
         // outputs
         .inst1_addr_o           (inst1_addr_o),
         .inst1_reg_we_o         (inst1_reg_we_o),
@@ -232,6 +239,7 @@ module icu (
         .inst1_dec_info_bus_o   (inst1_dec_info_bus_o),
         .inst1_is_pred_branch_o (inst1_is_pred_branch_o),
         .inst1_o                (inst1_o),
+   
         
         .inst2_addr_o           (inst2_addr_o),
         .inst2_reg_we_o         (inst2_reg_we_o),
@@ -249,11 +257,12 @@ module icu (
         // 流水线寄存器相关输出
         .inst1_commit_id_o      (inst1_commit_id_o),
         .inst2_commit_id_o      (inst2_commit_id_o),
-        .inst1_timestamp_o_ex   (inst1_timestamp_o_ex),
-        .inst2_timestamp_o_ex   (inst2_timestamp_o_ex)
+        .inst1_timestamp_o      (inst1_timestamp_o_dispatch),
+        .inst2_timestamp_o      (inst2_timestamp_o_dispatch),
+        .inst1_illegal_inst_o   (inst1_illegal_inst_o),
+        .inst2_illegal_inst_o   (inst2_illegal_inst_o),
+        .inst1_valid_o          (inst1_valid_o),
+        .inst2_valid_o          (inst2_valid_o)
     );
-
-    assign inst1_timestamp_o = hdu_inst1_timestamp_o;
-    assign inst2_timestamp_o = hdu_inst2_timestamp_o;
 
 endmodule

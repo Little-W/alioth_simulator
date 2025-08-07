@@ -74,30 +74,18 @@ module dispatch (
     input wire inst1_illegal_inst_i,
     input wire inst2_illegal_inst_i,
 
+    //分发到各功能单元的输出接口
+    // dispatch to alu (第一路)
+    output wire        inst1_req_alu_o,
+    output wire [31:0] inst1_alu_op1_o,
+    output wire [31:0] inst1_alu_op2_o,
+    output wire [`ALU_OP_WIDTH-1:0] inst1_alu_op_info_o,
 
-    // dispatch to ADDER (第一路)
-    output wire        inst1_req_adder_o,
-    output wire [31:0] inst1_adder_op1_o,
-    output wire [31:0] inst1_adder_op2_o,
-    output wire [6:0]  inst1_adder_op_info_o,  // {op_jump, op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
-
-    // dispatch to SHIFTER (第一路)
-    output wire        inst1_req_shifter_o,
-    output wire [31:0] inst1_shifter_op1_o,
-    output wire [31:0] inst1_shifter_op2_o,
-    output wire [5:0]  inst1_shifter_op_info_o,  // {op_and, op_or, op_xor, op_sra, op_srl, op_sll}
-
-    // dispatch to ADDER (第二路)
-    output wire        inst2_req_adder_o,
-    output wire [31:0] inst2_adder_op1_o,
-    output wire [31:0] inst2_adder_op2_o,
-    output wire [6:0]  inst2_adder_op_info_o,  // {op_jump, op_sltu, op_slt, op_sub, op_add, op_lui, op_auipc}
-
-    // dispatch to SHIFTER (第二路)
-    output wire        inst2_req_shifter_o,
-    output wire [31:0] inst2_shifter_op1_o,
-    output wire [31:0] inst2_shifter_op2_o,
-    output wire [5:0]  inst2_shifter_op_info_o,  // {op_and, op_or, op_xor, op_sra, op_srl, op_sll}
+    // dispatch to alu (第二路)
+    output wire        inst2_req_alu_o,
+    output wire [31:0] inst2_alu_op1_o,
+    output wire [31:0] inst2_alu_op2_o,
+    output wire [`ALU_OP_WIDTH-1:0] inst2_alu_op_info_o,
 
     // dispatch to Bru (合并单路输出)
     output wire        req_bjp_o,
@@ -164,8 +152,8 @@ module dispatch (
     output wire                        inst1_mem_op_load_o,
     output wire                        inst1_mem_op_store_o,
     output wire [                31:0] inst1_mem_addr_o,
-    output wire [                 3:0] inst1_mem_wmask_o,
-    output wire [                31:0] inst1_mem_wdata_o,
+    output wire [                 7:0] inst1_mem_wmask_o,
+    output wire [                64:0] inst1_mem_wdata_o,
 
     // dispatch to MEM (第二路)
     output wire                        inst2_req_mem_o,
@@ -177,29 +165,23 @@ module dispatch (
     output wire                        inst2_mem_op_load_o,
     output wire                        inst2_mem_op_store_o,
     output wire [                31:0] inst2_mem_addr_o,
-    output wire [                 3:0] inst2_mem_wmask_o,
-    output wire [                31:0] inst2_mem_wdata_o,
+    output wire [                 7:0] inst2_mem_wmask_o,
+    output wire [                64:0] inst2_mem_wdata_o,
 
-    // dispatch to SYS (第一路)
-    output wire inst1_sys_op_nop_o,
-    output wire inst1_sys_op_mret_o,
-    output wire inst1_sys_op_ecall_o,
-    output wire inst1_sys_op_ebreak_o,
-    output wire inst1_sys_op_fence_o,
-    output wire inst1_sys_op_dret_o,
+    // dispatch to SYS (合并单路输出)
+    output wire sys_op_nop_o,
+    output wire sys_op_mret_o,
+    output wire sys_op_ecall_o,
+    output wire sys_op_ebreak_o,
+    output wire sys_op_fence_o,
+    output wire sys_op_dret_o,
+
     //指令其他信号（第一路）
     output wire inst1_is_pred_branch_o,
     output wire inst1_misaligned_load_o,
     output wire inst1_misaligned_store_o,
     output wire inst1_illegal_inst_o,
-
-    // dispatch to SYS (第二路)
-    output wire inst2_sys_op_nop_o,
-    output wire inst2_sys_op_mret_o,
-    output wire inst2_sys_op_ecall_o,
-    output wire inst2_sys_op_ebreak_o,
-    output wire inst2_sys_op_fence_o,
-    output wire inst2_sys_op_dret_o,
+    
     //指令其他信号（第二路）
     output wire inst2_is_pred_branch_o,
     output wire inst2_misaligned_load_o,
@@ -254,7 +236,6 @@ module dispatch (
     wire [31:0] pipe_inst2_csr_waddr_o;
     wire [31:0] pipe_inst2_csr_raddr_o;
 
-    // 第一路和第二路BJP内部信号
     wire        pipe_inst1_req_bjp_o;
     wire [31:0] pipe_inst1_bjp_op1_o;
     wire [31:0] pipe_inst1_bjp_op2_o;
@@ -283,16 +264,26 @@ module dispatch (
     wire        pipe_inst2_bjp_op_bgeu_o;
     wire        pipe_inst2_bjp_op_jalr_o;
 
-    // 第一路dispatch_logic输出信号
-    wire                        inst1_logic_req_adder;
-    wire [                31:0] inst1_logic_adder_op1;
-    wire [                31:0] inst1_logic_adder_op2;
-    wire [                 6:0] inst1_logic_adder_op_info;
+    // 第一路和第二路SYS内部信号
+    wire        pipe_inst1_sys_op_nop_o;
+    wire        pipe_inst1_sys_op_mret_o;
+    wire        pipe_inst1_sys_op_ecall_o;
+    wire        pipe_inst1_sys_op_ebreak_o;
+    wire        pipe_inst1_sys_op_fence_o;
+    wire        pipe_inst1_sys_op_dret_o;
 
-    wire                        inst1_logic_req_shifter;
-    wire [                31:0] inst1_logic_shifter_op1;
-    wire [                31:0] inst1_logic_shifter_op2;
-    wire [                 5:0] inst1_logic_shifter_op_info;
+    wire        pipe_inst2_sys_op_nop_o;
+    wire        pipe_inst2_sys_op_mret_o;
+    wire        pipe_inst2_sys_op_ecall_o;
+    wire        pipe_inst2_sys_op_ebreak_o;
+    wire        pipe_inst2_sys_op_fence_o;
+    wire        pipe_inst2_sys_op_dret_o;
+
+    // 第一路dispatch_logic输出信号
+    wire                        inst1_logic_req_alu;
+    wire [                31:0] inst1_logic_alu_op1;
+    wire [                31:0] inst1_logic_alu_op2;
+    wire [   `ALU_OP_WIDTH-1:0] inst1_logic_alu_op_info;
 
     wire                        inst1_logic_req_bjp;
     wire [                31:0] inst1_logic_bjp_op1;
@@ -338,8 +329,8 @@ module dispatch (
     wire                        inst1_logic_mem_op_load;
     wire                        inst1_logic_mem_op_store;
     wire [                31:0] inst1_logic_mem_addr;
-    wire [                 3:0] inst1_logic_mem_wmask;
-    wire [                31:0] inst1_logic_mem_wdata;
+    wire [                 7:0] inst1_logic_mem_wmask;
+    wire [                63:0] inst1_logic_mem_wdata;
 
     wire                        inst1_logic_sys_op_nop;
     wire                        inst1_logic_sys_op_mret;
@@ -352,17 +343,11 @@ module dispatch (
     wire                        inst1_logic_misaligned_store;
 
     // 第二路dispatch_logic输出信号
-    wire                        inst2_logic_req_adder;
-    wire [                31:0] inst2_logic_adder_op1;
-    wire [                31:0] inst2_logic_adder_op2;
-    wire [                 6:0] inst2_logic_adder_op_info;
+    wire                        inst2_logic_req_alu;
+    wire [                31:0] inst2_logic_alu_op1;
+    wire [                31:0] inst2_logic_alu_op2;
+    wire [   `ALU_OP_WIDTH-1:0] inst2_logic_alu_op_info;
 
-    wire                        inst2_logic_req_shifter;
-    wire [                31:0] inst2_logic_shifter_op1;
-    wire [                31:0] inst2_logic_shifter_op2;
-    wire [                 5:0] inst2_logic_shifter_op_info;
-
-    // 第二路的其他模块信号（与第一路相同的输入，但输出将悬空）
     wire                        inst2_logic_req_bjp;
     wire [                31:0] inst2_logic_bjp_op1;
     wire [                31:0] inst2_logic_bjp_op2;
@@ -407,8 +392,8 @@ module dispatch (
     wire                        inst2_logic_mem_op_load;
     wire                        inst2_logic_mem_op_store;
     wire [                31:0] inst2_logic_mem_addr;
-    wire [                 3:0] inst2_logic_mem_wmask;
-    wire [                31:0] inst2_logic_mem_wdata;
+    wire [                 7:0] inst2_logic_mem_wmask;
+    wire [                63:0] inst2_logic_mem_wdata;
 
     wire                        inst2_logic_sys_op_nop;
     wire                        inst2_logic_sys_op_mret;
@@ -428,17 +413,11 @@ module dispatch (
         .rs1_rdata_i   (inst1_rs1_rdata_i),
         .rs2_rdata_i   (inst1_rs2_rdata_i),
 
-        // ADDER信号
-        .req_adder_o    (inst1_logic_req_adder),
-        .adder_op1_o    (inst1_logic_adder_op1),
-        .adder_op2_o    (inst1_logic_adder_op2),
-        .adder_op_info_o(inst1_logic_adder_op_info),
-
-        // SHIFTER信号
-        .req_shifter_o    (inst1_logic_req_shifter),
-        .shifter_op1_o    (inst1_logic_shifter_op1),
-        .shifter_op2_o    (inst1_logic_shifter_op2),
-        .shifter_op_info_o(inst1_logic_shifter_op_info),
+        // ALU信号
+        .req_alu_o    (inst1_logic_req_alu),
+        .alu_op1_o    (inst1_logic_alu_op1),
+        .alu_op2_o    (inst1_logic_alu_op2),
+        .alu_op_info_o(inst1_logic_alu_op_info),
 
         // BJP信号
         .req_bjp_o     (inst1_logic_req_bjp),
@@ -526,16 +505,11 @@ module dispatch (
         .dec_info_bus_i       (inst1_dec_info_bus_i),
         .timestamp_i          (inst1_timestamp_i),
         .is_pred_branch_i     (inst1_is_pred_branch_i),
-        // adder信号
-        .req_adder_i          (inst1_logic_req_adder),
-        .adder_op1_i         (inst1_logic_adder_op1),
-        .adder_op2_i         (inst1_logic_adder_op2),
-        .adder_op_info_i     (inst1_logic_adder_op_info),
-        // SHIFTER信号
-        .req_shifter_i       (inst1_logic_req_shifter),
-        .shifter_op1_i      (inst1_logic_shifter_op1),
-        .shifter_op2_i      (inst1_logic_shifter_op2),
-        .shifter_op_info_i  (inst1_logic_shifter_op_info),
+        // alu信号
+        .req_alu_i          (inst1_logic_req_alu),
+        .alu_op1_i          (inst1_logic_alu_op1),
+        .alu_op2_i          (inst1_logic_alu_op2),
+        .alu_op_info_i      (inst1_logic_alu_op_info),
         // BJP信号
         .req_bjp_i          (inst1_logic_req_bjp),
         .bjp_op1_i          (inst1_logic_bjp_op1),
@@ -611,16 +585,11 @@ module dispatch (
         .rs2_rdata_o          (inst1_rs2_rdata_o),
         .timestamp_o          (inst1_timestamp_o),
         .is_pred_branch_o     (inst1_is_pred_branch_o),
-        // ADDER输出端口
-        .req_adder_o          (inst1_req_adder_o),
-        .adder_op1_o          (inst1_adder_op1_o),
-        .adder_op2_o          (inst1_adder_op2_o),
-        .adder_op_info_o      (inst1_adder_op_info_o),
-        // SHIFTER输出端口
-        .req_shifter_o        (inst1_req_shifter_o),
-        .shifter_op1_o        (inst1_shifter_op1_o),
-        .shifter_op2_o        (inst1_shifter_op2_o),
-        .shifter_op_info_o    (inst1_shifter_op_info_o),
+        // Alu输出端口
+        .req_alu_o            (inst1_req_alu_o),
+        .alu_op1_o            (inst1_alu_op1_o),
+        .alu_op2_o            (inst1_alu_op2_o),
+        .alu_op_info_o        (inst1_alu_op_info_o),
         // BJP输出端口
         .req_bjp_o            (pipe_inst1_req_bjp_o),
         .bjp_op1_o            (pipe_inst1_bjp_op1_o),
@@ -673,12 +642,12 @@ module dispatch (
         .misaligned_load_o  (inst1_misaligned_load_o),
         .misaligned_store_o  (inst1_misaligned_store_o),
         // SYS输出端口
-        .sys_op_nop_o       (inst1_sys_op_nop_o),
-        .sys_op_mret_o      (inst1_sys_op_mret_o),
-        .sys_op_ecall_o     (inst1_sys_op_ecall_o),
-        .sys_op_ebreak_o    (inst1_sys_op_ebreak_o),
-        .sys_op_fence_o     (inst1_sys_op_fence_o),
-        .sys_op_dret_o      (inst1_sys_op_dret_o)
+        .sys_op_nop_o       (pipe_inst1_sys_op_nop_o),
+        .sys_op_mret_o      (pipe_inst1_sys_op_mret_o),
+        .sys_op_ecall_o     (pipe_inst1_sys_op_ecall_o),
+        .sys_op_ebreak_o    (pipe_inst1_sys_op_ebreak_o),
+        .sys_op_fence_o     (pipe_inst1_sys_op_fence_o),
+        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o)
     );
 
     // 实例化dispatch_logic模块 (第二路)
@@ -689,18 +658,11 @@ module dispatch (
         .rs1_rdata_i   (inst2_rs1_rdata_i),
         .rs2_rdata_i   (inst2_rs2_rdata_i),
 
-        // ADDER信号
-        .req_adder_o    (inst2_logic_req_adder),
-        .adder_op1_o    (inst2_logic_adder_op1),
-        .adder_op2_o    (inst2_logic_adder_op2),
-        .adder_op_info_o(inst2_logic_adder_op_info),
-
-        // SHIFTER信号
-        .req_shifter_o    (inst2_logic_req_shifter),
-        .shifter_op1_o    (inst2_logic_shifter_op1),
-        .shifter_op2_o    (inst2_logic_shifter_op2),
-        .shifter_op_info_o(inst2_logic_shifter_op_info),
-
+        // Alu信号
+        .req_alu_o    (inst2_logic_req_alu),
+        .alu_op1_o    (inst2_logic_alu_op1),
+        .alu_op2_o    (inst2_logic_alu_op2),
+        .alu_op_info_o(inst2_logic_alu_op_info),
         // BJP信号
         .req_bjp_o     (inst2_logic_req_bjp),
         .bjp_op1_o     (inst2_logic_bjp_op1),
@@ -715,7 +677,6 @@ module dispatch (
         .bjp_op_bge_o  (inst2_logic_bjp_op_bge),
         .bjp_op_bgeu_o (inst2_logic_bjp_op_bgeu),
         .bjp_op_jalr_o (inst2_logic_bjp_op_jalr),
-
         // MULDIV信号
         .req_muldiv_o       (inst2_logic_req_muldiv),
         .muldiv_op1_o       (inst2_logic_muldiv_op1),
@@ -730,7 +691,6 @@ module dispatch (
         .muldiv_op_remu_o   (inst2_logic_muldiv_op_remu),
         .muldiv_op_mul_all_o(inst2_logic_muldiv_op_mul_all),
         .muldiv_op_div_all_o(inst2_logic_muldiv_op_div_all),
-
         // CSR信号
         .req_csr_o  (inst2_logic_req_csr),
         .csr_op1_o  (inst2_logic_csr_op1),
@@ -738,7 +698,6 @@ module dispatch (
         .csr_csrrw_o(inst2_logic_csr_csrrw),
         .csr_csrrs_o(inst2_logic_csr_csrrs),
         .csr_csrrc_o(inst2_logic_csr_csrrc),
-
         // MEM信号
         .req_mem_o     (inst2_logic_req_mem),
         .mem_op_lb_o   (inst2_logic_mem_op_lb),
@@ -786,16 +745,11 @@ module dispatch (
         .dec_info_bus_i       (inst2_dec_info_bus_i),
         .timestamp_i          (inst2_timestamp_i),
         .is_pred_branch_i     (inst2_is_pred_branch_i),
-        // adder信号
-        .req_adder_i          (inst2_logic_req_adder),
-        .adder_op1_i         (inst2_logic_adder_op1),
-        .adder_op2_i         (inst2_logic_adder_op2),
-        .adder_op_info_i     (inst2_logic_adder_op_info),
-        // SHIFTER信号
-        .req_shifter_i       (inst2_logic_req_shifter),
-        .shifter_op1_i      (inst2_logic_shifter_op1),
-        .shifter_op2_i      (inst2_logic_shifter_op2),
-        .shifter_op_info_i  (inst2_logic_shifter_op_info),
+        // alu信号
+        .req_alu_i            (inst2_logic_req_alu),
+        .alu_op1_i            (inst2_logic_alu_op1),
+        .alu_op2_i            (inst2_logic_alu_op2),
+        .alu_op_info_i        (inst2_logic_alu_op_info),
         // BJP信号
         .req_bjp_i          (inst2_logic_req_bjp),
         .bjp_op1_i          (inst2_logic_bjp_op1),
@@ -871,16 +825,11 @@ module dispatch (
         .rs2_rdata_o          (inst2_rs2_rdata_o),
         .timestamp_o          (inst2_timestamp_o),
         .is_pred_branch_o     (inst2_is_pred_branch_o),
-        // ADDER输出端口
-        .req_adder_o          (inst2_req_adder_o),
-        .adder_op1_o          (inst2_adder_op1_o),
-        .adder_op2_o          (inst2_adder_op2_o),
-        .adder_op_info_o      (inst2_adder_op_info_o),
-        // SHIFTER输出端口
-        .req_shifter_o        (inst2_req_shifter_o),
-        .shifter_op1_o        (inst2_shifter_op1_o),
-        .shifter_op2_o        (inst2_shifter_op2_o),
-        .shifter_op_info_o    (inst2_shifter_op_info_o),
+        // Alu输出端口
+        .req_alu_o            (inst2_req_alu_o),
+        .alu_op1_o            (inst2_alu_op1_o),
+        .alu_op2_o            (inst2_alu_op2_o),
+        .alu_op_info_o        (inst2_alu_op_info_o),
         // BJP输出端口
         .req_bjp_o            (pipe_inst2_req_bjp_o),
         .bjp_op1_o            (pipe_inst2_bjp_op1_o),
@@ -933,12 +882,12 @@ module dispatch (
         .misaligned_load_o  (inst2_misaligned_load_o),
         .misaligned_store_o  (inst2_misaligned_store_o),
         // SYS输出端口
-        .sys_op_nop_o       (inst2_sys_op_nop_o),
-        .sys_op_mret_o      (inst2_sys_op_mret_o),
-        .sys_op_ecall_o     (inst2_sys_op_ecall_o),
-        .sys_op_ebreak_o    (inst2_sys_op_ebreak_o),
-        .sys_op_fence_o     (inst2_sys_op_fence_o),
-        .sys_op_dret_o      (inst2_sys_op_dret_o)
+        .sys_op_nop_o       (pipe_inst2_sys_op_nop_o),
+        .sys_op_mret_o      (pipe_inst2_sys_op_mret_o),
+        .sys_op_ecall_o     (pipe_inst2_sys_op_ecall_o),
+        .sys_op_ebreak_o    (pipe_inst2_sys_op_ebreak_o),
+        .sys_op_fence_o     (pipe_inst2_sys_op_fence_o),
+        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o)
     );
     // CSR合并逻辑
     // 由于ICU已经处理了两个指令都是CSR的情况（通过RAW冒险检测），
@@ -974,4 +923,15 @@ module dispatch (
     assign bjp_op_bge_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bge_o     : pipe_inst2_bjp_op_bge_o;
     assign bjp_op_bgeu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bgeu_o    : pipe_inst2_bjp_op_bgeu_o;
     assign bjp_op_jalr_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jalr_o : pipe_inst2_bjp_op_jalr_o;
+
+    //sys合并逻辑
+    //sys只留一路即可
+    assign sys_op_nop_o   = pipe_inst1_sys_op_nop_o | pipe_inst2_sys_op_nop_o;
+    assign sys_op_mret_o  = pipe_inst1_sys_op_mret_o | pipe_inst2_sys_op_mret_o;
+    assign sys_op_ecall_o = pipe_inst1_sys_op_ecall_o | pipe_inst2_sys_op_ecall_o;
+    assign sys_op_ebreak_o = pipe_inst1_sys_op_ebreak_o | pipe_inst2_sys_op_ebreak_o;
+    assign sys_op_fence_o = pipe_inst1_sys_op_fence_o | pipe_inst2_sys_op_fence_o;
+    assign sys_op_dret_o  = pipe_inst1_sys_op_dret_o | pipe_inst2_sys_op_dret_o;
+    
+
 endmodule

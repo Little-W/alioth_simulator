@@ -68,6 +68,9 @@ module icu_issue (
     
     // from control 控制信号
     input wire [`CU_BUS_WIDTH-1:0]   stall_flag_i,
+
+    input wire                        inst1_illegal_inst_i,
+    input wire                        inst2_illegal_inst_i,
     
     // 发射指令的完整decode信息
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
@@ -99,8 +102,12 @@ module icu_issue (
     // 新增：流水线寄存器相关输出
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,
-    output wire [31:0] inst1_timestamp_o_ex,
-    output wire [31:0] inst2_timestamp_o_ex
+    output wire [31:0] inst1_timestamp_o,
+    output wire [31:0] inst2_timestamp_o,
+    output wire        inst1_illegal_inst_o,
+    output wire        inst2_illegal_inst_o,
+    output wire        inst1_valid_o,
+    output wire        inst2_valid_o
 );
 
         // 控制信号解析
@@ -485,5 +492,49 @@ module icu_issue (
         inst2_timestamp_reg
     );
     assign inst2_timestamp_o_ex = inst2_timestamp_reg;
+
+    wire inst1_illegal_inst_nxt = flush_en_1 ? 1'b0 : inst1_illegal_inst_i;
+    wire inst1_illegal_inst_reg;
+    gnrl_dfflr #(1) inst1_illegal_inst_ff (
+        clk,
+        rst_n,
+        update_output,
+        inst1_illegal_inst_nxt,
+        inst1_illegal_inst_reg
+    );
+    assign inst1_illegal_inst_o = inst1_illegal_inst_reg;
+
+    wire inst2_illegal_inst_nxt = flush_en_2 ? 1'b0 : inst2_illegal_inst_i;
+    wire inst2_illegal_inst_reg;
+    gnrl_dfflr #(1) inst2_illegal_inst_ff (
+        clk,
+        rst_n,
+        update_output,
+        inst2_illegal_inst_nxt,
+        inst2_illegal_inst_reg
+    );
+    assign inst2_illegal_inst_o = inst2_illegal_inst_reg;
+
+    wire inst1_valid_nxt = flush_en_1 ? 1'b0 : issue_inst_i[0];
+    wire inst1_valid_reg;
+    gnrl_dfflr #(1) inst1_valid_ff (
+        clk,
+        rst_n,
+        update_output,
+        inst1_valid_nxt,
+        inst1_valid_reg
+    );
+    assign inst1_valid_o = inst1_valid_reg;
+
+    wire inst2_valid_nxt = flush_en_2 ? 1'b0 : issue_inst_i[1];
+    wire inst2_valid_reg;
+    gnrl_dfflr #(1) inst2_valid_ff (
+        clk,
+        rst_n,
+        update_output,
+        inst2_valid_nxt,
+        inst2_valid_reg
+    );
+    assign inst2_valid_o = inst2_valid_reg;
 
 endmodule
