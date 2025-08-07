@@ -216,10 +216,6 @@ module cpu_top (
 
     // dispatch to Bru
     wire dispatch_req_bjp;
-    wire [31:0] dispatch_bjp_op1;
-    wire [31:0] dispatch_bjp_op2;
-    wire [31:0] dispatch_bjp_jump_op1;
-    wire [31:0] dispatch_bjp_jump_op2;
     wire dispatch_bjp_op_jal;
     wire dispatch_bjp_op_beq;
     wire dispatch_bjp_op_bne;
@@ -228,6 +224,11 @@ module cpu_top (
     wire dispatch_bjp_op_bge;
     wire dispatch_bjp_op_bgeu;
     wire dispatch_bjp_op_jalr;
+    wire [31:0] dispatch_bjp_adder_result;
+    wire [31:0] dispatch_bjp_next_pc;
+    wire dispatch_op1_eq_op2;
+    wire dispatch_op1_ge_op2_signed;
+    wire dispatch_op1_ge_op2_unsigned;
 
     // dispatch to MUL
     wire dispatch_req_mul;
@@ -576,10 +577,6 @@ module cpu_top (
         .alu_op_info_o(dispatch_alu_op_info),
 
         .req_bjp_o     (dispatch_req_bjp),
-        .bjp_op1_o     (dispatch_bjp_op1),
-        .bjp_op2_o     (dispatch_bjp_op2),
-        .bjp_jump_op1_o(dispatch_bjp_jump_op1),
-        .bjp_jump_op2_o(dispatch_bjp_jump_op2),
         .bjp_op_jal_o  (dispatch_bjp_op_jal),
         .bjp_op_beq_o  (dispatch_bjp_op_beq),
         .bjp_op_bne_o  (dispatch_bjp_op_bne),
@@ -588,6 +585,11 @@ module cpu_top (
         .bjp_op_bge_o  (dispatch_bjp_op_bge),
         .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
         .bjp_op_jalr_o (dispatch_bjp_op_jalr),
+        .bjp_adder_result_o      (dispatch_bjp_adder_result),
+        .bjp_next_pc_o           (dispatch_bjp_next_pc),
+        .op1_eq_op2_o            (dispatch_op1_eq_op2),
+        .op1_ge_op2_signed_o     (dispatch_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_o   (dispatch_op1_ge_op2_unsigned),
 
         .req_mul_o      (dispatch_req_mul),
         .mul_op1_o      (dispatch_mul_op1),
@@ -676,10 +678,6 @@ module cpu_top (
         .alu_op_info_i(dispatch_alu_op_info),
 
         .req_bjp_i     (dispatch_req_bjp),
-        .bjp_op1_i     (dispatch_bjp_op1),
-        .bjp_op2_i     (dispatch_bjp_op2),
-        .bjp_jump_op1_i(dispatch_bjp_jump_op1),
-        .bjp_jump_op2_i(dispatch_bjp_jump_op2),
         .bjp_op_jal_i  (dispatch_bjp_op_jal),
         .bjp_op_beq_i  (dispatch_bjp_op_beq),
         .bjp_op_bne_i  (dispatch_bjp_op_bne),
@@ -688,6 +686,11 @@ module cpu_top (
         .bjp_op_bge_i  (dispatch_bjp_op_bge),
         .bjp_op_bgeu_i (dispatch_bjp_op_bgeu),
         .bjp_op_jalr_i (dispatch_bjp_op_jalr),
+        .bjp_adder_result_i      (dispatch_bjp_adder_result),
+        .bjp_next_pc_i           (dispatch_bjp_next_pc),
+        .op1_eq_op2_i            (dispatch_op1_eq_op2),
+        .op1_ge_op2_signed_i     (dispatch_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_i   (dispatch_op1_ge_op2_unsigned),
 
         .req_mul_i      (dispatch_req_mul),
         .mul_op1_i      (dispatch_mul_op1),

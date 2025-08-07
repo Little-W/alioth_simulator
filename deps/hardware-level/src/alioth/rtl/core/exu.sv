@@ -64,10 +64,6 @@ module exu (
 
     // dispatch to BJP
     input wire        req_bjp_i,
-    input wire [31:0] bjp_op1_i,
-    input wire [31:0] bjp_op2_i,
-    input wire [31:0] bjp_jump_op1_i,
-    input wire [31:0] bjp_jump_op2_i,
     input wire        bjp_op_jal_i,
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
@@ -76,6 +72,11 @@ module exu (
     input wire        bjp_op_bge_i,
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,
+    input wire [31:0] bjp_adder_result_i,
+    input wire [31:0] bjp_next_pc_i,
+    input wire        op1_eq_op2_i,
+    input wire        op1_ge_op2_signed_i,
+    input wire        op1_ge_op2_unsigned_i,
 
     // dispatch to MUL
     input wire [                31:0] mul_op1_i,
@@ -373,10 +374,6 @@ module exu (
     exu_bru u_bru (
         .rst_n             (rst_n),
         .req_bjp_i         (req_bjp_i),
-        .bjp_op1_i         (bjp_op1_i),
-        .bjp_op2_i         (bjp_op2_i),
-        .bjp_jump_op1_i    (bjp_jump_op1_i),
-        .bjp_jump_op2_i    (bjp_jump_op2_i),
         .bjp_op_jal_i      (bjp_op_jal_i),
         .bjp_op_beq_i      (bjp_op_beq_i),
         .bjp_op_bne_i      (bjp_op_bne_i),
@@ -386,6 +383,12 @@ module exu (
         .bjp_op_bgeu_i     (bjp_op_bgeu_i),
         .bjp_op_jalr_i     (bjp_op_jalr_i),
         .is_pred_branch_i  (is_pred_branch_i),     // 新增：预测分支指令标志输入
+        // 新增信号
+        .bjp_adder_result_i    (bjp_adder_result_i),
+        .bjp_next_pc_i         (bjp_next_pc_i),
+        .op1_eq_op2_i          (op1_eq_op2_i),
+        .op1_ge_op2_signed_i   (op1_ge_op2_signed_i),
+        .op1_ge_op2_unsigned_i (op1_ge_op2_unsigned_i),
         .sys_op_fence_i    (sys_op_fence_i),
         .int_assert_i      (int_assert_i),
         .int_addr_i        (int_addr_i),

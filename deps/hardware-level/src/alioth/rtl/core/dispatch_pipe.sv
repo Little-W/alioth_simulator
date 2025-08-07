@@ -61,10 +61,6 @@ module dispatch_pipe (
 
     // BJP输入端口
     input wire        req_bjp_i,
-    input wire [31:0] bjp_op1_i,
-    input wire [31:0] bjp_op2_i,
-    input wire [31:0] bjp_jump_op1_i,
-    input wire [31:0] bjp_jump_op2_i,
     input wire        bjp_op_jal_i,
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
@@ -73,6 +69,12 @@ module dispatch_pipe (
     input wire        bjp_op_bge_i,
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,
+    // 新增端口
+    input wire [31:0] bjp_adder_result_i,
+    input wire [31:0] bjp_next_pc_i,
+    input wire        op1_eq_op2_i,
+    input wire        op1_ge_op2_signed_i,
+    input wire        op1_ge_op2_unsigned_i,
 
     // MUL输入端口
     input wire        req_mul_i,
@@ -155,10 +157,6 @@ module dispatch_pipe (
 
     // BJP输出端口
     output wire        req_bjp_o,
-    output wire [31:0] bjp_op1_o,
-    output wire [31:0] bjp_op2_o,
-    output wire [31:0] bjp_jump_op1_o,
-    output wire [31:0] bjp_jump_op2_o,
     output wire        bjp_op_jal_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
@@ -167,6 +165,12 @@ module dispatch_pipe (
     output wire        bjp_op_bge_o,
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
+    // 新增端口
+    output wire [31:0] bjp_adder_result_o,
+    output wire [31:0] bjp_next_pc_o,
+    output wire        op1_eq_op2_o,
+    output wire        op1_ge_op2_signed_o,
+    output wire        op1_ge_op2_unsigned_o,
 
     // MUL输出端口
     output wire        req_mul_o,
@@ -395,49 +399,65 @@ module dispatch_pipe (
     );
     assign req_bjp_o = req_bjp;
 
-    wire [31:0] bjp_op1_dnxt = bjp_op1_i;
-    wire [31:0] bjp_op1;
-    gnrl_dfflr #(32) bjp_op1_ff (
+    // 新增：bjp_adder_result寄存器
+    wire [31:0] bjp_adder_result_dnxt = bjp_adder_result_i;
+    wire [31:0] bjp_adder_result;
+    gnrl_dfflr #(32) bjp_adder_result_ff (
         clk,
         rst_n,
         reg_update_en,
-        bjp_op1_dnxt,
-        bjp_op1
+        bjp_adder_result_dnxt,
+        bjp_adder_result
     );
-    assign bjp_op1_o = bjp_op1;
+    assign bjp_adder_result_o = bjp_adder_result;
 
-    wire [31:0] bjp_op2_dnxt = bjp_op2_i;
-    wire [31:0] bjp_op2;
-    gnrl_dfflr #(32) bjp_op2_ff (
+    // 新增：bjp_next_pc寄存器
+    wire [31:0] bjp_next_pc_dnxt = bjp_next_pc_i;
+    wire [31:0] bjp_next_pc;
+    gnrl_dfflr #(32) bjp_next_pc_ff (
         clk,
         rst_n,
         reg_update_en,
-        bjp_op2_dnxt,
-        bjp_op2
+        bjp_next_pc_dnxt,
+        bjp_next_pc
     );
-    assign bjp_op2_o = bjp_op2;
+    assign bjp_next_pc_o = bjp_next_pc;
 
-    wire [31:0] bjp_jump_op1_dnxt = bjp_jump_op1_i;
-    wire [31:0] bjp_jump_op1;
-    gnrl_dfflr #(32) bjp_jump_op1_ff (
+    // 新增：op1_eq_op2寄存器
+    wire op1_eq_op2_dnxt = op1_eq_op2_i;
+    wire op1_eq_op2;
+    gnrl_dfflr #(1) op1_eq_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        bjp_jump_op1_dnxt,
-        bjp_jump_op1
+        op1_eq_op2_dnxt,
+        op1_eq_op2
     );
-    assign bjp_jump_op1_o = bjp_jump_op1;
+    assign op1_eq_op2_o = op1_eq_op2;
 
-    wire [31:0] bjp_jump_op2_dnxt = bjp_jump_op2_i;
-    wire [31:0] bjp_jump_op2;
-    gnrl_dfflr #(32) bjp_jump_op2_ff (
+    // 新增：op1_ge_op2_signed寄存器
+    wire op1_ge_op2_signed_dnxt = op1_ge_op2_signed_i;
+    wire op1_ge_op2_signed;
+    gnrl_dfflr #(1) op1_ge_op2_signed_ff (
         clk,
         rst_n,
         reg_update_en,
-        bjp_jump_op2_dnxt,
-        bjp_jump_op2
+        op1_ge_op2_signed_dnxt,
+        op1_ge_op2_signed
     );
-    assign bjp_jump_op2_o = bjp_jump_op2;
+    assign op1_ge_op2_signed_o = op1_ge_op2_signed;
+
+    // 新增：op1_ge_op2_unsigned寄存器
+    wire op1_ge_op2_unsigned_dnxt = op1_ge_op2_unsigned_i;
+    wire op1_ge_op2_unsigned;
+    gnrl_dfflr #(1) op1_ge_op2_unsigned_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        op1_ge_op2_unsigned_dnxt,
+        op1_ge_op2_unsigned
+    );
+    assign op1_ge_op2_unsigned_o = op1_ge_op2_unsigned;
 
     wire bjp_op_jal_dnxt = bjp_op_jal_i;
     wire bjp_op_jal;

@@ -41,10 +41,6 @@ module dispatch_logic (
 
     // dispatch to Bru
     output wire        req_bjp_o,
-    output wire [31:0] bjp_op1_o,
-    output wire [31:0] bjp_op2_o,
-    output wire [31:0] bjp_jump_op1_o,
-    output wire [31:0] bjp_jump_op2_o,
     output wire        bjp_op_jal_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
@@ -53,6 +49,13 @@ module dispatch_logic (
     output wire        bjp_op_bge_o,
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
+
+    // 新增输出
+    output wire [31:0] bjp_adder_result_o,
+    output wire [31:0] bjp_next_pc_o,
+    output wire        op1_eq_op2_o,
+    output wire        op1_ge_op2_signed_o,
+    output wire        op1_ge_op2_unsigned_o,
 
     // dispatch to MUL
     output wire [31:0] mul_op1_o,
@@ -148,27 +151,27 @@ module dispatch_logic (
     wire                      op_muldiv = (disp_info_grp == `DECINFO_GRP_MULDIV);
     wire [`DECINFO_WIDTH-1:0] muldiv_info = {`DECINFO_WIDTH{op_muldiv}} & dec_info_bus_i;
     // MULDIV op1
-    wire [31:0] muldiv_op1 = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
+    wire [              31:0] muldiv_op1 = op_muldiv ? rs1_rdata_i : 32'h0;  // rs1寄存器值
     // MULDIV op2
-    wire [31:0] muldiv_op2 = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
+    wire [              31:0] muldiv_op2 = op_muldiv ? rs2_rdata_i : 32'h0;  // rs2寄存器值
 
     // MUL signals
-    assign req_mul_o         = muldiv_info[`DECINFO_MULDIV_OP_MUL];  // 所有乘法指令
-    assign mul_op1_o         = req_mul_o ? muldiv_op1 : 32'h0;
-    assign mul_op2_o         = req_mul_o ? muldiv_op2 : 32'h0;
-    assign mul_op_mul_o      = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
-    assign mul_op_mulh_o     = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
-    assign mul_op_mulhu_o    = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
-    assign mul_op_mulhsu_o   = muldiv_info[`DECINFO_MULDIV_MULHSU];  // MULHSU指令
+    assign req_mul_o       = muldiv_info[`DECINFO_MULDIV_OP_MUL];  // 所有乘法指令
+    assign mul_op1_o       = req_mul_o ? muldiv_op1 : 32'h0;
+    assign mul_op2_o       = req_mul_o ? muldiv_op2 : 32'h0;
+    assign mul_op_mul_o    = muldiv_info[`DECINFO_MULDIV_MUL];  // MUL指令
+    assign mul_op_mulh_o   = muldiv_info[`DECINFO_MULDIV_MULH];  // MULH指令
+    assign mul_op_mulhu_o  = muldiv_info[`DECINFO_MULDIV_MULHU];  // MULHU指令
+    assign mul_op_mulhsu_o = muldiv_info[`DECINFO_MULDIV_MULHSU];  // MULHSU指令
 
     // DIV signals
-    assign req_div_o         = muldiv_info[`DECINFO_MULDIV_OP_DIV];  // 所有除法指令
-    assign div_op1_o         = req_div_o ? muldiv_op1 : 32'h0;
-    assign div_op2_o         = req_div_o ? muldiv_op2 : 32'h0;
-    assign div_op_div_o      = muldiv_info[`DECINFO_MULDIV_DIV];  // DIV指令
-    assign div_op_divu_o     = muldiv_info[`DECINFO_MULDIV_DIVU];  // DIVU指令
-    assign div_op_rem_o      = muldiv_info[`DECINFO_MULDIV_REM];  // REM指令
-    assign div_op_remu_o     = muldiv_info[`DECINFO_MULDIV_REMU];  // REMU指令
+    assign req_div_o       = muldiv_info[`DECINFO_MULDIV_OP_DIV];  // 所有除法指令
+    assign div_op1_o       = req_div_o ? muldiv_op1 : 32'h0;
+    assign div_op2_o       = req_div_o ? muldiv_op2 : 32'h0;
+    assign div_op_div_o    = muldiv_info[`DECINFO_MULDIV_DIV];  // DIV指令
+    assign div_op_divu_o   = muldiv_info[`DECINFO_MULDIV_DIVU];  // DIVU指令
+    assign div_op_rem_o    = muldiv_info[`DECINFO_MULDIV_REM];  // REM指令
+    assign div_op_remu_o   = muldiv_info[`DECINFO_MULDIV_REMU];  // REMU指令
 
     // Bru info
 
@@ -176,22 +179,26 @@ module dispatch_logic (
     assign bjp_info = {`DECINFO_WIDTH{op_bjp}} & dec_info_bus_i;
     // BJP op1
     wire bjp_op1_rs1 = bjp_info[`DECINFO_BJP_OP1RS1];  // 使用rs1寄存器作为跳转基地址 (JALR指令)
-    wire [31:0] bjp_op1 = bjp_op1_rs1 ? rs1_rdata_i : dec_pc_i;
-    assign bjp_jump_op1_o = (sys_op_fence_o | op_bjp) ? bjp_op1 : 32'h0;
-    // BJP op2
-    wire [31:0] bjp_op2 = dec_imm_i;  // 使用立即数作为跳转偏移量
-    assign bjp_jump_op2_o = (sys_op_fence_o) ? 32'h4 : op_bjp ? bjp_op2 : 32'h0;
-    assign bjp_op1_o      = op_bjp ? rs1_rdata_i : 32'h0;  // 用于分支指令的比较操作数1
-    assign bjp_op2_o      = op_bjp ? rs2_rdata_i : 32'h0;  // 用于分支指令的比较操作数2
-    assign bjp_op_beq_o   = bjp_info[`DECINFO_BJP_BEQ];  // BEQ指令
-    assign bjp_op_bne_o   = bjp_info[`DECINFO_BJP_BNE];  // BNE指令
-    assign bjp_op_blt_o   = bjp_info[`DECINFO_BJP_BLT];  // BLT指令
-    assign bjp_op_bltu_o  = bjp_info[`DECINFO_BJP_BLTU];  // BLTU指令
-    assign bjp_op_bge_o   = bjp_info[`DECINFO_BJP_BGE];  // BGE指令
-    assign bjp_op_bgeu_o  = bjp_info[`DECINFO_BJP_BGEU];  // BGEU指令
-    assign req_bjp_o      = op_bjp;
-    assign bjp_op_jal_o   = bjp_info[`DECINFO_BJP_JUMP] && !bjp_op1_rs1;  // JAL指令标志
-    assign bjp_op_jalr_o  = bjp_op1_rs1;  // JALR指令标志
+    assign bjp_op_beq_o  = bjp_info[`DECINFO_BJP_BEQ];  // BEQ指令
+    assign bjp_op_bne_o  = bjp_info[`DECINFO_BJP_BNE];  // BNE指令
+    assign bjp_op_blt_o  = bjp_info[`DECINFO_BJP_BLT];  // BLT指令
+    assign bjp_op_bltu_o = bjp_info[`DECINFO_BJP_BLTU];  // BLTU指令
+    assign bjp_op_bge_o  = bjp_info[`DECINFO_BJP_BGE];  // BGE指令
+    assign bjp_op_bgeu_o = bjp_info[`DECINFO_BJP_BGEU];  // BGEU指令
+    assign req_bjp_o     = op_bjp;
+    assign bjp_op_jal_o  = bjp_info[`DECINFO_BJP_JUMP] && !bjp_op1_rs1;  // JAL指令标志
+    assign bjp_op_jalr_o = bjp_op1_rs1;  // JALR指令标志
+
+    wire [31:0] bjp_jump_op1 = bjp_op1_rs1 ? rs1_rdata_i : dec_pc_i;
+    wire [31:0] bjp_jump_op2 = dec_imm_i;  // 使用立即数作为跳转偏移量
+    assign bjp_adder_result_o = bjp_jump_op1 + bjp_jump_op2;
+    assign bjp_next_pc_o      = dec_pc_i + 32'h4;  // 默认下一条指令地址
+
+    wire [31:0] bjp_op1 = op_bjp ? rs1_rdata_i : 32'h0;  // 用于分支指令的比较操作数1
+    wire [31:0] bjp_op2 = op_bjp ? rs2_rdata_i : 32'h0;  // 用于分支指令的比较操作数2
+    assign op1_eq_op2_o          = (bjp_op1 == bjp_op2);
+    assign op1_ge_op2_signed_o   = $signed(bjp_op1) >= $signed(bjp_op2);
+    assign op1_ge_op2_unsigned_o = bjp_op1 >= bjp_op2;
 
     // CSR info
 

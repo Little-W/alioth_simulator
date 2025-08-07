@@ -28,10 +28,6 @@
 module exu_bru (
     input wire        rst_n,
     input wire        req_bjp_i,
-    input wire [31:0] bjp_op1_i,
-    input wire [31:0] bjp_op2_i,
-    input wire [31:0] bjp_jump_op1_i,
-    input wire [31:0] bjp_jump_op2_i,
     input wire        bjp_op_jal_i,     // JAL指令标志
     input wire        bjp_op_beq_i,
     input wire        bjp_op_bne_i,
@@ -41,6 +37,12 @@ module exu_bru (
     input wire        bjp_op_bgeu_i,
     input wire        bjp_op_jalr_i,    // JALR指令标志
     input wire        is_pred_branch_i, // 前级是否进行了分支预测
+
+    input wire [31:0] bjp_adder_result_i,
+    input wire [31:0] bjp_next_pc_i,
+    input wire        op1_eq_op2_i,
+    input wire        op1_ge_op2_signed_i,
+    input wire        op1_ge_op2_unsigned_i,
 
     input wire                        sys_op_fence_i,  // FENCE指令
     // 中断信号
@@ -55,28 +57,15 @@ module exu_bru (
 );
     // 内部信号
     wire        jump_flag;
-    wire        op1_eq_op2;
-    wire        op1_ge_op2_signed;
-    wire        op1_ge_op2_unsigned;
-    wire [31:0] adder_op2;
-    wire [31:0] adder_result;
     wire [31:0] jalr_target_addr;
     wire        branch_cond;
 
-    // 比较结果
-    assign op1_eq_op2          = (bjp_op1_i == bjp_op2_i);
-    assign op1_ge_op2_signed   = $signed(bjp_op1_i) >= $signed(bjp_op2_i);
-    assign op1_ge_op2_unsigned = bjp_op1_i >= bjp_op2_i;
+    // 使用dispatch_pipe传递下来的比较结果
+    wire op1_eq_op2          = op1_eq_op2_i;
+    wire op1_ge_op2_signed   = op1_ge_op2_signed_i;
+    wire op1_ge_op2_unsigned = op1_ge_op2_unsigned_i;
 
     // 预测回退条件：当预测分支但实际不需要跳转
-    wire pred_rollback = is_pred_branch_i & req_bjp_i & ~branch_cond;
-
-    // 复用加法器：根据是否需要回退选择加法的第二个操作数
-    assign adder_op2 = pred_rollback ? 32'h4 : bjp_jump_op2_i;
-    assign adder_result = bjp_jump_op1_i + adder_op2;
-    assign jalr_target_addr = adder_result & ~32'h1;  // JALR目标地址需要清除最低位
-
-    // 简化跳转条件信号判断
     assign branch_cond = req_bjp_i & (
         (bjp_op_beq_i  &  op1_eq_op2) |
         (bjp_op_bne_i  & ~op1_eq_op2) |
@@ -86,12 +75,17 @@ module exu_bru (
         (bjp_op_bgeu_i &  op1_ge_op2_unsigned) |
         bjp_op_jalr_i
     );
+    wire pred_rollback = is_pred_branch_i & req_bjp_i & ~branch_cond;
 
-    // 简化跳转标志判断，增加预测回退条件
+    // JALR目标地址需要清除最低位
+    assign jalr_target_addr = (bjp_adder_result_i & ~32'h1);
+
+    // 跳转标志判断，增加预测回退条件
     assign jump_flag = (branch_cond & ~is_pred_branch_i) | sys_op_fence_i | pred_rollback;
 
-    // 简化跳转地址选择逻辑
-    assign jump_addr_o = (bjp_op_jalr_i ? jalr_target_addr : adder_result);
+    // 跳转地址选择逻辑
+    assign jump_addr_o = (sys_op_fence_i || pred_rollback) ? bjp_next_pc_i :
+                         (bjp_op_jalr_i ? jalr_target_addr : bjp_adder_result_i);
 
     // 非对齐跳转判断（跳转地址低2位非0）
     assign misaligned_fetch_o = ((jump_addr_o[1:0] != 2'b00) && (jump_flag || bjp_op_jal_i));

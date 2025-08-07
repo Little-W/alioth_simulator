@@ -92,10 +92,6 @@ module dispatch (
 
     // dispatch to Bru
     output wire        req_bjp_o,
-    output wire [31:0] bjp_op1_o,
-    output wire [31:0] bjp_op2_o,
-    output wire [31:0] bjp_jump_op1_o,
-    output wire [31:0] bjp_jump_op2_o,
     output wire        bjp_op_jal_o,
     output wire        bjp_op_beq_o,
     output wire        bjp_op_bne_o,
@@ -104,6 +100,11 @@ module dispatch (
     output wire        bjp_op_bge_o,
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
+    output wire [31:0] bjp_adder_result_o,
+    output wire [31:0] bjp_next_pc_o,
+    output wire        op1_eq_op2_o,
+    output wire        op1_ge_op2_signed_o,
+    output wire        op1_ge_op2_unsigned_o,
 
     // dispatch to MUL
     output wire                        req_mul_o,
@@ -178,10 +179,6 @@ module dispatch (
     wire [   `ALU_OP_WIDTH-1:0] logic_alu_op_info;
 
     wire                        logic_req_bjp;
-    wire [                31:0] logic_bjp_op1;
-    wire [                31:0] logic_bjp_op2;
-    wire [                31:0] logic_bjp_jump_op1;
-    wire [                31:0] logic_bjp_jump_op2;
     wire                        logic_bjp_op_jal;
     wire                        logic_bjp_op_beq;
     wire                        logic_bjp_op_bne;
@@ -190,6 +187,11 @@ module dispatch (
     wire                        logic_bjp_op_bge;
     wire                        logic_bjp_op_bgeu;
     wire                        logic_bjp_op_jalr;
+    wire [31:0] logic_bjp_adder_result;
+    wire [31:0] logic_bjp_next_pc;
+    wire        logic_op1_eq_op2;
+    wire        logic_op1_ge_op2_signed;
+    wire        logic_op1_ge_op2_unsigned;
 
     wire [                31:0] logic_mul_op1;
     wire [                31:0] logic_mul_op2;
@@ -283,10 +285,6 @@ module dispatch (
 
         // BJP信号
         .req_bjp_o     (logic_req_bjp),
-        .bjp_op1_o     (logic_bjp_op1),
-        .bjp_op2_o     (logic_bjp_op2),
-        .bjp_jump_op1_o(logic_bjp_jump_op1),
-        .bjp_jump_op2_o(logic_bjp_jump_op2),
         .bjp_op_jal_o  (logic_bjp_op_jal),
         .bjp_op_beq_o  (logic_bjp_op_beq),
         .bjp_op_bne_o  (logic_bjp_op_bne),
@@ -295,6 +293,11 @@ module dispatch (
         .bjp_op_bge_o  (logic_bjp_op_bge),
         .bjp_op_bgeu_o (logic_bjp_op_bgeu),
         .bjp_op_jalr_o (logic_bjp_op_jalr),
+        .bjp_adder_result_o      (logic_bjp_adder_result),
+        .bjp_next_pc_o           (logic_bjp_next_pc),
+        .op1_eq_op2_o            (logic_op1_eq_op2),
+        .op1_ge_op2_signed_o     (logic_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_o   (logic_op1_ge_op2_unsigned),
 
         // MUL信号
         .req_mul_o      (logic_req_mul),
@@ -383,10 +386,6 @@ module dispatch (
 
         // BJP信号输入
         .req_bjp_i     (logic_req_bjp),
-        .bjp_op1_i     (logic_bjp_op1),
-        .bjp_op2_i     (logic_bjp_op2),
-        .bjp_jump_op1_i(logic_bjp_jump_op1),
-        .bjp_jump_op2_i(logic_bjp_jump_op2),
         .bjp_op_jal_i  (logic_bjp_op_jal),
         .bjp_op_beq_i  (logic_bjp_op_beq),
         .bjp_op_bne_i  (logic_bjp_op_bne),
@@ -395,6 +394,11 @@ module dispatch (
         .bjp_op_bge_i  (logic_bjp_op_bge),
         .bjp_op_bgeu_i (logic_bjp_op_bgeu),
         .bjp_op_jalr_i (logic_bjp_op_jalr),
+        .bjp_adder_result_i      (logic_bjp_adder_result),
+        .bjp_next_pc_i           (logic_bjp_next_pc),
+        .op1_eq_op2_i            (logic_op1_eq_op2),
+        .op1_ge_op2_signed_i     (logic_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_i   (logic_op1_ge_op2_unsigned),
 
         // MUL信号输入
         .req_mul_i      (logic_req_mul),
@@ -472,10 +476,6 @@ module dispatch (
 
         // BJP信号输出
         .req_bjp_o     (req_bjp_o),
-        .bjp_op1_o     (bjp_op1_o),
-        .bjp_op2_o     (bjp_op2_o),
-        .bjp_jump_op1_o(bjp_jump_op1_o),
-        .bjp_jump_op2_o(bjp_jump_op2_o),
         .bjp_op_jal_o  (bjp_op_jal_o),
         .bjp_op_beq_o  (bjp_op_beq_o),
         .bjp_op_bne_o  (bjp_op_bne_o),
@@ -484,6 +484,11 @@ module dispatch (
         .bjp_op_bge_o  (bjp_op_bge_o),
         .bjp_op_bgeu_o (bjp_op_bgeu_o),
         .bjp_op_jalr_o (bjp_op_jalr_o),
+        .bjp_adder_result_o      (bjp_adder_result_o),
+        .bjp_next_pc_o           (bjp_next_pc_o),
+        .op1_eq_op2_o            (op1_eq_op2_o),
+        .op1_ge_op2_signed_o     (op1_ge_op2_signed_o),
+        .op1_ge_op2_unsigned_o   (op1_ge_op2_unsigned_o),
 
         // MUL信号输出
         .req_mul_o      (req_mul_o),
