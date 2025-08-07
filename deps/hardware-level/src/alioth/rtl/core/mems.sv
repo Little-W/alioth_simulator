@@ -1177,7 +1177,8 @@ module mems #(
     gnrl_ram_pseudo_dual_axi #(
         .ADDR_WIDTH        (DTCM_ADDR_WIDTH),
         .DATA_WIDTH        (DATA_WIDTH),
-        .INIT_MEM          (0),
+        .INIT_MEM          (`INIT_DTCM),
+        .INIT_FILE         (`DTCM_INIT_FILE),
         .C_S_AXI_ID_WIDTH  (C_AXI_ID_WIDTH),
         .C_S_AXI_DATA_WIDTH(C_AXI_DATA_WIDTH),
         .C_S_AXI_ADDR_WIDTH(DTCM_ADDR_WIDTH)

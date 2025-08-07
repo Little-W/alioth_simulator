@@ -4,8 +4,8 @@ ENTRY(_start)
 
 MEMORY
 {
-  itcm (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 256K
-  dtcm (wxa!ri) : ORIGIN = 0x80100000, LENGTH = 256K
+  itcm (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 64K
+  dtcm (wxa!ri) : ORIGIN = 0x80100000, LENGTH = 64K
 }
 
 
@@ -114,7 +114,7 @@ SECTIONS
   {
     . = ALIGN(4);
     PROVIDE( _data = . );
-  } >dtcm AT>itcm 
+  } >dtcm
 
   .data          :
   {
@@ -133,7 +133,7 @@ SECTIONS
     *(.srodata.cst4)
     *(.srodata.cst2)
     *(.srodata .srodata.*)
-  } >dtcm AT>itcm 
+  } >dtcm
 
   . = ALIGN(4);
   PROVIDE( _edata = . );

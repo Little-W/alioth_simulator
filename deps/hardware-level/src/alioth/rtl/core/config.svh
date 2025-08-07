@@ -1,6 +1,6 @@
 // 内存和地址配置
-`define ITCM_ADDR_WIDTH 18  // ITCM地址宽度，16位对应64KB
-`define DTCM_ADDR_WIDTH 18  // DTCM地址宽度，16位对应64KB
+`define ITCM_ADDR_WIDTH 16  // ITCM地址宽度，16位对应64KB
+`define DTCM_ADDR_WIDTH 16  // DTCM地址宽度，16位对应64KB
 
 `define PC_RESET_ADDR 32'h8000_0000
 
@@ -28,7 +28,10 @@
 
 // 内存初始化控制
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
-`define ITCM_INIT_FILE "/media/5/Projects/RISC-V/alioth_simulator/deps/tools/prog.mem" // ITCM初始化文件路径
+`define ITCM_INIT_FILE "main_itcm.mem" // ITCM初始化文件路径
+
+`define INIT_DTCM 0       // 控制DTCM是否初始化，1表示初始化，0表示不初始化
+`define DTCM_INIT_FILE "main_dtcm.mem" // ITCM初始化文件路径
 
 // 总线宽度定义
 `define BUS_DATA_WIDTH 32
