@@ -36,8 +36,8 @@ module idu_id_pipe (
     input wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_i,      // 读通用寄存器1地址
     input wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_i,      // 读通用寄存器2地址
     input wire                        csr_we_i,          // 写CSR寄存器标志
-    input wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_i,       // 写CSR寄存器地址
-    input wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_i,       // 读CSR寄存器地址
+    input wire [ 31:0] csr_waddr_i,       // 写CSR寄存器地址
+    input wire [ 31:0] csr_raddr_i,       // 读CSR寄存器地址
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
     input wire                        is_pred_branch_i,  // 添加预测分支指令标志输入
@@ -56,8 +56,8 @@ module idu_id_pipe (
     output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,      // 读通用寄存器1地址
     output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,      // 读通用寄存器2地址
     output wire                        csr_we_o,          // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,       // 写CSR寄存器地址
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_raddr_o,       // 读CSR寄存器地址
+    output wire [ 31:0] csr_waddr_o,       // 写CSR寄存器地址
+    output wire [ 31:0] csr_raddr_o,       // 读CSR寄存器地址
     output wire [                31:0] dec_imm_o,         // 立即数
     output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,    // 译码信息总线
     output wire                        is_pred_branch_o,  // 添加预测分支指令标志输出
@@ -140,8 +140,8 @@ module idu_id_pipe (
     );
     assign csr_we_o = csr_we;
 
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_dnxt = flush_en ? `ZeroWord : csr_waddr_i;
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr;
+    wire [31:0] csr_waddr_dnxt = flush_en ? `ZeroWord : csr_waddr_i;
+    wire [31:0] csr_waddr;
     gnrl_dfflr #(32) csr_waddr_ff (
         clk,
         rst_n,
@@ -152,8 +152,8 @@ module idu_id_pipe (
     assign csr_waddr_o = csr_waddr;
 
     // 传递CSR读地址
-    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = flush_en ? `ZeroWord : csr_raddr_i;
-    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr;
+    wire [31:0] csr_raddr_dnxt = flush_en ? `ZeroWord : csr_raddr_i;
+    wire [31:0] csr_raddr;
     gnrl_dfflr #(32) csr_raddr_ff (
         clk,
         rst_n,

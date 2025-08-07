@@ -38,12 +38,12 @@ module dispatch_pipe (
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
-    // 新增：额外的信号直接从IDU传递
+    // 新增：额外的信号直接从icu传递
     input wire                       reg_we_i,
     input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire                       csr_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
+    input wire [31:0] csr_waddr_i,
+    input wire [31:0] csr_raddr_i,
     input wire [               31:0] dec_imm_i,
     input wire [ `DECINFO_WIDTH-1:0] dec_info_bus_i,
     // 新增：寄存rs1/rs2数据
@@ -52,6 +52,7 @@ module dispatch_pipe (
     input wire                       is_pred_branch_i,  // 新增：预测分支信号输入
     // 新增：非法指令信号输入
     input wire                       illegal_inst_i,
+    input wire [31:0]                timestamp_i,
 
     // ADDER输入端口
     input wire        req_adder_i,
@@ -143,8 +144,8 @@ module dispatch_pipe (
     output wire                       reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
     output wire                       csr_we_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,
+    output wire [31:0] csr_waddr_o,
+    output wire [31:0] csr_raddr_o,
     output wire [               31:0] dec_imm_o,
     output wire [ `DECINFO_WIDTH-1:0] dec_info_bus_o,
     // 新增：寄存rs1/rs2数据
@@ -229,7 +230,8 @@ module dispatch_pipe (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o
+    output wire illegal_inst_o,
+    output wire [31:0] timestamp_o
 );
 
     wire                        flush_en = |stall_flag_i;
@@ -298,8 +300,8 @@ module dispatch_pipe (
     assign csr_we_o = csr_we;
 
     // 新增：CSR写地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_waddr_i;
-    wire [`BUS_ADDR_WIDTH-1:0] csr_waddr;
+    wire [31:0] csr_waddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_waddr_i;
+    wire [31:0] csr_waddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) csr_waddr_ff (
         clk,
         rst_n,
@@ -310,8 +312,8 @@ module dispatch_pipe (
     assign csr_waddr_o = csr_waddr;
 
     // 新增：CSR读地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_raddr_i;
-    wire [`BUS_ADDR_WIDTH-1:0] csr_raddr;
+    wire [31:0] csr_raddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_raddr_i;
+    wire [31:0] csr_raddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) csr_raddr_ff (
         clk,
         rst_n,
@@ -1076,5 +1078,16 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
+
+    wire [31:0] timestamp_dnxt = flush_en ? 32'b0 : timestamp_i;
+    wire [31:0] timestamp;
+    gnrl_dfflr #(32) timestamp_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        timestamp_dnxt,
+        timestamp
+    );
+    assign timestamp_o = timestamp;
 
 endmodule

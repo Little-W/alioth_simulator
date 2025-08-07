@@ -39,7 +39,7 @@ module idu_decode (
     output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
 
     // to csr reg
-    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
+    output wire [31:0] csr_raddr_o,  // 读CSR寄存器地址
 
     // to ex
     output wire [                31:0] dec_imm_o,       // 立即数
@@ -48,7 +48,7 @@ module idu_decode (
     output wire                        reg_we_o,        // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
     output wire                        csr_we_o,        // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,     // 写CSR寄存器地址
+    output wire [ 31:0] csr_waddr_o,     // 写CSR寄存器地址
     output wire                        illegal_inst_o,  // 非法指令输出
     output wire                        inst_jump_o,     // 跳转指令信号
     output wire                        inst_branch_o,   // 分支指令信号

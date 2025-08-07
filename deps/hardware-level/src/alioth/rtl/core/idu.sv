@@ -46,8 +46,8 @@ module idu (
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
     // to csr reg
-    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,   // 读CSR寄存器地址
-    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr2_o,  // 第二路读CSR寄存器地址
+    output wire [31:0] csr_raddr_o,   // 读CSR寄存器地址
+    output wire [31:0] csr_raddr2_o,  // 第二路读CSR寄存器地址
 
     // to ex - 第一路
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,          // 指令地址
@@ -56,7 +56,7 @@ module idu (
     output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg1_raddr_o,   // 读通用寄存器1地址(传给EX)
     output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg2_raddr_o,   // 读通用寄存器2地址(传给EX)
     output wire                        inst1_csr_we_o,       // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] inst1_csr_waddr_o,    // 写CSR寄存器地址
+    output wire [ 31:0] inst1_csr_waddr_o,    // 写CSR寄存器地址
     output wire [                31:0] inst1_dec_imm_o,      // 立即数
     output wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_o, // 译码信息总线
     output wire                        inst1_is_pred_branch_o, // 添加预测分支指令标志输出
@@ -74,7 +74,7 @@ module idu (
     output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg1_raddr_o,   // 第二路读通用寄存器1地址
     output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg2_raddr_o,   // 第二路读通用寄存器2地址
     output wire                        inst2_csr_we_o,       // 第二路写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] inst2_csr_waddr_o,    // 第二路写CSR寄存器地址
+    output wire [ 31:0] inst2_csr_waddr_o,    // 第二路写CSR寄存器地址
     output wire [                31:0] inst2_dec_imm_o,      // 第二路立即数
     output wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_o, // 第二路译码信息总线
     output wire                        inst2_is_pred_branch_o, // 第二路预测分支指令标志输出
@@ -91,8 +91,8 @@ module idu (
     wire [ `REG_ADDR_WIDTH-1:0] id_reg1_raddr;
     wire [ `REG_ADDR_WIDTH-1:0] id_reg2_raddr;
     wire                        id_csr_we;
-    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_waddr;
-    wire [ `BUS_ADDR_WIDTH-1:0] id_csr_raddr;  // CSR读地址
+    wire [ 31:0] id_csr_waddr;
+    wire [ 31:0] id_csr_raddr;  // CSR读地址
     wire [                31:0] id_dec_imm;
     wire [  `DECINFO_WIDTH-1:0] id_dec_info_bus;
     wire                        id_illegal_inst;  // 新增：非法指令信号
@@ -107,8 +107,8 @@ module idu (
     wire [ `REG_ADDR_WIDTH-1:0] id2_reg1_raddr;
     wire [ `REG_ADDR_WIDTH-1:0] id2_reg2_raddr;
     wire                        id2_csr_we;
-    wire [ `BUS_ADDR_WIDTH-1:0] id2_csr_waddr;
-    wire [ `BUS_ADDR_WIDTH-1:0] id2_csr_raddr;  // 第二路CSR读地址
+    wire [ 31:0] id2_csr_waddr;
+    wire [ 31:0] id2_csr_raddr;  // 第二路CSR读地址
     wire [                31:0] id2_dec_imm;
     wire [  `DECINFO_WIDTH-1:0] id2_dec_info_bus;
     wire                        id2_illegal_inst;  // 第二路非法指令信号

@@ -28,7 +28,7 @@
 module exu_lsu #(
     parameter C_M_AXI_ID_WIDTH     = `BUS_ID_WIDTH,
     parameter C_M_AXI_ADDR_WIDTH   = `BUS_ADDR_WIDTH,
-    parameter C_M_AXI_DATA_WIDTH   = 32,
+    parameter C_M_AXI_DATA_WIDTH   = `BUS_DATA_WIDTH,  // AXI接口升级为64位，与系统其他部分保持一致
     parameter C_M_AXI_AWUSER_WIDTH = 1,
     parameter C_M_AXI_ARUSER_WIDTH = 1,
     parameter C_M_AXI_WUSER_WIDTH  = 1,
@@ -260,7 +260,7 @@ module exu_lsu #(
     // FIFO管理逻辑 - 支持Load/Store并行处理
     // ===================================================================
     
-    always @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             fifo_head <= '0;
             fifo_tail <= '0;
@@ -332,7 +332,7 @@ module exu_lsu #(
     // AXI状态机 - 分离读写通道实现并行处理
     // ===================================================================
     
-    always @(posedge clk or negedge rst_n) begin
+    always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             axi_read_state <= AXI_IDLE;
             axi_write_state <= AXI_IDLE;
@@ -471,16 +471,16 @@ module exu_lsu #(
         end
         
         // 写数据通道
-        M_AXI_WDATA = 32'b0;
-        M_AXI_WSTRB = 4'b0;
+        M_AXI_WDATA = 64'b0;  // 64位数据
+        M_AXI_WSTRB = 8'b0;   // 8位掩码
         M_AXI_WLAST = 1'b1;
         M_AXI_WUSER = 1'b0;
         M_AXI_WVALID = 1'b0;
         
         if (axi_write_state == AXI_WRITE_DATA) begin
             M_AXI_WVALID = 1'b1;
-            M_AXI_WDATA = mem_fifo[axi_write_processing_idx].wdata[31:0]; // 取低32位
-            M_AXI_WSTRB = mem_fifo[axi_write_processing_idx].wmask[3:0];  // 取低4位
+            M_AXI_WDATA = mem_fifo[axi_write_processing_idx].wdata; // 直接使用64位数据
+            M_AXI_WSTRB = mem_fifo[axi_write_processing_idx].wmask; // 直接使用8位掩码
         end
         
         // 写响应通道
@@ -547,37 +547,41 @@ module exu_lsu #(
                 mem_fifo[axi_read_processing_idx].axi_resp_received <= 1'b1;
                 
                 // 根据操作类型处理读取的数据
+                // 从64位AXI数据中选择正确的32位word
+                wire [31:0] selected_word = mem_fifo[axi_read_processing_idx].addr[2] ? 
+                                          M_AXI_RDATA[63:32] : M_AXI_RDATA[31:0];
+                
                 case (mem_fifo[axi_read_processing_idx].op_type)
                     OP_LB: begin
                         case (mem_fifo[axi_read_processing_idx].addr[1:0])
-                            2'b00: mem_fifo[axi_read_processing_idx].result_data <= {{24{M_AXI_RDATA[7]}}, M_AXI_RDATA[7:0]};
-                            2'b01: mem_fifo[axi_read_processing_idx].result_data <= {{24{M_AXI_RDATA[15]}}, M_AXI_RDATA[15:8]};
-                            2'b10: mem_fifo[axi_read_processing_idx].result_data <= {{24{M_AXI_RDATA[23]}}, M_AXI_RDATA[23:16]};
-                            2'b11: mem_fifo[axi_read_processing_idx].result_data <= {{24{M_AXI_RDATA[31]}}, M_AXI_RDATA[31:24]};
+                            2'b00: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[7]}}, selected_word[7:0]};
+                            2'b01: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[15]}}, selected_word[15:8]};
+                            2'b10: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[23]}}, selected_word[23:16]};
+                            2'b11: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[31]}}, selected_word[31:24]};
                         endcase
                     end
                     OP_LBU: begin
                         case (mem_fifo[axi_read_processing_idx].addr[1:0])
-                            2'b00: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, M_AXI_RDATA[7:0]};
-                            2'b01: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, M_AXI_RDATA[15:8]};
-                            2'b10: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, M_AXI_RDATA[23:16]};
-                            2'b11: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, M_AXI_RDATA[31:24]};
+                            2'b00: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[7:0]};
+                            2'b01: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[15:8]};
+                            2'b10: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[23:16]};
+                            2'b11: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[31:24]};
                         endcase
                     end
                     OP_LH: begin
                         case (mem_fifo[axi_read_processing_idx].addr[1])
-                            1'b0: mem_fifo[axi_read_processing_idx].result_data <= {{16{M_AXI_RDATA[15]}}, M_AXI_RDATA[15:0]};
-                            1'b1: mem_fifo[axi_read_processing_idx].result_data <= {{16{M_AXI_RDATA[31]}}, M_AXI_RDATA[31:16]};
+                            1'b0: mem_fifo[axi_read_processing_idx].result_data <= {{16{selected_word[15]}}, selected_word[15:0]};
+                            1'b1: mem_fifo[axi_read_processing_idx].result_data <= {{16{selected_word[31]}}, selected_word[31:16]};
                         endcase
                     end
                     OP_LHU: begin
                         case (mem_fifo[axi_read_processing_idx].addr[1])
-                            1'b0: mem_fifo[axi_read_processing_idx].result_data <= {16'b0, M_AXI_RDATA[15:0]};
-                            1'b1: mem_fifo[axi_read_processing_idx].result_data <= {16'b0, M_AXI_RDATA[31:16]};
+                            1'b0: mem_fifo[axi_read_processing_idx].result_data <= {16'b0, selected_word[15:0]};
+                            1'b1: mem_fifo[axi_read_processing_idx].result_data <= {16'b0, selected_word[31:16]};
                         endcase
                     end
                     OP_LW: begin
-                        mem_fifo[axi_read_processing_idx].result_data <= M_AXI_RDATA;
+                        mem_fifo[axi_read_processing_idx].result_data <= selected_word;
                     end
                 endcase
             end
@@ -618,37 +622,41 @@ module exu_lsu #(
         input [2:0] load_op_type,
         input [1:0] byte_offset
     );
+        logic [31:0] result;
+        
         case (load_op_type)
             OP_LB: begin // 有符号字节
                 case (byte_offset)
-                    2'b00: extract_forward_data = {{24{store_data[7]}}, store_data[7:0]};
-                    2'b01: extract_forward_data = {{24{store_data[15]}}, store_data[15:8]};
-                    2'b10: extract_forward_data = {{24{store_data[23]}}, store_data[23:16]};
-                    2'b11: extract_forward_data = {{24{store_data[31]}}, store_data[31:24]};
+                    2'b00: result = {{24{store_data[7]}}, store_data[7:0]};
+                    2'b01: result = {{24{store_data[15]}}, store_data[15:8]};
+                    2'b10: result = {{24{store_data[23]}}, store_data[23:16]};
+                    2'b11: result = {{24{store_data[31]}}, store_data[31:24]};
                 endcase
             end
             OP_LBU: begin // 无符号字节
                 case (byte_offset)
-                    2'b00: extract_forward_data = {24'b0, store_data[7:0]};
-                    2'b01: extract_forward_data = {24'b0, store_data[15:8]};
-                    2'b10: extract_forward_data = {24'b0, store_data[23:16]};
-                    2'b11: extract_forward_data = {24'b0, store_data[31:24]};
+                    2'b00: result = {24'b0, store_data[7:0]};
+                    2'b01: result = {24'b0, store_data[15:8]};
+                    2'b10: result = {24'b0, store_data[23:16]};
+                    2'b11: result = {24'b0, store_data[31:24]};
                 endcase
             end
             OP_LH: begin // 有符号半字
                 case (byte_offset[1])
-                    1'b0: extract_forward_data = {{16{store_data[15]}}, store_data[15:0]};
-                    1'b1: extract_forward_data = {{16{store_data[31]}}, store_data[31:16]};
+                    1'b0: result = {{16{store_data[15]}}, store_data[15:0]};
+                    1'b1: result = {{16{store_data[31]}}, store_data[31:16]};
                 endcase
             end
             OP_LHU: begin // 无符号半字
                 case (byte_offset[1])
-                    1'b0: extract_forward_data = {16'b0, store_data[15:0]};
-                    1'b1: extract_forward_data = {16'b0, store_data[31:16]};
+                    1'b0: result = {16'b0, store_data[15:0]};
+                    1'b1: result = {16'b0, store_data[31:16]};
                 endcase
             end
-            default: extract_forward_data = store_data[31:0]; // LW
+            default: result = store_data[31:0]; // LW
         endcase
+        
+        return result;
     endfunction
 
 endmodule

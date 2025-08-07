@@ -36,8 +36,8 @@ module icu_issue (
     input wire [ `REG_ADDR_WIDTH-1:0] inst1_reg1_raddr_i,
     input wire [ `REG_ADDR_WIDTH-1:0] inst1_reg2_raddr_i,
     input wire                        inst1_csr_we_i,
-    input wire [ `BUS_ADDR_WIDTH-1:0] inst1_csr_waddr_i,
-    input wire [ `BUS_ADDR_WIDTH-1:0] inst1_csr_raddr_i,
+    input wire [ 31:0] inst1_csr_waddr_i,
+    input wire [ 31:0] inst1_csr_raddr_i,
     input wire [                31:0] inst1_dec_imm_i,
     input wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_i,
     input wire                        inst1_is_pred_branch_i,
@@ -50,8 +50,8 @@ module icu_issue (
     input wire [ `REG_ADDR_WIDTH-1:0] inst2_reg1_raddr_i,
     input wire [ `REG_ADDR_WIDTH-1:0] inst2_reg2_raddr_i,
     input wire                        inst2_csr_we_i,
-    input wire [ `BUS_ADDR_WIDTH-1:0] inst2_csr_waddr_i,
-    input wire [ `BUS_ADDR_WIDTH-1:0] inst2_csr_raddr_i,
+    input wire [ 31:0] inst2_csr_waddr_i,
+    input wire [ 31:0] inst2_csr_raddr_i,
     input wire [                31:0] inst2_dec_imm_i,
     input wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_i,
     input wire                        inst2_is_pred_branch_i,
@@ -75,8 +75,8 @@ module icu_issue (
     output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg_waddr_o,
     output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg1_raddr_o,
     output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg2_raddr_o,
-    output wire [ `BUS_ADDR_WIDTH-1:0] inst1_csr_waddr_o,
-    output wire [ `BUS_ADDR_WIDTH-1:0] inst1_csr_raddr_o,
+    output wire [ 31:0] inst1_csr_waddr_o,
+    output wire [ 31:0] inst1_csr_raddr_o,
     output wire                        inst1_csr_we_o,
     output wire [                31:0] inst1_dec_imm_o,
     output wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_o,
@@ -88,8 +88,8 @@ module icu_issue (
     output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg_waddr_o,
     output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg1_raddr_o,
     output wire [ `REG_ADDR_WIDTH-1:0] inst2_reg2_raddr_o,
-    output wire [ `BUS_ADDR_WIDTH-1:0] inst2_csr_waddr_o,
-    output wire [ `BUS_ADDR_WIDTH-1:0] inst2_csr_raddr_o,
+    output wire [ 31:0] inst2_csr_waddr_o,
+    output wire [ 31:0] inst2_csr_raddr_o,
     output wire                        inst2_csr_we_o,
     output wire [                31:0] inst2_dec_imm_o,
     output wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_o,
@@ -154,8 +154,8 @@ module icu_issue (
     wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg_waddr = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg_waddr_i;
     wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg1_raddr = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg1_raddr_i;
     wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg2_raddr = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg2_raddr_i;
-    wire [ `BUS_ADDR_WIDTH-1:0] nxt_inst1_csr_waddr = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_waddr_i;
-    wire [ `BUS_ADDR_WIDTH-1:0] nxt_inst1_csr_raddr = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_raddr_i;
+    wire [ 31:0] nxt_inst1_csr_waddr = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_waddr_i;
+    wire [ 31:0] nxt_inst1_csr_raddr = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_raddr_i;
     wire                        nxt_inst1_csr_we = flush_en_1 ? 1'b0 : inst1_csr_we_i;
     wire [                31:0] nxt_inst1_dec_imm = flush_en_1 ? 32'b0 : inst1_dec_imm_i;
     wire [  `DECINFO_WIDTH-1:0] nxt_inst1_dec_info_bus = flush_en_1 ? {`DECINFO_WIDTH{1'b0}} : inst1_dec_info_bus_i;
@@ -167,8 +167,8 @@ module icu_issue (
     wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg_waddr = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg_waddr_i;
     wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg1_raddr = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg1_raddr_i;
     wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg2_raddr = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg2_raddr_i;
-    wire [ `BUS_ADDR_WIDTH-1:0] nxt_inst2_csr_waddr = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_waddr_i;
-    wire [ `BUS_ADDR_WIDTH-1:0] nxt_inst2_csr_raddr = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_raddr_i;
+    wire [ 31:0] nxt_inst2_csr_waddr = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_waddr_i;
+    wire [ 31:0] nxt_inst2_csr_raddr = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_raddr_i;
     wire                        nxt_inst2_csr_we = flush_en_2 ? 1'b0 : inst2_csr_we_i;
     wire [                31:0] nxt_inst2_dec_imm = flush_en_2 ? 32'b0 : inst2_dec_imm_i;
     wire [  `DECINFO_WIDTH-1:0] nxt_inst2_dec_info_bus = flush_en_2 ? {`DECINFO_WIDTH{1'b0}} : inst2_dec_info_bus_i;
@@ -232,7 +232,7 @@ module icu_issue (
     assign inst1_reg2_raddr_o = inst1_reg2_raddr;
 
     // 指令1 CSR写地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] inst1_csr_waddr;
+    wire [31:0] inst1_csr_waddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) inst1_csr_waddr_ff (
         clk,
         rst_n,
@@ -243,7 +243,7 @@ module icu_issue (
     assign inst1_csr_waddr_o = inst1_csr_waddr;
 
     // 指令1 CSR读地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] inst1_csr_raddr;
+    wire [31:0] inst1_csr_raddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) inst1_csr_raddr_ff (
         clk,
         rst_n,
@@ -363,7 +363,7 @@ module icu_issue (
     assign inst2_reg2_raddr_o = inst2_reg2_raddr;
 
     // 指令2 CSR写地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] inst2_csr_waddr;
+    wire [31:0] inst2_csr_waddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) inst2_csr_waddr_ff (
         clk,
         rst_n,
@@ -374,7 +374,7 @@ module icu_issue (
     assign inst2_csr_waddr_o = inst2_csr_waddr;
 
     // 指令2 CSR读地址寄存器
-    wire [`BUS_ADDR_WIDTH-1:0] inst2_csr_raddr;
+    wire [31:0] inst2_csr_raddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) inst2_csr_raddr_ff (
         clk,
         rst_n,
