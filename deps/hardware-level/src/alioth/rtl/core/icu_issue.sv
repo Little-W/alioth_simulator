@@ -480,7 +480,7 @@ module icu_issue (
         inst1_timestamp_nxt,
         inst1_timestamp_reg
     );
-    assign inst1_timestamp_o_ex = inst1_timestamp_reg;
+    assign inst1_timestamp_o = inst1_timestamp_reg;
 
     wire [31:0] inst2_timestamp_nxt = flush_en_2 ? 32'b0 : inst2_timestamp_i;
     wire [31:0] inst2_timestamp_reg;
@@ -491,7 +491,7 @@ module icu_issue (
         inst2_timestamp_nxt,
         inst2_timestamp_reg
     );
-    assign inst2_timestamp_o_ex = inst2_timestamp_reg;
+    assign inst2_timestamp_o = inst2_timestamp_reg;
 
     wire inst1_illegal_inst_nxt = flush_en_1 ? 1'b0 : inst1_illegal_inst_i;
     wire inst1_illegal_inst_reg;

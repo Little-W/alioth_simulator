@@ -58,7 +58,7 @@ module dispatch_pipe (
     input wire        req_alu_i,
     input wire [31:0] alu_op1_i,
     input wire [31:0] alu_op2_i,
-    input wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
+    input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
 
     // BJP输入端口
     input wire        req_bjp_i,

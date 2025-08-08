@@ -101,6 +101,7 @@ module dispatch (
     output wire        bjp_op_bge_o,
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
+    output wire        inst_is_pred_branch_o,
 
     // dispatch to MULDIV (第一路)
     output wire                        inst1_req_muldiv_o,
@@ -177,13 +178,11 @@ module dispatch (
     output wire sys_op_dret_o,
 
     //指令其他信号（第一路）
-    output wire inst1_is_pred_branch_o,
     output wire inst1_misaligned_load_o,
     output wire inst1_misaligned_store_o,
     output wire inst1_illegal_inst_o,
     
     //指令其他信号（第二路）
-    output wire inst2_is_pred_branch_o,
     output wire inst2_misaligned_load_o,
     output wire inst2_misaligned_store_o,
     output wire inst2_illegal_inst_o,
@@ -279,6 +278,10 @@ module dispatch (
     wire        pipe_inst2_sys_op_fence_o;
     wire        pipe_inst2_sys_op_dret_o;
 
+    // 第一路和第二路预测跳转信号
+    wire        pipe_inst1_is_pred_branch;
+    wire        pipe_inst2_is_pred_branch;
+
     // 第一路dispatch_logic输出信号
     wire                        inst1_logic_req_alu;
     wire [                31:0] inst1_logic_alu_op1;
@@ -290,7 +293,7 @@ module dispatch (
     wire [                31:0] inst1_logic_bjp_op2;
     wire [                31:0] inst1_logic_bjp_jump_op1;
     wire [                31:0] inst1_logic_bjp_jump_op2;
-    wire                        inst1_logic_bjp_op_jump;
+    wire                        inst1_logic_bjp_op_jal;
     wire                        inst1_logic_bjp_op_beq;
     wire                        inst1_logic_bjp_op_bne;
     wire                        inst1_logic_bjp_op_blt;
@@ -353,7 +356,7 @@ module dispatch (
     wire [                31:0] inst2_logic_bjp_op2;
     wire [                31:0] inst2_logic_bjp_jump_op1;
     wire [                31:0] inst2_logic_bjp_jump_op2;
-    wire                        inst2_logic_bjp_op_jump;
+    wire                        inst2_logic_bjp_op_jal;
     wire                        inst2_logic_bjp_op_beq;
     wire                        inst2_logic_bjp_op_bne;
     wire                        inst2_logic_bjp_op_blt;
@@ -425,7 +428,7 @@ module dispatch (
         .bjp_op2_o     (inst1_logic_bjp_op2),
         .bjp_jump_op1_o(inst1_logic_bjp_jump_op1),
         .bjp_jump_op2_o(inst1_logic_bjp_jump_op2),
-        .bjp_op_jump_o (inst1_logic_bjp_op_jump),
+        .bjp_op_jal_o  (inst1_logic_bjp_op_jal),
         .bjp_op_beq_o  (inst1_logic_bjp_op_beq),
         .bjp_op_bne_o  (inst1_logic_bjp_op_bne),
         .bjp_op_blt_o  (inst1_logic_bjp_op_blt),
@@ -496,8 +499,8 @@ module dispatch (
         .commit_id_i          (inst1_commit_id_i),
 
         .reg_we_i             (inst1_reg_we_i),
-        .reg1_raddr_i         (inst1_reg1_raddr_i),
-        .reg2_raddr_i         (inst1_reg2_raddr_i),
+        .rs1_rdata_i         (inst1_rs1_rdata_i),
+        .rs2_rdata_i         (inst1_rs1_rdata_i),
         .csr_we_i             (inst1_csr_we_i),
         .csr_waddr_i          (inst1_csr_waddr_i),
         .csr_raddr_i          (inst1_csr_raddr_i),
@@ -516,7 +519,7 @@ module dispatch (
         .bjp_op2_i          (inst1_logic_bjp_op2),
         .bjp_jump_op1_i     (inst1_logic_bjp_jump_op1),
         .bjp_jump_op2_i     (inst1_logic_bjp_jump_op2),
-        .bjp_op_jal_i       (inst1_logic_bjp_op_jump),
+        .bjp_op_jal_i       (inst1_logic_bjp_op_jal),
         .bjp_op_beq_i       (inst1_logic_bjp_op_beq),
         .bjp_op_bne_i       (inst1_logic_bjp_op_bne),
         .bjp_op_blt_i       (inst1_logic_bjp_op_blt),
@@ -584,7 +587,7 @@ module dispatch (
         .rs1_rdata_o          (inst1_rs1_rdata_o),
         .rs2_rdata_o          (inst1_rs2_rdata_o),
         .timestamp_o          (inst1_timestamp_o),
-        .is_pred_branch_o     (inst1_is_pred_branch_o),
+        .is_pred_branch_o     (pipe_inst1_is_pred_branch),
         // Alu输出端口
         .req_alu_o            (inst1_req_alu_o),
         .alu_op1_o            (inst1_alu_op1_o),
@@ -669,7 +672,7 @@ module dispatch (
         .bjp_op2_o     (inst2_logic_bjp_op2),
         .bjp_jump_op1_o(inst2_logic_bjp_jump_op1),
         .bjp_jump_op2_o(inst2_logic_bjp_jump_op2),
-        .bjp_op_jump_o (inst2_logic_bjp_op_jump),
+        .bjp_op_jal_o  (inst2_logic_bjp_op_jal),
         .bjp_op_beq_o  (inst2_logic_bjp_op_beq),
         .bjp_op_bne_o  (inst2_logic_bjp_op_bne),
         .bjp_op_blt_o  (inst2_logic_bjp_op_blt),
@@ -736,8 +739,8 @@ module dispatch (
         .commit_id_i          (inst2_commit_id_i),
 
         .reg_we_i             (inst2_reg_we_i),
-        .reg1_raddr_i         (inst2_reg1_raddr_i),
-        .reg2_raddr_i         (inst2_reg2_raddr_i),
+        .rs1_rdata_i         (inst2_rs1_rdata_i),
+        .rs2_rdata_i         (inst2_rs2_rdata_i),
         .csr_we_i             (inst2_csr_we_i),
         .csr_waddr_i          (inst2_csr_waddr_i),
         .csr_raddr_i          (inst2_csr_raddr_i),
@@ -756,7 +759,7 @@ module dispatch (
         .bjp_op2_i          (inst2_logic_bjp_op2),
         .bjp_jump_op1_i     (inst2_logic_bjp_jump_op1),
         .bjp_jump_op2_i     (inst2_logic_bjp_jump_op2),
-        .bjp_op_jal_i       (inst2_logic_bjp_op_jump),
+        .bjp_op_jal_i       (inst2_logic_bjp_op_jal),
         .bjp_op_beq_i       (inst2_logic_bjp_op_beq),
         .bjp_op_bne_i       (inst2_logic_bjp_op_bne),
         .bjp_op_blt_i       (inst2_logic_bjp_op_blt),
@@ -824,7 +827,7 @@ module dispatch (
         .rs1_rdata_o          (inst2_rs1_rdata_o),
         .rs2_rdata_o          (inst2_rs2_rdata_o),
         .timestamp_o          (inst2_timestamp_o),
-        .is_pred_branch_o     (inst2_is_pred_branch_o),
+        .is_pred_branch_o     (pipe_inst2_is_pred_branch),
         // Alu输出端口
         .req_alu_o            (inst2_req_alu_o),
         .alu_op1_o            (inst2_alu_op1_o),
@@ -924,6 +927,8 @@ module dispatch (
     assign bjp_op_bgeu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bgeu_o    : pipe_inst2_bjp_op_bgeu_o;
     assign bjp_op_jalr_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jalr_o : pipe_inst2_bjp_op_jalr_o;
 
+    assign inst_is_pred_branch_o = pipe_inst1_is_pred_branch | pipe_inst2_is_pred_branch;
+
     //sys合并逻辑
     //sys只留一路即可
     assign sys_op_nop_o   = pipe_inst1_sys_op_nop_o | pipe_inst2_sys_op_nop_o;
@@ -932,6 +937,7 @@ module dispatch (
     assign sys_op_ebreak_o = pipe_inst1_sys_op_ebreak_o | pipe_inst2_sys_op_ebreak_o;
     assign sys_op_fence_o = pipe_inst1_sys_op_fence_o | pipe_inst2_sys_op_fence_o;
     assign sys_op_dret_o  = pipe_inst1_sys_op_dret_o | pipe_inst2_sys_op_dret_o;
-    
+
+   
 
 endmodule

@@ -210,7 +210,7 @@ module idu (
         .reg2_raddr_o    (inst1_reg2_raddr_o),
         .csr_we_o        (inst1_csr_we_o),
         .csr_waddr_o     (inst1_csr_waddr_o),
-        .csr_raddr_o     (csr_raddr_o),
+        .csr_raddr_o     (inst1_csr_raddr_o),
         .dec_imm_o       (inst1_dec_imm_o),
         .dec_info_bus_o  (inst1_dec_info_bus_o),
         .is_pred_branch_o(inst1_is_pred_branch_o),  // 添加预测分支信号输出
@@ -257,7 +257,7 @@ module idu (
         .reg2_raddr_o    (inst2_reg2_raddr_o),
         .csr_we_o        (inst2_csr_we_o),
         .csr_waddr_o     (inst2_csr_waddr_o),
-        .csr_raddr_o     (csr_raddr2_o),
+        .csr_raddr_o     (inst2_csr_raddr_o),
         .dec_imm_o       (inst2_dec_imm_o),
         .dec_info_bus_o  (inst2_dec_info_bus_o),
         .is_pred_branch_o(inst2_is_pred_branch_o),  // 添加第二路预测分支信号输出

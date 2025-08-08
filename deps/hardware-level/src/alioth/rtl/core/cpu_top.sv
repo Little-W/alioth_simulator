@@ -254,11 +254,6 @@ module cpu_top (
     wire clint_int_jump_o;  // 添加中断跳转信号
     wire clint_req_valid_o;  // 添加中断请求有效信号
     wire clint_flush_flag_o;  // 添加CLINT flush信号
-    wire clint_stall_flag_o;  // 添加CLINT stall信号
-
-    // 新增信号定义
-    wire if_inst2_valid_o;
-    assign if_inst2_valid_o = if_inst1_valid_o;  // 第二路指令有效信号与第一路相同
     
     // IDU输出信号定义
     wire idu_inst1_jump_o;      // 第一路跳转指令输出
@@ -383,6 +378,7 @@ module cpu_top (
     wire dispatch_bjp_op_bge;
     wire dispatch_bjp_op_bgeu;
     wire dispatch_bjp_op_jalr;
+    wire dispatch_inst_is_pred_branch_o;  // 添加预测分支指令标志输出
 
     // dispatch to MULDIV - 双发射
     wire dispatch_req_muldiv;
@@ -472,13 +468,15 @@ module cpu_top (
     wire dispatch_sys_op_fence;
     wire dispatch_sys_op_dret;
 
-    wire  dispatch_inst2_is_pred_branch_o;
+    wire  dispatch_inst1_misaligned_load_o;
+    wire  dispatch_inst1_misaligned_store_o;
+    wire  dispatch_inst1_illegal_o;
     wire  dispatch_inst2_misaligned_load_o;
     wire  dispatch_inst2_misaligned_store_o;
-    wire  dispatch_inst2_illegal_dispatch_inst_o;
+    wire  dispatch_inst2_illegal_o;
 
-    wire [`DISPATCH_INST_ADDR_WIDTH-1:0] dispatch_inst1_addr_o; 
-    wire [`DISPATCH_INST_ADDR_WIDTH-1:0] dispatch_inst2_addr_o; 
+    wire [31:0] dispatch_inst1_addr_o; 
+    wire [31:0] dispatch_inst2_addr_o; 
     wire [31:0] dispatch_inst1_o; 
     wire [31:0] dispatch_inst2_o; 
     wire dispatch_inst1_valid_o; 
@@ -548,7 +546,6 @@ module cpu_top (
 
     // 给dispatch和HDU的译码信息 - 修改为双发射
     wire dis_is_pred_branch_o;
-    wire ext_int_req;
     // 双发射的指令有效信号
     wire inst1_valid = (ctrl_stall_flag_o == 0) ;
     wire inst2_valid = (ctrl_stall_flag_o == 0) ;
@@ -560,15 +557,13 @@ module cpu_top (
                           (icu_inst2_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     
     // 双发射的CLINT有效信号
-    wire inst1_clint_valid = !icu_inst1_is_pred_branch_o &&;
-    wire inst2_clint_valid = !icu_inst2_is_pred_branch_o &&;
-    
+    wire inst1_clint_valid = !icu_inst1_is_pred_branch_o && (inst1_valid);
+    wire inst2_clint_valid = !icu_inst2_is_pred_branch_o && (inst2_valid);
+
     // 双发射的寄存器访问有效信号
     wire inst1_rd_access_valid = icu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
     wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
     
-    // 跳转地址有效信号
-    wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
 
     // CLINT AXI-Lite接口信号
     wire OM1_AXI_ACLK;
@@ -665,7 +660,6 @@ module cpu_top (
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_flush_flag_o),     // 添加连接到clint的flush信号
-        .stall_flag_clint_i(clint_stall_flag_o),
         .stall_flag_hdu_i  (new_issue_stall_flag_o),  // 修改为从icu获取数据冒险暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
@@ -768,7 +762,7 @@ module cpu_top (
         .inst2_dec_info_bus_o(idu_inst2_dec_info_bus_o),
         .inst2_is_pred_branch_o(idu_inst2_is_pred_branch_o),
         .inst2_valid_o   (idu_inst2_valid_o),
-        .inst2_illegal_inst_o(idu_inst2_illegal_inst_o),
+        .inst2_illegal_inst_o(idu_illegal_inst2_o),
         .inst2_o         (idu_inst2_o),
         .inst2_csr_type_o(idu_inst2_csr_type_o)
     );
@@ -791,7 +785,7 @@ module cpu_top (
         .inst1_dec_info_bus_i   (idu_inst1_dec_info_bus_o),
         .inst1_is_pred_branch_i (idu_inst1_is_pred_branch_o),
         .inst1_i                (idu_inst1_o),
-        .inst1_illegal_inst_i   (idu_inst1_illegal_inst_o),
+        .inst1_illegal_inst_i   (idu_illegal_inst1_o),
         .inst1_valid_i          (idu_inst1_valid_o),
         .inst1_jump_i           (idu_inst1_jump_o),  // 第一路跳转信号
         .inst1_branch_i         (idu_inst1_branch_o), // 第一路分支信号
@@ -947,6 +941,7 @@ module cpu_top (
         .bjp_op_bge_o  (dispatch_bjp_op_bge),
         .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
         .bjp_op_jalr_o (dispatch_bjp_op_jalr),
+        .inst_is_pred_branch_o  (dispatch_inst_is_pred_branch_o), // 连接预测分支信号输出
 
         // 第一路乘除法指令
         .inst1_req_muldiv_o       (dispatch_req_muldiv),
@@ -985,7 +980,7 @@ module cpu_top (
         .csr_csrrw_o(dispatch_csr_csrrw),
         .csr_csrrs_o(dispatch_csr_csrrs),
         .csr_csrrc_o(dispatch_csr_csrrc),
-        .csr_we_o (dispatch_csr_we),
+        .csr_we_o (dispatch_csr_we_o),
         .csr_waddr_o(dispatch_csr_waddr_o),
         .csr_raddr_o(dispatch_csr_raddr_o),
 
@@ -1016,24 +1011,22 @@ module cpu_top (
         .inst2_mem_wdata_o       (dispatch_mem2_wdata),
 
         // sys指令 - 只需要一路
-        .inst1_sys_op_nop_o      (dispatch_sys_op_nop),
-        .inst1_sys_op_mret_o     (dispatch_sys_op_mret),
-        .inst1_sys_op_ecall_o    (dispatch_sys_op_ecall),
-        .inst1_sys_op_ebreak_o   (dispatch_sys_op_ebreak),
-        .inst1_sys_op_fence_o    (dispatch_sys_op_fence),
-        .inst1_sys_op_dret_o     (dispatch_sys_op_dret),
+        .sys_op_nop_o      (dispatch_sys_op_nop),
+        .sys_op_mret_o     (dispatch_sys_op_mret),
+        .sys_op_ecall_o    (dispatch_sys_op_ecall),
+        .sys_op_ebreak_o   (dispatch_sys_op_ebreak),
+        .sys_op_fence_o    (dispatch_sys_op_fence),
+        .sys_op_dret_o     (dispatch_sys_op_dret),
 
         // 其他指令信号 - 第一路
-        .inst1_is_pred_branch_o  (dispatch_is_pred_branch_o), // 连接预测分支信号输出
-        .inst1_misaligned_load_o (dispatch_misaligned_load_o),
-        .inst1_misaligned_store_o(dispatch_misaligned_store_o),
-        .inst1_illegal_inst_o    (dispatch_illegal_inst_o),       // 连接IDU的非法指令输出
+        .inst1_misaligned_load_o (dispatch_inst1_misaligned_load_o),
+        .inst1_misaligned_store_o(dispatch_inst1_misaligned_store_o),
+        .inst1_illegal_inst_o    (dispatch_inst1_illegal_o),       // 连接IDU的非法指令输出
 
         // 其他指令信号 - 第二路
-        .inst2_is_pred_branch_o  (dispatch_is_pred_branch2_o),
-        .inst2_misaligned_load_o (dispatch_misaligned_load2_o),
-        .inst2_misaligned_store_o(dispatch_misaligned_store2_o),
-        .inst2_illegal_inst_o    (dispatch_illegal_inst2_o),
+        .inst2_misaligned_load_o (dispatch_inst2_misaligned_load_o),
+        .inst2_misaligned_store_o(dispatch_inst2_misaligned_store_o),
+        .inst2_illegal_inst_o    (dispatch_inst2_illegal_o),
 
         .inst1_addr_o          (dispatch_inst1_addr_o),
         .inst2_addr_o          (dispatch_inst2_addr_o),
@@ -1055,8 +1048,8 @@ module cpu_top (
         .inst2_rs2_rdata_o     (dispatch_inst2_rs2_rdata_o),
         .inst1_timestamp_o     (dispatch_inst1_timestamp_o),
         .inst2_timestamp_o     (dispatch_inst2_timestamp_o),
-        .inst1_commit_id_o     (dispatch_inst1_commit_id),
-        .inst2_commit_id_o     (dispatch_inst2_commit_id)
+        .inst1_commit_id_o     (dispatch_inst1_commit_id_o),
+        .inst2_commit_id_o     (dispatch_inst2_commit_id_o)
     );
 
     // exu模块例化 - 修改为双发射接口
@@ -1158,7 +1151,7 @@ module cpu_top (
         .bjp_op_bge_i(dispatch_bjp_op_bge),
         .bjp_op_bgeu_i(dispatch_bjp_op_bgeu),
         .bjp_op_jalr_i(dispatch_bjp_op_jalr),
-        .is_pred_branch_i(dis_is_pred_branch_o),
+        .is_pred_branch_i(dispatch_inst_is_pred_branch_o),
 
         // LSU0接口
         .req_mem0_i(dispatch_req_mem),
@@ -1784,6 +1777,10 @@ module cpu_top (
             global_timestamp <= global_timestamp + 1'b1;
         end
     end
+
+    assign dispatch_misaligned_load_o = dispatch_inst1_misaligned_load_o | dispatch_inst2_misaligned_load_o;
+    assign dispatch_misaligned_store_o = dispatch_inst1_misaligned_store_o | dispatch_inst2_misaligned_store_o;
+    assign dispatch_illegal_inst_o = dispatch_inst1_illegal_o | dispatch_inst2_illegal_o;
 
     // 为每个执行单元分配时间戳（简化处理，实际应根据指令发射时间分配）
     assign alu0_timestamp = global_timestamp;

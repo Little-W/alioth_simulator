@@ -45,7 +45,7 @@ module tb_top (
     // 通用寄存器访问 - 仅用于错误信息显示
     wire [31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire [31:0] pc = alioth_soc_top_0.u_cpu_top.u_dispatch.pipe_inst_addr_o;
+    wire [31:0] pc = alioth_soc_top_0.u_cpu_top.u_dispatch.inst2_addr_o;
     wire [31:0] csr_cyclel = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
     wire [31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
     wire [31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];

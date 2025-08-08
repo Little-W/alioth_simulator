@@ -183,6 +183,8 @@ module exu_lsu #(
     reg raw_detected;
     reg [31:0] forward_data;
     reg forward_valid;
+
+    wire [31:0] selected_word;
     
     // AXI状态机 - 支持Load/Store并行
     typedef enum logic [2:0] {
@@ -535,12 +537,10 @@ module exu_lsu #(
             // 处理读响应
             if (M_AXI_RVALID && M_AXI_RREADY) begin
                 mem_fifo[axi_read_processing_idx].axi_resp_received <= 1'b1;
-                
                 // 根据操作类型处理读取的数据
                 // 从64位AXI数据中选择正确的32位word
-                wire [31:0] selected_word = mem_fifo[axi_read_processing_idx].addr[2] ? 
-                                          M_AXI_RDATA[63:32] : M_AXI_RDATA[31:0];
-                
+                selected_word = (mem_fifo[axi_read_processing_idx].addr[2]) ? M_AXI_RDATA[63:32] : M_AXI_RDATA[31:0];
+
                 case (mem_fifo[axi_read_processing_idx].op_type)
                     OP_LB: begin
                         case (mem_fifo[axi_read_processing_idx].addr[1:0])

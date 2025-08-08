@@ -73,8 +73,7 @@ module ifu (
     wire [`BUS_DATA_WIDTH-1:0] inst_data;  // 从AXI读取的64位指令数据
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;  // 从AXI读取的指令地址
     wire inst_valid_axi;  // AXI控制器的指令有效信号
-    wire wait_for_jalr;  // 等待JALR指令的信号
-    wire inst_valid = inst_valid_axi & ~wait_for_jalr;  // 有效指令信号，排除JALR等待状态
+    wire inst_valid = inst_valid_axi;  // 有效指令信号，排除JALR等待状态
 
     // 双指令解析
     wire [31:0] inst0_data = inst_data[31:0];   // 第一条指令（低32位）
@@ -113,12 +112,10 @@ module ifu (
         .pc0_i           (inst0_addr),       // 第一条指令地址
         .pc1_i           (inst1_addr),       // 第二条指令地址
         .any_stall_i     (stall_axi),        // 流水线暂停信号
-        .jalr_executed_i (jalr_executed_i),  // JALR执行信号输入
         .branch_taken_o  (branch_taken),     // 预测是否为分支
         .branch_addr_o   (branch_addr),      // 预测的分支地址
         .is_pred_branch0_o(is_pred_branch0), // 第一条指令预测分支信号
         .is_pred_branch1_o(is_pred_branch1), // 第二条指令预测分支信号
-        .wait_for_jalr_o (wait_for_jalr),    // JALR等待信号输出
         .branch_inst_slot_o(branch_inst_slot) // 分支指令所在槽位
     );
 

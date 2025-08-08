@@ -37,14 +37,12 @@ module sbpu (
     input wire [`INST_ADDR_WIDTH-1:0] pc0_i,           // 第一条指令PC
     input wire [`INST_ADDR_WIDTH-1:0] pc1_i,           // 第二条指令PC
     input wire                        any_stall_i,     // 流水线暂停信号
-    input wire                        jalr_executed_i, // JALR执行完成信号
 
     // 双指令输出
     output wire                        branch_taken_o,     // 预测是否为分支
     output wire [`INST_ADDR_WIDTH-1:0] branch_addr_o,      // 预测的分支地址
     output wire                        is_pred_branch0_o,  // 第一条指令是经过预测的有条件分支指令
     output wire                        is_pred_branch1_o,  // 第二条指令是经过预测的有条件分支指令
-    output wire                        wait_for_jalr_o,    // JALR等待信号
     output wire                        branch_inst_slot_o, // 分支指令所在槽位 (0=第一条, 1=第二条)
     output wire                        inst1_disable_o     // 指令1为JAL时，禁用指令2通道
 );
@@ -55,7 +53,7 @@ module sbpu (
     wire       opcode0_1100111 = (opcode0 == 7'b1100111);
     wire       inst0_type_branch = opcode0_1100011;
     wire       inst0_jal = opcode0_1101111;
-    wire       inst0_jalr = opcode0_1100111;
+
 
     // 第二条指令解析
     wire [6:0] opcode1 = inst1_i[6:0];
@@ -64,7 +62,6 @@ module sbpu (
     wire       opcode1_1100111 = (opcode1 == 7'b1100111);
     wire       inst1_type_branch = opcode1_1100011;
     wire       inst1_jal = opcode1_1101111;
-    wire       inst1_jalr = opcode1_1100111;
 
     // 第一条指令立即数提取
     wire [31:0] inst0_b_type_imm = {{20{inst0_i[31]}}, inst0_i[7], inst0_i[30:25], inst0_i[11:8], 1'b0};
@@ -131,18 +128,6 @@ module sbpu (
     assign branch_taken_o = final_branch_taken & ~any_stall_i;  // 分支预测结果，且不在暂停状态
     assign branch_addr_o = branch_addr;
 
-    // JALR等待状态寄存器（支持双指令）
-    reg wait_for_jalr;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) 
-            wait_for_jalr <= 1'b0;
-        else if ((inst0_valid_i && inst0_jalr) || (inst1_valid_i && inst1_jalr))
-            wait_for_jalr <= 1'b1;      // 任一指令为JALR时设置等待
-        else if (jalr_executed_i) 
-            wait_for_jalr <= 1'b0;      // JALR执行完成，清除等待
-    end
-
-    assign wait_for_jalr_o = wait_for_jalr;
 
     // 预测跳但实际没跳的情况的处理逻辑在EXU
 endmodule
