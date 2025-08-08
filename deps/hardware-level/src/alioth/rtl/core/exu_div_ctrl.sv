@@ -29,8 +29,6 @@ module exu_div_ctrl (
     input wire clk,
     input wire rst_n,
     input wire wb_ready_i,
-    input wire stall_i,     // 来自CU的暂停信号
-    input wire flush_i,     // 来自CU的冲刷信号
 
     // 指令和操作数输入 - 来自dispatch
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
@@ -93,10 +91,10 @@ module exu_div_ctrl (
     assign div_op_sel = {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
     
     // 有效除法操作判断
-    assign is_div_op = req_div_i && !int_assert_i && !flush_i;
+    assign is_div_op = req_div_i && !int_assert_i;
     
     // 除法启动条件
-    assign div_start_cond = is_div_op && !div_busy_i && !div_result_we && !stall_i;
+    assign div_start_cond = is_div_op && !div_busy_i && !div_result_we;
 
     // 寄存器更新使能条件
     wire saved_div_waddr_en = div_start_cond;

@@ -28,10 +28,8 @@
 module exu (
     input wire clk,
     input wire rst_n,
-
-    // 来自CU的控制信号
-    input wire stall_i,         // 暂停信号
-    input wire flush_i,         // 冲刷信号
+    input wire stall_i,
+    input wire flush_i,
 
     // from id_ex (保持兼容性的信号)
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -410,8 +408,6 @@ module exu (
     exu_alu u_alu0 (
         .clk            (clk),
         .rst_n          (rst_n),
-        .stall_i        (stall_i),
-        .flush_i        (flush_i),
         .req_alu_i      (req_alu0_i),
         .alu_op1_i      (alu0_op1_i),
         .alu_op2_i      (alu0_op2_i),
@@ -432,8 +428,6 @@ module exu (
     exu_alu u_alu1 (
         .clk            (clk),
         .rst_n          (rst_n),
-        .stall_i        (stall_i),
-        .flush_i        (flush_i),
         .req_alu_i      (req_alu1_i),
         .alu_op1_i      (alu1_op1_i),
         .alu_op2_i      (alu1_op2_i),
@@ -468,8 +462,6 @@ module exu (
         .clk              (clk),
         .rst_n            (rst_n),
         .wb_ready_i       (mul0_wb_ready_i),
-        .stall_i          (stall_i),
-        .flush_i          (flush_i),
         .reg_waddr_i      (mul0_rd_i),
         .reg1_rdata_i     (mul0_op1_i),
         .reg2_rdata_i     (mul0_op2_i),
@@ -513,8 +505,6 @@ module exu (
         .clk              (clk),
         .rst_n            (rst_n),
         .wb_ready_i       (mul1_wb_ready_i),
-        .stall_i          (stall_i),
-        .flush_i          (flush_i),
         .reg_waddr_i      (mul1_rd_i),
         .reg1_rdata_i     (mul1_op1_i),
         .reg2_rdata_i     (mul1_op2_i),
@@ -558,8 +548,6 @@ module exu (
         .clk              (clk),
         .rst_n            (rst_n),
         .wb_ready_i       (div0_wb_ready_i),
-        .stall_i          (stall_i),
-        .flush_i          (flush_i),
         .reg_waddr_i      (div0_rd_i),
         .reg1_rdata_i     (div0_op1_i),
         .reg2_rdata_i     (div0_op2_i),
@@ -603,8 +591,6 @@ module exu (
         .clk              (clk),
         .rst_n            (rst_n),
         .wb_ready_i       (div1_wb_ready_i),
-        .stall_i          (stall_i),
-        .flush_i          (flush_i),
         .reg_waddr_i      (div1_rd_i),
         .reg1_rdata_i     (div1_op1_i),
         .reg2_rdata_i     (div1_op2_i),
@@ -661,8 +647,6 @@ module exu (
     ) u_lsu0 (
         .clk(clk),
         .rst_n(rst_n),
-        .stall_i(stall_i),
-        .flush_i(flush_i),
         .int_assert_i(int_assert_i),
         
         .req_mem_i(req_mem0_i),
@@ -739,8 +723,6 @@ module exu (
     ) u_lsu1 (
         .clk(clk),
         .rst_n(rst_n),
-        .stall_i(stall_i),
-        .flush_i(flush_i),
         .int_assert_i(int_assert_i),
         
         .req_mem_i(req_mem1_i),
@@ -844,8 +826,6 @@ module exu (
     exu_csr_unit u_csr0 (
         .clk(clk),
         .rst_n(rst_n),
-        .stall_i(stall_i),
-        .flush_i(flush_i),
         .int_assert_i(int_assert_i),
         .pc_i(inst_addr_i),
         
@@ -877,8 +857,6 @@ module exu (
     exu_csr_unit u_csr1 (
         .clk(clk),
         .rst_n(rst_n),
-        .stall_i(stall_i),
-        .flush_i(flush_i),
         .int_assert_i(int_assert_i),
         .pc_i(inst_addr_i),
         

@@ -29,10 +29,6 @@ module exu_alu (
     input wire clk,
     input wire rst_n,
 
-    // 来自CU的控制信号
-    input wire stall_i,         // 暂停信号
-    input wire flush_i,         // 冲刷信号
-
     // 来自dispatch的输入信号
     input wire                        req_alu_i,
     input wire [                31:0] alu_op1_i,
@@ -144,13 +140,13 @@ module exu_alu (
         ({32{op_lui}} & lui_result);
 
     // 写回使能逻辑
-    wire alu_r_we = !(int_assert_i) && (req_alu_i) && reg_we_i && !flush_i;
+    wire alu_r_we = !(int_assert_i) && (req_alu_i) && reg_we_i;
 
     // 目标寄存器地址逻辑
-    wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT || flush_i) ? 5'b0 : alu_rd_i;
+    wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT) ? 5'b0 : alu_rd_i;
 
     // 握手信号控制逻辑
-    wire update_output = (wb_ready_i | ~reg_we_o) && !stall_i;
+    wire update_output = (wb_ready_i | ~reg_we_o);
 
     // 输出级寄存器
     wire [`REG_DATA_WIDTH-1:0] result_r;

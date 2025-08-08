@@ -1101,7 +1101,7 @@ module cpu_top (
         .mul0_op_mulhsu_i(dispatch_muldiv_op_mulhsu),
         .mul0_op_mulhu_i(dispatch_muldiv_op_mulhu),
         .mul0_rd_i(dispatch_reg_waddr_o),
-        .mul0_commit_id_i(dispatch_muldiv_commit_id),
+        .mul0_commit_id_i(icu_inst1_commit_id_o),
         .mul0_reg_we_i(dispatch_reg_we_o && dispatch_muldiv_op_mul_all),
         .mul0_wb_ready_i(wbu_mul0_ready_o),
 
@@ -1114,7 +1114,7 @@ module cpu_top (
         .mul1_op_mulhsu_i(dispatch_muldiv2_op_mulhsu),
         .mul1_op_mulhu_i(dispatch_muldiv2_op_mulhu),
         .mul1_rd_i(icu_inst2_reg_waddr_o),
-        .mul1_commit_id_i(dispatch_muldiv2_commit_id),
+        .mul1_commit_id_i(icu_inst2_commit_id_o),
         .mul1_reg_we_i(icu_inst2_reg_we_o && (dispatch_req_muldiv2 && dispatch_muldiv2_op_mul_all)),
         .mul1_wb_ready_i(wbu_mul1_ready_o),
 
@@ -1127,7 +1127,7 @@ module cpu_top (
         .div0_op_rem_i(dispatch_muldiv_op_rem),
         .div0_op_remu_i(dispatch_muldiv_op_remu),
         .div0_rd_i(dispatch_reg_waddr_o),
-        .div0_commit_id_i(dispatch_commit_id),
+        .div0_commit_id_i(icu_inst1_commit_id_o),
         .div0_reg_we_i(dispatch_reg_we_o && dispatch_muldiv_op_div_all),
         .div0_wb_ready_i(wbu_div0_ready_o),
 
@@ -1140,7 +1140,7 @@ module cpu_top (
         .div1_op_rem_i(dispatch_muldiv2_op_rem),
         .div1_op_remu_i(dispatch_muldiv2_op_remu),
         .div1_rd_i(icu_inst2_reg_waddr_o),
-        .div1_commit_id_i(dispatch_commit_id),
+        .div1_commit_id_i(icu_inst2_commit_id_o),
         .div1_reg_we_i(icu_inst2_reg_we_o && (dispatch_req_muldiv2 && dispatch_muldiv2_op_div_all)),
         .div1_wb_ready_i(wbu_div1_ready_o),
 
@@ -1173,7 +1173,7 @@ module cpu_top (
         .mem0_addr_i(dispatch_mem_addr),
         .mem0_wdata_i(dispatch_mem_wdata),
         .mem0_wmask_i(dispatch_mem_wmask),
-        .mem0_commit_id_i(dispatch_commit_id),
+        .mem0_commit_id_i(icu_inst1_commit_id_o),
         .mem0_reg_we_i(dispatch_reg_we_o && dispatch_req_mem),
         .mem0_wb_ready_i(wbu_lsu0_ready_o),
 
@@ -1190,7 +1190,7 @@ module cpu_top (
         .mem1_addr_i(dispatch_mem2_addr),
         .mem1_wdata_i({32'b0, dispatch_mem2_wdata}),  // 扩展到64位
         .mem1_wmask_i({4'b0, dispatch_mem2_wmask}),   // 扩展到8位
-        .mem1_commit_id_i(dispatch_commit_id),
+        .mem1_commit_id_i(icu_inst2_commit_id_o),
         .mem1_reg_we_i(icu_inst2_reg_we_o && dispatch_req_mem2),
         .mem1_wb_ready_i(wbu_lsu1_ready_o),
 

@@ -30,8 +30,6 @@ module exu_csr_unit (
     input wire rst_n,
 
     // 控制信号
-    input wire stall_i,         // 暂停信号
-    input wire flush_i,         // 冲刷信号
     input wire [`INST_ADDR_WIDTH-1:0] pc_i,  // PC信号
 
     // 指令和操作数输入

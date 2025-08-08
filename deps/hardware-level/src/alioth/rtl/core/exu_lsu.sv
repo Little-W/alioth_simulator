@@ -1,7 +1,18 @@
 /*
  The MIT License (MIT)
 
- Copyright © 2025 Yusen Wang @yusen.w@qq.com
+ Copyri    parameter C_M_AXI_RUSER_WIDTH  = 1,
+    parameter C_M_AXI_BUSER_WIDTH  = 1,
+    parameter UNIT_ID              = 0
+)(
+    input wire clk,
+    input wire rst_n,
+    
+    // 控制信号
+    input wire int_assert_i,
+
+    // 访存请求信号
+    input wire req_mem_i,en Wang @yusen.w@qq.com
                                                                          
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -40,8 +51,6 @@ module exu_lsu #(
     input wire rst_n,
     
     // 控制信号
-    input wire stall_i,
-    input wire flush_i,
     input wire int_assert_i,
 
     // 访存请求信号
@@ -213,7 +222,7 @@ module exu_lsu #(
                             OP_SW;
     
     // 请求接受条件
-    assign can_accept_req = !fifo_full && !stall_i;
+    assign can_accept_req = !fifo_full;
     
     // 输出阻塞信号 - 简化逻辑
     assign mem_stall_o = valid_op && !can_accept_req;
@@ -268,14 +277,6 @@ module exu_lsu #(
             
             for (int i = 0; i < FIFO_DEPTH; i++) begin
                 mem_fifo[i] <= '0;
-            end
-        end else if (flush_i) begin
-            fifo_head <= '0;
-            fifo_tail <= '0;
-            fifo_count <= '0;
-            
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                mem_fifo[i].valid <= 1'b0;
             end
         end else begin
             // 入队逻辑：优先处理能前递的load
@@ -334,11 +335,6 @@ module exu_lsu #(
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            axi_read_state <= AXI_IDLE;
-            axi_write_state <= AXI_IDLE;
-            axi_read_processing_idx <= '0;
-            axi_write_processing_idx <= '0;
-        end else if (flush_i) begin
             axi_read_state <= AXI_IDLE;
             axi_write_state <= AXI_IDLE;
             axi_read_processing_idx <= '0;
@@ -520,12 +516,6 @@ module exu_lsu #(
     
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                mem_fifo[i].axi_req_sent <= 1'b0;
-                mem_fifo[i].axi_resp_received <= 1'b0;
-                mem_fifo[i].result_data <= 32'b0;
-            end
-        end else if (flush_i) begin
             for (int i = 0; i < FIFO_DEPTH; i++) begin
                 mem_fifo[i].axi_req_sent <= 1'b0;
                 mem_fifo[i].axi_resp_received <= 1'b0;
