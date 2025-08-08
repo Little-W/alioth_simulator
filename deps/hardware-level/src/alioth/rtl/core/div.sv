@@ -75,6 +75,10 @@ module div (
     wire [31:0] div_result_tmp = minuend_ge_divisor ? ({div_result[30:0], 1'b1}) : ({div_result[30:0], 1'b0});
     wire [31:0] minuend_tmp = minuend_ge_divisor ? minuend_sub_res[30:0] : minuend[30:0];
 
+    // 绝对值信号
+    wire [31:0] dividend_abs = dividend_r[31] ? -dividend_r : dividend_r;
+    wire [31:0] divisor_abs = divisor_r[31] ? -divisor_r : divisor_r;
+
     // 状态机实现
     always @(posedge clk) begin
         if (!rst_n) begin
@@ -118,6 +122,24 @@ module div (
                         if (op_div | op_divu) begin
                             result_o <= 32'hffffffff;
                         end else begin
+                            result_o <= dividend_r;
+                        end
+                        state   <= STATE_IDLE;
+                        busy_o  <= 1'b0;
+                        valid_o <= 1'b1;
+                        // 提前退出：被除数小于除数
+                    end else if (
+                        (op_div | op_rem) ? (dividend_abs < divisor_abs) : (dividend_r < divisor_r)
+                    ) begin
+                        if (op_div) begin
+                            // 有符号除法，商为0，符号由被除数和除数决定
+                            result_o <= 32'b0;
+                        end else if (op_rem) begin
+                            // 有符号余数，余数就是被除数
+                            result_o <= dividend_r;
+                        end else if (op_divu) begin
+                            result_o <= 32'b0;
+                        end else if (op_remu) begin
                             result_o <= dividend_r;
                         end
                         state   <= STATE_IDLE;
