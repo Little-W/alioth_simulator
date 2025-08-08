@@ -196,75 +196,77 @@ module mems #(
 
     // ITCM与DTCM的接口信号
     // ITCM读地址通道
-    wire itcm_arready;
-    wire [C_AXI_ID_WIDTH-1:0] itcm_arid;
+    wire                        itcm_arready;
+    wire [  C_AXI_ID_WIDTH-1:0] itcm_arid;
     wire [C_AXI_ADDR_WIDTH-1:0] itcm_araddr;
-    wire [7:0] itcm_arlen;
-    wire [2:0] itcm_arsize;
-    wire [1:0] itcm_arburst;
-    wire itcm_arlock;
-    wire [3:0] itcm_arcache;
-    wire [2:0] itcm_arprot;
-    wire itcm_arvalid;
+    wire [                 7:0] itcm_arlen;
+    wire [                 2:0] itcm_arsize;
+    wire [                 1:0] itcm_arburst;
+    wire                        itcm_arlock;
+    wire [                 3:0] itcm_arcache;
+    wire [                 2:0] itcm_arprot;
+    wire                        itcm_arvalid;
 
     // ITCM读数据通道
-    wire [C_AXI_ID_WIDTH-1:0] itcm_rid;
+    wire [  C_AXI_ID_WIDTH-1:0] itcm_rid;
     wire [C_AXI_DATA_WIDTH-1:0] itcm_rdata;
-    wire [1:0] itcm_rresp;
-    wire itcm_rlast;
-    wire itcm_rvalid;
-    wire itcm_rready;
+    wire [                 1:0] itcm_rresp;
+    wire                        itcm_rlast;
+    wire                        itcm_rvalid;
+    wire                        itcm_rready;
 
     // DTCM读地址通道
-    wire dtcm_arready;
-    wire [C_AXI_ID_WIDTH-1:0] dtcm_arid;
+    wire                        dtcm_arready;
+    wire [  C_AXI_ID_WIDTH-1:0] dtcm_arid;
     wire [C_AXI_ADDR_WIDTH-1:0] dtcm_araddr;
-    wire [7:0] dtcm_arlen;
-    wire [2:0] dtcm_arsize;
-    wire [1:0] dtcm_arburst;
-    wire dtcm_arlock;
-    wire [3:0] dtcm_arcache;
-    wire [2:0] dtcm_arprot;
-    wire dtcm_arvalid;
+    wire [                 7:0] dtcm_arlen;
+    wire [                 2:0] dtcm_arsize;
+    wire [                 1:0] dtcm_arburst;
+    wire                        dtcm_arlock;
+    wire [                 3:0] dtcm_arcache;
+    wire [                 2:0] dtcm_arprot;
+    wire                        dtcm_arvalid;
 
     // DTCM读数据通道
-    wire [C_AXI_ID_WIDTH-1:0] dtcm_rid;
+    wire [  C_AXI_ID_WIDTH-1:0] dtcm_rid;
     wire [C_AXI_DATA_WIDTH-1:0] dtcm_rdata;
-    wire [1:0] dtcm_rresp;
-    wire dtcm_rlast;
-    wire dtcm_rvalid;
-    wire dtcm_rready;
+    wire [                 1:0] dtcm_rresp;
+    wire                        dtcm_rlast;
+    wire                        dtcm_rvalid;
+    wire                        dtcm_rready;
 
     // 写响应通道连接
-    wire [C_AXI_ID_WIDTH-1:0] itcm_bid;
-    wire [1:0] itcm_bresp;
-    wire itcm_bvalid;
-    wire itcm_wready;
-    wire itcm_awready;
+    wire [  C_AXI_ID_WIDTH-1:0] itcm_bid;
+    wire [                 1:0] itcm_bresp;
+    wire                        itcm_bvalid;
+    wire                        itcm_wready;
+    wire                        itcm_awready;
 
-    wire [C_AXI_ID_WIDTH-1:0] dtcm_bid;
-    wire [1:0] dtcm_bresp;
-    wire dtcm_bvalid;
-    wire dtcm_wready;
-    wire dtcm_awready;
+    wire [  C_AXI_ID_WIDTH-1:0] dtcm_bid;
+    wire [                 1:0] dtcm_bresp;
+    wire                        dtcm_bvalid;
+    wire                        dtcm_wready;
+    wire                        dtcm_awready;
+
+    localparam ITCM_BASE_ADDR = `ITCM_BASE_ADDR;
+    localparam DTCM_BASE_ADDR = `DTCM_BASE_ADDR;
+    localparam APB_BASE_ADDR = `APB_BASE_ADDR;
+    localparam CLINT_BASE_ADDR = `CLINT_BASE_ADDR;
+    localparam PLIC_BASE_ADDR = `PLIC_BASE_ADDR;
 
     // 地址解码逻辑
-    wire is_m0_itcm_r = (M0_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M0_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
-    wire is_m1_itcm_r = (M1_AXI_ARADDR >= `ITCM_BASE_ADDR) && (M1_AXI_ARADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
-    wire is_m1_dtcm_r = (M1_AXI_ARADDR >= `DTCM_BASE_ADDR) && (M1_AXI_ARADDR < (`DTCM_BASE_ADDR + `DTCM_SIZE));
-    wire is_m1_apb_r = (M1_AXI_ARADDR >= `APB_BASE_ADDR) && (M1_AXI_ARADDR < (`APB_BASE_ADDR + `APB_SIZE));
-    // CLINT区域地址解码
-    wire is_m1_clint_r = (M1_AXI_ARADDR >= `CLINT_BASE_ADDR) && (M1_AXI_ARADDR < (`CLINT_BASE_ADDR + `CLINT_SIZE));
-    // PLIC区域地址解码
-    wire is_m1_plic_r = (M1_AXI_ARADDR >= `PLIC_BASE_ADDR) && (M1_AXI_ARADDR < (`PLIC_BASE_ADDR + `PLIC_SIZE));
+    wire is_m0_itcm_r = (M0_AXI_ARADDR[C_AXI_ADDR_WIDTH-1:`ITCM_ADDR_WIDTH] == ITCM_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`ITCM_ADDR_WIDTH]);
+    wire is_m1_itcm_r = (M1_AXI_ARADDR[C_AXI_ADDR_WIDTH-1:`ITCM_ADDR_WIDTH] == ITCM_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`ITCM_ADDR_WIDTH]);
+    wire is_m1_dtcm_r = (M1_AXI_ARADDR[C_AXI_ADDR_WIDTH-1:`DTCM_ADDR_WIDTH] == DTCM_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`DTCM_ADDR_WIDTH]);
+    wire is_m1_apb_r  = (M1_AXI_ARADDR[C_AXI_ADDR_WIDTH-1:`APB_ADDR_WIDTH] == APB_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`APB_ADDR_WIDTH]);
+    wire is_m1_clint_r = (M1_AXI_ARADDR[C_AXI_ADDR_WIDTH-1:`CLINT_AXI_ADDR_WIDTH] == CLINT_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`CLINT_AXI_ADDR_WIDTH]);
+    wire is_m1_plic_r  = (M1_AXI_ARADDR[C_AXI_ADDR_WIDTH-1:`PLIC_AXI_ADDR_WIDTH] == PLIC_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`PLIC_AXI_ADDR_WIDTH]);
 
-    wire is_m1_dtcm_w = (M1_AXI_AWADDR >= `DTCM_BASE_ADDR) && (M1_AXI_AWADDR < (`DTCM_BASE_ADDR + `DTCM_SIZE));
-    wire is_m1_itcm_w = (M1_AXI_AWADDR >= `ITCM_BASE_ADDR) && (M1_AXI_AWADDR < (`ITCM_BASE_ADDR + `ITCM_SIZE));
-    wire is_m1_apb_w = (M1_AXI_AWADDR >= `APB_BASE_ADDR) && (M1_AXI_AWADDR < (`APB_BASE_ADDR + `APB_SIZE));
-    // CLINT区域写地址解码
-    wire is_m1_clint_w = (M1_AXI_AWADDR >= `CLINT_BASE_ADDR) && (M1_AXI_AWADDR < (`CLINT_BASE_ADDR + `CLINT_SIZE));
-    // PLIC区域写地址解码
-    wire is_m1_plic_w = (M1_AXI_AWADDR >= `PLIC_BASE_ADDR) && (M1_AXI_AWADDR < (`PLIC_BASE_ADDR + `PLIC_SIZE));
+    wire is_m1_dtcm_w = (M1_AXI_AWADDR[C_AXI_ADDR_WIDTH-1:`DTCM_ADDR_WIDTH] == DTCM_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`DTCM_ADDR_WIDTH]);
+    wire is_m1_itcm_w = (M1_AXI_AWADDR[C_AXI_ADDR_WIDTH-1:`ITCM_ADDR_WIDTH] == ITCM_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`ITCM_ADDR_WIDTH]);
+    wire is_m1_apb_w  = (M1_AXI_AWADDR[C_AXI_ADDR_WIDTH-1:`APB_ADDR_WIDTH] == APB_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`APB_ADDR_WIDTH]);
+    wire is_m1_clint_w = (M1_AXI_AWADDR[C_AXI_ADDR_WIDTH-1:`CLINT_AXI_ADDR_WIDTH] == CLINT_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`CLINT_AXI_ADDR_WIDTH]);
+    wire is_m1_plic_w  = (M1_AXI_AWADDR[C_AXI_ADDR_WIDTH-1:`PLIC_AXI_ADDR_WIDTH] == PLIC_BASE_ADDR[C_AXI_ADDR_WIDTH-1:`PLIC_AXI_ADDR_WIDTH]);
 
     // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
     // 定义仲裁相关信号
@@ -1234,3 +1236,4 @@ module mems #(
     );
 
 endmodule
+
