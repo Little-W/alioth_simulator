@@ -42,8 +42,8 @@ module gnrl_ram #(
     output reg [DATA_WIDTH-1:0] data_o  // read data
 );
 
-    // 字节地址到字地址转换的偏移量（每个字4字节，需要右移2位）
-    localparam ADDR_OFFSET = 2;
+    // 字节地址到字地址转换的偏移量（每个字4字节，需要右移3位）
+    localparam ADDR_OFFSET = 3;
 
     // 自动计算深度 = 2^(ADDR_WIDTH - ADDR_OFFSET)，因为是按字寻址
     localparam DEPTH = (1 << (ADDR_WIDTH - ADDR_OFFSET));

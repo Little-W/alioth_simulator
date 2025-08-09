@@ -281,6 +281,7 @@ module cpu_top (
 
     // inst_valid相关信号定义
     wire if_valid_o;  // IFU输出指令有效信号
+    wire pc_misaligned_o;  // IFU输出PC非对齐信号
     wire idu_inst1_valid_o;  // IDU输出指令有效信号
     wire idu_inst2_valid_o;  // 第二路IDU输出指令有效信号
     wire dispatch_inst_valid_o;  // dispatch输出流水线指令有效信号
@@ -520,22 +521,26 @@ module cpu_top (
     // 给dispatch和HDU的译码信息 - 修改为双发射
     wire dis_is_pred_branch_o;
     // 双发射的指令有效信号
-    wire inst1_valid = (ctrl_stall_flag_o == 0) ;
-    wire inst2_valid = (ctrl_stall_flag_o == 0) ;
+    // 双发射的指令有效信号 - 64位访存的正确处理
+    // 当PC[2]=0时：可以双发射（inst1和inst2都可能有效）
+    // 当PC[2]=1时：只能单发射（只有inst1有效，inst2无效）
+    wire inst1_valid = (ctrl_stall_flag_o == 0);  // inst1总是可能有效
+    wire inst2_valid = (ctrl_stall_flag_o == 0) && !pc_misaligned_o;  // inst2只在PC对齐时有效
     
-    // 双发射的EXU有效信号
+    // 双发射的EXU有效信号 - 64位访存的正确处理
     wire inst1_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
                           (icu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     wire inst2_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+                          !pc_misaligned_o &&
                           (icu_inst2_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     
-    // 双发射的CLINT有效信号
+    // 双发射的CLINT有效信号 - 考虑PC非对齐
     wire inst1_clint_valid = !icu_inst1_is_pred_branch_o && (inst1_valid);
     wire inst2_clint_valid = !icu_inst2_is_pred_branch_o && (inst2_valid);
 
-    // 双发射的寄存器访问有效信号
+    // 双发射的寄存器访问有效信号 - 64位访存的正确处理
     wire inst1_rd_access_valid = icu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
-    wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o && !pc_misaligned_o;
     
 
     // CLINT AXI-Lite接口信号
@@ -601,6 +606,7 @@ module cpu_top (
         .is_pred_branch1_o(if_inst1_is_pred_branch_o),    // 第一条指令预测分支信号输出
         .is_pred_branch2_o(if_inst2_is_pred_branch_o),    // 第二条指令预测分支信号输出
         .inst_valid_o     (if_valid_o),        // 添加指令有效信号输出
+        .pc_misaligned_o  (pc_misaligned_o),   // PC非对齐信号输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -1518,11 +1524,11 @@ module cpu_top (
         .C_AXI_DATA_WIDTH    (`BUS_DATA_WIDTH),
         .C_AXI_ADDR_WIDTH    (`BUS_ADDR_WIDTH),
         .C_OM0_AXI_ADDR_WIDTH(32),
-        .C_OM0_AXI_DATA_WIDTH(32),
+        .C_OM0_AXI_DATA_WIDTH(64),  // APB - 改为64位
         .C_OM1_AXI_ADDR_WIDTH(32),
-        .C_OM1_AXI_DATA_WIDTH(32),
+        .C_OM1_AXI_DATA_WIDTH(64),  // CLINT - 改为64位
         .C_OM2_AXI_ADDR_WIDTH(`PLIC_ADDR_WIDTH),
-        .C_OM2_AXI_DATA_WIDTH(`BUS_DATA_WIDTH)
+        .C_OM2_AXI_DATA_WIDTH(64)   // PLIC - 改为64位
     ) u_mems (
         .clk  (clk),
         .rst_n(rst_n),

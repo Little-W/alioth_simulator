@@ -44,6 +44,7 @@ module ifu (
     output wire                        is_pred_branch1_o,  // 第一条指令预测分支标志输出
     output wire                        is_pred_branch2_o,  // 第二条指令预测分支标志输出
     output wire                        inst_valid_o,        // 添加指令有效信号输出
+    output wire                        pc_misaligned_o,     // PC非对齐信号输出
 
     // AXI接口
     // AXI读地址通道
@@ -75,11 +76,14 @@ module ifu (
     wire inst_valid_axi;  // AXI控制器的指令有效信号
     wire inst_valid = inst_valid_axi;  // 有效指令信号，排除JALR等待状态
 
-    // 双指令解析
-    wire [31:0] inst0_data = inst_data[31:0];   // 第一条指令（低32位）
-    wire [31:0] inst1_data = inst_data[63:32];  // 第二条指令（高32位）
-    wire [`INST_ADDR_WIDTH-1:0] inst0_addr = inst_addr;        // 第一条指令地址
-    wire [`INST_ADDR_WIDTH-1:0] inst1_addr = inst_addr + 4;    // 第二条指令地址
+    // 64位访存的双指令解析 - 根据PC[2]正确分配指令
+    // PC[2]=0时：第一条指令在低32位，第二条指令在高32位
+    // PC[2]=1时：只有一条指令在高32位（低32位指令无效）
+    wire [31:0] inst0_data = inst_data[31:0];   // 总线低32位指令
+    wire [31:0] inst1_data = inst_data[63:32];  // 总线高32位指令
+    wire [`INST_ADDR_WIDTH-1:0] base_addr = {inst_addr[`INST_ADDR_WIDTH-1:3], 3'b000};  // 8字节对齐的基地址
+    wire [`INST_ADDR_WIDTH-1:0] inst0_addr = base_addr;        // 低32位指令地址（基地址+0）
+    wire [`INST_ADDR_WIDTH-1:0] inst1_addr = base_addr + 4;    // 高32位指令地址（基地址+4）
 
     // 分支预测相关信号
     wire branch_taken;  // 分支预测结果：是否跳转
@@ -143,6 +147,7 @@ module ifu (
         .is_pred_branch2_i(is_pred_branch1),  // 第二条指令预测分支信号
         .flush_flag_i    (flush_flag),
         .inst_valid_i    (inst_valid),       // 从AXI控制器获取的有效信号
+        .pc_misaligned_i (pc_misaligned),    // PC非对齐信号输入
         .stall_i         (stall_if),         // 连接IF阶段暂停信号
         .inst1_o         (inst1_o),          // 第一条指令输出
         .inst1_addr_o    (inst1_addr_o),     // 第一条指令地址输出
@@ -156,6 +161,7 @@ module ifu (
     // 将内部信号连接到输出端口
     assign is_pred_branch1_o = is_pred_branch0_r;
     assign is_pred_branch2_o = is_pred_branch1_r;
+    assign pc_misaligned_o = pc_misaligned;  // 输出PC非对齐信号
 
     // 实例化AXI主机模块
     ifu_axi_master #(
