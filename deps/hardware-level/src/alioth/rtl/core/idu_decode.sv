@@ -38,21 +38,22 @@ module idu_decode (
     output wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_o,  // 读通用寄存器1地址
     output wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_o,  // 读通用寄存器2地址
 
-    output wire                       rs1_re_o,
-    output wire                       rs2_re_o,
+    output wire rs1_re_o,
+    output wire rs2_re_o,
 
     // to csr reg
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
 
     // to ex
-    output wire [                31:0] dec_imm_o,       // 立即数
-    output wire [  `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,     // 指令地址
-    output wire                        reg_we_o,        // 写通用寄存器标志
-    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
-    output wire                        csr_we_o,        // 写CSR寄存器标志
-    output wire [ `BUS_ADDR_WIDTH-1:0] csr_waddr_o,     // 写CSR寄存器地址
-    output wire                        illegal_inst_o   // 非法指令输出
+    output wire [                  31:0] dec_imm_o,       // 立即数
+    output wire [    `DECINFO_WIDTH-1:0] dec_info_bus_o,  // 译码信息  [18:0] 
+    output wire [  `INST_ADDR_WIDTH-1:0] inst_addr_o,     // 指令地址
+    output wire                          reg_we_o,        // 写通用寄存器标志
+    output wire [   `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址
+    output wire                          csr_we_o,        // 写CSR寄存器标志
+    output wire [   `BUS_ADDR_WIDTH-1:0] csr_waddr_o,     // 写CSR寄存器地址
+    output wire                          illegal_inst_o,
+    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o    // 新增：ex单元类型输出
 );
 
     assign inst_addr_o = inst_addr_i;
@@ -294,13 +295,13 @@ module idu_decode (
                       (~inst_nop) & (~inst_fence) & (~inst_fence_i) & (~inst_mret);
 
     assign reg1_raddr_o = access_rs1 ? rs1 : 5'h0;
-    assign rs1_re_o = access_rs1 && (rs1 != 0);
+    assign rs1_re_o     = access_rs1 && (rs1 != 0);
 
     // 是否需要访问rs2寄存器
     wire access_rs2 = opcode_0110011 | inst_type_store | inst_type_branch;
 
     assign reg2_raddr_o = access_rs2 ? rs2 : 5'h0;
-    assign rs2_re_o = access_rs2 && (rs2 != 0);
+    assign rs2_re_o     = access_rs2 && (rs2 != 0);
 
     // 是否需要访问rd寄存器，优化逻辑：
     // 1. 只有真正需要写回的指令才会置位access_rd
@@ -311,10 +312,10 @@ module idu_decode (
                      op_csr) & rd_not_zero;
 
     assign reg_waddr_o = access_rd ? rd : 5'h0;
-    assign reg_we_o = access_rd;
+    assign reg_we_o    = access_rd;
 
     assign csr_waddr_o = insr_type_cstr ? {20'h0, inst_i[31:20]} : `ZeroWord;
-    assign csr_we_o = insr_type_cstr;
+    assign csr_we_o    = insr_type_cstr;
     assign csr_raddr_o = csr_we_o ? inst[31:20] : `ZeroWord;
 
     // 增加对slli非法移位量的检测
@@ -325,5 +326,21 @@ module idu_decode (
         ((dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) && inst_valid_i)
         || slli_illegal_shamt
     );
+
+    // ex_info_bus_o类型编码
+    // `define EX_INFO_ALU 0
+    // `define EX_INFO_BJP 1
+    // `define EX_INFO_MUL 2
+    // `define EX_INFO_DIV 3
+    // `define EX_INFO_CSR 4
+    // `define EX_INFO_LOAD 5
+    assign ex_info_bus_o =
+        op_alu    ? 3'd0 :
+        op_bjp    ? 3'd1 :
+        (inst_type_mul) ? 3'd2 :
+        (inst_type_div) ? 3'd3 :
+        op_csr    ? 3'd4 :
+        inst_type_load ? 3'd5 :
+        3'd0; // 默认ALU
 
 endmodule

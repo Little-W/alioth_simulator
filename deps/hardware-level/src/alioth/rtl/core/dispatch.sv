@@ -45,17 +45,18 @@ module dispatch (
     input wire                        is_pred_branch_i,
 
     // 寄存器写入信息 - 用于HDU检测冒险
-    input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] reg1_raddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] reg2_raddr_i,
-    input wire                       reg_we_i,
+    input wire [    `REG_ADDR_WIDTH-1:0] reg_waddr_i,
+    input wire [    `REG_ADDR_WIDTH-1:0] reg1_raddr_i,
+    input wire [    `REG_ADDR_WIDTH-1:0] reg2_raddr_i,
+    input wire                           reg_we_i,
     // 新增：rs1和rs2寄存器是否需要访问
-    input wire                       rs1_re_i,
-    input wire                       rs2_re_i,
+    input wire                           rs1_re_i,
+    input wire                           rs2_re_i,
     // 从IDU接收额外的CSR信号
-    input wire                       csr_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
+    input wire                           csr_we_i,
+    input wire [    `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input wire [    `BUS_ADDR_WIDTH-1:0] csr_raddr_i,
+    input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
 
     // 长指令有效信号 - 用于HDU
     input wire rd_access_inst_valid_i,
@@ -187,11 +188,11 @@ module dispatch (
     wire                        logic_bjp_op_bge;
     wire                        logic_bjp_op_bgeu;
     wire                        logic_bjp_op_jalr;
-    wire [31:0] logic_bjp_adder_result;
-    wire [31:0] logic_bjp_next_pc;
-    wire        logic_op1_eq_op2;
-    wire        logic_op1_ge_op2_signed;
-    wire        logic_op1_ge_op2_unsigned;
+    wire [                31:0] logic_bjp_adder_result;
+    wire [                31:0] logic_bjp_next_pc;
+    wire                        logic_op1_eq_op2;
+    wire                        logic_op1_ge_op2_signed;
+    wire                        logic_op1_ge_op2_unsigned;
 
     wire [                31:0] logic_mul_op1;
     wire [                31:0] logic_mul_op2;
@@ -262,6 +263,7 @@ module dispatch (
         .rd_we                (reg_we_i),
         .rs1_re               (rs1_re_i),
         .rs2_re               (rs2_re_i),
+        .ex_info_bus          (ex_info_bus_i),           // 新增：连接到hdu
         .commit_valid_i       (commit_valid_i),
         .commit_id_i          (commit_id_i),
         .hazard_stall_o       (hazard_stall_o),
@@ -284,20 +286,20 @@ module dispatch (
         .alu_op_info_o(logic_alu_op_info),
 
         // BJP信号
-        .req_bjp_o     (logic_req_bjp),
-        .bjp_op_jal_o  (logic_bjp_op_jal),
-        .bjp_op_beq_o  (logic_bjp_op_beq),
-        .bjp_op_bne_o  (logic_bjp_op_bne),
-        .bjp_op_blt_o  (logic_bjp_op_blt),
-        .bjp_op_bltu_o (logic_bjp_op_bltu),
-        .bjp_op_bge_o  (logic_bjp_op_bge),
-        .bjp_op_bgeu_o (logic_bjp_op_bgeu),
-        .bjp_op_jalr_o (logic_bjp_op_jalr),
-        .bjp_adder_result_o      (logic_bjp_adder_result),
-        .bjp_next_pc_o           (logic_bjp_next_pc),
-        .op1_eq_op2_o            (logic_op1_eq_op2),
-        .op1_ge_op2_signed_o     (logic_op1_ge_op2_signed),
-        .op1_ge_op2_unsigned_o   (logic_op1_ge_op2_unsigned),
+        .req_bjp_o            (logic_req_bjp),
+        .bjp_op_jal_o         (logic_bjp_op_jal),
+        .bjp_op_beq_o         (logic_bjp_op_beq),
+        .bjp_op_bne_o         (logic_bjp_op_bne),
+        .bjp_op_blt_o         (logic_bjp_op_blt),
+        .bjp_op_bltu_o        (logic_bjp_op_bltu),
+        .bjp_op_bge_o         (logic_bjp_op_bge),
+        .bjp_op_bgeu_o        (logic_bjp_op_bgeu),
+        .bjp_op_jalr_o        (logic_bjp_op_jalr),
+        .bjp_adder_result_o   (logic_bjp_adder_result),
+        .bjp_next_pc_o        (logic_bjp_next_pc),
+        .op1_eq_op2_o         (logic_op1_eq_op2),
+        .op1_ge_op2_signed_o  (logic_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_o(logic_op1_ge_op2_unsigned),
 
         // MUL信号
         .req_mul_o      (logic_req_mul),
@@ -385,20 +387,20 @@ module dispatch (
         .alu_op_info_i(logic_alu_op_info),
 
         // BJP信号输入
-        .req_bjp_i     (logic_req_bjp),
-        .bjp_op_jal_i  (logic_bjp_op_jal),
-        .bjp_op_beq_i  (logic_bjp_op_beq),
-        .bjp_op_bne_i  (logic_bjp_op_bne),
-        .bjp_op_blt_i  (logic_bjp_op_blt),
-        .bjp_op_bltu_i (logic_bjp_op_bltu),
-        .bjp_op_bge_i  (logic_bjp_op_bge),
-        .bjp_op_bgeu_i (logic_bjp_op_bgeu),
-        .bjp_op_jalr_i (logic_bjp_op_jalr),
-        .bjp_adder_result_i      (logic_bjp_adder_result),
-        .bjp_next_pc_i           (logic_bjp_next_pc),
-        .op1_eq_op2_i            (logic_op1_eq_op2),
-        .op1_ge_op2_signed_i     (logic_op1_ge_op2_signed),
-        .op1_ge_op2_unsigned_i   (logic_op1_ge_op2_unsigned),
+        .req_bjp_i            (logic_req_bjp),
+        .bjp_op_jal_i         (logic_bjp_op_jal),
+        .bjp_op_beq_i         (logic_bjp_op_beq),
+        .bjp_op_bne_i         (logic_bjp_op_bne),
+        .bjp_op_blt_i         (logic_bjp_op_blt),
+        .bjp_op_bltu_i        (logic_bjp_op_bltu),
+        .bjp_op_bge_i         (logic_bjp_op_bge),
+        .bjp_op_bgeu_i        (logic_bjp_op_bgeu),
+        .bjp_op_jalr_i        (logic_bjp_op_jalr),
+        .bjp_adder_result_i   (logic_bjp_adder_result),
+        .bjp_next_pc_i        (logic_bjp_next_pc),
+        .op1_eq_op2_i         (logic_op1_eq_op2),
+        .op1_ge_op2_signed_i  (logic_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_i(logic_op1_ge_op2_unsigned),
 
         // MUL信号输入
         .req_mul_i      (logic_req_mul),
@@ -475,20 +477,20 @@ module dispatch (
         .alu_op_info_o(alu_op_info_o),
 
         // BJP信号输出
-        .req_bjp_o     (req_bjp_o),
-        .bjp_op_jal_o  (bjp_op_jal_o),
-        .bjp_op_beq_o  (bjp_op_beq_o),
-        .bjp_op_bne_o  (bjp_op_bne_o),
-        .bjp_op_blt_o  (bjp_op_blt_o),
-        .bjp_op_bltu_o (bjp_op_bltu_o),
-        .bjp_op_bge_o  (bjp_op_bge_o),
-        .bjp_op_bgeu_o (bjp_op_bgeu_o),
-        .bjp_op_jalr_o (bjp_op_jalr_o),
-        .bjp_adder_result_o      (bjp_adder_result_o),
-        .bjp_next_pc_o           (bjp_next_pc_o),
-        .op1_eq_op2_o            (op1_eq_op2_o),
-        .op1_ge_op2_signed_o     (op1_ge_op2_signed_o),
-        .op1_ge_op2_unsigned_o   (op1_ge_op2_unsigned_o),
+        .req_bjp_o            (req_bjp_o),
+        .bjp_op_jal_o         (bjp_op_jal_o),
+        .bjp_op_beq_o         (bjp_op_beq_o),
+        .bjp_op_bne_o         (bjp_op_bne_o),
+        .bjp_op_blt_o         (bjp_op_blt_o),
+        .bjp_op_bltu_o        (bjp_op_bltu_o),
+        .bjp_op_bge_o         (bjp_op_bge_o),
+        .bjp_op_bgeu_o        (bjp_op_bgeu_o),
+        .bjp_op_jalr_o        (bjp_op_jalr_o),
+        .bjp_adder_result_o   (bjp_adder_result_o),
+        .bjp_next_pc_o        (bjp_next_pc_o),
+        .op1_eq_op2_o         (op1_eq_op2_o),
+        .op1_ge_op2_signed_o  (op1_ge_op2_signed_o),
+        .op1_ge_op2_unsigned_o(op1_ge_op2_unsigned_o),
 
         // MUL信号输出
         .req_mul_o      (req_mul_o),
