@@ -864,6 +864,8 @@ module cpu_top (
         .lsu_reg_waddr_i(exu_lsu_reg_waddr_o),
         .lsu_commit_id_i(exu_lsu_commit_id_o),  // 直接使用全宽度
 
+        .idu_reg_waddr_i(dispatch_reg_waddr_o), // 修改为从dispatch pipe获取IDU寄存器写地址
+
         // 新增长指令完成输出
         .commit_valid_o(wbu_commit_valid_o),
         .commit_id_o   (wbu_commit_id_o),
