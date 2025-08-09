@@ -109,15 +109,7 @@ module icu (
     // HDU输出信号 - to dispatch
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,
-    output wire                        long_inst_atom_lock_o,
-    output wire [31:0] inst1_timestamp_o_dispatch,
-    output wire [31:0] inst2_timestamp_o_dispatch,
-
-    // 新增输出信号给WBU
-    output wire [`REG_ADDR_WIDTH-1:0] inst1_rd_addr_o,
-    output wire [`REG_ADDR_WIDTH-1:0] inst2_rd_addr_o,
-    output wire [31:0] inst1_timestamp_o_wbu,
-    output wire [31:0] inst2_timestamp_o_wbu
+    output wire                        long_inst_atom_lock_o
 );
 
 
@@ -125,11 +117,7 @@ module icu (
     wire [1:0] issue_inst;
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst1_commit_id_o; 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_o;
-    wire [31:0] hdu_inst1_timestamp_o;
-    wire [31:0] hdu_inst2_timestamp_o;
 
-    assign inst1_timestamp_o_wbu = hdu_inst1_timestamp_o;
-    assign inst2_timestamp_o_wbu = hdu_inst2_timestamp_o;
 
     // 实例化hdu模块
     hdu u_hdu (
@@ -169,13 +157,7 @@ module icu (
         //to irf
         .inst1_commit_id_o      (hdu_inst1_commit_id_o),
         .inst2_commit_id_o      (hdu_inst2_commit_id_o),
-        .long_inst_atom_lock_o  (long_inst_atom_lock_o),
-        
-        // 新增输出信号给WBU
-        .inst1_rd_addr_o        (inst1_rd_addr_o),
-        .inst2_rd_addr_o        (inst2_rd_addr_o),
-        .inst1_timestamp        (hdu_inst1_timestamp_o),
-        .inst2_timestamp        (hdu_inst2_timestamp_o)
+        .long_inst_atom_lock_o  (long_inst_atom_lock_o)
     );
 
 
@@ -217,8 +199,6 @@ module icu (
         // 流水线寄存器相关输入
         .hdu_inst1_commit_id_i  (hdu_inst1_commit_id_o),
         .hdu_inst2_commit_id_i  (hdu_inst2_commit_id_o),
-        .inst1_timestamp_i      (hdu_inst1_timestamp_o),
-        .inst2_timestamp_i      (hdu_inst2_timestamp_o),
         
         // from control
         .stall_flag_i           (stall_flag_i),
@@ -257,8 +237,6 @@ module icu (
         // 流水线寄存器相关输出
         .inst1_commit_id_o      (inst1_commit_id_o),
         .inst2_commit_id_o      (inst2_commit_id_o),
-        .inst1_timestamp_o      (inst1_timestamp_o_dispatch),
-        .inst2_timestamp_o      (inst2_timestamp_o_dispatch),
         .inst1_illegal_inst_o   (inst1_illegal_inst_o),
         .inst2_illegal_inst_o   (inst2_illegal_inst_o),
         .inst1_valid_o          (inst1_valid_o),

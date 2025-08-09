@@ -63,8 +63,6 @@ module icu_issue (
     // 新增：流水线寄存器相关输入
     input wire [`COMMIT_ID_WIDTH-1:0] hdu_inst1_commit_id_i,
     input wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_i,
-    input wire [31:0]               inst1_timestamp_i,
-    input wire [31:0]               inst2_timestamp_i,
     
     // from control 控制信号
     input wire [`CU_BUS_WIDTH-1:0]   stall_flag_i,
@@ -102,8 +100,6 @@ module icu_issue (
     // 新增：流水线寄存器相关输出
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,
-    output wire [31:0] inst1_timestamp_o,
-    output wire [31:0] inst2_timestamp_o,
     output wire        inst1_illegal_inst_o,
     output wire        inst2_illegal_inst_o,
     output wire        inst1_valid_o,
@@ -469,29 +465,6 @@ module icu_issue (
         inst2_commit_id_reg
     );
     assign inst2_commit_id_o = inst2_commit_id_reg;
-
-    // 时间戳寄存器实现
-    wire [31:0] inst1_timestamp_nxt = flush_en_1 ? 32'b0 : inst1_timestamp_i;
-    wire [31:0] inst1_timestamp_reg;
-    gnrl_dfflr #(32) inst1_timestamp_ff (
-        clk,
-        rst_n,
-        update_output,
-        inst1_timestamp_nxt,
-        inst1_timestamp_reg
-    );
-    assign inst1_timestamp_o = inst1_timestamp_reg;
-
-    wire [31:0] inst2_timestamp_nxt = flush_en_2 ? 32'b0 : inst2_timestamp_i;
-    wire [31:0] inst2_timestamp_reg;
-    gnrl_dfflr #(32) inst2_timestamp_ff (
-        clk,
-        rst_n,
-        update_output,
-        inst2_timestamp_nxt,
-        inst2_timestamp_reg
-    );
-    assign inst2_timestamp_o = inst2_timestamp_reg;
 
     wire inst1_illegal_inst_nxt = flush_en_1 ? 1'b0 : inst1_illegal_inst_i;
     wire inst1_illegal_inst_reg;

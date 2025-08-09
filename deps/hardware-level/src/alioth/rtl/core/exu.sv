@@ -24,7 +24,7 @@
 
 `include "defines.svh"
 
-// 执行单元顶层模块 - 双发射版本
+// 执行单元顶层模块 - 双发射版本 (已精简为单CSR)
 module exu (
     input wire clk,
     input wire rst_n,
@@ -155,7 +155,7 @@ module exu (
     input wire                        mem1_reg_we_i,
     input wire                        mem1_wb_ready_i,
 
-    // CSR0接口
+    // CSR接口 (仅保留一路)
     input wire        req_csr0_i,
     input wire [31:0] csr0_op1_i,
     input wire [31:0] csr0_addr_i,
@@ -169,21 +169,6 @@ module exu (
     input wire [`BUS_ADDR_WIDTH-1:0] csr0_waddr_i,
     input wire [`REG_ADDR_WIDTH-1:0] csr0_reg_waddr_i,
     input wire        csr0_wb_ready_i,
-
-    // CSR1接口
-    input wire        req_csr1_i,
-    input wire [31:0] csr1_op1_i,
-    input wire [31:0] csr1_addr_i,
-    input wire        csr1_csrrw_i,
-    input wire        csr1_csrrs_i,
-    input wire        csr1_csrrc_i,
-    input wire [`REG_DATA_WIDTH-1:0] csr1_rdata_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] csr1_commit_id_i,
-    input wire        csr1_we_i,
-    input wire        csr1_reg_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr1_waddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] csr1_reg_waddr_i,
-    input wire        csr1_wb_ready_i,
 
     // 系统操作信号
     input wire sys_op_nop_i,
@@ -239,25 +224,16 @@ module exu (
     output wire [ `REG_ADDR_WIDTH-1:0] lsu1_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] lsu1_commit_id_o,
 
-    // CSR写回
+    // CSR写回 (单一路)
     output wire [ `REG_DATA_WIDTH-1:0] csr0_reg_wdata_o,
     output wire [ `REG_ADDR_WIDTH-1:0] csr0_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] csr0_commit_id_o,
     output wire                        csr0_reg_we_o,
 
-    output wire [ `REG_DATA_WIDTH-1:0] csr1_reg_wdata_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] csr1_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] csr1_commit_id_o,
-    output wire                        csr1_reg_we_o,
-
-    // CSR寄存器写数据输出
+    // CSR寄存器写数据输出 (单一路)
     output wire [`REG_DATA_WIDTH-1:0] csr0_wdata_o,
     output wire                       csr0_we_o,
     output wire [`BUS_ADDR_WIDTH-1:0] csr0_waddr_o,
-
-    output wire [`REG_DATA_WIDTH-1:0] csr1_wdata_o,
-    output wire                       csr1_we_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] csr1_waddr_o,
 
     // 控制输出
     output wire                        stall_flag_o,
@@ -324,7 +300,7 @@ module exu (
     input  wire                     M0_AXI_RVALID,
     output wire                     M0_AXI_RREADY,
 
-    // AXI接口 - LSU1 (完整接口定义)
+    // AXI接口 - LSU1
     output wire [`BUS_ID_WIDTH-1:0] M1_AXI_AWID,
     output wire [             31:0] M1_AXI_AWADDR,
     output wire [              7:0] M1_AXI_AWLEN,
@@ -373,12 +349,12 @@ module exu (
     output wire                     M1_AXI_RREADY
 );
 
-    // 内部连线定义
+    // 内部连线定义 (已去除csr1)
     wire alu0_stall, alu1_stall;
     wire mul0_stall, mul1_stall;
     wire div0_stall, div1_stall;
     wire lsu0_stall, lsu1_stall;
-    wire csr0_stall, csr1_stall;
+    wire csr0_stall;
 
     // 分支单元信号
     wire bru_jump_flag;
@@ -511,7 +487,7 @@ module exu (
         .commit_id_o     (div1_commit_id_o)
     );
 
-    // 分支单元实例 (保持单实例)
+    // 分支单元实例
     exu_bru u_bru (
         .rst_n             (rst_n),
         .req_bjp_i         (req_bjp_i),
@@ -688,125 +664,47 @@ module exu (
         .M_AXI_RREADY(M1_AXI_RREADY)
     );
 
-    // ===============================================
-    // CSR访问仲裁器 - 确保CSR指令的原子性
-    // ===============================================
-    
-    // CSR仲裁信号
-    wire csr_arbiter_grant0, csr_arbiter_grant1;
-    wire csr_arbiter_conflict;
-    
-    // 检测CSR访问冲突
-    assign csr_arbiter_conflict = req_csr0_i && req_csr1_i;
-    
-    // 仲裁逻辑：优先级仲裁，CSR0优先
-    assign csr_arbiter_grant0 = req_csr0_i;
-    assign csr_arbiter_grant1 = req_csr1_i && !req_csr0_i;
-    
-    // CSR0仲裁后的输入信号
-    wire csr0_req_gated = csr_arbiter_grant0;
-    wire csr0_stall_from_arbiter = req_csr0_i && !csr_arbiter_grant0;
-    
-    // CSR1仲裁后的输入信号  
-    wire csr1_req_gated = csr_arbiter_grant1;
-    wire csr1_stall_from_arbiter = req_csr1_i && !csr_arbiter_grant1;
-    
-    // CSR单元输出的仲裁后信号
-    wire [`REG_DATA_WIDTH-1:0] csr0_wdata_arb, csr1_wdata_arb;
-    wire csr0_we_arb, csr1_we_arb;
-    wire [`BUS_ADDR_WIDTH-1:0] csr0_waddr_arb, csr1_waddr_arb;
-    wire csr0_stall_internal, csr1_stall_internal;
-
-    // CSR0实例
+    // ===================== 单一路CSR实例 =====================
     exu_csr_unit u_csr0 (
         .clk(clk),
         .rst_n(rst_n),
         .int_assert_i(int_assert_i),
         .pc_i(inst_addr_i),
-        
-        .req_csr_i(csr0_req_gated),
+        .req_csr_i(req_csr0_i),
         .csr_op1_i(csr0_op1_i),
         .csr_addr_i(csr0_addr_i),
         .csr_csrrw_i(csr0_csrrw_i),
         .csr_csrrs_i(csr0_csrrs_i),
         .csr_csrrc_i(csr0_csrrc_i),
-        .csr_rdata_i(csr0_rdata),
+        .csr_rdata_i(csr0_rdata_i),
         .commit_id_i(csr0_commit_id_i),
         .csr_we_i(csr0_we_i),
         .csr_reg_we_i(csr0_reg_we_i),
         .csr_waddr_i(csr0_addr_i),
         .reg_waddr_i(csr0_reg_waddr_i),
         .wb_ready_i(csr0_wb_ready_i),
-        
-        .csr_wdata_o(csr0_wdata_arb),
-        .csr_we_o(csr0_we_arb),
-        .csr_waddr_o(csr0_waddr_arb),
+        .csr_wdata_o(csr0_wdata_o),
+        .csr_we_o(csr0_we_o),
+        .csr_waddr_o(csr0_waddr_o),
         .reg_wdata_o(csr0_reg_wdata_o),
         .reg_waddr_o(csr0_reg_waddr_o),
         .commit_id_o(csr0_commit_id_o),
         .csr_reg_we_o(csr0_reg_we_o),
-        .csr_stall_o(csr0_stall_internal)
+        .csr_stall_o(csr0_stall)
     );
 
-    // CSR1实例
-    exu_csr_unit u_csr1 (
-        .clk(clk),
-        .rst_n(rst_n),
-        .int_assert_i(int_assert_i),
-        .pc_i(inst_addr_i),
-        
-        .req_csr_i(csr1_req_gated),
-        .csr_op1_i(csr1_op1_i),
-        .csr_addr_i(csr1_addr_i),
-        .csr_csrrw_i(csr1_csrrw_i),
-        .csr_csrrs_i(csr1_csrrs_i),
-        .csr_csrrc_i(csr1_csrrc_i),
-        .csr_rdata_i(csr1_rdata),
-        .commit_id_i(csr1_commit_id_i),
-        .csr_we_i(csr1_we_i),
-        .csr_reg_we_i(csr1_reg_we_i),
-        .csr_waddr_i(csr1_addr_i),
-        .reg_waddr_i(csr1_reg_waddr_i),
-        .wb_ready_i(csr1_wb_ready_i),
-        
-        .csr_wdata_o(csr1_wdata_arb),
-        .csr_we_o(csr1_we_arb),
-        .csr_waddr_o(csr1_waddr_arb),
-        .reg_wdata_o(csr1_reg_wdata_o),
-        .reg_waddr_o(csr1_reg_waddr_o),
-        .commit_id_o(csr1_commit_id_o),
-        .csr_reg_we_o(csr1_reg_we_o),
-        .csr_stall_o(csr1_stall_internal)
-    );
+    // 控制信号汇总 (移除csr1)
+    assign stall_flag_o = alu0_stall | alu1_stall | mul0_stall | mul1_stall |
+                          div0_stall | div1_stall | lsu0_stall | lsu1_stall |
+                          csr0_stall;
 
-    // 控制信号汇总 - 包含CSR仲裁引起的stall
-    assign csr0_stall = csr0_stall_internal | csr0_stall_from_arbiter;
-    assign csr1_stall = csr1_stall_internal | csr1_stall_from_arbiter;
-    
-    assign stall_flag_o = alu0_stall | alu1_stall | mul0_stall | mul1_stall | 
-                         div0_stall | div1_stall | lsu0_stall | lsu1_stall | 
-                         csr0_stall | csr1_stall;
-    
     assign jump_flag_o = bru_jump_flag || int_jump_i;
     assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
 
-    // CSR输出汇总 - 只有获得访问权限的CSR单元输出有效
-    assign csr0_we_o    = csr_arbiter_grant0 ? csr0_we_arb    : 1'b0;
-    assign csr0_waddr_o = csr_arbiter_grant0 ? csr0_waddr_arb : 12'b0;
-    assign csr0_wdata_o = csr_arbiter_grant0 ? csr0_wdata_arb : 32'b0;
-    
-    assign csr1_we_o    = csr_arbiter_grant1 ? csr1_we_arb    : 1'b0;
-    assign csr1_waddr_o = csr_arbiter_grant1 ? csr1_waddr_arb : 12'b0;
-    assign csr1_wdata_o = csr_arbiter_grant1 ? csr1_wdata_arb : 32'b0;
-    
-    // CSR读取数据分发给对应的CSR单元
-    wire [`REG_DATA_WIDTH-1:0] csr0_rdata = csr0_rdata_i;
-    wire [`REG_DATA_WIDTH-1:0] csr1_rdata = csr1_rdata_i;
-
     // 系统操作信号输出
-    assign exu_op_ecall_o = sys_op_ecall_i;
+    assign exu_op_ecall_o  = sys_op_ecall_i;
     assign exu_op_ebreak_o = sys_op_ebreak_i;
-    assign exu_op_mret_o = sys_op_mret_i;
+    assign exu_op_mret_o   = sys_op_mret_i;
 
     // misaligned_fetch信号输出
     assign misaligned_fetch_o = misaligned_fetch_bru;

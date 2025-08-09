@@ -44,7 +44,6 @@ module dispatch (
     input wire                        inst1_is_pred_branch_i,
     input wire [`INST_DATA_WIDTH-1:0] inst1_i,
     input wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_i,
-    input wire [31:0] inst1_timestamp_i,
 
     // 从ICU接收的第二路指令信息
     input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i,
@@ -60,7 +59,6 @@ module dispatch (
     input wire                        inst2_is_pred_branch_i,
     input wire [`INST_DATA_WIDTH-1:0] inst2_i,
     input wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_i,
-    input wire [31:0] inst2_timestamp_i,
 
     // 从GPR读取的寄存器数据
     input wire [ `REG_DATA_WIDTH-1:0] inst1_rs1_rdata_i,
@@ -218,8 +216,6 @@ module dispatch (
     output wire [               31:0] inst1_rs2_rdata_o,
     output wire [               31:0] inst2_rs1_rdata_o,
     output wire [               31:0] inst2_rs2_rdata_o,
-    output wire [31:0] inst1_timestamp_o,
-    output wire [31:0] inst2_timestamp_o,
     output wire [31:0] inst1_commit_id_o,
     output wire [31:0] inst2_commit_id_o
 );
@@ -523,7 +519,6 @@ module dispatch (
         .csr_raddr_i          (inst1_csr_raddr_i),
         .dec_imm_i            (inst1_dec_imm_i),
         .dec_info_bus_i       (inst1_dec_info_bus_i),
-        .timestamp_i          (inst1_timestamp_i),
         .is_pred_branch_i     (inst1_is_pred_branch_i),
         // alu信号
         .req_alu_i          (inst1_logic_req_alu),
@@ -607,7 +602,6 @@ module dispatch (
         .dec_info_bus_o       (inst1_dec_info_bus_o),
         .rs1_rdata_o          (inst1_rs1_rdata_o),
         .rs2_rdata_o          (inst1_rs2_rdata_o),
-        .timestamp_o          (inst1_timestamp_o),
         .is_pred_branch_o     (pipe_inst1_is_pred_branch),
         // Alu输出端口
         .req_alu_o            (inst1_req_alu_o),
@@ -772,7 +766,6 @@ module dispatch (
         .csr_raddr_i          (inst2_csr_raddr_i),
         .dec_imm_i            (inst2_dec_imm_i),
         .dec_info_bus_i       (inst2_dec_info_bus_i),
-        .timestamp_i          (inst2_timestamp_i),
         .is_pred_branch_i     (inst2_is_pred_branch_i),
         // alu信号
         .req_alu_i            (inst2_logic_req_alu),
@@ -855,7 +848,6 @@ module dispatch (
         .dec_info_bus_o       (inst2_dec_info_bus_o),
         .rs1_rdata_o          (inst2_rs1_rdata_o),
         .rs2_rdata_o          (inst2_rs2_rdata_o),
-        .timestamp_o          (inst2_timestamp_o),
         .is_pred_branch_o     (pipe_inst2_is_pred_branch),
         // Alu输出端口
         .req_alu_o            (inst2_req_alu_o),

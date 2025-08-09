@@ -52,7 +52,6 @@ module dispatch_pipe (
     input wire                       is_pred_branch_i,  // 新增：预测分支信号输入
     // 新增：非法指令信号输入
     input wire                       illegal_inst_i,
-    input wire [31:0]                timestamp_i,
 
     // ALU输入端口
     input wire        req_alu_i,
@@ -224,7 +223,6 @@ module dispatch_pipe (
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
     output wire illegal_inst_o,
-    output wire [31:0] timestamp_o
 );
 
     wire                        flush_en = |stall_flag_i;
@@ -1038,16 +1036,5 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
-
-    wire [31:0] timestamp_dnxt = flush_en ? 32'b0 : timestamp_i;
-    wire [31:0] timestamp;
-    gnrl_dfflr #(32) timestamp_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        timestamp_dnxt,
-        timestamp
-    );
-    assign timestamp_o = timestamp;
 
 endmodule
