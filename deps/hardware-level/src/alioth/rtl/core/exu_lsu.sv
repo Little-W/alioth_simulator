@@ -1,18 +1,7 @@
-/*
+/*         
  The MIT License (MIT)
 
- Copyri    parameter C_M_AXI_RUSER_WIDTH  = 1,
-    parameter C_M_AXI_BUSER_WIDTH  = 1,
-    parameter UNIT_ID              = 0
-)(
-    input wire clk,
-    input wire rst_n,
-    
-    // 控制信号
-    input wire int_assert_i,
-
-    // 访存请求信号
-    input wire req_mem_i,en Wang @yusen.w@qq.com
+ Copyright © 2025 Yusen Wang @yusen.w@qq.com
                                                                          
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -35,92 +24,112 @@
 
 `include "defines.svh"
 
-// 加载存储单元 - 双发射版本，带RAW转发优化
+// LSU总控模块 - 双发射版本，类似ALU架构，内部例化两个LSU单元，统一AXI接口和冲突处理
 module exu_lsu #(
     parameter C_M_AXI_ID_WIDTH     = `BUS_ID_WIDTH,
     parameter C_M_AXI_ADDR_WIDTH   = `BUS_ADDR_WIDTH,
-    parameter C_M_AXI_DATA_WIDTH   = `BUS_DATA_WIDTH,  // AXI接口升级为64位，与系统其他部分保持一致
+    parameter C_M_AXI_DATA_WIDTH   = `BUS_DATA_WIDTH,
     parameter C_M_AXI_AWUSER_WIDTH = 1,
     parameter C_M_AXI_ARUSER_WIDTH = 1,
     parameter C_M_AXI_WUSER_WIDTH  = 1,
     parameter C_M_AXI_RUSER_WIDTH  = 1,
-    parameter C_M_AXI_BUSER_WIDTH  = 1,
-    parameter UNIT_ID              = 0
+    parameter C_M_AXI_BUSER_WIDTH  = 1
 )(
     input wire clk,
     input wire rst_n,
-    
+
     // 控制信号
     input wire int_assert_i,
 
-    // 访存请求信号
-    input wire req_mem_i,
-    input wire mem_op_lb_i,
-    input wire mem_op_lh_i,
-    input wire mem_op_lw_i,
-    input wire mem_op_lbu_i,
-    input wire mem_op_lhu_i,
-    input wire mem_op_load_i,
-    input wire mem_op_store_i,
-    input wire [4:0] rd_addr_i,
+    // LSU0接口 - 第一条指令（inst1，优先级高）
+    input wire                        req_mem0_i,
+    input wire                        mem0_op_lb_i,
+    input wire                        mem0_op_lh_i,
+    input wire                        mem0_op_lw_i,
+    input wire                        mem0_op_lbu_i,
+    input wire                        mem0_op_lhu_i,
+    input wire                        mem0_op_load_i,
+    input wire                        mem0_op_store_i,
+    input wire [                 4:0] mem0_rd_i,
+    input wire [                31:0] mem0_addr_i,
+    input wire [                63:0] mem0_wdata_i,  // 64位数据
+    input wire [                 7:0] mem0_wmask_i,  // 8位掩码
+    input wire [`COMMIT_ID_WIDTH-1:0] mem0_commit_id_i,
+    input wire                        mem0_reg_we_i,
+    input wire                        mem0_wb_ready_i,
 
-    // 访存地址和数据 - 来自dispatch_logic的AGU计算结果
-    input wire [31:0] mem_addr_i,
-    input wire [63:0] mem_wdata_i,  // 64位宽以支持双发射
-    input wire [ 7:0] mem_wmask_i,  // 8位掩码
-
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
-    input wire reg_we_i,
-    input wire wb_ready_i,
+    // LSU1接口 - 第二条指令（inst2，优先级低）
+    input wire                        req_mem1_i,
+    input wire                        mem1_op_lb_i,
+    input wire                        mem1_op_lh_i,
+    input wire                        mem1_op_lw_i,
+    input wire                        mem1_op_lbu_i,
+    input wire                        mem1_op_lhu_i,
+    input wire                        mem1_op_load_i,
+    input wire                        mem1_op_store_i,
+    input wire [                 4:0] mem1_rd_i,
+    input wire [                31:0] mem1_addr_i,
+    input wire [                63:0] mem1_wdata_i,  // 64位数据
+    input wire [                 7:0] mem1_wmask_i,  // 8位掩码
+    input wire [`COMMIT_ID_WIDTH-1:0] mem1_commit_id_i,
+    input wire                        mem1_reg_we_i,
+    input wire                        mem1_wb_ready_i,
 
     // 访存阻塞和忙信号输出
-    output reg mem_stall_o,
-    output reg mem_busy_o,
+    output wire mem_stall_o,
+    output wire mem0_store_busy_o,
+    output wire mem1_store_busy_o,
 
-    // 寄存器写回接口 - 输出到WBU
-    output reg [`REG_DATA_WIDTH-1:0] reg_wdata_o,
-    output reg                       reg_we_o,
-    output reg [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
-    output reg [`COMMIT_ID_WIDTH-1:0] commit_id_o,
+    // LSU0写回接口
+    output wire [ `REG_DATA_WIDTH-1:0] lsu0_reg_wdata_o,
+    output wire                        lsu0_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] lsu0_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] lsu0_commit_id_o,
 
-    // AXI Master接口
-    output reg [    C_M_AXI_ID_WIDTH-1:0] M_AXI_AWID,
-    output reg [  C_M_AXI_ADDR_WIDTH-1:0] M_AXI_AWADDR,
-    output reg [                     7:0] M_AXI_AWLEN,
-    output reg [                     2:0] M_AXI_AWSIZE,
-    output reg [                     1:0] M_AXI_AWBURST,
-    output reg                            M_AXI_AWLOCK,
-    output reg [                     3:0] M_AXI_AWCACHE,
-    output reg [                     2:0] M_AXI_AWPROT,
-    output reg [                     3:0] M_AXI_AWQOS,
-    output reg [C_M_AXI_AWUSER_WIDTH-1:0] M_AXI_AWUSER,
-    output reg                            M_AXI_AWVALID,
+    // LSU1写回接口
+    output wire [ `REG_DATA_WIDTH-1:0] lsu1_reg_wdata_o,
+    output wire                        lsu1_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] lsu1_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] lsu1_commit_id_o,
+
+    // 统一AXI Master接口 - 64位
+    output wire [    C_M_AXI_ID_WIDTH-1:0] M_AXI_AWID,
+    output wire [  C_M_AXI_ADDR_WIDTH-1:0] M_AXI_AWADDR,
+    output wire [                     7:0] M_AXI_AWLEN,
+    output wire [                     2:0] M_AXI_AWSIZE,
+    output wire [                     1:0] M_AXI_AWBURST,
+    output wire                            M_AXI_AWLOCK,
+    output wire [                     3:0] M_AXI_AWCACHE,
+    output wire [                     2:0] M_AXI_AWPROT,
+    output wire [                     3:0] M_AXI_AWQOS,
+    output wire [C_M_AXI_AWUSER_WIDTH-1:0] M_AXI_AWUSER,
+    output wire                            M_AXI_AWVALID,
     input  wire                            M_AXI_AWREADY,
 
-    output reg [  C_M_AXI_DATA_WIDTH-1:0] M_AXI_WDATA,
-    output reg [C_M_AXI_DATA_WIDTH/8-1:0] M_AXI_WSTRB,
-    output reg                            M_AXI_WLAST,
-    output reg [ C_M_AXI_WUSER_WIDTH-1:0] M_AXI_WUSER,
-    output reg                            M_AXI_WVALID,
+    output wire [  C_M_AXI_DATA_WIDTH-1:0] M_AXI_WDATA,
+    output wire [C_M_AXI_DATA_WIDTH/8-1:0] M_AXI_WSTRB,
+    output wire                            M_AXI_WLAST,
+    output wire [ C_M_AXI_WUSER_WIDTH-1:0] M_AXI_WUSER,
+    output wire                            M_AXI_WVALID,
     input  wire                            M_AXI_WREADY,
 
     input  wire [   C_M_AXI_ID_WIDTH-1:0] M_AXI_BID,
     input  wire [                    1:0] M_AXI_BRESP,
     input  wire [C_M_AXI_BUSER_WIDTH-1:0] M_AXI_BUSER,
     input  wire                           M_AXI_BVALID,
-    output reg                           M_AXI_BREADY,
+    output wire                           M_AXI_BREADY,
 
-    output reg [    C_M_AXI_ID_WIDTH-1:0] M_AXI_ARID,
-    output reg [  C_M_AXI_ADDR_WIDTH-1:0] M_AXI_ARADDR,
-    output reg [                     7:0] M_AXI_ARLEN,
-    output reg [                     2:0] M_AXI_ARSIZE,
-    output reg [                     1:0] M_AXI_ARBURST,
-    output reg                            M_AXI_ARLOCK,
-    output reg [                     3:0] M_AXI_ARCACHE,
-    output reg [                     2:0] M_AXI_ARPROT,
-    output reg [                     3:0] M_AXI_ARQOS,
-    output reg [C_M_AXI_ARUSER_WIDTH-1:0] M_AXI_ARUSER,
-    output reg                            M_AXI_ARVALID,
+    output wire [    C_M_AXI_ID_WIDTH-1:0] M_AXI_ARID,
+    output wire [  C_M_AXI_ADDR_WIDTH-1:0] M_AXI_ARADDR,
+    output wire [                     7:0] M_AXI_ARLEN,
+    output wire [                     2:0] M_AXI_ARSIZE,
+    output wire [                     1:0] M_AXI_ARBURST,
+    output wire                            M_AXI_ARLOCK,
+    output wire [                     3:0] M_AXI_ARCACHE,
+    output wire [                     2:0] M_AXI_ARPROT,
+    output wire [                     3:0] M_AXI_ARQOS,
+    output wire [C_M_AXI_ARUSER_WIDTH-1:0] M_AXI_ARUSER,
+    output wire                            M_AXI_ARVALID,
     input  wire                            M_AXI_ARREADY,
 
     input  wire [   C_M_AXI_ID_WIDTH-1:0] M_AXI_RID,
@@ -129,524 +138,423 @@ module exu_lsu #(
     input  wire                           M_AXI_RLAST,
     input  wire [C_M_AXI_RUSER_WIDTH-1:0] M_AXI_RUSER,
     input  wire                           M_AXI_RVALID,
-    output reg                           M_AXI_RREADY
+    output wire                           M_AXI_RREADY
 );
 
     // ===================================================================
     // 内部信号和参数定义
     // ===================================================================
     
-    // FIFO深度参数
-    localparam FIFO_DEPTH = 8;
-    localparam FIFO_PTR_WIDTH = $clog2(FIFO_DEPTH);
+    // 冲突检测
+    wire addr_conflict = req_mem0_i && req_mem1_i && 
+                        (mem0_addr_i[31:2] == mem1_addr_i[31:2]); // 同一字地址
     
-    // 操作类型编码
-    localparam [2:0] OP_LB  = 3'b000;
-    localparam [2:0] OP_LH  = 3'b001;
-    localparam [2:0] OP_LW  = 3'b010;
-    localparam [2:0] OP_LBU = 3'b011;
-    localparam [2:0] OP_LHU = 3'b100;
-    localparam [2:0] OP_SB  = 3'b101;
-    localparam [2:0] OP_SH  = 3'b110;
-    localparam [2:0] OP_SW  = 3'b111;
+    wire both_load = req_mem0_i && req_mem1_i && 
+                     mem0_op_load_i && mem1_op_load_i;
     
-    // FIFO条目结构
-    typedef struct packed {
-        logic                       valid;
-        logic                       is_load;
-        logic                       is_store;
-        logic [31:0]               addr;
-        logic [63:0]               wdata;    // 64位支持双发射
-        logic [7:0]                wmask;    // 8位掩码
-        logic [4:0]                rd_addr;
-        logic [`COMMIT_ID_WIDTH-1:0] commit_id;
-        logic                       reg_we;
-        logic [2:0]                op_type;
-        logic                       axi_req_sent;
-        logic                       axi_resp_received;
-        logic [31:0]               result_data;
-        logic                       forwarded;
-    } mem_fifo_entry_t;
+    wire both_store = req_mem0_i && req_mem1_i && 
+                      mem0_op_store_i && mem1_op_store_i;
     
-    // FIFO存储和指针
-    mem_fifo_entry_t mem_fifo[0:FIFO_DEPTH-1];
-    reg [FIFO_PTR_WIDTH-1:0] fifo_head, fifo_tail;
-    reg [FIFO_PTR_WIDTH:0] fifo_count;
-    
-    // 内部状态信号
-    wire fifo_full, fifo_empty;
-    wire valid_op;
-    wire [2:0] current_op_type;
-    wire can_accept_req;
-    
-    // RAW前递信号
-    reg raw_detected;
-    reg [31:0] forward_data;
-    reg forward_valid;
+    wire load_store_conflict = req_mem0_i && req_mem1_i && 
+                               ((mem0_op_load_i && mem1_op_store_i) ||
+                                (mem0_op_store_i && mem1_op_load_i));
 
-    wire [31:0] selected_word;
+    // RAW转发检测 - 当inst1是store，inst2是load，且地址相同时启用转发
+    wire raw_forward = req_mem0_i && req_mem1_i && 
+                       mem0_op_store_i && mem1_op_load_i && 
+                       addr_conflict;
+
+    // 结构冒险检测 - 需要串行处理的情况
+    wire structural_hazard = addr_conflict && (both_load || both_store || 
+                             (load_store_conflict && !raw_forward));
+
+    // 1位深度FIFO用于存储第二条指令
+    reg fifo_valid;
+    reg fifo_op_lb, fifo_op_lh, fifo_op_lw, fifo_op_lbu, fifo_op_lhu;
+    reg fifo_op_load, fifo_op_store;
+    reg [4:0] fifo_rd_addr;
+    reg [31:0] fifo_addr;
+    reg [63:0] fifo_wdata;
+    reg [7:0] fifo_wmask;
+    reg [`COMMIT_ID_WIDTH-1:0] fifo_commit_id;
+    reg fifo_reg_we;
+    reg fifo_wb_ready;
+
+    // 当前处理状态
+    typedef enum logic [1:0] {
+        STATE_IDLE,      // 空闲状态，可以接受新请求
+        STATE_PROC_FIRST, // 处理第一条指令
+        STATE_PROC_SECOND // 处理FIFO中的第二条指令
+    } lsu_state_t;
     
-    // AXI状态机 - 支持Load/Store并行
-    typedef enum logic [2:0] {
-        AXI_IDLE      = 3'b000,
-        AXI_READ_ADDR = 3'b001,
-        AXI_READ_DATA = 3'b010,
-        AXI_WRITE_ADDR = 3'b011,
-        AXI_WRITE_DATA = 3'b100,
-        AXI_WRITE_RESP = 3'b101
-    } axi_state_t;
-    
-    axi_state_t axi_read_state, axi_read_state_next;
-    axi_state_t axi_write_state, axi_write_state_next;
-    reg [FIFO_PTR_WIDTH-1:0] axi_read_processing_idx;
-    reg [FIFO_PTR_WIDTH-1:0] axi_write_processing_idx;
-    
+    lsu_state_t current_state, next_state;
+
+    // LSU单元实例化信号
+    reg lsu_req;
+    reg lsu_op_lb, lsu_op_lh, lsu_op_lw, lsu_op_lbu, lsu_op_lhu;
+    reg lsu_op_load, lsu_op_store;
+    reg [4:0] lsu_rd_addr;
+    reg [31:0] lsu_addr;
+    reg [63:0] lsu_wdata;
+    reg [7:0] lsu_wmask;
+    reg [`COMMIT_ID_WIDTH-1:0] lsu_commit_id;
+    reg lsu_reg_we;
+    reg lsu_wb_ready;
+
+    // LSU单元输出信号
+    wire lsu_stall;
+    wire [`REG_DATA_WIDTH-1:0] lsu_reg_wdata;
+    wire lsu_reg_we_out;
+    wire [`REG_ADDR_WIDTH-1:0] lsu_reg_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_out;
+
+    // 指令来源标识 - 用于写回路由
+    reg processing_inst1;  // 当前处理的是第一条指令还是第二条指令
+
     // ===================================================================
-    // 组合逻辑
-    // ===================================================================
-    
-    // FIFO状态
-    assign fifo_full = (fifo_count >= FIFO_DEPTH);
-    assign fifo_empty = (fifo_count == 0);
-    
-    // 有效操作检测
-    assign valid_op = req_mem_i && (mem_op_load_i || mem_op_store_i);
-    
-    // 当前操作类型
-    assign current_op_type = mem_op_lb_i  ? OP_LB  :
-                            mem_op_lh_i  ? OP_LH  :
-                            mem_op_lw_i  ? OP_LW  :
-                            mem_op_lbu_i ? OP_LBU :
-                            mem_op_lhu_i ? OP_LHU :
-                            (mem_wmask_i[3:0] == 4'b0001 || mem_wmask_i[3:0] == 4'b0010 || 
-                             mem_wmask_i[3:0] == 4'b0100 || mem_wmask_i[3:0] == 4'b1000) ? OP_SB :
-                            (mem_wmask_i[3:0] == 4'b0011 || mem_wmask_i[3:0] == 4'b1100) ? OP_SH :
-                            OP_SW;
-    
-    // 请求接受条件
-    assign can_accept_req = !fifo_full;
-    
-    // 输出阻塞信号 - 简化逻辑
-    assign mem_stall_o = valid_op && !can_accept_req;
-    assign mem_busy_o = !fifo_empty || (axi_read_state != AXI_IDLE) || (axi_write_state != AXI_IDLE);
-    
-    // ===================================================================
-    // RAW前递检测逻辑 - 改进版本
-    // ===================================================================
-    
-    always_comb begin
-        raw_detected = 1'b0;
-        forward_data = 32'b0;
-        forward_valid = 1'b0;
-        
-        if (valid_op && mem_op_load_i) begin
-            // 从FIFO尾部向头部搜索最近的匹配store（最新的）
-            for (int i = FIFO_DEPTH-1; i >= 0; i--) begin
-                automatic int idx = (fifo_head + i) % FIFO_DEPTH;
-                if (mem_fifo[idx].valid && mem_fifo[idx].is_store) begin
-                    // 检查地址是否完全匹配
-                    if (mem_fifo[idx].addr == mem_addr_i) begin
-                        raw_detected = 1'b1;
-                        
-                        // 直接前递store数据，不需要等待store完成
-                        forward_data = extract_forward_data(mem_fifo[idx].wdata, current_op_type, mem_addr_i[1:0]);
-                        forward_valid = 1'b1;
-                        
-                        break; // 找到最近的匹配项，停止搜索
-                    end
-                end
-            end
-            
-            // 检查当前周期的同时Load/Store请求（同周期前递）
-            if (!raw_detected && req_mem_i && mem_op_load_i && mem_op_store_i) begin
-                // 注意：这里假设同一周期内Load和Store地址是相同的mem_addr_i
-                raw_detected = 1'b1;
-                forward_data = extract_forward_data(mem_wdata_i, current_op_type, mem_addr_i[1:0]);
-                forward_valid = 1'b1;
-            end
-        end
-    end
-    
-    // ===================================================================
-    // FIFO管理逻辑 - 支持Load/Store并行处理
+    // 状态机控制逻辑
     // ===================================================================
     
-    always_ff @(posedge clk or negedge rst_n) begin
+    // 状态转换逻辑
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            fifo_head <= '0;
-            fifo_tail <= '0;
-            fifo_count <= '0;
-            
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                mem_fifo[i] <= '0;
-            end
+            current_state <= STATE_IDLE;
         end else begin
-            // 入队逻辑：优先处理能前递的load
-            if (valid_op && can_accept_req) begin
-                mem_fifo[fifo_tail].valid <= 1'b1;
-                mem_fifo[fifo_tail].is_load <= mem_op_load_i;
-                mem_fifo[fifo_tail].is_store <= mem_op_store_i;
-                mem_fifo[fifo_tail].addr <= mem_addr_i;
-                mem_fifo[fifo_tail].wdata <= mem_wdata_i;
-                mem_fifo[fifo_tail].wmask <= mem_wmask_i;
-                mem_fifo[fifo_tail].rd_addr <= rd_addr_i;
-                mem_fifo[fifo_tail].commit_id <= commit_id_i;
-                mem_fifo[fifo_tail].reg_we <= reg_we_i;
-                mem_fifo[fifo_tail].op_type <= current_op_type;
-                mem_fifo[fifo_tail].axi_req_sent <= 1'b0;
-                mem_fifo[fifo_tail].axi_resp_received <= 1'b0;
-                
-                // RAW前递优化：load直接从store前递，无需访存
-                if (mem_op_load_i && forward_valid) begin
-                    mem_fifo[fifo_tail].forwarded <= 1'b1;
-                    mem_fifo[fifo_tail].axi_resp_received <= 1'b1; // 标记为已完成
-                    mem_fifo[fifo_tail].result_data <= forward_data;
-                end else begin
-                    mem_fifo[fifo_tail].forwarded <= 1'b0;
-                    mem_fifo[fifo_tail].result_data <= 32'b0;
-                end
-                
-                fifo_tail <= (fifo_tail + 1) % FIFO_DEPTH;
-                fifo_count <= fifo_count + 1;
-            end
-            
-            // 出队逻辑：处理已完成的操作
-            if (!fifo_empty && mem_fifo[fifo_head].valid) begin
-                logic can_retire = 1'b0;
-                
-                if (mem_fifo[fifo_head].is_load) begin
-                    // Load：前递的或AXI完成的，且WBU准备好
-                    can_retire = (mem_fifo[fifo_head].forwarded || mem_fifo[fifo_head].axi_resp_received) && wb_ready_i;
-                end else begin
-                    // Store：AXI写响应完成
-                    can_retire = mem_fifo[fifo_head].axi_resp_received;
-                end
-                
-                if (can_retire) begin
-                    mem_fifo[fifo_head].valid <= 1'b0;
-                    fifo_head <= (fifo_head + 1) % FIFO_DEPTH;
-                    fifo_count <= fifo_count - 1;
-                end
-            end
+            current_state <= next_state;
         end
     end
-    
-    // ===================================================================
-    // AXI状态机 - 分离读写通道实现并行处理
-    // ===================================================================
-    
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            axi_read_state <= AXI_IDLE;
-            axi_write_state <= AXI_IDLE;
-            axi_read_processing_idx <= '0;
-            axi_write_processing_idx <= '0;
-        end else begin
-            axi_read_state <= axi_read_state_next;
-            axi_write_state <= axi_write_state_next;
+
+    // 下一状态逻辑
+    always @(*) begin
+        next_state = current_state;
+        case (current_state)
+            STATE_IDLE: begin
+                if (req_mem0_i && req_mem1_i && structural_hazard) begin
+                    next_state = STATE_PROC_FIRST;  // 需要串行处理
+                end else if (req_mem0_i || req_mem1_i) begin
+                    // 可以并行处理或只有一条指令，保持IDLE状态
+                    next_state = STATE_IDLE;
+                end
+            end
             
-            // 更新读处理索引
-            if (axi_read_state == AXI_IDLE && axi_read_state_next == AXI_READ_ADDR) begin
-                for (int i = 0; i < FIFO_DEPTH; i++) begin
-                    automatic int idx = (fifo_head + i) % FIFO_DEPTH;
-                    if (mem_fifo[idx].valid && mem_fifo[idx].is_load && 
-                        !mem_fifo[idx].axi_req_sent && !mem_fifo[idx].forwarded) begin
-                        axi_read_processing_idx <= idx;
-                        break;
+            STATE_PROC_FIRST: begin
+                if (!lsu_stall) begin  // 第一条指令处理完成
+                    if (fifo_valid) begin
+                        next_state = STATE_PROC_SECOND;
+                    end else begin
+                        next_state = STATE_IDLE;
                     end
                 end
             end
             
-            // 更新写处理索引
-            if (axi_write_state == AXI_IDLE && axi_write_state_next == AXI_WRITE_ADDR) begin
-                for (int i = 0; i < FIFO_DEPTH; i++) begin
-                    automatic int idx = (fifo_head + i) % FIFO_DEPTH;
-                    if (mem_fifo[idx].valid && mem_fifo[idx].is_store && 
-                        !mem_fifo[idx].axi_req_sent) begin
-                        axi_write_processing_idx <= idx;
-                        break;
-                    end
-                end
-            end
-        end
-    end
-    
-    // 读通道状态机
-    always_comb begin
-        axi_read_state_next = axi_read_state;
-        
-        case (axi_read_state)
-            AXI_IDLE: begin
-                // 检查是否有需要读的Load操作
-                for (int i = 0; i < FIFO_DEPTH; i++) begin
-                    automatic int idx = (fifo_head + i) % FIFO_DEPTH;
-                    if (mem_fifo[idx].valid && mem_fifo[idx].is_load && 
-                        !mem_fifo[idx].axi_req_sent && !mem_fifo[idx].forwarded) begin
-                        axi_read_state_next = AXI_READ_ADDR;
-                        break;
-                    end
-                end
-            end
-            
-            AXI_READ_ADDR: begin
-                if (M_AXI_ARVALID && M_AXI_ARREADY) begin
-                    axi_read_state_next = AXI_READ_DATA;
-                end
-            end
-            
-            AXI_READ_DATA: begin
-                if (M_AXI_RVALID && M_AXI_RREADY) begin
-                    axi_read_state_next = AXI_IDLE;
+            STATE_PROC_SECOND: begin
+                if (!lsu_stall) begin  // 第二条指令处理完成
+                    next_state = STATE_IDLE;
                 end
             end
         endcase
     end
+
+    // ===================================================================
+    // FIFO控制逻辑 - 1位深度FIFO
+    // ===================================================================
     
-    // 写通道状态机
-    always_comb begin
-        axi_write_state_next = axi_write_state;
+    // FIFO写入逻辑
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            fifo_valid <= 1'b0;
+            fifo_op_lb <= 1'b0;
+            fifo_op_lh <= 1'b0;
+            fifo_op_lw <= 1'b0;
+            fifo_op_lbu <= 1'b0;
+            fifo_op_lhu <= 1'b0;
+            fifo_op_load <= 1'b0;
+            fifo_op_store <= 1'b0;
+            fifo_rd_addr <= 5'b0;
+            fifo_addr <= 32'b0;
+            fifo_wdata <= 64'b0;
+            fifo_wmask <= 8'b0;
+            fifo_commit_id <= {`COMMIT_ID_WIDTH{1'b0}};
+            fifo_reg_we <= 1'b0;
+            fifo_wb_ready <= 1'b0;
+        end else begin
+            if (current_state == STATE_IDLE && structural_hazard) begin
+                // 存储第二条指令到FIFO
+                fifo_valid <= 1'b1;
+                fifo_op_lb <= mem1_op_lb_i;
+                fifo_op_lh <= mem1_op_lh_i;
+                fifo_op_lw <= mem1_op_lw_i;
+                fifo_op_lbu <= mem1_op_lbu_i;
+                fifo_op_lhu <= mem1_op_lhu_i;
+                fifo_op_load <= mem1_op_load_i;
+                fifo_op_store <= mem1_op_store_i;
+                fifo_rd_addr <= mem1_rd_i;
+                fifo_addr <= mem1_addr_i;
+                fifo_wdata <= mem1_wdata_i;
+                fifo_wmask <= mem1_wmask_i;
+                fifo_commit_id <= mem1_commit_id_i;
+                fifo_reg_we <= mem1_reg_we_i;
+                fifo_wb_ready <= mem1_wb_ready_i;
+            end else if (current_state == STATE_PROC_SECOND && !lsu_stall) begin
+                fifo_valid <= 1'b0;  // FIFO项目处理完成
+            end
+        end
+    end
+
+    // ===================================================================
+    // LSU输入选择逻辑
+    // ===================================================================
+    
+    always @(*) begin
+        // 默认值
+        lsu_req = 1'b0;
+        lsu_op_lb = 1'b0;
+        lsu_op_lh = 1'b0;
+        lsu_op_lw = 1'b0;
+        lsu_op_lbu = 1'b0;
+        lsu_op_lhu = 1'b0;
+        lsu_op_load = 1'b0;
+        lsu_op_store = 1'b0;
+        lsu_rd_addr = 5'b0;
+        lsu_addr = 32'b0;
+        lsu_wdata = 64'b0;
+        lsu_wmask = 8'b0;
+        lsu_commit_id = {`COMMIT_ID_WIDTH{1'b0}};
+        lsu_reg_we = 1'b0;
+        lsu_wb_ready = 1'b0;
+        processing_inst1 = 1'b0;
         
-        case (axi_write_state)
-            AXI_IDLE: begin
-                // 检查是否有需要写的Store操作
-                for (int i = 0; i < FIFO_DEPTH; i++) begin
-                    automatic int idx = (fifo_head + i) % FIFO_DEPTH;
-                    if (mem_fifo[idx].valid && mem_fifo[idx].is_store && 
-                        !mem_fifo[idx].axi_req_sent) begin
-                        axi_write_state_next = AXI_WRITE_ADDR;
-                        break;
-                    end
+        case (current_state)
+            STATE_IDLE: begin
+                if (req_mem0_i && !structural_hazard) begin
+                    // 处理第一条指令
+                    lsu_req = 1'b1;
+                    lsu_op_lb = mem0_op_lb_i;
+                    lsu_op_lh = mem0_op_lh_i;
+                    lsu_op_lw = mem0_op_lw_i;
+                    lsu_op_lbu = mem0_op_lbu_i;
+                    lsu_op_lhu = mem0_op_lhu_i;
+                    lsu_op_load = mem0_op_load_i;
+                    lsu_op_store = mem0_op_store_i;
+                    lsu_rd_addr = mem0_rd_i;
+                    lsu_addr = mem0_addr_i;
+                    lsu_wdata = mem0_wdata_i;
+                    lsu_wmask = mem0_wmask_i;
+                    lsu_commit_id = mem0_commit_id_i;
+                    lsu_reg_we = mem0_reg_we_i;
+                    lsu_wb_ready = mem0_wb_ready_i;
+                    processing_inst1 = 1'b1;
+                end else if (req_mem1_i && !req_mem0_i) begin
+                    // 只有第二条指令
+                    lsu_req = 1'b1;
+                    lsu_op_lb = mem1_op_lb_i;
+                    lsu_op_lh = mem1_op_lh_i;
+                    lsu_op_lw = mem1_op_lw_i;
+                    lsu_op_lbu = mem1_op_lbu_i;
+                    lsu_op_lhu = mem1_op_lhu_i;
+                    lsu_op_load = mem1_op_load_i;
+                    lsu_op_store = mem1_op_store_i;
+                    lsu_rd_addr = mem1_rd_i;
+                    lsu_addr = mem1_addr_i;
+                    lsu_wdata = mem1_wdata_i;
+                    lsu_wmask = mem1_wmask_i;
+                    lsu_commit_id = mem1_commit_id_i;
+                    lsu_reg_we = mem1_reg_we_i;
+                    lsu_wb_ready = mem1_wb_ready_i;
+                    processing_inst1 = 1'b0;
                 end
             end
             
-            AXI_WRITE_ADDR: begin
-                if (M_AXI_AWVALID && M_AXI_AWREADY) begin
-                    axi_write_state_next = AXI_WRITE_DATA;
-                end
+            STATE_PROC_FIRST: begin
+                // 处理第一条指令（结构冒险情况）
+                lsu_req = 1'b1;
+                lsu_op_lb = mem0_op_lb_i;
+                lsu_op_lh = mem0_op_lh_i;
+                lsu_op_lw = mem0_op_lw_i;
+                lsu_op_lbu = mem0_op_lbu_i;
+                lsu_op_lhu = mem0_op_lhu_i;
+                lsu_op_load = mem0_op_load_i;
+                lsu_op_store = mem0_op_store_i;
+                lsu_rd_addr = mem0_rd_i;
+                lsu_addr = mem0_addr_i;
+                lsu_wdata = mem0_wdata_i;
+                lsu_wmask = mem0_wmask_i;
+                lsu_commit_id = mem0_commit_id_i;
+                lsu_reg_we = mem0_reg_we_i;
+                lsu_wb_ready = mem0_wb_ready_i;
+                processing_inst1 = 1'b1;
             end
             
-            AXI_WRITE_DATA: begin
-                if (M_AXI_WVALID && M_AXI_WREADY) begin
-                    axi_write_state_next = AXI_WRITE_RESP;
-                end
-            end
-            
-            AXI_WRITE_RESP: begin
-                if (M_AXI_BVALID && M_AXI_BREADY) begin
-                    axi_write_state_next = AXI_IDLE;
-                end
+            STATE_PROC_SECOND: begin
+                // 处理FIFO中的第二条指令
+                lsu_req = fifo_valid;
+                lsu_op_lb = fifo_op_lb;
+                lsu_op_lh = fifo_op_lh;
+                lsu_op_lw = fifo_op_lw;
+                lsu_op_lbu = fifo_op_lbu;
+                lsu_op_lhu = fifo_op_lhu;
+                lsu_op_load = fifo_op_load;
+                lsu_op_store = fifo_op_store;
+                lsu_rd_addr = fifo_rd_addr;
+                lsu_addr = fifo_addr;
+                lsu_wdata = fifo_wdata;
+                lsu_wmask = fifo_wmask;
+                lsu_commit_id = fifo_commit_id;
+                lsu_reg_we = fifo_reg_we;
+                lsu_wb_ready = fifo_wb_ready;
+                processing_inst1 = 1'b0;
             end
         endcase
     end
-    
-    // ===================================================================
-    // AXI输出信号生成 - 分离读写通道
-    // ===================================================================
-    
-    always_comb begin
-        // 写地址通道
-        M_AXI_AWID = UNIT_ID;
-        M_AXI_AWADDR = 32'b0;
-        M_AXI_AWLEN = 8'b0;
-        M_AXI_AWSIZE = 3'b010; // 4 bytes
-        M_AXI_AWBURST = 2'b01; // INCR
-        M_AXI_AWLOCK = 1'b0;
-        M_AXI_AWCACHE = 4'b0010;
-        M_AXI_AWPROT = 3'b000;
-        M_AXI_AWQOS = 4'b0000;
-        M_AXI_AWUSER = 1'b0;
-        M_AXI_AWVALID = 1'b0;
-        
-        if (axi_write_state == AXI_WRITE_ADDR) begin
-            M_AXI_AWVALID = 1'b1;
-            M_AXI_AWADDR = mem_fifo[axi_write_processing_idx].addr;
-            
-            case (mem_fifo[axi_write_processing_idx].op_type)
-                OP_SB: M_AXI_AWSIZE = 3'b000; // 1 byte
-                OP_SH: M_AXI_AWSIZE = 3'b001; // 2 bytes
-                default: M_AXI_AWSIZE = 3'b010; // 4 bytes
-            endcase
-        end
-        
-        // 写数据通道
-        M_AXI_WDATA = 64'b0;  // 64位数据
-        M_AXI_WSTRB = 8'b0;   // 8位掩码
-        M_AXI_WLAST = 1'b1;
-        M_AXI_WUSER = 1'b0;
-        M_AXI_WVALID = 1'b0;
-        
-        if (axi_write_state == AXI_WRITE_DATA) begin
-            M_AXI_WVALID = 1'b1;
-            M_AXI_WDATA = mem_fifo[axi_write_processing_idx].wdata; // 直接使用64位数据
-            M_AXI_WSTRB = mem_fifo[axi_write_processing_idx].wmask; // 直接使用8位掩码
-        end
-        
-        // 写响应通道
-        M_AXI_BREADY = (axi_write_state == AXI_WRITE_RESP);
-        
-        // 读地址通道
-        M_AXI_ARID = UNIT_ID;
-        M_AXI_ARADDR = 32'b0;
-        M_AXI_ARLEN = 8'b0;
-        M_AXI_ARSIZE = 3'b010; // 4 bytes
-        M_AXI_ARBURST = 2'b01; // INCR
-        M_AXI_ARLOCK = 1'b0;
-        M_AXI_ARCACHE = 4'b0010;
-        M_AXI_ARPROT = 3'b000;
-        M_AXI_ARQOS = 4'b0000;
-        M_AXI_ARUSER = 1'b0;
-        M_AXI_ARVALID = 1'b0;
-        
-        if (axi_read_state == AXI_READ_ADDR) begin
-            M_AXI_ARVALID = 1'b1;
-            M_AXI_ARADDR = mem_fifo[axi_read_processing_idx].addr;
-            
-            case (mem_fifo[axi_read_processing_idx].op_type)
-                OP_LB, OP_LBU: M_AXI_ARSIZE = 3'b000; // 1 byte
-                OP_LH, OP_LHU: M_AXI_ARSIZE = 3'b001; // 2 bytes
-                default: M_AXI_ARSIZE = 3'b010; // 4 bytes
-            endcase
-        end
-        
-        // 读数据通道
-        M_AXI_RREADY = (axi_read_state == AXI_READ_DATA);
-    end
-    
-    // ===================================================================
-    // AXI响应处理 - 分离读写通道
-    // ===================================================================
-    
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                mem_fifo[i].axi_req_sent <= 1'b0;
-                mem_fifo[i].axi_resp_received <= 1'b0;
-                mem_fifo[i].result_data <= 32'b0;
-            end
-        end else begin
-            // 标记读请求已发送
-            if (axi_read_state == AXI_READ_ADDR && M_AXI_ARVALID && M_AXI_ARREADY) begin
-                mem_fifo[axi_read_processing_idx].axi_req_sent <= 1'b1;
-            end
-            
-            // 标记写请求已发送
-            if (axi_write_state == AXI_WRITE_ADDR && M_AXI_AWVALID && M_AXI_AWREADY) begin
-                mem_fifo[axi_write_processing_idx].axi_req_sent <= 1'b1;
-            end
-            
-            // 处理读响应
-            if (M_AXI_RVALID && M_AXI_RREADY) begin
-                mem_fifo[axi_read_processing_idx].axi_resp_received <= 1'b1;
-                // 根据操作类型处理读取的数据
-                // 从64位AXI数据中选择正确的32位word
-                selected_word = (mem_fifo[axi_read_processing_idx].addr[2]) ? M_AXI_RDATA[63:32] : M_AXI_RDATA[31:0];
 
-                case (mem_fifo[axi_read_processing_idx].op_type)
-                    OP_LB: begin
-                        case (mem_fifo[axi_read_processing_idx].addr[1:0])
-                            2'b00: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[7]}}, selected_word[7:0]};
-                            2'b01: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[15]}}, selected_word[15:8]};
-                            2'b10: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[23]}}, selected_word[23:16]};
-                            2'b11: mem_fifo[axi_read_processing_idx].result_data <= {{24{selected_word[31]}}, selected_word[31:24]};
-                        endcase
-                    end
-                    OP_LBU: begin
-                        case (mem_fifo[axi_read_processing_idx].addr[1:0])
-                            2'b00: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[7:0]};
-                            2'b01: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[15:8]};
-                            2'b10: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[23:16]};
-                            2'b11: mem_fifo[axi_read_processing_idx].result_data <= {24'b0, selected_word[31:24]};
-                        endcase
-                    end
-                    OP_LH: begin
-                        case (mem_fifo[axi_read_processing_idx].addr[1])
-                            1'b0: mem_fifo[axi_read_processing_idx].result_data <= {{16{selected_word[15]}}, selected_word[15:0]};
-                            1'b1: mem_fifo[axi_read_processing_idx].result_data <= {{16{selected_word[31]}}, selected_word[31:16]};
-                        endcase
-                    end
-                    OP_LHU: begin
-                        case (mem_fifo[axi_read_processing_idx].addr[1])
-                            1'b0: mem_fifo[axi_read_processing_idx].result_data <= {16'b0, selected_word[15:0]};
-                            1'b1: mem_fifo[axi_read_processing_idx].result_data <= {16'b0, selected_word[31:16]};
-                        endcase
-                    end
-                    OP_LW: begin
-                        mem_fifo[axi_read_processing_idx].result_data <= selected_word;
-                    end
-                endcase
-            end
-            
-            // 处理写响应
-            if (M_AXI_BVALID && M_AXI_BREADY) begin
-                mem_fifo[axi_write_processing_idx].axi_resp_received <= 1'b1;
-            end
-        end
-    end
-    
     // ===================================================================
-    // 写回接口 - 优化的Load结果输出
+    // RAW转发逻辑
     // ===================================================================
     
-    always_comb begin
-        reg_wdata_o = 32'b0;
-        reg_we_o = 1'b0;
-        reg_waddr_o = 5'b0;
-        commit_id_o = '0;
+    // RAW转发数据生成（简化版本，从store的低32位提取）
+    wire [31:0] forward_data = mem0_wdata_i[31:0];
+    
+    // ===================================================================
+    // 输出控制逻辑
+    // ===================================================================
+    
+    // 暂停信号生成
+    assign mem_stall_o = lsu_stall || 
+                        (current_state == STATE_PROC_FIRST) ||
+                        (current_state == STATE_PROC_SECOND) ||
+                        (req_mem0_i && req_mem1_i && structural_hazard);
+
+    // 写回数据路由
+    assign lsu0_reg_wdata_o = (processing_inst1 || (current_state == STATE_PROC_FIRST)) ? lsu_reg_wdata : 
+                             (raw_forward && req_mem1_i && mem1_op_load_i) ? forward_data : 
+                             {`REG_DATA_WIDTH{1'b0}};
+    
+    assign lsu0_reg_we_o = (processing_inst1 || (current_state == STATE_PROC_FIRST)) ? lsu_reg_we_out : 
+                          (raw_forward && req_mem1_i && mem1_op_load_i) ? mem0_reg_we_i : 
+                          1'b0;
+    
+    assign lsu0_reg_waddr_o = (processing_inst1 || (current_state == STATE_PROC_FIRST)) ? lsu_reg_waddr : 
+                             (raw_forward && req_mem1_i && mem1_op_load_i) ? mem0_rd_i : 
+                             {`REG_ADDR_WIDTH{1'b0}};
+    
+    assign lsu0_commit_id_o = (processing_inst1 || (current_state == STATE_PROC_FIRST)) ? lsu_commit_id_out : 
+                             (raw_forward && req_mem1_i && mem1_op_load_i) ? mem0_commit_id_i : 
+                             {`COMMIT_ID_WIDTH{1'b0}};
+
+    assign lsu1_reg_wdata_o = (!processing_inst1 && !(current_state == STATE_PROC_FIRST)) ? lsu_reg_wdata : 
+                             (raw_forward && req_mem1_i && mem1_op_load_i) ? forward_data : 
+                             (current_state == STATE_PROC_SECOND) ? lsu_reg_wdata :
+                             {`REG_DATA_WIDTH{1'b0}};
+    
+    assign lsu1_reg_we_o = (!processing_inst1 && !(current_state == STATE_PROC_FIRST)) ? lsu_reg_we_out : 
+                          (raw_forward && req_mem1_i && mem1_op_load_i) ? mem1_reg_we_i : 
+                          (current_state == STATE_PROC_SECOND) ? lsu_reg_we_out :
+                          1'b0;
+    
+    assign lsu1_reg_waddr_o = (!processing_inst1 && !(current_state == STATE_PROC_FIRST)) ? lsu_reg_waddr : 
+                             (raw_forward && req_mem1_i && mem1_op_load_i) ? mem1_rd_i : 
+                             (current_state == STATE_PROC_SECOND) ? lsu_reg_waddr :
+                             {`REG_ADDR_WIDTH{1'b0}};
+    
+    assign lsu1_commit_id_o = (!processing_inst1 && !(current_state == STATE_PROC_FIRST)) ? lsu_commit_id_out : 
+                             (raw_forward && req_mem1_i && mem1_op_load_i) ? mem1_commit_id_i : 
+                             (current_state == STATE_PROC_SECOND) ? lsu_commit_id_out :
+                             {`COMMIT_ID_WIDTH{1'b0}};
+
+    // ===================================================================
+    // LSU单元实例化
+    // ===================================================================
+    
+    lsu_unit u_lsu_unit (
+        .clk(clk),
+        .rst_n(rst_n),
+        .int_assert_i(int_assert_i),
         
-        if (!fifo_empty && mem_fifo[fifo_head].valid && mem_fifo[fifo_head].is_load) begin
-            if (mem_fifo[fifo_head].axi_resp_received || mem_fifo[fifo_head].forwarded) begin
-                reg_wdata_o = mem_fifo[fifo_head].result_data;
-                reg_we_o = mem_fifo[fifo_head].reg_we;
-                reg_waddr_o = mem_fifo[fifo_head].rd_addr;
-                commit_id_o = mem_fifo[fifo_head].commit_id;
-            end
-        end
-    end
-    
-    // ===================================================================
-    // 辅助函数 - RAW前递数据提取
-    // ===================================================================
-    
-    function automatic [31:0] extract_forward_data(
-        input [63:0] store_data,
-        input [2:0] load_op_type,
-        input [1:0] byte_offset
+        // 访存请求信号
+        .req_mem_i(lsu_req),
+        .mem_op_lb_i(lsu_op_lb),
+        .mem_op_lh_i(lsu_op_lh),
+        .mem_op_lw_i(lsu_op_lw),
+        .mem_op_lbu_i(lsu_op_lbu),
+        .mem_op_lhu_i(lsu_op_lhu),
+        .mem_op_load_i(lsu_op_load),
+        .mem_op_store_i(lsu_op_store),
+        .rd_addr_i(lsu_rd_addr),
+        
+        // 访存地址和数据
+        .mem_addr_i(lsu_addr[31:0]),  // 使用低32位地址
+        .mem_wdata_i(lsu_wdata[31:0]), // 使用低32位数据
+        .mem_wmask_i(lsu_wmask[3:0]),  // 使用低4位掩码
+        
+        .commit_id_i(lsu_commit_id),
+        
+        // 访存阻塞和忙信号输出
+        .mem_stall_o(lsu_stall),
+        
+        // 寄存器写回接口
+        .reg_wdata_o(lsu_reg_wdata),
+        .reg_we_o(lsu_reg_we_out),
+        .reg_waddr_o(lsu_reg_waddr),
+        .commit_id_o(lsu_commit_id_out),
+        
+        // AXI Master接口 - 直接连接到外部
+        .M_AXI_AWID(M_AXI_AWID),
+        .M_AXI_AWADDR(M_AXI_AWADDR),
+        .M_AXI_AWLEN(M_AXI_AWLEN),
+        .M_AXI_AWSIZE(M_AXI_AWSIZE),
+        .M_AXI_AWBURST(M_AXI_AWBURST),
+        .M_AXI_AWLOCK(M_AXI_AWLOCK),
+        .M_AXI_AWCACHE(M_AXI_AWCACHE),
+        .M_AXI_AWPROT(M_AXI_AWPROT),
+        .M_AXI_AWQOS(M_AXI_AWQOS),
+        .M_AXI_AWUSER(M_AXI_AWUSER),
+        .M_AXI_AWVALID(M_AXI_AWVALID),
+        .M_AXI_AWREADY(M_AXI_AWREADY),
+        
+        .M_AXI_WDATA(M_AXI_WDATA),
+        .M_AXI_WSTRB(M_AXI_WSTRB),
+        .M_AXI_WLAST(M_AXI_WLAST),
+        .M_AXI_WUSER(M_AXI_WUSER),
+        .M_AXI_WVALID(M_AXI_WVALID),
+        .M_AXI_WREADY(M_AXI_WREADY),
+        
+        .M_AXI_BID(M_AXI_BID),
+        .M_AXI_BRESP(M_AXI_BRESP),
+        .M_AXI_BUSER(M_AXI_BUSER),
+        .M_AXI_BVALID(M_AXI_BVALID),
+        .M_AXI_BREADY(M_AXI_BREADY),
+        
+        .M_AXI_ARID(M_AXI_ARID),
+        .M_AXI_ARADDR(M_AXI_ARADDR),
+        .M_AXI_ARLEN(M_AXI_ARLEN),
+        .M_AXI_ARSIZE(M_AXI_ARSIZE),
+        .M_AXI_ARBURST(M_AXI_ARBURST),
+        .M_AXI_ARLOCK(M_AXI_ARLOCK),
+        .M_AXI_ARCACHE(M_AXI_ARCACHE),
+        .M_AXI_ARPROT(M_AXI_ARPROT),
+        .M_AXI_ARQOS(M_AXI_ARQOS),
+        .M_AXI_ARUSER(M_AXI_ARUSER),
+        .M_AXI_ARVALID(M_AXI_ARVALID),
+        .M_AXI_ARREADY(M_AXI_ARREADY),
+        
+        .M_AXI_RID(M_AXI_RID),
+        .M_AXI_RDATA(M_AXI_RDATA),
+        .M_AXI_RRESP(M_AXI_RRESP),
+        .M_AXI_RLAST(M_AXI_RLAST),
+        .M_AXI_RUSER(M_AXI_RUSER),
+        .M_AXI_RVALID(M_AXI_RVALID),
+        .M_AXI_RREADY(M_AXI_RREADY)
     );
-        logic [31:0] result;
-        
-        case (load_op_type)
-            OP_LB: begin // 有符号字节
-                case (byte_offset)
-                    2'b00: result = {{24{store_data[7]}}, store_data[7:0]};
-                    2'b01: result = {{24{store_data[15]}}, store_data[15:8]};
-                    2'b10: result = {{24{store_data[23]}}, store_data[23:16]};
-                    2'b11: result = {{24{store_data[31]}}, store_data[31:24]};
-                endcase
-            end
-            OP_LBU: begin // 无符号字节
-                case (byte_offset)
-                    2'b00: result = {24'b0, store_data[7:0]};
-                    2'b01: result = {24'b0, store_data[15:8]};
-                    2'b10: result = {24'b0, store_data[23:16]};
-                    2'b11: result = {24'b0, store_data[31:24]};
-                endcase
-            end
-            OP_LH: begin // 有符号半字
-                case (byte_offset[1])
-                    1'b0: result = {{16{store_data[15]}}, store_data[15:0]};
-                    1'b1: result = {{16{store_data[31]}}, store_data[31:16]};
-                endcase
-            end
-            OP_LHU: begin // 无符号半字
-                case (byte_offset[1])
-                    1'b0: result = {16'b0, store_data[15:0]};
-                    1'b1: result = {16'b0, store_data[31:16]};
-                endcase
-            end
-            default: result = store_data[31:0]; // LW
-        endcase
-        
-        return result;
-    endfunction
+
+    // Store busy信号逻辑 - 检测store操作是否在进行中
+    assign mem0_store_busy_o = (processing_inst1 && mem0_op_store_i) || 
+                               (state == STATE_PROC_FIRST && mem0_op_store_i) ||
+                               (state == STATE_PROC_SECOND && fifo_op_store && processing_inst1);
+    
+    assign mem1_store_busy_o = (!processing_inst1 && mem1_op_store_i) || 
+                               (state == STATE_IDLE && req_mem1_i && mem1_op_store_i && !mem0_req) ||
+                               (state == STATE_PROC_SECOND && fifo_op_store && !processing_inst1);
+
+endmodule
 
 endmodule
