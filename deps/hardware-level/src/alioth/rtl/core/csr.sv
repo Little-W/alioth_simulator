@@ -32,14 +32,14 @@ module csr (
 
     // form ex
     input wire                       we_i,     // ex模块写寄存器标志
-    input wire [`BUS_ADDR_WIDTH-1:0] raddr_i,  // ex模块读寄存器地址
-    input wire [`BUS_ADDR_WIDTH-1:0] waddr_i,  // ex模块写寄存器地址
+    input wire [31:0] raddr_i,  // ex模块读寄存器地址
+    input wire [31:0] waddr_i,  // ex模块写寄存器地址
     input wire [`REG_DATA_WIDTH-1:0] data_i,   // ex模块写寄存器数据
 
     // from clint
     input wire                       clint_we_i,     // clint模块写寄存器标志
-    input wire [`BUS_ADDR_WIDTH-1:0] clint_raddr_i,  // clint模块读寄存器地址
-    input wire [`BUS_ADDR_WIDTH-1:0] clint_waddr_i,  // clint模块写寄存器地址
+    input wire [31:0] clint_raddr_i,  // clint模块读寄存器地址
+    input wire [31:0] clint_waddr_i,  // clint模块写寄存器地址
     input wire [`REG_DATA_WIDTH-1:0] clint_data_i,   // clint模块写寄存器数据
 
     input wire inst_valid_i,  // 指令有效信号

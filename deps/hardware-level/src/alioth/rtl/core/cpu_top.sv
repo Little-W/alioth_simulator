@@ -381,36 +381,41 @@ module cpu_top (
     wire dispatch_inst_is_pred_branch_o;  // 添加预测分支指令标志输出
 
     // dispatch to MULDIV - 双发射
-    wire dispatch_req_muldiv;
-    wire [31:0] dispatch_muldiv_op1;
-    wire [31:0] dispatch_muldiv_op2;
-    wire dispatch_muldiv_op_mul;
-    wire dispatch_muldiv_op_mulh;
-    wire dispatch_muldiv_op_mulhsu;
-    wire dispatch_muldiv_op_mulhu;
-    wire dispatch_muldiv_op_div;
-    wire dispatch_muldiv_op_divu;
-    wire dispatch_muldiv_op_rem;
-    wire dispatch_muldiv_op_remu;
-    wire dispatch_muldiv_op_mul_all;
-    wire dispatch_muldiv_op_div_all;
-    wire [1:0] dispatch_muldiv_commit_id;
+    wire dispatch_req_mul;
+    wire [31:0] dispatch_mul_op1;
+    wire [31:0] dispatch_mul_op2;
+    wire dispatch_mul_op_mul;
+    wire dispatch_mul_op_mulh;
+    wire dispatch_mul_op_mulhsu;
+    wire dispatch_mul_op_mulhu;
+    wire dispatch_req_div;
+    wire [31:0] dispatch_div_op1;
+    wire [31:0] dispatch_div_op2;
+    wire dispatch_div_op_div;
+    wire dispatch_div_op_divu;
+    wire dispatch_div_op_rem;
+    wire dispatch_div_op_remu;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_div_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_mul_commit_id;
+
 
     // dispatch to MULDIV2 - 第二路乘除法
+    wire dispatch_req_mul2;
+    wire [31:0] dispatch_mul2_op1;
+    wire [31:0] dispatch_mul2_op2;
+    wire dispatch_mul2_op_mul;
+    wire dispatch_mul2_op_mulh;
+    wire dispatch_mul2_op_mulhsu;
+    wire dispatch_mul2_op_mulhu;
     wire dispatch_req_muldiv2;
-    wire [31:0] dispatch_muldiv2_op1;
-    wire [31:0] dispatch_muldiv2_op2;
-    wire dispatch_muldiv2_op_mul;
-    wire dispatch_muldiv2_op_mulh;
-    wire dispatch_muldiv2_op_mulhsu;
-    wire dispatch_muldiv2_op_mulhu;
-    wire dispatch_muldiv2_op_div;
-    wire dispatch_muldiv2_op_divu;
-    wire dispatch_muldiv2_op_rem;
-    wire dispatch_muldiv2_op_remu;
-    wire dispatch_muldiv2_op_mul_all;
-    wire dispatch_muldiv2_op_div_all;
-    wire [1:0] dispatch_muldiv2_commit_id;
+    wire [31:0] dispatch_div2_op1;
+    wire [31:0] dispatch_div2_op2;
+    wire dispatch_div2_op_div;
+    wire dispatch_div2_op_divu;
+    wire dispatch_div2_op_rem;
+    wire dispatch_div2_op_remu;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_div2_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_mul2_commit_id;
 
     // dispatch to CSR
     wire dispatch_req_csr;
@@ -944,34 +949,41 @@ module cpu_top (
         .inst_is_pred_branch_o  (dispatch_inst_is_pred_branch_o), // 连接预测分支信号输出
 
         // 第一路乘除法指令
-        .inst1_req_muldiv_o       (dispatch_req_muldiv),
-        .inst1_muldiv_op1_o       (dispatch_muldiv_op1),
-        .inst1_muldiv_op2_o       (dispatch_muldiv_op2),
-        .inst1_muldiv_op_mul_o    (dispatch_muldiv_op_mul),
-        .inst1_muldiv_op_mulh_o   (dispatch_muldiv_op_mulh),
-        .inst1_muldiv_op_mulhsu_o (dispatch_muldiv_op_mulhsu),
-        .inst1_muldiv_op_mulhu_o  (dispatch_muldiv_op_mulhu),
-        .inst1_muldiv_op_div_o    (dispatch_muldiv_op_div),
-        .inst1_muldiv_op_divu_o   (dispatch_muldiv_op_divu),
-        .inst1_muldiv_op_rem_o    (dispatch_muldiv_op_rem),
-        .inst1_muldiv_op_remu_o   (dispatch_muldiv_op_remu),
-        .inst1_muldiv_op_mul_all_o(dispatch_muldiv_op_mul_all),
-        .inst1_muldiv_op_div_all_o(dispatch_muldiv_op_div_all),
+        .inst1_req_mul_o      (dispatch_req_mul),
+        .inst1_mul_op1_o      (dispatch_mul_op1),
+        .inst1_mul_op2_o      (dispatch_mul_op2),
+        .inst1_mul_op_mul_o   (dispatch_mul_op_mul),
+        .inst1_mul_op_mulh_o  (dispatch_mul_op_mulh),
+        .inst1_mul_op_mulhsu_o(dispatch_mul_op_mulhsu),
+        .inst1_mul_op_mulhu_o (dispatch_mul_op_mulhu),
+        .inst1_req_div_o      (dispatch_req_div),
+        .inst1_div_op1_o      (dispatch_div_op1),
+        .inst1_div_op2_o      (dispatch_div_op2),
+        .inst1_div_op_div_o   (dispatch_div_op_div),
+        .inst1_div_op_divu_o  (dispatch_div_op_divu),
+        .inst1_div_op_rem_o   (dispatch_div_op_rem),
+        .inst1_div_op_remu_o  (dispatch_div_op_remu),
+        .inst1_mul_commit_id_o(dispatch_mul_commit_id),
+        .inst1_div_commit_id_o(dispatch_div_commit_id),
 
         // 第二路乘除法指令
-        .inst2_req_muldiv_o       (dispatch_req_muldiv2),
-        .inst2_muldiv_op1_o       (dispatch_muldiv2_op1),
-        .inst2_muldiv_op2_o       (dispatch_muldiv2_op2),
-        .inst2_muldiv_op_mul_o    (dispatch_muldiv2_op_mul),
-        .inst2_muldiv_op_mulh_o   (dispatch_muldiv2_op_mulh),
-        .inst2_muldiv_op_mulhsu_o (dispatch_muldiv2_op_mulhsu),
-        .inst2_muldiv_op_mulhu_o  (dispatch_muldiv2_op_mulhu),
-        .inst2_muldiv_op_div_o    (dispatch_muldiv2_op_div),
-        .inst2_muldiv_op_divu_o   (dispatch_muldiv2_op_divu),
-        .inst2_muldiv_op_rem_o    (dispatch_muldiv2_op_rem),
-        .inst2_muldiv_op_remu_o   (dispatch_muldiv2_op_remu),
-        .inst2_muldiv_op_mul_all_o(dispatch_muldiv2_op_mul_all),
-        .inst2_muldiv_op_div_all_o(dispatch_muldiv2_op_div_all),
+        .inst2_req_mul_o      (dispatch_req_mul2),
+        .inst2_mul_op1_o      (dispatch_mul2_op1),
+        .inst2_mul_op2_o      (dispatch_mul2_op2),
+        .inst2_mul_op_mul_o   (dispatch_mul2_op_mul),
+        .inst2_mul_op_mulh_o  (dispatch_mul2_op_mulh),
+        .inst2_mul_op_mulhsu_o(dispatch_mul2_op_mulhsu),
+        .inst2_mul_op_mulhu_o (dispatch_mul2_op_mulhu),
+        .inst2_req_div_o      (dispatch_req_div2),
+        .inst2_div_op1_o      (dispatch_div2_op1),
+        .inst2_div_op2_o      (dispatch_div2_op2),
+        .inst2_div_op_div_o   (dispatch_div2_op_div),
+        .inst2_div_op_divu_o  (dispatch_div2_op_divu),
+        .inst2_div_op_rem_o   (dispatch_div2_op_rem),
+        .inst2_div_op_remu_o  (dispatch_div2_op_remu),
+        .inst2_mul_commit_id_o(dispatch_mul2_commit_id),
+        .inst2_div_commit_id_o(dispatch_div2_commit_id),
+
 
         // csr指令信号- to csru
         .req_csr_o  (dispatch_req_csr),
@@ -1059,7 +1071,7 @@ module cpu_top (
         .stall_i(ctrl_stall_flag_o[`CU_STALL_DISPATCH]),
         .flush_i(ctrl_jump_flag_o),
 
-        // from id_ex (保持兼容性的信号)
+        // (保持兼容性的信号)
         .inst_addr_i(dispatch_inst_addr_o),
         .int_assert_i(clint_int_assert_o),
         .int_jump_i(clint_int_jump_o),
@@ -1086,45 +1098,43 @@ module cpu_top (
         .alu1_wb_ready_i(wbu_alu1_ready_o),
 
         // 乘法器0接口
-        .req_mul0_i(dispatch_req_muldiv && dispatch_muldiv_op_mul_all),
-        .mul0_op1_i(dispatch_muldiv_op1),
-        .mul0_op2_i(dispatch_muldiv_op2),
-        .mul0_op_mul_i(dispatch_muldiv_op_mul),
-        .mul0_op_mulh_i(dispatch_muldiv_op_mulh),
-        .mul0_op_mulhsu_i(dispatch_muldiv_op_mulhsu),
-        .mul0_op_mulhu_i(dispatch_muldiv_op_mulhu),
-        .mul0_rd_i(dispatch_reg_waddr_o),
-        .mul0_commit_id_i(icu_inst1_commit_id_o),
-        .mul0_reg_we_i(dispatch_reg_we_o && dispatch_muldiv_op_mul_all),
+        .req_mul0_i(dispatch_req_mul1),
+        .mul0_op1_i(dispatch_mul_op1),
+        .mul0_op2_i(dispatch_mul_op2),
+        .mul0_op_mul_i(dispatch_mul_op_mul),
+        .mul0_op_mulh_i(dispatch_mul_op_mulh),
+        .mul0_op_mulhsu_i(dispatch_mul_op_mulhsu),
+        .mul0_op_mulhu_i(dispatch_mul_op_mulhu),
+        .mul0_commit_id_i(dispatch_mul_commit_id),
+        .mul0_reg_waddr_i(dispatch_inst1_reg_waddr_o),
         .mul0_wb_ready_i(wbu_mul0_ready_o),
 
-        // 乘法器1接口 - 连接到第二路乘法器
-        .req_mul1_i(dispatch_req_muldiv2 && dispatch_muldiv2_op_mul_all),
-        .mul1_op1_i(dispatch_muldiv2_op1),
-        .mul1_op2_i(dispatch_muldiv2_op2),
-        .mul1_op_mul_i(dispatch_muldiv2_op_mul),
-        .mul1_op_mulh_i(dispatch_muldiv2_op_mulh),
-        .mul1_op_mulhsu_i(dispatch_muldiv2_op_mulhsu),
-        .mul1_op_mulhu_i(dispatch_muldiv2_op_mulhu),
-        .mul1_rd_i(icu_inst2_reg_waddr_o),
-        .mul1_commit_id_i(icu_inst2_commit_id_o),
-        .mul1_reg_we_i(icu_inst2_reg_we_o && (dispatch_req_muldiv2 && dispatch_muldiv2_op_mul_all)),
+        // 乘法器1接口
+        .req_mul1_i(dispatch_req_mul2),
+        .mul1_op1_i(dispatch_mul2_op1),
+        .mul1_op2_i(dispatch_mul2_op2),
+        .mul1_op_mul_i(dispatch_mul2_op_mul),
+        .mul1_op_mulh_i(dispatch_mul2_op_mulh),
+        .mul1_op_mulhsu_i(dispatch_mul2_op_mulhsu),
+        .mul1_op_mulhu_i(dispatch_mul2_op_mulhu),
+        .mul1_commit_id_i(dispatch_mul2_commit_id),
+        .mul1_reg_waddr_i(dispatch_inst2_reg_waddr_o),
         .mul1_wb_ready_i(wbu_mul1_ready_o),
 
         // 除法器0接口
-        .req_div0_i(dispatch_req_muldiv && dispatch_muldiv_op_div_all),
-        .div0_op1_i(dispatch_muldiv_op1),
-        .div0_op2_i(dispatch_muldiv_op2),
-        .div0_op_div_i(dispatch_muldiv_op_div),
-        .div0_op_divu_i(dispatch_muldiv_op_divu),
-        .div0_op_rem_i(dispatch_muldiv_op_rem),
-        .div0_op_remu_i(dispatch_muldiv_op_remu),
-        .div0_rd_i(dispatch_reg_waddr_o),
-        .div0_commit_id_i(icu_inst1_commit_id_o),
-        .div0_reg_we_i(dispatch_reg_we_o && dispatch_muldiv_op_div_all),
+        .req_div0_i(dispatch_req_div),
+        .div0_op1_i(dispatch_div_op1),
+        .div0_op2_i(dispatch_div_op2),
+        .div0_op_div_i(dispatch_div_op_div),
+        .div0_op_divu_i(dispatch_div_op_divu),
+        .div0_op_rem_i(dispatch_div_op_rem),
+        .div0_op_remu_i(dispatch_div_op_remu),
+        .div0_reg_waddr_i(dispatch_inst1_reg_waddr_o),
+        .div0_commit_id_i(dispatch_div_commit_id),
         .div0_wb_ready_i(wbu_div0_ready_o),
 
-        // 除法器1接口 - 连接到第二路除法器
+
+        // 除法器1接口
         .req_div1_i(dispatch_req_muldiv2 && dispatch_muldiv2_op_div_all),
         .div1_op1_i(dispatch_muldiv2_op1),
         .div1_op2_i(dispatch_muldiv2_op2),
@@ -1132,10 +1142,11 @@ module cpu_top (
         .div1_op_divu_i(dispatch_muldiv2_op_divu),
         .div1_op_rem_i(dispatch_muldiv2_op_rem),
         .div1_op_remu_i(dispatch_muldiv2_op_remu),
-        .div1_rd_i(icu_inst2_reg_waddr_o),
+        .div1_reg_waddr_i(icu_inst2_reg_waddr_o),
         .div1_commit_id_i(icu_inst2_commit_id_o),
         .div1_reg_we_i(icu_inst2_reg_we_o && (dispatch_req_muldiv2 && dispatch_muldiv2_op_div_all)),
         .div1_wb_ready_i(wbu_div1_ready_o),
+
 
         // 分支单元接口 (保持单实例)
         .req_bjp_i(dispatch_req_bjp),

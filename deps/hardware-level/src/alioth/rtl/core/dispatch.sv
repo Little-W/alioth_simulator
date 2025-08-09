@@ -103,35 +103,47 @@ module dispatch (
     output wire        bjp_op_jalr_o,
     output wire        inst_is_pred_branch_o,
 
-    // dispatch to MULDIV (第一路)
-    output wire                        inst1_req_muldiv_o,
-    output wire [                31:0] inst1_muldiv_op1_o,
-    output wire [                31:0] inst1_muldiv_op2_o,
-    output wire                        inst1_muldiv_op_mul_o,
-    output wire                        inst1_muldiv_op_mulh_o,
-    output wire                        inst1_muldiv_op_mulhsu_o,
-    output wire                        inst1_muldiv_op_mulhu_o,
-    output wire                        inst1_muldiv_op_div_o,
-    output wire                        inst1_muldiv_op_divu_o,
-    output wire                        inst1_muldiv_op_rem_o,
-    output wire                        inst1_muldiv_op_remu_o,
-    output wire                        inst1_muldiv_op_mul_all_o,
-    output wire                        inst1_muldiv_op_div_all_o,
+    // dispatch to MUL & DIV (第一路)
+    // dispatch to MUL
+    output wire                        inst1_req_mul_o,
+    output wire                        inst1_mul_op_mul_o,
+    output wire                        inst1_mul_op_mulh_o,
+    output wire                        inst1_mul_op_mulhsu_o,
+    output wire                        inst1_mul_op_mulhu_o,
+    output wire [                31:0] inst1_mul_op1_o,
+    output wire [                31:0] inst1_mul_op2_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] inst1_mul_commit_id_o,
 
-    // dispatch to MULDIV (第二路)
-    output wire                        inst2_req_muldiv_o,
-    output wire [                31:0] inst2_muldiv_op1_o,
-    output wire [                31:0] inst2_muldiv_op2_o,
-    output wire                        inst2_muldiv_op_mul_o,
-    output wire                        inst2_muldiv_op_mulh_o,
-    output wire                        inst2_muldiv_op_mulhsu_o,
-    output wire                        inst2_muldiv_op_mulhu_o,
-    output wire                        inst2_muldiv_op_div_o,
-    output wire                        inst2_muldiv_op_divu_o,
-    output wire                        inst2_muldiv_op_rem_o,
-    output wire                        inst2_muldiv_op_remu_o,
-    output wire                        inst2_muldiv_op_mul_all_o,
-    output wire                        inst2_muldiv_op_div_all_o,
+    // dispatch to DIV
+    output wire                        inst1_req_div_o,
+    output wire                        inst1_div_op_div_o,
+    output wire                        inst1_div_op_divu_o,
+    output wire                        inst1_div_op_rem_o,
+    output wire                        inst1_div_op_remu_o,
+    output wire [                31:0] inst1_div_op1_o,
+    output wire [                31:0] inst1_div_op2_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] inst1_div_commit_id_o,
+
+    // dispatch to MUL & DIV (第二路)
+    // dispatch to MUL
+    output wire                        inst2_req_mul_o,
+    output wire                        inst2_mul_op_mul_o,
+    output wire                        inst2_mul_op_mulh_o,
+    output wire                        inst2_mul_op_mulhsu_o,
+    output wire                        inst2_mul_op_mulhu_o,
+    output wire [                31:0] inst2_mul_op1_o,
+    output wire [                31:0] inst2_mul_op2_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] inst2_mul_commit_id_o,
+
+    // dispatch to DIV
+    output wire                        inst2_req_div_o,
+    output wire                        inst2_div_op_div_o,
+    output wire                        inst2_div_op_divu_o,
+    output wire                        inst2_div_op_rem_o,
+    output wire                        inst2_div_op_remu_o,
+    output wire [                31:0] inst2_div_op1_o,
+    output wire [                31:0] inst2_div_op2_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] inst2_div_commit_id_o,
     // dispatch to CSR (合并单路输出)
     output wire        req_csr_o,
     output wire [31:0] csr_op1_o,
@@ -302,19 +314,20 @@ module dispatch (
     wire                        inst1_logic_bjp_op_bgeu;
     wire                        inst1_logic_bjp_op_jalr;
 
-    wire                        inst1_logic_req_muldiv;
-    wire [                31:0] inst1_logic_muldiv_op1;
-    wire [                31:0] inst1_logic_muldiv_op2;
-    wire                        inst1_logic_muldiv_op_mul;
-    wire                        inst1_logic_muldiv_op_mulh;
-    wire                        inst1_logic_muldiv_op_mulhsu;
-    wire                        inst1_logic_muldiv_op_mulhu;
-    wire                        inst1_logic_muldiv_op_div;
-    wire                        inst1_logic_muldiv_op_divu;
-    wire                        inst1_logic_muldiv_op_rem;
-    wire                        inst1_logic_muldiv_op_remu;
-    wire                        inst1_logic_muldiv_op_mul_all;
-    wire                        inst1_logic_muldiv_op_div_all;
+    wire                        inst1_logic_req_mul;
+    wire [                31:0] inst1_logic_mul_op1;
+    wire [                31:0] inst1_logic_mul_op2;
+    wire                        inst1_logic_mul_op_mul;
+    wire                        inst1_logic_mul_op_mulh;
+    wire                        inst1_logic_mul_op_mulhsu;
+
+    wire                        inst1_logic_req_div;
+    wire [                31:0] inst1_logic_div_op1;
+    wire [                31:0] inst1_logic_div_op2;
+    wire                        inst1_logic_div_op_div;
+    wire                        inst1_logic_div_op_divu;
+    wire                        inst1_logic_div_op_rem;
+    wire                        inst1_logic_div_op_remu;
 
     wire                        inst1_logic_req_csr;
     wire [                31:0] inst1_logic_csr_op1;
@@ -365,19 +378,20 @@ module dispatch (
     wire                        inst2_logic_bjp_op_bgeu;
     wire                        inst2_logic_bjp_op_jalr;
 
-    wire                        inst2_logic_req_muldiv;
-    wire [                31:0] inst2_logic_muldiv_op1;
-    wire [                31:0] inst2_logic_muldiv_op2;
-    wire                        inst2_logic_muldiv_op_mul;
-    wire                        inst2_logic_muldiv_op_mulh;
-    wire                        inst2_logic_muldiv_op_mulhsu;
-    wire                        inst2_logic_muldiv_op_mulhu;
-    wire                        inst2_logic_muldiv_op_div;
-    wire                        inst2_logic_muldiv_op_divu;
-    wire                        inst2_logic_muldiv_op_rem;
-    wire                        inst2_logic_muldiv_op_remu;
-    wire                        inst2_logic_muldiv_op_mul_all;
-    wire                        inst2_logic_muldiv_op_div_all;
+    wire                        inst2_logic_req_mul;
+    wire [                31:0] inst2_logic_mul_op1;
+    wire [                31:0] inst2_logic_mul_op2;
+    wire                        inst2_logic_mul_op_mul;
+    wire                        inst2_logic_mul_op_mulh;
+    wire                        inst2_logic_mul_op_mulhsu;
+
+    wire                        inst2_logic_req_div;
+    wire [                31:0] inst2_logic_div_op1;
+    wire [                31:0] inst2_logic_div_op2;
+    wire                        inst2_logic_div_op_div;
+    wire                        inst2_logic_div_op_divu;
+    wire                        inst2_logic_div_op_rem;
+    wire                        inst2_logic_div_op_remu;
 
     wire                        inst2_logic_req_csr;
     wire [                31:0] inst2_logic_csr_op1;
@@ -437,20 +451,23 @@ module dispatch (
         .bjp_op_bgeu_o (inst1_logic_bjp_op_bgeu),
         .bjp_op_jalr_o (inst1_logic_bjp_op_jalr),
 
-        // MULDIV信号
-        .req_muldiv_o       (inst1_logic_req_muldiv),
-        .muldiv_op1_o       (inst1_logic_muldiv_op1),
-        .muldiv_op2_o       (inst1_logic_muldiv_op2),
-        .muldiv_op_mul_o    (inst1_logic_muldiv_op_mul),
-        .muldiv_op_mulh_o   (inst1_logic_muldiv_op_mulh),
-        .muldiv_op_mulhsu_o (inst1_logic_muldiv_op_mulhsu),
-        .muldiv_op_mulhu_o  (inst1_logic_muldiv_op_mulhu),
-        .muldiv_op_div_o    (inst1_logic_muldiv_op_div),
-        .muldiv_op_divu_o   (inst1_logic_muldiv_op_divu),
-        .muldiv_op_rem_o    (inst1_logic_muldiv_op_rem),
-        .muldiv_op_remu_o   (inst1_logic_muldiv_op_remu),
-        .muldiv_op_mul_all_o(inst1_logic_muldiv_op_mul_all),
-        .muldiv_op_div_all_o(inst1_logic_muldiv_op_div_all),
+        // MUL信号
+        .req_mul_o      (inst1_logic_req_mul),
+        .mul_op1_o      (inst1_logic_mul_op1),
+        .mul_op2_o      (inst1_logic_mul_op2),
+        .mul_op_mul_o   (inst1_logic_mul_op_mul),
+        .mul_op_mulh_o  (inst1_logic_mul_op_mulh),
+        .mul_op_mulhsu_o(inst1_logic_mul_op_mulhsu),
+        .mul_op_mulhu_o (inst1_logic_mul_op_mulhu),
+
+        // DIV信号
+        .req_div_o    (inst1_logic_req_div),
+        .div_op1_o    (inst1_logic_div_op1),
+        .div_op2_o    (inst1_logic_div_op2),
+        .div_op_div_o (inst1_logic_div_op_div),
+        .div_op_divu_o(inst1_logic_div_op_divu),
+        .div_op_rem_o (inst1_logic_div_op_rem),
+        .div_op_remu_o(inst1_logic_div_op_remu),
 
         // CSR信号
         .req_csr_o  (inst1_logic_req_csr),
@@ -527,20 +544,24 @@ module dispatch (
         .bjp_op_bge_i       (inst1_logic_bjp_op_bge),
         .bjp_op_bgeu_i      (inst1_logic_bjp_op_bgeu),
         .bjp_op_jalr_i      (inst1_logic_bjp_op_jalr),
-        // MULDIV信号
-        .req_muldiv_i       (inst1_logic_req_muldiv),
-        .muldiv_op1_i       (inst1_logic_muldiv_op1),
-        .muldiv_op2_i       (inst1_logic_muldiv_op2),  
-        .muldiv_op_mul_i    (inst1_logic_muldiv_op_mul),
-        .muldiv_op_mulh_i   (inst1_logic_muldiv_op_mulh),
-        .muldiv_op_mulhsu_i (inst1_logic_muldiv_op_mulhsu),
-        .muldiv_op_mulhu_i  (inst1_logic_muldiv_op_mulhu),
-        .muldiv_op_div_i    (inst1_logic_muldiv_op_div),
-        .muldiv_op_divu_i   (inst1_logic_muldiv_op_divu),
-        .muldiv_op_rem_i    (inst1_logic_muldiv_op_rem),
-        .muldiv_op_remu_i   (inst1_logic_muldiv_op_remu),
-        .muldiv_op_mul_all_i(inst1_logic_muldiv_op_mul_all),
-        .muldiv_op_div_all_i(inst1_logic_muldiv_op_div_all),
+         // MUL信号输入
+        .req_mul_i      (inst1_logic_req_mul),
+        .mul_op1_i      (inst1_logic_mul_op1),
+        .mul_op2_i      (inst1_logic_mul_op2),
+        .mul_op_mul_i   (inst1_logic_mul_op_mul),
+        .mul_op_mulh_i  (inst1_logic_mul_op_mulh),
+        .mul_op_mulhsu_i(inst1_logic_mul_op_mulhsu),
+        .mul_op_mulhu_i (inst1_logic_mul_op_mulhu),
+
+        // DIV信号输入
+        .req_div_i    (inst1_logic_req_div),
+        .div_op1_i    (inst1_logic_div_op1),
+        .div_op2_i    (inst1_logic_div_op2),
+        .div_op_div_i (inst1_logic_div_op_div),
+        .div_op_divu_i(inst1_logic_div_op_divu),
+        .div_op_rem_i (inst1_logic_div_op_rem),
+        .div_op_remu_i(inst1_logic_div_op_remu),
+
         // CSR信号
         .req_csr_i          (inst1_logic_req_csr),
         .csr_op1_i          (inst1_logic_csr_op1),
@@ -607,20 +628,22 @@ module dispatch (
         .bjp_op_bge_o       (pipe_inst1_bjp_op_bge_o),
         .bjp_op_bgeu_o      (pipe_inst1_bjp_op_bgeu_o),
         .bjp_op_jalr_o      (pipe_inst1_bjp_op_jalr_o),
-        // MULDIV输出端口
-        .req_muldiv_o         (inst1_req_muldiv_o),
-        .muldiv_op1_o        (inst1_muldiv_op1_o),
-        .muldiv_op2_o        (inst1_muldiv_op2_o),
-        .muldiv_op_mul_o     (inst1_muldiv_op_mul_o),
-        .muldiv_op_mulh_o    (inst1_muldiv_op_mulh_o),
-        .muldiv_op_mulhsu_o  (inst1_muldiv_op_mulhsu_o),
-        .muldiv_op_mulhu_o   (inst1_muldiv_op_mulhu_o),
-        .muldiv_op_div_o     (inst1_muldiv_op_div_o),
-        .muldiv_op_divu_o    (inst1_muldiv_op_divu_o),
-        .muldiv_op_rem_o     (inst1_muldiv_op_rem_o),
-        .muldiv_op_remu_o    (inst1_muldiv_op_remu_o),
-        .muldiv_op_mul_all_o  (inst1_muldiv_op_mul_all_o),
-        .muldiv_op_div_all_o  (inst1_muldiv_op_div_all_o),
+        // MUL信号输出
+        .req_mul_o      (inst1_req_mul_o),
+        .mul_op1_o      (inst1_mul_op1_o),
+        .mul_op2_o      (inst1_mul_op2_o),
+        .mul_op_mul_o   (inst1_mul_op_mul_o),
+        .mul_op_mulh_o  (inst1_mul_op_mulh_o),
+        .mul_op_mulhsu_o(inst1_mul_op_mulhsu_o),
+        .mul_op_mulhu_o (inst1_mul_op_mulhu_o),
+        // DIV信号输出
+        .req_div_o    (inst1_req_div_o),
+        .div_op1_o    (inst1_div_op1_o),
+        .div_op2_o    (inst1_div_op2_o),
+        .div_op_div_o (inst1_div_op_div_o),
+        .div_op_divu_o(inst1_div_op_divu_o),
+        .div_op_rem_o (inst1_div_op_rem_o),
+        .div_op_remu_o(inst1_div_op_remu_o),
         // CSR输出端口
         .req_csr_o           (pipe_inst1_req_csr_o),
         .csr_op1_o           (pipe_inst1_csr_op1_o),
@@ -680,20 +703,23 @@ module dispatch (
         .bjp_op_bge_o  (inst2_logic_bjp_op_bge),
         .bjp_op_bgeu_o (inst2_logic_bjp_op_bgeu),
         .bjp_op_jalr_o (inst2_logic_bjp_op_jalr),
-        // MULDIV信号
-        .req_muldiv_o       (inst2_logic_req_muldiv),
-        .muldiv_op1_o       (inst2_logic_muldiv_op1),
-        .muldiv_op2_o       (inst2_logic_muldiv_op2),
-        .muldiv_op_mul_o    (inst2_logic_muldiv_op_mul),
-        .muldiv_op_mulh_o   (inst2_logic_muldiv_op_mulh),
-        .muldiv_op_mulhsu_o (inst2_logic_muldiv_op_mulhsu),
-        .muldiv_op_mulhu_o  (inst2_logic_muldiv_op_mulhu),
-        .muldiv_op_div_o    (inst2_logic_muldiv_op_div),
-        .muldiv_op_divu_o   (inst2_logic_muldiv_op_divu),
-        .muldiv_op_rem_o    (inst2_logic_muldiv_op_rem),
-        .muldiv_op_remu_o   (inst2_logic_muldiv_op_remu),
-        .muldiv_op_mul_all_o(inst2_logic_muldiv_op_mul_all),
-        .muldiv_op_div_all_o(inst2_logic_muldiv_op_div_all),
+        // MUL信号
+        .req_mul_o      (inst2_logic_req_mul),
+        .mul_op1_o      (inst2_logic_mul_op1),
+        .mul_op2_o      (inst2_logic_mul_op2),
+        .mul_op_mul_o   (inst2_logic_mul_op_mul),
+        .mul_op_mulh_o  (inst2_logic_mul_op_mulh),
+        .mul_op_mulhsu_o(inst2_logic_mul_op_mulhsu),
+        .mul_op_mulhu_o (inst2_logic_mul_op_mulhu),
+
+        // DIV信号
+        .req_div_o    (inst2_logic_req_div),
+        .div_op1_o    (inst2_logic_div_op1),
+        .div_op2_o    (inst2_logic_div_op2),
+        .div_op_div_o (inst2_logic_div_op_div),
+        .div_op_divu_o(inst2_logic_div_op_divu),
+        .div_op_rem_o (inst2_logic_div_op_rem),
+        .div_op_remu_o(inst2_logic_div_op_remu),
         // CSR信号
         .req_csr_o  (inst2_logic_req_csr),
         .csr_op1_o  (inst2_logic_csr_op1),
@@ -767,20 +793,23 @@ module dispatch (
         .bjp_op_bge_i       (inst2_logic_bjp_op_bge),
         .bjp_op_bgeu_i      (inst2_logic_bjp_op_bgeu),
         .bjp_op_jalr_i      (inst2_logic_bjp_op_jalr),
-        // MULDIV信号
-        .req_muldiv_i       (inst2_logic_req_muldiv),
-        .muldiv_op1_i       (inst2_logic_muldiv_op1),
-        .muldiv_op2_i       (inst2_logic_muldiv_op2),  
-        .muldiv_op_mul_i    (inst2_logic_muldiv_op_mul),
-        .muldiv_op_mulh_i   (inst2_logic_muldiv_op_mulh),
-        .muldiv_op_mulhsu_i (inst2_logic_muldiv_op_mulhsu),
-        .muldiv_op_mulhu_i  (inst2_logic_muldiv_op_mulhu),
-        .muldiv_op_div_i    (inst2_logic_muldiv_op_div),
-        .muldiv_op_divu_i   (inst2_logic_muldiv_op_divu),
-        .muldiv_op_rem_i    (inst2_logic_muldiv_op_rem),
-        .muldiv_op_remu_i   (inst2_logic_muldiv_op_remu),
-        .muldiv_op_mul_all_i(inst2_logic_muldiv_op_mul_all),
-        .muldiv_op_div_all_i(inst2_logic_muldiv_op_div_all),
+        // MUL信号输入
+        .req_mul_i      (inst2_logic_req_mul),
+        .mul_op1_i      (inst2_logic_mul_op1),
+        .mul_op2_i      (inst2_logic_mul_op2),
+        .mul_op_mul_i   (inst2_logic_mul_op_mul),
+        .mul_op_mulh_i  (inst2_logic_mul_op_mulh),
+        .mul_op_mulhsu_i(inst2_logic_mul_op_mulhsu),
+        .mul_op_mulhu_i (inst2_logic_mul_op_mulhu),
+
+        // DIV信号输入
+        .req_div_i    (inst2_logic_req_div),
+        .div_op1_i    (inst2_logic_div_op1),
+        .div_op2_i    (inst2_logic_div_op2),
+        .div_op_div_i (inst2_logic_div_op_div),
+        .div_op_divu_i(inst2_logic_div_op_divu),
+        .div_op_rem_i (inst2_logic_div_op_rem),
+        .div_op_remu_i(inst2_logic_div_op_remu),
         // CSR信号
         .req_csr_i          (inst2_logic_req_csr),
         .csr_op1_i          (inst2_logic_csr_op1),
@@ -847,20 +876,22 @@ module dispatch (
         .bjp_op_bge_o       (pipe_inst2_bjp_op_bge_o),
         .bjp_op_bgeu_o      (pipe_inst2_bjp_op_bgeu_o),
         .bjp_op_jalr_o      (pipe_inst2_bjp_op_jalr_o),
-        // MULDIV输出端口
-        .req_muldiv_o         (inst2_req_muldiv_o),
-        .muldiv_op1_o        (inst2_muldiv_op1_o),
-        .muldiv_op2_o        (inst2_muldiv_op2_o),
-        .muldiv_op_mul_o     (inst2_muldiv_op_mul_o),
-        .muldiv_op_mulh_o    (inst2_muldiv_op_mulh_o),
-        .muldiv_op_mulhsu_o  (inst2_muldiv_op_mulhsu_o),
-        .muldiv_op_mulhu_o   (inst2_muldiv_op_mulhu_o),
-        .muldiv_op_div_o     (inst2_muldiv_op_div_o),
-        .muldiv_op_divu_o    (inst2_muldiv_op_divu_o),
-        .muldiv_op_rem_o     (inst2_muldiv_op_rem_o),
-        .muldiv_op_remu_o    (inst2_muldiv_op_remu_o),
-        .muldiv_op_mul_all_o  (inst2_muldiv_op_mul_all_o),
-        .muldiv_op_div_all_o  (inst2_muldiv_op_div_all_o),
+        // MUL信号输出
+        .req_mul_o      (inst2_req_mul_o),
+        .mul_op1_o      (inst2_mul_op1_o),
+        .mul_op2_o      (inst2_mul_op2_o),
+        .mul_op_mul_o   (inst2_mul_op_mul_o),
+        .mul_op_mulh_o  (inst2_mul_op_mulh_o),
+        .mul_op_mulhsu_o(inst2_mul_op_mulhsu_o),
+        .mul_op_mulhu_o (inst2_mul_op_mulhu_o),
+        // DIV信号输出
+        .req_div_o    (inst2_req_div_o),
+        .div_op1_o    (inst2_div_op1_o),
+        .div_op2_o    (inst2_div_op2_o),
+        .div_op_div_o (inst2_div_op_div_o),
+        .div_op_divu_o(inst2_div_op_divu_o),
+        .div_op_rem_o (inst2_div_op_rem_o),
+        .div_op_remu_o(inst2_div_op_remu_o),
         // CSR输出端口
         .req_csr_o           (pipe_inst2_req_csr_o),
         .csr_op1_o           (pipe_inst2_csr_op1_o),
@@ -938,6 +969,9 @@ module dispatch (
     assign sys_op_fence_o = pipe_inst1_sys_op_fence_o | pipe_inst2_sys_op_fence_o;
     assign sys_op_dret_o  = pipe_inst1_sys_op_dret_o | pipe_inst2_sys_op_dret_o;
 
-   
+    assign inst1_mul_commit_id_o = inst1_commit_id_o;
+    assign inst2_mul_commit_id_o = inst2_commit_id_o;
+    assign inst1_div_commit_id_o = inst1_commit_id_o;
+    assign inst2_div_commit_id_o = inst2_commit_id_o;
 
 endmodule

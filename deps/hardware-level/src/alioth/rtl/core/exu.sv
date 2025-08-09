@@ -65,9 +65,8 @@ module exu (
     input wire                        mul0_op_mulh_i,
     input wire                        mul0_op_mulhsu_i,
     input wire                        mul0_op_mulhu_i,
-    input wire [              4:0]    mul0_rd_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mul0_commit_id_i,
-    input wire                        mul0_reg_we_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] mul0_reg_waddr_i,
     input wire                        mul0_wb_ready_i,
 
     // 乘法器1接口
@@ -78,9 +77,8 @@ module exu (
     input wire                        mul1_op_mulh_i,
     input wire                        mul1_op_mulhsu_i,
     input wire                        mul1_op_mulhu_i,
-    input wire [              4:0]    mul1_rd_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mul1_commit_id_i,
-    input wire                        mul1_reg_we_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] mul1_reg_waddr_i,
     input wire                        mul1_wb_ready_i,
 
     // 除法器0接口
@@ -91,22 +89,20 @@ module exu (
     input wire                        div0_op_divu_i,
     input wire                        div0_op_rem_i,
     input wire                        div0_op_remu_i,
-    input wire [              4:0]    div0_rd_i,
+    input wire [`REG_ADDR_WIDTH-1:0]  div0_reg_waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] div0_commit_id_i,
-    input wire                        div0_reg_we_i,
     input wire                        div0_wb_ready_i,
 
     // 除法器1接口
-    input wire                        req_div1_i,
+    input wire                       req_div1_i,
     input wire [                31:0] div1_op1_i,
     input wire [                31:0] div1_op2_i,
     input wire                        div1_op_div_i,
     input wire                        div1_op_divu_i,
     input wire                        div1_op_rem_i,
     input wire                        div1_op_remu_i,
-    input wire [              4:0]    div1_rd_i,
+    input wire [`REG_ADDR_WIDTH-1:0]  div1_reg_waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] div1_commit_id_i,
-    input wire                        div1_reg_we_i,
     input wire                        div1_wb_ready_i,
 
     // 分支单元接口 (保持单实例)
@@ -384,21 +380,6 @@ module exu (
     wire lsu0_stall, lsu1_stall;
     wire csr0_stall, csr1_stall;
 
-    // 乘法器和除法器的内部连线
-    wire [`REG_DATA_WIDTH-1:0] mul0_result, mul1_result;
-    wire mul0_busy, mul1_busy, mul0_valid, mul1_valid;
-    wire mul0_start, mul1_start;
-    wire [`REG_DATA_WIDTH-1:0] mul0_multiplicand, mul1_multiplicand;
-    wire [`REG_DATA_WIDTH-1:0] mul0_multiplier, mul1_multiplier;
-    wire [3:0] mul0_op, mul1_op;
-
-    wire [`REG_DATA_WIDTH-1:0] div0_result, div1_result;
-    wire div0_busy, div1_busy, div0_valid, div1_valid;
-    wire div0_start, div1_start;
-    wire [`REG_DATA_WIDTH-1:0] div0_dividend, div1_dividend;
-    wire [`REG_DATA_WIDTH-1:0] div0_divisor, div1_divisor;
-    wire [3:0] div0_op, div1_op;
-
     // 分支单元信号
     wire bru_jump_flag;
     wire [`INST_ADDR_WIDTH-1:0] bru_jump_addr;
@@ -444,25 +425,12 @@ module exu (
         .commit_id_o    (alu1_commit_id_o)
     );
 
-    // 乘法器0实例
-    exu_mul u_mul0 (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .multiplicand_i(mul0_multiplicand),
-        .multiplier_i  (mul0_multiplier),
-        .start_i       (mul0_start),
-        .op_i          (mul0_op),
-        .result_o      (mul0_result),
-        .busy_o        (mul0_busy),
-        .valid_o       (mul0_valid)
-    );
-
-    // 乘法控制器0
-    exu_mul_ctrl u_mul_ctrl0 (
+    // ================= 新乘法单元实例化 =================
+    exu_mul u_exu_mul0 (
         .clk              (clk),
         .rst_n            (rst_n),
-        .wb_ready_i       (mul0_wb_ready_i),
-        .reg_waddr_i      (mul0_rd_i),
+        .wb_ready         (mul0_wb_ready_i),
+        .reg_waddr_i      (mul0_reg_waddr_i),
         .reg1_rdata_i     (mul0_op1_i),
         .reg2_rdata_i     (mul0_op2_i),
         .commit_id_i      (mul0_commit_id_i),
@@ -471,41 +439,19 @@ module exu (
         .mul_op_mulh_i    (mul0_op_mulh_i),
         .mul_op_mulhsu_i  (mul0_op_mulhsu_i),
         .mul_op_mulhu_i   (mul0_op_mulhu_i),
-        .reg_we_i         (mul0_reg_we_i),
-        .mul_result_i     (mul0_result),
-        .mul_busy_i       (mul0_busy),
-        .mul_valid_i      (mul0_valid),
         .int_assert_i     (int_assert_i),
-        .mul_start_o      (mul0_start),
-        .mul_multiplicand_o(mul0_multiplicand),
-        .mul_multiplier_o (mul0_multiplier),
-        .mul_op_o         (mul0_op),
-        .mul_stall_o      (mul0_stall),
+        .mul_stall_flag_o (mul0_stall),
         .reg_wdata_o      (mul0_reg_wdata_o),
         .reg_we_o         (mul0_reg_we_o),
         .reg_waddr_o      (mul0_reg_waddr_o),
         .commit_id_o      (mul0_commit_id_o)
     );
 
-    // 乘法器1实例
-    exu_mul u_mul1 (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .multiplicand_i(mul1_multiplicand),
-        .multiplier_i  (mul1_multiplier),
-        .start_i       (mul1_start),
-        .op_i          (mul1_op),
-        .result_o      (mul1_result),
-        .busy_o        (mul1_busy),
-        .valid_o       (mul1_valid)
-    );
-
-    // 乘法控制器1
-    exu_mul_ctrl u_mul_ctrl1 (
+    exu_mul u_exu_mul1 (
         .clk              (clk),
         .rst_n            (rst_n),
-        .wb_ready_i       (mul1_wb_ready_i),
-        .reg_waddr_i      (mul1_rd_i),
+        .wb_ready         (mul1_wb_ready_i),
+        .reg_waddr_i      (mul1_reg_waddr_i),
         .reg1_rdata_i     (mul1_op1_i),
         .reg2_rdata_i     (mul1_op2_i),
         .commit_id_i      (mul1_commit_id_i),
@@ -514,106 +460,55 @@ module exu (
         .mul_op_mulh_i    (mul1_op_mulh_i),
         .mul_op_mulhsu_i  (mul1_op_mulhsu_i),
         .mul_op_mulhu_i   (mul1_op_mulhu_i),
-        .reg_we_i         (mul1_reg_we_i),
-        .mul_result_i     (mul1_result),
-        .mul_busy_i       (mul1_busy),
-        .mul_valid_i      (mul1_valid),
         .int_assert_i     (int_assert_i),
-        .mul_start_o      (mul1_start),
-        .mul_multiplicand_o(mul1_multiplicand),
-        .mul_multiplier_o (mul1_multiplier),
-        .mul_op_o         (mul1_op),
-        .mul_stall_o      (mul1_stall),
+        .mul_stall_flag_o (mul1_stall),
         .reg_wdata_o      (mul1_reg_wdata_o),
         .reg_we_o         (mul1_reg_we_o),
         .reg_waddr_o      (mul1_reg_waddr_o),
         .commit_id_o      (mul1_commit_id_o)
     );
 
-    // 除法器0实例
-    exu_div u_div0 (
-        .clk       (clk),
-        .rst_n     (rst_n),
-        .dividend_i(div0_dividend),
-        .divisor_i (div0_divisor),
-        .start_i   (div0_start),
-        .op_i      (div0_op),
-        .result_o  (div0_result),
-        .busy_o    (div0_busy),
-        .valid_o   (div0_valid)
+    // ================= 新除法单元实例化 =================
+    exu_div u_exu_div0 (
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .wb_ready        (div0_wb_ready_i),
+        .reg_waddr_i     (div0_reg_waddr_i),
+        .reg1_rdata_i    (div0_op1_i),
+        .reg2_rdata_i    (div0_op2_i),
+        .commit_id_i     (div0_commit_id_i),
+        .req_div_i       (req_div0_i),
+        .div_op_div_i    (div0_op_div_i),
+        .div_op_divu_i   (div0_op_divu_i),
+        .div_op_rem_i    (div0_op_rem_i),
+        .div_op_remu_i   (div0_op_remu_i),
+        .int_assert_i    (int_assert_i),
+        .div_stall_flag_o(div0_stall),
+        .reg_wdata_o     (div0_reg_wdata_o),
+        .reg_we_o        (div0_reg_we_o),
+        .reg_waddr_o     (div0_reg_waddr_o),
+        .commit_id_o     (div0_commit_id_o)
     );
 
-    // 除法控制器0
-    exu_div_ctrl u_div_ctrl0 (
-        .clk              (clk),
-        .rst_n            (rst_n),
-        .wb_ready_i       (div0_wb_ready_i),
-        .reg_waddr_i      (div0_rd_i),
-        .reg1_rdata_i     (div0_op1_i),
-        .reg2_rdata_i     (div0_op2_i),
-        .commit_id_i      (div0_commit_id_i),
-        .req_div_i        (req_div0_i),
-        .div_op_div_i     (div0_op_div_i),
-        .div_op_divu_i    (div0_op_divu_i),
-        .div_op_rem_i     (div0_op_rem_i),
-        .div_op_remu_i    (div0_op_remu_i),
-        .reg_we_i         (div0_reg_we_i),
-        .div_result_i     (div0_result),
-        .div_busy_i       (div0_busy),
-        .div_valid_i      (div0_valid),
-        .int_assert_i     (int_assert_i),
-        .div_start_o      (div0_start),
-        .div_dividend_o   (div0_dividend),
-        .div_divisor_o    (div0_divisor),
-        .div_op_o         (div0_op),
-        .div_stall_o      (div0_stall),
-        .reg_wdata_o      (div0_reg_wdata_o),
-        .reg_we_o         (div0_reg_we_o),
-        .reg_waddr_o      (div0_reg_waddr_o),
-        .commit_id_o      (div0_commit_id_o)
-    );
-
-    // 除法器1实例
-    exu_div u_div1 (
-        .clk       (clk),
-        .rst_n     (rst_n),
-        .dividend_i(div1_dividend),
-        .divisor_i (div1_divisor),
-        .start_i   (div1_start),
-        .op_i      (div1_op),
-        .result_o  (div1_result),
-        .busy_o    (div1_busy),
-        .valid_o   (div1_valid)
-    );
-
-    // 除法控制器1
-    exu_div_ctrl u_div_ctrl1 (
-        .clk              (clk),
-        .rst_n            (rst_n),
-        .wb_ready_i       (div1_wb_ready_i),
-        .reg_waddr_i      (div1_rd_i),
-        .reg1_rdata_i     (div1_op1_i),
-        .reg2_rdata_i     (div1_op2_i),
-        .commit_id_i      (div1_commit_id_i),
-        .req_div_i        (req_div1_i),
-        .div_op_div_i     (div1_op_div_i),
-        .div_op_divu_i    (div1_op_divu_i),
-        .div_op_rem_i     (div1_op_rem_i),
-        .div_op_remu_i    (div1_op_remu_i),
-        .reg_we_i         (div1_reg_we_i),
-        .div_result_i     (div1_result),
-        .div_busy_i       (div1_busy),
-        .div_valid_i      (div1_valid),
-        .int_assert_i     (int_assert_i),
-        .div_start_o      (div1_start),
-        .div_dividend_o   (div1_dividend),
-        .div_divisor_o    (div1_divisor),
-        .div_op_o         (div1_op),
-        .div_stall_o      (div1_stall),
-        .reg_wdata_o      (div1_reg_wdata_o),
-        .reg_we_o         (div1_reg_we_o),
-        .reg_waddr_o      (div1_reg_waddr_o),
-        .commit_id_o      (div1_commit_id_o)
+    exu_div u_exu_div1 (
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .wb_ready        (div1_wb_ready_i),
+        .reg_waddr_i     (div1_reg_waddr_i),
+        .reg1_rdata_i    (div1_op1_i),
+        .reg2_rdata_i    (div1_op2_i),
+        .commit_id_i     (div1_commit_id_i),
+        .req_div_i       (req_div1_i),
+        .div_op_div_i    (div1_op_div_i),
+        .div_op_divu_i   (div1_op_divu_i),
+        .div_op_rem_i    (div1_op_rem_i),
+        .div_op_remu_i   (div1_op_remu_i),
+        .int_assert_i    (int_assert_i),
+        .div_stall_flag_o(div1_stall),
+        .reg_wdata_o     (div1_reg_wdata_o),
+        .reg_we_o        (div1_reg_we_o),
+        .reg_waddr_o     (div1_reg_waddr_o),
+        .commit_id_o     (div1_commit_id_o)
     );
 
     // 分支单元实例 (保持单实例)

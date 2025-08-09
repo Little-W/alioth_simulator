@@ -24,177 +24,219 @@
 
 `include "defines.svh"
 
-// 除法模块
-// 试商法实现32位整数除法
-// 每次除法运算至少需要33个时钟周期才能完成
+// 除法控制单元 - 管理两个除法器实例
 module exu_div (
-
     input wire clk,
     input wire rst_n,
+    input wire wb_ready,
 
-    // from ex
-    input wire [`REG_DATA_WIDTH-1:0] dividend_i,  // 被除数
-    input wire [`REG_DATA_WIDTH-1:0] divisor_i,   // 除数
-    input wire                       start_i,     // 开始信号，仅用于触发计算开始
-    input wire [                3:0] op_i,        // 操作类型
+    // 指令和操作数输入
+    input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
+    input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,
+    input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
-    // to ex
-    output reg [`REG_DATA_WIDTH-1:0] result_o,  // 除法结果，高32位是余数，低32位是商
-    output reg busy_o,  // 正在运算信号
-    output reg valid_o  // 输出有效信号
+    // 译码输入
+    input wire req_div_i,
+    input wire div_op_div_i,
+    input wire div_op_divu_i,
+    input wire div_op_rem_i,
+    input wire div_op_remu_i,
 
+    // 中断信号
+    input wire int_assert_i,
+
+    // 控制输出
+    output wire div_stall_flag_o,
+
+    // 寄存器写回接口
+    output wire [ `REG_DATA_WIDTH-1:0] reg_wdata_o,
+    output wire                        reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o
 );
 
-    // 状态定义
-    typedef enum logic [3:0] {
-        STATE_IDLE  = 4'b0001,
-        STATE_START = 4'b0010,
-        STATE_CALC  = 4'b0100,
-        STATE_END   = 4'b1000
-    } state_t;
+    // 保存除法指令写回信息
+    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id;
 
-    state_t state;
-    reg [`REG_DATA_WIDTH-1:0] dividend_r;
-    reg [`REG_DATA_WIDTH-1:0] divisor_r;
-    reg [3:0] op_r;
-    reg [31:0] count;
-    reg [`REG_DATA_WIDTH-1:0] div_result;
-    reg [`REG_DATA_WIDTH-1:0] div_remain;
-    reg [`REG_DATA_WIDTH-1:0] minuend;
-    reg invert_result;
+    wire [3:0] div_op_sel_mux;
+    wire [3:0] div0_op;
+    wire [3:0] div1_op;
+    wire ctrl_ready0;
+    wire ctrl_ready1;
+    wire div0_start;
+    wire div1_start;
 
-    // 从op_i解析具体操作类型
-    wire op_div = op_r[0];
-    wire op_divu = op_r[1];
-    wire op_rem = op_r[2];
-    wire op_remu = op_r[3];
+    wire [`REG_DATA_WIDTH-1:0] div0_dividend;
+    wire [`REG_DATA_WIDTH-1:0] div0_divisor;
+    wire [`REG_DATA_WIDTH-1:0] div1_dividend;
+    wire [`REG_DATA_WIDTH-1:0] div1_divisor;
 
-    wire [31:0] dividend_invert = (-dividend_r);
-    wire [31:0] divisor_invert = (-divisor_r);
-    wire minuend_ge_divisor = minuend >= divisor_r;
-    wire [31:0] minuend_sub_res = minuend - divisor_r;
-    wire [31:0] div_result_tmp = minuend_ge_divisor ? ({div_result[30:0], 1'b1}) : ({div_result[30:0], 1'b0});
-    wire [31:0] minuend_tmp = minuend_ge_divisor ? minuend_sub_res[30:0] : minuend[30:0];
+    // 除法器输出信号
+    wire [`REG_DATA_WIDTH-1:0] div0_result;
+    wire div0_busy;
+    wire div0_valid;
+    wire [`REG_DATA_WIDTH-1:0] div1_result;
+    wire div1_busy;
+    wire div1_valid;
 
-    // 状态机实现
-    always @(posedge clk) begin
+    // 直接使用输入的总除法信号
+    wire is_div_op = req_div_i && !int_assert_i;
+
+    wire div_busy = div0_busy || div1_busy;
+
+    // Buffer寄存器定义
+    reg [`REG_ADDR_WIDTH-1:0] waddr_buffer;
+    reg [`REG_DATA_WIDTH-1:0] dividend_buffer;
+    reg [`REG_DATA_WIDTH-1:0] divisor_buffer;
+    reg [`COMMIT_ID_WIDTH-1:0] commit_id_buffer;
+    reg [3:0] div_op_buffer;  // 4位：div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i
+    reg buffer_req_valid;
+
+    // Buffer数据选择
+    wire use_buffer = buffer_req_valid;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? dividend_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? divisor_buffer : reg2_rdata_i;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
+    wire [3:0] div_op_mux = use_buffer ? div_op_buffer : {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
+
+    // div_op_sel调整为mux后的数据
+    assign div_op_sel_mux = div_op_mux;
+    assign div0_op        = div_op_sel_mux;
+    assign div1_op        = div_op_sel_mux;
+    assign div0_dividend  = reg1_rdata_mux;
+    assign div0_divisor   = reg2_rdata_mux;
+    assign div1_dividend  = reg1_rdata_mux;
+    assign div1_divisor   = reg2_rdata_mux;
+
+    // 控制信号
+    wire sel_div0 = div0_valid;
+    wire sel_div1 = div1_valid;
+
+    // 写回地址和commit_id调整为mux后的数据
+    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id_nxt = commit_id_mux;
+    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_nxt = commit_id_mux;
+
+    // 保存除法器写回地址和commit_id
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) saved_div0_waddr_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div0_start),
+        .dnxt (saved_div0_waddr_nxt),
+        .qout (saved_div0_waddr)
+    );
+
+    gnrl_dfflr #(
+        .DW(`COMMIT_ID_WIDTH)
+    ) saved_div0_commit_id_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div0_start),
+        .dnxt (saved_div0_commit_id_nxt),
+        .qout (saved_div0_commit_id)
+    );
+
+    gnrl_dfflr #(
+        .DW(`REG_ADDR_WIDTH)
+    ) saved_div1_waddr_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div1_start),
+        .dnxt (saved_div1_waddr_nxt),
+        .qout (saved_div1_waddr)
+    );
+
+    gnrl_dfflr #(
+        .DW(`COMMIT_ID_WIDTH)
+    ) saved_div1_commit_id_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div1_start),
+        .dnxt (saved_div1_commit_id_nxt),
+        .qout (saved_div1_commit_id)
+    );
+
+    // 条件信号定义 - 用于流水线保持逻辑
+    wire div0_result_pending = div0_valid;
+    wire div1_result_pending = div1_valid;
+    wire stall_div_cond = is_div_op && (div_busy || div0_result_pending || div1_result_pending);
+
+    // 除法可用信号
+    wire div0_available = !div0_busy && !div0_result_pending;
+    wire div1_available = !div1_busy && !div1_result_pending;
+
+    // Buffer写入条件
+    wire buffer_write_en = stall_div_cond;
+
+    always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            state         <= STATE_IDLE;
-            result_o      <= `ZeroWord;
-            div_result    <= `ZeroWord;
-            div_remain    <= `ZeroWord;
-            op_r          <= 4'h0;
-            dividend_r    <= `ZeroWord;
-            divisor_r     <= `ZeroWord;
-            minuend       <= `ZeroWord;
-            invert_result <= 1'b0;
-            busy_o        <= 1'b0;
-            valid_o       <= 1'b0;
-            count         <= `ZeroWord;
-        end else begin
-            case (state)
-                STATE_IDLE: begin
-                    valid_o <= 1'b0;
-                    if (start_i == 1'b1) begin
-                        op_r       <= op_i;
-                        dividend_r <= dividend_i;
-                        divisor_r  <= divisor_i;
-                        state      <= STATE_START;
-                        busy_o     <= 1'b1;
-                    end else begin
-                        op_r       <= 3'h0;
-                        dividend_r <= `ZeroWord;
-                        divisor_r  <= `ZeroWord;
-                        result_o   <= `ZeroWord;
-                        busy_o     <= 1'b0;
-                    end
-                end
-
-                STATE_START: begin
-                    valid_o <= 1'b0;
-                    // 除数为0
-                    if (divisor_r == `ZeroWord) begin
-                        if (op_div | op_divu) begin
-                            result_o <= 32'hffffffff;
-                        end else begin
-                            result_o <= dividend_r;
-                        end
-                        state  <= STATE_IDLE;
-                        busy_o <= 1'b0;
-                        valid_o <= 1'b1;
-                        // 除数不为0
-                    end else begin
-                        busy_o     <= 1'b1;
-                        count      <= 32'h40000000;
-                        state      <= STATE_CALC;
-                        div_result <= `ZeroWord;
-                        div_remain <= `ZeroWord;
-
-                        // DIV和REM这两条指令是有符号数运算指令
-                        if (op_div | op_rem) begin
-                            // 被除数求补码
-                            if (dividend_r[31] == 1'b1) begin
-                                dividend_r <= dividend_invert;
-                                minuend    <= dividend_invert[31];
-                            end else begin
-                                minuend <= dividend_r[31];
-                            end
-                            // 除数求补码
-                            if (divisor_r[31] == 1'b1) begin
-                                divisor_r <= divisor_invert;
-                            end
-                        end else begin
-                            minuend <= dividend_r[31];
-                        end
-
-                        // 运算结束后是否要对结果取补码
-                        if ((op_div && (dividend_r[31] ^ divisor_r[31] == 1'b1))
-                            || (op_rem && (dividend_r[31] == 1'b1))) begin
-                            invert_result <= 1'b1;
-                        end else begin
-                            invert_result <= 1'b0;
-                        end
-                    end
-                end
-
-                STATE_CALC: begin
-                    busy_o     <= 1'b1;
-                    dividend_r <= {dividend_r[30:0], 1'b0};
-                    div_result <= div_result_tmp;
-                    count      <= {1'b0, count[31:1]};
-                    if (|count) begin
-                        minuend <= {minuend_tmp[30:0], dividend_r[30]};
-                    end else begin
-                        state <= STATE_END;
-                        if (minuend_ge_divisor) begin
-                            div_remain <= minuend_sub_res;
-                        end else begin
-                            div_remain <= minuend;
-                        end
-                    end
-                end
-
-                STATE_END: begin
-                    state   <= STATE_IDLE;
-                    busy_o  <= 1'b0;
-                    valid_o <= 1'b1;
-                    if (op_div | op_divu) begin
-                        if (invert_result) begin
-                            result_o <= (-div_result);
-                        end else begin
-                            result_o <= div_result;
-                        end
-                    end else begin
-                        if (invert_result) begin
-                            result_o <= (-div_remain);
-                        end else begin
-                            result_o <= div_remain;
-                        end
-                    end
-                end
-
-            endcase
+            buffer_req_valid <= 1'b0;
+            waddr_buffer     <= {`REG_ADDR_WIDTH{1'b0}};
+            dividend_buffer  <= {`REG_DATA_WIDTH{1'b0}};
+            divisor_buffer   <= {`REG_DATA_WIDTH{1'b0}};
+            commit_id_buffer <= {`COMMIT_ID_WIDTH{1'b0}};
+            div_op_buffer    <= 4'b0;
+        end else if (buffer_write_en && !buffer_req_valid) begin
+            buffer_req_valid <= 1'b1;
+            waddr_buffer     <= reg_waddr_i;
+            dividend_buffer  <= reg1_rdata_i;
+            divisor_buffer   <= reg2_rdata_i;
+            commit_id_buffer <= commit_id_i;
+            div_op_buffer    <= {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
+        end else if (div0_start || div1_start) begin
+            buffer_req_valid <= 1'b0;
         end
     end
+
+    // 流水线保持控制逻辑
+    assign div_stall_flag_o = buffer_req_valid & is_div_op;
+    assign ctrl_ready0 = wb_ready || !sel_div0;
+    assign ctrl_ready1 = wb_ready && !sel_div0 || !sel_div1;
+
+    // 启动条件调整
+    assign div0_start = (is_div_op || buffer_req_valid) && div0_available;
+    assign div1_start = (is_div_op || buffer_req_valid) && !div0_available && div1_available;
+
+    // 结果写回数据和地址选择逻辑 - 直接使用除法器输出
+    assign reg_wdata_o = sel_div0 ? div0_result : (sel_div1 ? div1_result : 0);
+    assign reg_waddr_o = sel_div0 ? saved_div0_waddr : (sel_div1 ? saved_div1_waddr : 0);
+    assign commit_id_o = sel_div0 ? saved_div0_commit_id : (sel_div1 ? saved_div1_commit_id : 0);
+
+    // 结果写回使能控制逻辑
+    assign reg_we_o = (sel_div0 | sel_div1);
+
+    div u_div0 (
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .dividend_i  (div0_dividend),
+        .divisor_i   (div0_divisor),
+        .start_i     (div0_start),
+        .ctrl_ready_i(ctrl_ready0),
+        .op_i        (div0_op),
+        .result_o    (div0_result),
+        .busy_o      (div0_busy),
+        .valid_o     (div0_valid)
+    );
+
+    div u_div1 (
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .dividend_i  (div1_dividend),
+        .divisor_i   (div1_divisor),
+        .start_i     (div1_start),
+        .ctrl_ready_i(ctrl_ready1),
+        .op_i        (div1_op),
+        .result_o    (div1_result),
+        .busy_o      (div1_busy),
+        .valid_o     (div1_valid)
+    );
 
 endmodule
