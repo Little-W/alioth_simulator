@@ -83,209 +83,104 @@ module wbu (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o
 );
 
-    // === 增加各输入端口的FIFO缓冲区（不含lsu） ===
-    typedef struct packed {
-        logic valid;
-        logic [`REG_DATA_WIDTH-1:0] wdata;
-        logic [`REG_ADDR_WIDTH-1:0] waddr;
-        logic [`COMMIT_ID_WIDTH-1:0] commit_id;
-    } reg_buf_t;
-
-    // 定义一个零对象
-    localparam reg_buf_t REG_BUF_ZERO = '{valid: 1'b0, wdata: '0, waddr: '0, commit_id: '0};
-
-    // FIFO深度参数
+    // === 使用FIFO模块实例化各种缓冲区 ===
     localparam FIFO_DEPTH = 2;
-    localparam FIFO_PTR_WIDTH = $clog2(FIFO_DEPTH);
 
     // MUL FIFO
-    reg_buf_t mul_fifo [0:FIFO_DEPTH-1];
-    reg [FIFO_PTR_WIDTH-1:0] mul_fifo_wr_ptr, mul_fifo_rd_ptr;
-    reg [FIFO_PTR_WIDTH:0] mul_fifo_count;  // 需要额外一位表示满状态
-    wire [1:0] mul_fifo_op;
+    wire [`REG_DATA_WIDTH-1:0] mul_fifo_wdata;
+    wire [`REG_ADDR_WIDTH-1:0] mul_fifo_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] mul_fifo_commit_id;
+    wire mul_fifo_push, mul_fifo_pop;
+    wire mul_fifo_full, mul_fifo_empty;
+    wire [$clog2(FIFO_DEPTH):0] mul_fifo_count;
+
+    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) mul_fifo_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .wdata_i(mul_reg_wdata_i),
+        .waddr_i(mul_reg_waddr_i),
+        .commit_id_i(mul_commit_id_i),
+        .push(mul_fifo_push),
+        .pop(mul_fifo_pop),
+        .wdata_o(mul_fifo_wdata),
+        .waddr_o(mul_fifo_waddr),
+        .commit_id_o(mul_fifo_commit_id),
+        .full(mul_fifo_full),
+        .empty(mul_fifo_empty),
+        .count(mul_fifo_count)
+    );
 
     // DIV FIFO
-    reg_buf_t div_fifo [0:FIFO_DEPTH-1];
-    reg [FIFO_PTR_WIDTH-1:0] div_fifo_wr_ptr, div_fifo_rd_ptr;
-    reg [FIFO_PTR_WIDTH:0] div_fifo_count;
-    wire [1:0] div_fifo_op;
+    wire [`REG_DATA_WIDTH-1:0] div_fifo_wdata;
+    wire [`REG_ADDR_WIDTH-1:0] div_fifo_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] div_fifo_commit_id;
+    wire div_fifo_push, div_fifo_pop;
+    wire div_fifo_full, div_fifo_empty;
+    wire [$clog2(FIFO_DEPTH):0] div_fifo_count;
+
+    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) div_fifo_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .wdata_i(div_reg_wdata_i),
+        .waddr_i(div_reg_waddr_i),
+        .commit_id_i(div_commit_id_i),
+        .push(div_fifo_push),
+        .pop(div_fifo_pop),
+        .wdata_o(div_fifo_wdata),
+        .waddr_o(div_fifo_waddr),
+        .commit_id_o(div_fifo_commit_id),
+        .full(div_fifo_full),
+        .empty(div_fifo_empty),
+        .count(div_fifo_count)
+    );
 
     // ALU FIFO
-    reg_buf_t alu_fifo [0:FIFO_DEPTH-1];
-    reg [FIFO_PTR_WIDTH-1:0] alu_fifo_wr_ptr, alu_fifo_rd_ptr;
-    reg [FIFO_PTR_WIDTH:0] alu_fifo_count;
-    wire [1:0] alu_fifo_op;
+    wire [`REG_DATA_WIDTH-1:0] alu_fifo_wdata;
+    wire [`REG_ADDR_WIDTH-1:0] alu_fifo_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] alu_fifo_commit_id;
+    wire alu_fifo_push, alu_fifo_pop;
+    wire alu_fifo_full, alu_fifo_empty;
+    wire [$clog2(FIFO_DEPTH):0] alu_fifo_count;
+
+    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) alu_fifo_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .wdata_i(alu_reg_wdata_i),
+        .waddr_i(alu_reg_waddr_i),
+        .commit_id_i(alu_commit_id_i),
+        .push(alu_fifo_push),
+        .pop(alu_fifo_pop),
+        .wdata_o(alu_fifo_wdata),
+        .waddr_o(alu_fifo_waddr),
+        .commit_id_o(alu_fifo_commit_id),
+        .full(alu_fifo_full),
+        .empty(alu_fifo_empty),
+        .count(alu_fifo_count)
+    );
 
     // CSR FIFO
-    reg_buf_t csr_fifo [0:FIFO_DEPTH-1];
-    reg [FIFO_PTR_WIDTH-1:0] csr_fifo_wr_ptr, csr_fifo_rd_ptr;
-    reg [FIFO_PTR_WIDTH:0] csr_fifo_count;
-    wire [1:0] csr_fifo_op;
+    wire [`REG_DATA_WIDTH-1:0] csr_fifo_wdata;
+    wire [`REG_ADDR_WIDTH-1:0] csr_fifo_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] csr_fifo_commit_id;
+    wire csr_fifo_push, csr_fifo_pop;
+    wire csr_fifo_full, csr_fifo_empty;
+    wire [$clog2(FIFO_DEPTH):0] csr_fifo_count;
 
-    // === FIFO初始化和操作逻辑 ===
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            // MUL FIFO初始化
-            mul_fifo_wr_ptr <= '0;
-            mul_fifo_rd_ptr <= '0;
-            mul_fifo_count <= '0;
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                mul_fifo[i] <= REG_BUF_ZERO;
-            end
-
-            // DIV FIFO初始化
-            div_fifo_wr_ptr <= '0;
-            div_fifo_rd_ptr <= '0;
-            div_fifo_count <= '0;
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                div_fifo[i] <= REG_BUF_ZERO;
-            end
-
-            // ALU FIFO初始化
-            alu_fifo_wr_ptr <= '0;
-            alu_fifo_rd_ptr <= '0;
-            alu_fifo_count <= '0;
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                alu_fifo[i] <= REG_BUF_ZERO;
-            end
-
-            // CSR FIFO初始化
-            csr_fifo_wr_ptr <= '0;
-            csr_fifo_rd_ptr <= '0;
-            csr_fifo_count <= '0;
-            for (int i = 0; i < FIFO_DEPTH; i++) begin
-                csr_fifo[i] <= REG_BUF_ZERO;
-            end
-        end else begin
-            // MUL FIFO操作
-            case (mul_fifo_op)
-                2'b10: begin  // 只推入
-                    mul_fifo[mul_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: mul_reg_wdata_i,
-                        waddr: mul_reg_waddr_i,
-                        commit_id: mul_commit_id_i
-                    };
-                    mul_fifo_wr_ptr <= mul_fifo_wr_ptr + 1'd1;
-                    mul_fifo_count <= mul_fifo_count + 1'd1;
-                end
-                2'b01: begin  // 只弹出
-                    mul_fifo_rd_ptr <= mul_fifo_rd_ptr + 1'd1;
-                    mul_fifo_count <= mul_fifo_count - 1'd1;
-                end
-                2'b11: begin  // 同时推入和弹出
-                    mul_fifo[mul_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: mul_reg_wdata_i,
-                        waddr: mul_reg_waddr_i,
-                        commit_id: mul_commit_id_i
-                    };
-                    mul_fifo_wr_ptr <= mul_fifo_wr_ptr + 1'd1;
-                    mul_fifo_rd_ptr <= mul_fifo_rd_ptr + 1'd1;
-                    // mul_fifo_count保持不变
-                end
-                default: begin  // 2'b00: 无操作
-                    // 保持当前状态
-                end
-            endcase
-
-            // DIV FIFO操作
-            case (div_fifo_op)
-                2'b10: begin  // 只推入
-                    div_fifo[div_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: div_reg_wdata_i,
-                        waddr: div_reg_waddr_i,
-                        commit_id: div_commit_id_i
-                    };
-                    div_fifo_wr_ptr <= div_fifo_wr_ptr + 1'd1;
-                    div_fifo_count <= div_fifo_count + 1'd1;
-                end
-                2'b01: begin  // 只弹出
-                    div_fifo_rd_ptr <= div_fifo_rd_ptr + 1'd1;
-                    div_fifo_count <= div_fifo_count - 1'd1;
-                end
-                2'b11: begin  // 同时推入和弹出
-                    div_fifo[div_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: div_reg_wdata_i,
-                        waddr: div_reg_waddr_i,
-                        commit_id: div_commit_id_i
-                    };
-                    div_fifo_wr_ptr <= div_fifo_wr_ptr + 1'd1;
-                    div_fifo_rd_ptr <= div_fifo_rd_ptr + 1'd1;
-                    // div_fifo_count保持不变
-                end
-                default: begin  // 2'b00: 无操作
-                    // 保持当前状态
-                end
-            endcase
-
-            // ALU FIFO操作
-            case (alu_fifo_op)
-                2'b10: begin  // 只推入
-                    alu_fifo[alu_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: alu_reg_wdata_i,
-                        waddr: alu_reg_waddr_i,
-                        commit_id: alu_commit_id_i
-                    };
-                    alu_fifo_wr_ptr <= alu_fifo_wr_ptr + 1'd1;
-                    alu_fifo_count <= alu_fifo_count + 1'd1;
-                end
-                2'b01: begin  // 只弹出
-                    alu_fifo_rd_ptr <= alu_fifo_rd_ptr + 1'd1;
-                    alu_fifo_count <= alu_fifo_count - 1'd1;
-                end
-                2'b11: begin  // 同时推入和弹出
-                    alu_fifo[alu_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: alu_reg_wdata_i,
-                        waddr: alu_reg_waddr_i,
-                        commit_id: alu_commit_id_i
-                    };
-                    alu_fifo_wr_ptr <= alu_fifo_wr_ptr + 1'd1;
-                    alu_fifo_rd_ptr <= alu_fifo_rd_ptr + 1'd1;
-                    // alu_fifo_count保持不变
-                end
-                default: begin  // 2'b00: 无操作
-                    // 保持当前状态
-                end
-            endcase
-
-            // CSR FIFO操作
-            case (csr_fifo_op)
-                2'b10: begin  // 只推入
-                    csr_fifo[csr_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: csr_reg_wdata_i,
-                        waddr: csr_reg_waddr_i,
-                        commit_id: csr_commit_id_i
-                    };
-                    csr_fifo_wr_ptr <= csr_fifo_wr_ptr + 1'd1;
-                    csr_fifo_count <= csr_fifo_count + 1'd1;
-                end
-                2'b01: begin  // 只弹出
-                    csr_fifo_rd_ptr <= csr_fifo_rd_ptr + 1'd1;
-                    csr_fifo_count <= csr_fifo_count - 1'd1;
-                end
-                2'b11: begin  // 同时推入和弹出
-                    csr_fifo[csr_fifo_wr_ptr] <= '{
-                        valid: 1'b1,
-                        wdata: csr_reg_wdata_i,
-                        waddr: csr_reg_waddr_i,
-                        commit_id: csr_commit_id_i
-                    };
-                    csr_fifo_wr_ptr <= csr_fifo_wr_ptr + 1'd1;
-                    csr_fifo_rd_ptr <= csr_fifo_rd_ptr + 1'd1;
-                    // csr_fifo_count保持不变
-                end
-                default: begin  // 2'b00: 无操作
-                    // 保持当前状态
-                end
-            endcase
-        end
-    end
+    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) csr_fifo_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .wdata_i(csr_reg_wdata_i),
+        .waddr_i(csr_reg_waddr_i),
+        .commit_id_i(csr_commit_id_i),
+        .push(csr_fifo_push),
+        .pop(csr_fifo_pop),
+        .wdata_o(csr_fifo_wdata),
+        .waddr_o(csr_fifo_waddr),
+        .commit_id_o(csr_fifo_commit_id),
+        .full(csr_fifo_full),
+        .empty(csr_fifo_empty),
+        .count(csr_fifo_count)
+    );
 
     // === 冲突判断 ===
     // 优先级: lsu > FIFO输出(mul > div > csr > alu) > 普通输入(mul > div > csr > alu)
@@ -296,17 +191,6 @@ module wbu (
     wire alu_active = alu_reg_we_i;
 
     wire any_fifo_valid = (mul_fifo_count > 0) || (div_fifo_count > 0) || (alu_fifo_count > 0) || (csr_fifo_count > 0);
-
-    // FIFO状态
-    wire mul_fifo_full = (mul_fifo_count == FIFO_DEPTH);
-    wire div_fifo_full = (div_fifo_count == FIFO_DEPTH);
-    wire alu_fifo_full = (alu_fifo_count == FIFO_DEPTH);
-    wire csr_fifo_full = (csr_fifo_count == FIFO_DEPTH);
-
-    wire mul_fifo_empty = (mul_fifo_count == 0);
-    wire div_fifo_empty = (div_fifo_count == 0);
-    wire alu_fifo_empty = (alu_fifo_count == 0);
-    wire csr_fifo_empty = (csr_fifo_count == 0);
 
     // === ready信号修改为FIFO未满 ===
     assign mul_ready_o = !mul_fifo_full;
@@ -326,26 +210,18 @@ module wbu (
     wire csr_en = csr_reg_active && !lsu_active && mul_fifo_empty && div_fifo_empty && csr_fifo_empty && !mul_active && !div_active && !(alu_fifo_count > 0);
     wire alu_en = alu_active && !lsu_active && mul_fifo_empty && div_fifo_empty && csr_fifo_empty && alu_fifo_empty && !mul_active && !div_active && !csr_reg_active;
 
-    // FIFO操作控制：{push, pop}
-    assign mul_fifo_op = {
-        mul_active && mul_ready_o && (lsu_active || any_fifo_valid),  // 推入操作条件 [1]
-        mul_fifo_en  // 弹出操作条件 [0]
-    };
+    // FIFO操作控制
+    assign mul_fifo_push = mul_active && mul_ready_o && (lsu_active || any_fifo_valid);
+    assign mul_fifo_pop = mul_fifo_en;
 
-    assign div_fifo_op = {
-        div_active && div_ready_o && (lsu_active || mul_active || (mul_fifo_count > 0) || (csr_fifo_count > 0) || (alu_fifo_count > 0)),  // 推入操作条件 [1]
-        div_fifo_en  // 弹出操作条件 [0]
-    };
+    assign div_fifo_push = div_active && div_ready_o && (lsu_active || mul_active || (mul_fifo_count > 0) || (csr_fifo_count > 0) || (alu_fifo_count > 0));
+    assign div_fifo_pop = div_fifo_en;
 
-    assign csr_fifo_op = {
-        csr_reg_active && csr_ready_o && (lsu_active || mul_active || div_active || (mul_fifo_count > 0) || (div_fifo_count > 0) || (alu_fifo_count > 0)),  // 推入操作条件 [1]
-        csr_fifo_en  // 弹出操作条件 [0]
-    };
+    assign csr_fifo_push = csr_reg_active && csr_ready_o && (lsu_active || mul_active || div_active || (mul_fifo_count > 0) || (div_fifo_count > 0) || (alu_fifo_count > 0));
+    assign csr_fifo_pop = csr_fifo_en;
 
-    assign alu_fifo_op = {
-        alu_active && alu_ready_o && (lsu_active || mul_active || div_active || csr_reg_active || any_fifo_valid),  // 推入操作条件 [1]
-        alu_fifo_en  // 弹出操作条件 [0]
-    };
+    assign alu_fifo_push = alu_active && alu_ready_o && (lsu_active || mul_active || div_active || csr_reg_active || any_fifo_valid);
+    assign alu_fifo_pop = alu_fifo_en;
 
     // === 写数据和地址多路选择器，全部与或逻辑 ===
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
@@ -356,10 +232,10 @@ module wbu (
 
     assign reg_wdata_r =
         ({`REG_DATA_WIDTH{lsu_active}}      & lsu_reg_wdata_i)   |
-        ({`REG_DATA_WIDTH{mul_fifo_en}}     & mul_fifo[mul_fifo_rd_ptr].wdata)     |
-        ({`REG_DATA_WIDTH{div_fifo_en}}     & div_fifo[div_fifo_rd_ptr].wdata)     |
-        ({`REG_DATA_WIDTH{alu_fifo_en}}     & alu_fifo[alu_fifo_rd_ptr].wdata)     |
-        ({`REG_DATA_WIDTH{csr_fifo_en}}     & csr_fifo[csr_fifo_rd_ptr].wdata)     |
+        ({`REG_DATA_WIDTH{mul_fifo_en}}     & mul_fifo_wdata)     |
+        ({`REG_DATA_WIDTH{div_fifo_en}}     & div_fifo_wdata)     |
+        ({`REG_DATA_WIDTH{alu_fifo_en}}     & alu_fifo_wdata)     |
+        ({`REG_DATA_WIDTH{csr_fifo_en}}     & csr_fifo_wdata)     |
         ({`REG_DATA_WIDTH{mul_en}}          & mul_reg_wdata_i)   |
         ({`REG_DATA_WIDTH{div_en}}          & div_reg_wdata_i)   |
         ({`REG_DATA_WIDTH{alu_en}}          & alu_reg_wdata_i)   |
@@ -367,10 +243,10 @@ module wbu (
 
     assign reg_waddr_r =
         ({`REG_ADDR_WIDTH{lsu_active}}      & lsu_reg_waddr_i)   |
-        ({`REG_ADDR_WIDTH{mul_fifo_en}}     & mul_fifo[mul_fifo_rd_ptr].waddr)     |
-        ({`REG_ADDR_WIDTH{div_fifo_en}}     & div_fifo[div_fifo_rd_ptr].waddr)     |
-        ({`REG_ADDR_WIDTH{alu_fifo_en}}     & alu_fifo[alu_fifo_rd_ptr].waddr)     |
-        ({`REG_ADDR_WIDTH{csr_fifo_en}}     & csr_fifo[csr_fifo_rd_ptr].waddr)     |
+        ({`REG_ADDR_WIDTH{mul_fifo_en}}     & mul_fifo_waddr)     |
+        ({`REG_ADDR_WIDTH{div_fifo_en}}     & div_fifo_waddr)     |
+        ({`REG_ADDR_WIDTH{alu_fifo_en}}     & alu_fifo_waddr)     |
+        ({`REG_ADDR_WIDTH{csr_fifo_en}}     & csr_fifo_waddr)     |
         ({`REG_ADDR_WIDTH{mul_en}}          & mul_reg_waddr_i)   |
         ({`REG_ADDR_WIDTH{div_en}}          & div_reg_waddr_i)   |
         ({`REG_ADDR_WIDTH{alu_en}}          & alu_reg_waddr_i)   |
@@ -378,10 +254,10 @@ module wbu (
 
     assign commit_id_r =
         ({`COMMIT_ID_WIDTH{lsu_active}}     & lsu_commit_id_i)   |
-        ({`COMMIT_ID_WIDTH{mul_fifo_en}}    & mul_fifo[mul_fifo_rd_ptr].commit_id) |
-        ({`COMMIT_ID_WIDTH{div_fifo_en}}    & div_fifo[div_fifo_rd_ptr].commit_id) |
-        ({`COMMIT_ID_WIDTH{alu_fifo_en}}    & alu_fifo[alu_fifo_rd_ptr].commit_id) |
-        ({`COMMIT_ID_WIDTH{csr_fifo_en}}    & csr_fifo[csr_fifo_rd_ptr].commit_id) |
+        ({`COMMIT_ID_WIDTH{mul_fifo_en}}    & mul_fifo_commit_id) |
+        ({`COMMIT_ID_WIDTH{div_fifo_en}}    & div_fifo_commit_id) |
+        ({`COMMIT_ID_WIDTH{alu_fifo_en}}    & alu_fifo_commit_id) |
+        ({`COMMIT_ID_WIDTH{csr_fifo_en}}    & csr_fifo_commit_id) |
         ({`COMMIT_ID_WIDTH{mul_en}}         & mul_commit_id_i)   |
         ({`COMMIT_ID_WIDTH{div_en}}         & div_commit_id_i)   |
         ({`COMMIT_ID_WIDTH{alu_en}}         & alu_commit_id_i)   |
