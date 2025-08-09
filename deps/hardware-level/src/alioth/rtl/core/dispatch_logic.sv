@@ -54,7 +54,7 @@ module dispatch_logic (
     output wire        bjp_op_bgeu_o,
     output wire        bjp_op_jalr_o,
 
- // dispatch to MUL
+    // dispatch to MUL
     output wire [31:0] mul_op1_o,
     output wire [31:0] mul_op2_o,
     output wire        mul_op_mul_o,

@@ -24,198 +24,220 @@
 
 `include "defines.svh"
 
-// 乘法控制单元 - 专门处理乘法指令的控制和结果写回
-module exu_mul_ctrl (
+// 乘法控制单元 - 管理两个乘法器实例
+module exu_mul (
     input wire clk,
     input wire rst_n,
-    input wire wb_ready_i,
+    input wire wb_ready,
 
-    // 指令和操作数输入 - 来自dispatch
+    // 指令和操作数输入
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
-    // 从dispatch接收的译码输入
+    // 译码输入
     input wire req_mul_i,
     input wire mul_op_mul_i,
     input wire mul_op_mulh_i,
     input wire mul_op_mulhsu_i,
     input wire mul_op_mulhu_i,
-    input wire reg_we_i,        // 寄存器写使能
-
-    // 乘法器接口
-    input wire [`REG_DATA_WIDTH-1:0] mul_result_i,
-    input wire                       mul_busy_i,
-    input wire                       mul_valid_i,
 
     // 中断信号
     input wire int_assert_i,
 
-    // 乘法控制输出
-    output wire                       mul_start_o,
-    output wire [`REG_DATA_WIDTH-1:0] mul_multiplicand_o,
-    output wire [`REG_DATA_WIDTH-1:0] mul_multiplier_o,
-    output wire [                3:0] mul_op_o,
-
     // 控制输出
-    output wire mul_stall_o,
+    output wire mul_stall_flag_o,
 
-    // 寄存器写回接口 - 输出到WBU
+    // 寄存器写回接口
     output wire [ `REG_DATA_WIDTH-1:0] reg_wdata_o,
     output wire                        reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o
 );
 
-    // 内部信号
-    wire                        is_mul_op;
-    wire                        mul_start_cond;
-    wire [                 3:0] mul_op_sel;
-    
-    // 保存指令信息的寄存器
-    wire [ `REG_ADDR_WIDTH-1:0] saved_mul_waddr;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id;
-    wire                        saved_reg_we;
-    
-    // 结果缓存
-    wire                        mul_result_we;
-    wire [ `REG_DATA_WIDTH-1:0] saved_mul_result;
-    
-    // 第二级寄存器（用于写回）
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_stage2;
-    wire [ `REG_ADDR_WIDTH-1:0] saved_mul_waddr_stage2;
-    wire                        saved_reg_we_stage2;
+    // 添加寄存器保存乘法指令的写回信息
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id;
 
-    // 操作类型解码
-    assign mul_op_sel = {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
-    
-    // 有效乘法操作判断
-    assign is_mul_op = req_mul_i && !int_assert_i;
-    
-    // 乘法启动条件
-    assign mul_start_cond = is_mul_op && !mul_busy_i && !mul_result_we;
+    wire [3:0] mul_op_sel_mux;
+    wire [3:0] mul0_op;
+    wire [3:0] mul1_op;
+    wire ctrl_ready0;
+    wire ctrl_ready1;
+    wire mul0_start;
+    wire mul1_start;
 
-    // 寄存器更新使能条件
-    wire saved_mul_waddr_en = mul_start_cond;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr_nxt = reg_waddr_i;
+    wire [`REG_DATA_WIDTH-1:0] mul0_multiplicand;
+    wire [`REG_DATA_WIDTH-1:0] mul0_multiplier;
+    wire [`REG_DATA_WIDTH-1:0] mul1_multiplicand;
+    wire [`REG_DATA_WIDTH-1:0] mul1_multiplier;
 
-    wire saved_mul_commit_id_en = mul_start_cond;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_nxt = commit_id_i;
+    // 乘法器输出信号
+    wire [`REG_DATA_WIDTH-1:0] mul0_result;
+    wire mul0_busy;
+    wire mul0_valid;
+    wire [`REG_DATA_WIDTH-1:0] mul1_result;
+    wire mul1_busy;
+    wire mul1_valid;
 
-    wire saved_reg_we_en = mul_start_cond;
-    wire saved_reg_we_nxt = reg_we_i;
+    // 直接使用输入的总乘法信号
+    wire is_mul_op = req_mul_i && !int_assert_i;
 
-    wire mul_result_we_en = mul_valid_i || (mul_result_we && wb_ready_i && reg_we_o);
-    wire mul_result_we_nxt = mul_valid_i ? 1'b1 : 1'b0;
+    wire mul_busy = mul0_busy || mul1_busy;
 
-    wire saved_mul_result_en = mul_valid_i;
-    wire [`REG_DATA_WIDTH-1:0] saved_mul_result_nxt = mul_result_i;
+    // Buffer寄存器定义
+    reg [`REG_ADDR_WIDTH-1:0] waddr_buffer;
+    reg [`REG_DATA_WIDTH-1:0] multiplicand_buffer;
+    reg [`REG_DATA_WIDTH-1:0] multiplier_buffer;
+    reg [`COMMIT_ID_WIDTH-1:0] commit_id_buffer;
+    reg [3:0] mul_op_buffer;  // 4位：mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i
+    reg buffer_req_valid;
 
-    // 第一级寄存器：保存指令信息
+    // Buffer数据选择
+    wire use_buffer = buffer_req_valid;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? multiplicand_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? multiplier_buffer : reg2_rdata_i;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
+    wire [3:0] mul_op_mux = use_buffer ? mul_op_buffer : {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
+
+    // mul_op_sel调整为mux后的数据
+    assign mul_op_sel_mux    = mul_op_mux;
+    assign mul0_op           = mul_op_sel_mux;
+    assign mul1_op           = mul_op_sel_mux;
+    // 乘法器输入调整为mux后的数据
+    assign mul0_multiplicand = reg1_rdata_mux;
+    assign mul0_multiplier = reg2_rdata_mux;
+    assign mul1_multiplicand = reg1_rdata_mux;
+    assign mul1_multiplier = reg2_rdata_mux;
+
+    // 定义控制信号
+    wire sel_mul0 = mul0_valid;
+    wire sel_mul1 = mul1_valid;
+
+    // 写回地址和commit_id调整为mux后的数据
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id_nxt = commit_id_mux;
+    wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr_nxt = reg_waddr_mux;
+    wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id_nxt = commit_id_mux;
+
+    // 保存乘法器写回地址和commit_id
     gnrl_dfflr #(
         .DW(`REG_ADDR_WIDTH)
-    ) saved_mul_waddr_dfflr (
+    ) saved_mul0_waddr_dfflr (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (saved_mul_waddr_en),
-        .dnxt (saved_mul_waddr_nxt),
-        .qout (saved_mul_waddr)
+        .lden (mul0_start),
+        .dnxt (saved_mul0_waddr_nxt),
+        .qout (saved_mul0_waddr)
     );
 
     gnrl_dfflr #(
         .DW(`COMMIT_ID_WIDTH)
-    ) saved_mul_commit_id_dfflr (
+    ) saved_mul0_commit_id_dfflr (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (saved_mul_commit_id_en),
-        .dnxt (saved_mul_commit_id_nxt),
-        .qout (saved_mul_commit_id)
-    );
-
-    gnrl_dfflr #(
-        .DW(1)
-    ) saved_reg_we_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (saved_reg_we_en),
-        .dnxt (saved_reg_we_nxt),
-        .qout (saved_reg_we)
-    );
-
-    gnrl_dfflr #(
-        .DW(1)
-    ) mul_result_we_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (mul_result_we_en),
-        .dnxt (mul_result_we_nxt),
-        .qout (mul_result_we)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_DATA_WIDTH)
-    ) saved_mul_result_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (saved_mul_result_en),
-        .dnxt (saved_mul_result_nxt),
-        .qout (saved_mul_result)
-    );
-
-    // 第二级寄存器：用于写回阶段
-    wire saved_mul_commit_id_stage2_en = mul_valid_i;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul_commit_id_stage2_nxt = saved_mul_commit_id;
-
-    wire saved_mul_waddr_stage2_en = mul_valid_i;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul_waddr_stage2_nxt = saved_mul_waddr;
-
-    wire saved_reg_we_stage2_en = mul_valid_i;
-    wire saved_reg_we_stage2_nxt = saved_reg_we;
-
-    gnrl_dfflr #(
-        .DW(`COMMIT_ID_WIDTH)
-    ) saved_mul_commit_id_stage2_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (saved_mul_commit_id_stage2_en),
-        .dnxt (saved_mul_commit_id_stage2_nxt),
-        .qout (saved_mul_commit_id_stage2)
+        .lden (mul0_start),
+        .dnxt (saved_mul0_commit_id_nxt),
+        .qout (saved_mul0_commit_id)
     );
 
     gnrl_dfflr #(
         .DW(`REG_ADDR_WIDTH)
-    ) saved_mul_waddr_stage2_dfflr (
+    ) saved_mul1_waddr_dfflr (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (saved_mul_waddr_stage2_en),
-        .dnxt (saved_mul_waddr_stage2_nxt),
-        .qout (saved_mul_waddr_stage2)
+        .lden (mul1_start),
+        .dnxt (saved_mul1_waddr_nxt),
+        .qout (saved_mul1_waddr)
     );
 
     gnrl_dfflr #(
-        .DW(1)
-    ) saved_reg_we_stage2_dfflr (
+        .DW(`COMMIT_ID_WIDTH)
+    ) saved_mul1_commit_id_dfflr (
         .clk  (clk),
         .rst_n(rst_n),
-        .lden (saved_reg_we_stage2_en),
-        .dnxt (saved_reg_we_stage2_nxt),
-        .qout (saved_reg_we_stage2)
+        .lden (mul1_start),
+        .dnxt (saved_mul1_commit_id_nxt),
+        .qout (saved_mul1_commit_id)
     );
 
-    // 输出信号连线
-    assign mul_start_o = mul_start_cond;
-    assign mul_multiplicand_o = reg1_rdata_i;
-    assign mul_multiplier_o = reg2_rdata_i;
-    assign mul_op_o = mul_op_sel;
+    // 条件信号定义 - 用于流水线保持逻辑
+    wire mul0_result_pending = mul0_valid;
+    wire mul1_result_pending = mul1_valid;
+    wire stall_mul_cond = is_mul_op && (mul_busy || mul0_result_pending || mul1_result_pending);
 
-    // 暂停信号
-    assign mul_stall_o = is_mul_op && (mul_busy_i || mul_result_we);
+    // 乘法可用信号
+    wire mul0_available = !mul0_busy && !mul0_result_pending;
+    wire mul1_available = !mul1_busy && !mul1_result_pending;
 
-    // 写回接口
-    assign reg_wdata_o = saved_mul_result;
-    assign reg_we_o = mul_result_we && saved_reg_we_stage2;
-    assign reg_waddr_o = saved_mul_waddr_stage2;
-    assign commit_id_o = saved_mul_commit_id_stage2;
+    // Buffer写入条件
+    wire buffer_write_en = stall_mul_cond;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            buffer_req_valid    <= 1'b0;
+            waddr_buffer        <= {`REG_ADDR_WIDTH{1'b0}};
+            multiplicand_buffer <= {`REG_DATA_WIDTH{1'b0}};
+            multiplier_buffer   <= {`REG_DATA_WIDTH{1'b0}};
+            commit_id_buffer    <= {`COMMIT_ID_WIDTH{1'b0}};
+            mul_op_buffer       <= 4'b0;
+        end else if (buffer_write_en && !buffer_req_valid) begin
+            buffer_req_valid    <= 1'b1;
+            waddr_buffer        <= reg_waddr_i;
+            multiplicand_buffer <= reg1_rdata_i;
+            multiplier_buffer   <= reg2_rdata_i;
+            commit_id_buffer    <= commit_id_i;
+            mul_op_buffer       <= {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
+        end else if (mul0_start || mul1_start) begin
+            buffer_req_valid <= 1'b0;
+        end
+    end
+
+    // 流水线保持控制逻辑
+    assign mul_stall_flag_o = buffer_req_valid & is_mul_op;
+    assign ctrl_ready0 = wb_ready || !sel_mul0;
+    assign ctrl_ready1 = wb_ready && !sel_mul0 || !sel_mul1;
+
+    // 启动条件调整
+    assign mul0_start = (is_mul_op || buffer_req_valid) && mul0_available;
+    assign mul1_start = (is_mul_op || buffer_req_valid) && !mul0_available && mul1_available;
+
+    // 结果写回数据和地址选择逻辑 - 直接使用乘法器输出
+    assign reg_wdata_o = sel_mul0 ? mul0_result : (sel_mul1 ? mul1_result : 0);
+    assign reg_waddr_o = sel_mul0 ? saved_mul0_waddr : (sel_mul1 ? saved_mul1_waddr : 0);
+    assign commit_id_o = sel_mul0 ? saved_mul0_commit_id : (sel_mul1 ? saved_mul1_commit_id : 0);
+
+    // 结果写回使能控制逻辑
+    assign reg_we_o = (sel_mul0 | sel_mul1);
+
+    mul u_mul0 (
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .multiplicand_i(mul0_multiplicand),
+        .multiplier_i  (mul0_multiplier),
+        .start_i       (mul0_start),
+        .ctrl_ready_i  (ctrl_ready0),
+        .op_i          (mul0_op),
+        .result_o      (mul0_result),
+        .busy_o        (mul0_busy),
+        .valid_o       (mul0_valid)
+    );
+
+    mul u_mul1 (
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .multiplicand_i(mul1_multiplicand),
+        .multiplier_i  (mul1_multiplier),
+        .start_i       (mul1_start),
+        .ctrl_ready_i  (ctrl_ready1),
+        .op_i          (mul1_op),
+        .result_o      (mul1_result),
+        .busy_o        (mul1_busy),
+        .valid_o       (mul1_valid)
+    );
 
 endmodule
