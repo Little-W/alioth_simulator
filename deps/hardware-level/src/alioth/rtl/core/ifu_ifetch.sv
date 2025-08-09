@@ -52,8 +52,9 @@ module ifu_ifetch (
         (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
         pc_o + 4'h8;  // 地址加8
 
-    // 非对齐判断：PC最低两位不为0即为非对齐
-    assign pc_misaligned_o = |pc_o[1:0];
+    // 64位访存中的PC对齐判断：检查PC[2]，因为64位访存时PC[2:0]中只有PC[2]有意义
+    // PC[2]=0: 指令在低32位, PC[2]=1: 指令在高32位
+    assign pc_misaligned_o = pc_o[2];
 
     // 使用gnrl_dff模块实现PC寄存器
     gnrl_dff #(

@@ -37,13 +37,13 @@ module mems #(
 
     // APB AXI-Lite接口参数
     parameter C_OM0_AXI_ADDR_WIDTH = 32,  // APB AXI-Lite 地址宽度
-    parameter C_OM0_AXI_DATA_WIDTH = 32,  // APB AXI-Lite 数据宽度
+    parameter C_OM0_AXI_DATA_WIDTH = 64,  // APB AXI-Lite 数据宽度 - 改为64位
     // CLINT AXI-Lite接口参数
     parameter C_OM1_AXI_ADDR_WIDTH = 32,  // CLINT AXI-Lite 地址宽度
-    parameter C_OM1_AXI_DATA_WIDTH = 32,  // CLINT AXI-Lite 数据宽度
+    parameter C_OM1_AXI_DATA_WIDTH = 64,  // CLINT AXI-Lite 数据宽度 - 改为64位
     // PLIC AXI-Lite接口参数
     parameter C_OM2_AXI_ADDR_WIDTH = 32,  // PLIC AXI-Lite 地址宽度
-    parameter C_OM2_AXI_DATA_WIDTH = 32   // PLIC AXI-Lite 数据宽度
+    parameter C_OM2_AXI_DATA_WIDTH = 64   // PLIC AXI-Lite 数据宽度 - 改为64位
 ) (
     // 全局信号
     input wire clk,   // 时钟信号

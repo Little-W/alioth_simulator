@@ -45,6 +45,23 @@ module axi2apb #(
     assign PCLK    = S_AXI_ACLK;
     assign PRESETn = S_AXI_ARESETN;
 
+    // 64位AXI数据和地址第2位选择逻辑（仅在数据宽度为64时生效）
+    wire addr_bit2_w = (C_S_AXI_DATA_WIDTH == 64) ? S_AXI_AWADDR[2] : 1'b0;
+    wire addr_bit2_r = (C_S_AXI_DATA_WIDTH == 64) ? S_AXI_ARADDR[2] : 1'b0;
+    
+    // 根据地址第2位选择32位数据（64位时有效，32位时直接使用原数据）
+    wire [31:0] selected_wdata = (C_S_AXI_DATA_WIDTH == 64) ? 
+                                 (addr_bit2_w ? S_AXI_WDATA[63:32] : S_AXI_WDATA[31:0]) : 
+                                 S_AXI_WDATA[31:0];
+    
+    // 清除地址第2位用于APB访问（64位时有效）
+    wire [C_S_AXI_ADDR_WIDTH-1:0] apb_awaddr = (C_S_AXI_DATA_WIDTH == 64) ?
+                                               {S_AXI_AWADDR[C_S_AXI_ADDR_WIDTH-1:3], 1'b0, S_AXI_AWADDR[1:0]} :
+                                               S_AXI_AWADDR;
+    wire [C_S_AXI_ADDR_WIDTH-1:0] apb_araddr = (C_S_AXI_DATA_WIDTH == 64) ?
+                                               {S_AXI_ARADDR[C_S_AXI_ADDR_WIDTH-1:3], 1'b0, S_AXI_ARADDR[1:0]} :
+                                               S_AXI_ARADDR;
+
     // APB状态机状态定义
     typedef enum logic [1:0] {
         IDLE   = 2'b00,
@@ -80,7 +97,7 @@ module axi2apb #(
     reg           [  C_APB_ADDR_WIDTH-1:0] araddr_reg;
     reg           [  C_APB_ADDR_WIDTH-1:0] paddr_reg;
     reg           [C_S_AXI_DATA_WIDTH-1:0] wdata_reg;
-    reg           [C_S_AXI_DATA_WIDTH-1:0] rdata_reg;
+    reg           [                 31:0] rdata_reg;  // APB设备都是32位
     reg                                    write_reg;
     reg           [                   1:0] resp_reg;
     reg           [    `APB_DEV_COUNT-1:0] dev_sel_write;
@@ -118,7 +135,18 @@ module axi2apb #(
     assign S_AXI_BRESP   = bresp_reg;
     assign S_AXI_BVALID  = bvalid_reg | apb_write_done;
     assign S_AXI_ARREADY = arready_reg;
-    assign S_AXI_RDATA   = rdata_reg;
+    
+    // 64位数据输出 - 根据地址第2位将32位数据放到正确位置
+    wire [C_S_AXI_DATA_WIDTH-1:0] rdata_positioned;
+    generate
+        if (C_S_AXI_DATA_WIDTH == 64) begin
+            assign rdata_positioned = addr_bit2_r ? {rdata_reg[31:0], 32'h0} : {32'h0, rdata_reg[31:0]};
+        end else begin
+            assign rdata_positioned = rdata_reg;
+        end
+    endgenerate
+    
+    assign S_AXI_RDATA   = rdata_positioned;
     assign S_AXI_RRESP   = rresp_reg;
     assign S_AXI_RVALID  = rvalid_reg;
 
@@ -155,8 +183,8 @@ module axi2apb #(
         dev_sel_read  = addr_decode(araddr_reg);
     end
 
-    // 读数据多路复用器 - 使用临时变量避免对rdata_reg进行阻塞赋值
-    reg [C_S_AXI_DATA_WIDTH-1:0] rdata_mux;
+    // 读数据多路复用器 - APB设备都是32位，所以rdata_mux为32位
+    reg [31:0] rdata_mux;
     always @(*) begin
         rdata_mux = 0;
         for (int i = 0; i < `APB_DEV_COUNT; i++) begin
@@ -197,11 +225,11 @@ module axi2apb #(
                     apb_start_write <= 1'b0; // idle时清零
 
                     if (S_AXI_AWVALID && S_AXI_AWREADY) begin
-                        awaddr_reg  <= S_AXI_AWADDR[C_APB_ADDR_WIDTH-1:0];  // 写请求赋值
+                        awaddr_reg  <= apb_awaddr[C_APB_ADDR_WIDTH-1:0];  // 使用处理后的写地址
                         awready_reg <= 1'b0;
 
                         if (S_AXI_WVALID) begin
-                            wdata_reg  <= S_AXI_WDATA;
+                            wdata_reg  <= selected_wdata;  // 使用选择后的32位数据
                             wready_reg <= 1'b0;
                             if (apb_state == IDLE && read_state == READ_IDLE) begin
                                 write_state    <= WRITE_RESP;
@@ -220,7 +248,7 @@ module axi2apb #(
 
                 WRITE_DATA: begin
                     if (S_AXI_WVALID) begin
-                        wdata_reg  <= S_AXI_WDATA;
+                        wdata_reg  <= selected_wdata;  // 使用选择后的32位数据
                         wready_reg <= 1'b0;
                         if (apb_state == IDLE && read_state == READ_IDLE) begin
                             write_state    <= WRITE_RESP;
@@ -285,7 +313,7 @@ module axi2apb #(
                     apb_start_read <= 1'b0; // idle时清零
 
                     if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-                        araddr_reg  <= S_AXI_ARADDR[C_APB_ADDR_WIDTH-1:0];  // 读请求赋值
+                        araddr_reg  <= apb_araddr[C_APB_ADDR_WIDTH-1:0];  // 使用处理后的读地址
                         arready_reg <= 1'b0;
                         if (apb_state == IDLE && write_state == WRITE_IDLE &&
                          !(S_AXI_AWVALID && S_AXI_AWREADY)) begin

@@ -6,13 +6,13 @@ module plic (
 
     // 写端口
     input wire [`PLIC_AXI_ADDR_WIDTH-1:0] waddr,  // 写地址
-    input wire [`PLIC_AXI_DATA_WIDTH-1:0] wdata,  // 写数据
+    input wire [                    31:0] wdata,  // 写数据 - 固定32位
     input wire [                     3:0] wstrb,  // 写字节使能
     input wire                            wen,    // 写使能
 
     // 读端口
     input  wire [`PLIC_AXI_ADDR_WIDTH-1:0] raddr,  // 读地址
-    output reg  [`PLIC_AXI_DATA_WIDTH-1:0] rdata,  // 读数据
+    output reg  [                    31:0] rdata,  // 读数据 - 固定32位
 
     // 外部中断源输入
     input wire [`PLIC_NUM_SOURCES-1:0] irq_sources,

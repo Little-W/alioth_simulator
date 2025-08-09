@@ -5,7 +5,22 @@ module plic_top #(
     parameter integer C_S_AXI_DATA_WIDTH = 32,
     parameter integer C_S_AXI_ADDR_WIDTH = 16
 ) (
-    input  wire                                S_AXI_ACLK,
+    inp    // PLIC接口信号
+    wire [31:0] plic_rdata;  // PLIC内部是32位
+    wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_waddr;
+    wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_raddr;
+    wire [31:0] plic_wdata;  // PLIC内部是32位
+    wire [3:0] plic_wstrb;
+    wire plic_wen;
+
+    // 写端口 - 使用处理后的地址和数据
+    assign plic_waddr = reg_waddr;
+    assign plic_wdata = selected_wdata;
+    assign plic_wstrb = selected_wstrb;
+    assign plic_wen = S_AXI_WVALID && axi_wready;
+
+    // 读端口 - 使用处理后的地址
+    assign plic_raddr = reg_raddr;                        S_AXI_ACLK,
     input  wire                                S_AXI_ARESETN,
     input  wire [    C_S_AXI_ADDR_WIDTH-1 : 0] S_AXI_AWADDR,
     input  wire [                       2 : 0] S_AXI_AWPROT,
@@ -58,6 +73,18 @@ module plic_top #(
     assign S_AXI_RVALID  = axi_rvalid;
     assign mem_waddr     = (S_AXI_AWVALID) ? S_AXI_AWADDR : axi_awaddr;
     assign mem_raddr     = (S_AXI_ARVALID) ? S_AXI_ARADDR : axi_araddr;
+
+    // 64位AXI数据和地址第2位选择逻辑
+    wire addr_bit2_w = mem_waddr[2];  // 写地址的第2位
+    wire addr_bit2_r = mem_raddr[2];  // 读地址的第2位
+    
+    // 根据地址第2位选择32位数据
+    wire [31:0] selected_wdata = addr_bit2_w ? S_AXI_WDATA[63:32] : S_AXI_WDATA[31:0];
+    wire [3:0]  selected_wstrb = addr_bit2_w ? S_AXI_WSTRB[7:4]   : S_AXI_WSTRB[3:0];
+    
+    // 清除地址第2位用于PLIC寄存器访问
+    wire [`PLIC_AXI_ADDR_WIDTH-1:0] reg_waddr = {mem_waddr[`PLIC_AXI_ADDR_WIDTH-1:3], 1'b0, mem_waddr[1:0]};
+    wire [`PLIC_AXI_ADDR_WIDTH-1:0] reg_raddr = {mem_raddr[`PLIC_AXI_ADDR_WIDTH-1:3], 1'b0, mem_raddr[1:0]};
 
     reg [1:0] state_write;
     reg [1:0] state_read;
@@ -173,14 +200,15 @@ module plic_top #(
     // 读端口
     assign plic_raddr = (S_AXI_ARVALID) ? S_AXI_ARADDR[`PLIC_AXI_ADDR_WIDTH-1:0] : axi_araddr[`PLIC_AXI_ADDR_WIDTH-1:0];
 
-    // === 同步读取 ===
-    reg [`PLIC_AXI_DATA_WIDTH-1:0] plic_rdata_reg;
+    // === 同步读取 - 支持64位数据输出 ===
+    reg [31:0] plic_rdata_reg;  // PLIC返回32位数据
     always @(posedge S_AXI_ACLK) begin
-        if (!S_AXI_ARESETN) plic_rdata_reg <= {`PLIC_AXI_DATA_WIDTH{1'b0}};
+        if (!S_AXI_ARESETN) plic_rdata_reg <= 32'b0;
         else if (S_AXI_ARVALID && S_AXI_ARREADY) plic_rdata_reg <= plic_rdata;
     end
 
-    assign S_AXI_RDATA = plic_rdata_reg;
+    // 根据地址第2位将32位数据放到64位数据的正确位置
+    assign S_AXI_RDATA = addr_bit2_r ? {plic_rdata_reg, 32'h0} : {32'h0, plic_rdata_reg};
 
     // === 实例化 plic（伪双端口） ===
     plic u_plic (

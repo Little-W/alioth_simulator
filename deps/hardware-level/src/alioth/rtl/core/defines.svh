@@ -342,7 +342,7 @@
 `define MISA_Y_SUPPORT 1'b0  // 保留
 `define MISA_Z_SUPPORT 1'b0  // 保留
 
-`define CLINT_AXI_DATA_WIDTH 32
+`define CLINT_AXI_DATA_WIDTH 64  // 改为64位支持总线
 `define CLINT_AXI_ADDR_WIDTH 16
 
 // CLINT寄存器地址（RISC-V官方推荐）
@@ -352,7 +352,7 @@
 `define CLINT_MTIME_ADDR 16'hBFF8
 `define CLINT_MTIME_ADDR_H 16'hBFFC
 
-`define PLIC_AXI_DATA_WIDTH 32
+`define PLIC_AXI_DATA_WIDTH 64  // 改为64位支持总线
 `define PLIC_AXI_ADDR_WIDTH 16
 `define PLIC_INT_EN_ADDR 16'h0000
 `define PLIC_INT_MVEC_ADDR 16'h0100
