@@ -30,14 +30,13 @@ module hdu (
     input wire rst_n, // 复位信号，低电平有效
 
     // 新指令信息
-    input wire                          inst_valid,  // 新长指令有效
-    input wire [   `REG_ADDR_WIDTH-1:0] rd_addr,     // 新指令写寄存器地址
-    input wire [   `REG_ADDR_WIDTH-1:0] rs1_addr,    // 新指令读寄存器1地址
-    input wire [   `REG_ADDR_WIDTH-1:0] rs2_addr,    // 新指令读寄存器2地址
-    input wire                          rd_we,       // 新指令是否写寄存器
-    input wire                          rs1_re,      // 是否检测rs1
-    input wire                          rs2_re,      // 是否检测rs2
-    input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus, // 新增：指令ex单元类型
+    input wire                       inst_valid,  // 新长指令有效
+    input wire [`REG_ADDR_WIDTH-1:0] rd_addr,     // 新指令写寄存器地址
+    input wire [`REG_ADDR_WIDTH-1:0] rs1_addr,    // 新指令读寄存器1地址
+    input wire [`REG_ADDR_WIDTH-1:0] rs2_addr,    // 新指令读寄存器2地址
+    input wire                       rd_we,       // 新指令是否写寄存器
+    input wire                       rs1_re,      // 是否检测rs1
+    input wire                       rs2_re,      // 是否检测rs2
 
     // 长指令完成信号
     input wire                        commit_valid_i,  // 长指令执行完成有效信号
@@ -50,31 +49,25 @@ module hdu (
 );
 
     // 定义FIFO表项结构
-    typedef struct packed {
-        logic [`REG_ADDR_WIDTH-1:0] rd_addr;
-        logic [`EX_INFO_BUS_WIDTH-1:0] exu_type;
-    } fifo_entry_t;
-
-    reg          [3:0] fifo_valid;  // 有效位
-    fifo_entry_t       fifo_entry                     [0:3];  // 存储表项结构体
+    reg  [                3:0] fifo_valid;  // 有效位
+    reg  [`REG_ADDR_WIDTH-1:0] fifo_rd_addr                   [0:3];  // 目标寄存器地址
 
     // 冒险检测信号
-    reg                raw_hazard;  // 读后写冒险
-    reg                waw_hazard;  // 写后写冒险
-    wire               hazard;  // 总冒险信号
+    reg                        raw_hazard;  // 读后写冒险
+    reg                        waw_hazard;  // 写后写冒险
+    wire                       hazard;  // 总冒险信号
 
     // 并行冒险检测信号
-    wire         [3:0] raw_hazard_vec;
-    wire         [3:0] waw_hazard_vec;
+    wire [                3:0] raw_hazard_vec;
+    wire [                3:0] waw_hazard_vec;
 
     genvar i;
     generate
         for (i = 0; i < 4; i = i + 1) begin : hazard_vec_gen
             assign raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                ((rs1_re && rs1_addr == fifo_entry[i].rd_addr) || (rs2_re && rs2_addr == fifo_entry[i].rd_addr));
-            // waw检测：只有exu_type不同才算冲突
+                ((rs1_re && rs1_addr == fifo_rd_addr[i]) || (rs2_re && rs2_addr == fifo_rd_addr[i]));
             assign waw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                (rd_we && rd_addr == fifo_entry[i].rd_addr && ex_info_bus != fifo_entry[i].exu_type);
+                (rd_we && rd_addr == fifo_rd_addr[i]);
         end
     endgenerate
 
@@ -97,9 +90,8 @@ module hdu (
         if (~rst_n) begin
             // 复位时清空FIFO
             for (int i = 0; i < (1 << `COMMIT_ID_WIDTH); i = i + 1) begin
-                fifo_valid[i]          <= 1'b0;
-                fifo_entry[i].rd_addr  <= 5'h0;
-                fifo_entry[i].exu_type <= {`EX_INFO_BUS_WIDTH{1'b0}};
+                fifo_valid[i]   <= 1'b0;
+                fifo_rd_addr[i] <= 5'h0;
             end
         end else begin
             // 清除已完成的长指令
@@ -109,9 +101,9 @@ module hdu (
 
             // 添加新的长指令到FIFO
             if (inst_valid && ~hazard) begin
-                fifo_valid[commit_id_o]          <= 1'b1;
-                fifo_entry[commit_id_o].rd_addr  <= rd_addr;
-                fifo_entry[commit_id_o].exu_type <= ex_info_bus;
+                // 使用组合逻辑分配的ID更新FIFO
+                fifo_valid[commit_id_o]   <= 1'b1;
+                fifo_rd_addr[commit_id_o] <= rd_addr;
             end
         end
     end

@@ -78,7 +78,6 @@ module cpu_top (
     // 新增rs1/rs2读使能信号
     wire idu_rs1_re_o;
     wire idu_rs2_re_o;
-    wire [`EX_INFO_BUS_WIDTH-1:0] idu_ex_info_bus_o;  // 新增：IDU ex_info_bus信号
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -510,8 +509,7 @@ module cpu_top (
         .inst_o          (idu_inst_o),            // 添加非法指令值输出
         // 新增rs1/rs2读使能信号输出
         .rs1_re_o        (idu_rs1_re_o),
-        .rs2_re_o        (idu_rs2_re_o),
-        .ex_info_bus_o   (idu_ex_info_bus_o)      // 新增
+        .rs2_re_o        (idu_rs2_re_o)
     );
 
     // 添加dispatch模块例化 - 修改增加新的接口
@@ -544,8 +542,6 @@ module cpu_top (
         .csr_we_i   (idu_csr_we_o),
         .csr_waddr_i(idu_csr_waddr_o),
         .csr_raddr_i(idu_csr_raddr_o),
-
-        .ex_info_bus_i(idu_ex_info_bus_o),  // 新增：连接IDU ex_info_bus到dispatch
 
         // 长指令有效信号 - 用于HDU
         .rd_access_inst_valid_i(rd_access_inst_valid),
@@ -580,20 +576,20 @@ module cpu_top (
         .alu_op2_o    (dispatch_alu_op2),
         .alu_op_info_o(dispatch_alu_op_info),
 
-        .req_bjp_o            (dispatch_req_bjp),
-        .bjp_op_jal_o         (dispatch_bjp_op_jal),
-        .bjp_op_beq_o         (dispatch_bjp_op_beq),
-        .bjp_op_bne_o         (dispatch_bjp_op_bne),
-        .bjp_op_blt_o         (dispatch_bjp_op_blt),
-        .bjp_op_bltu_o        (dispatch_bjp_op_bltu),
-        .bjp_op_bge_o         (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_o        (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_o        (dispatch_bjp_op_jalr),
-        .bjp_adder_result_o   (dispatch_bjp_adder_result),
-        .bjp_next_pc_o        (dispatch_bjp_next_pc),
-        .op1_eq_op2_o         (dispatch_op1_eq_op2),
-        .op1_ge_op2_signed_o  (dispatch_op1_ge_op2_signed),
-        .op1_ge_op2_unsigned_o(dispatch_op1_ge_op2_unsigned),
+        .req_bjp_o     (dispatch_req_bjp),
+        .bjp_op_jal_o  (dispatch_bjp_op_jal),
+        .bjp_op_beq_o  (dispatch_bjp_op_beq),
+        .bjp_op_bne_o  (dispatch_bjp_op_bne),
+        .bjp_op_blt_o  (dispatch_bjp_op_blt),
+        .bjp_op_bltu_o (dispatch_bjp_op_bltu),
+        .bjp_op_bge_o  (dispatch_bjp_op_bge),
+        .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
+        .bjp_op_jalr_o (dispatch_bjp_op_jalr),
+        .bjp_adder_result_o      (dispatch_bjp_adder_result),
+        .bjp_next_pc_o           (dispatch_bjp_next_pc),
+        .op1_eq_op2_o            (dispatch_op1_eq_op2),
+        .op1_ge_op2_signed_o     (dispatch_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_o   (dispatch_op1_ge_op2_unsigned),
 
         .req_mul_o      (dispatch_req_mul),
         .mul_op1_o      (dispatch_mul_op1),
@@ -681,20 +677,20 @@ module cpu_top (
         .alu_op2_i    (dispatch_alu_op2),
         .alu_op_info_i(dispatch_alu_op_info),
 
-        .req_bjp_i            (dispatch_req_bjp),
-        .bjp_op_jal_i         (dispatch_bjp_op_jal),
-        .bjp_op_beq_i         (dispatch_bjp_op_beq),
-        .bjp_op_bne_i         (dispatch_bjp_op_bne),
-        .bjp_op_blt_i         (dispatch_bjp_op_blt),
-        .bjp_op_bltu_i        (dispatch_bjp_op_bltu),
-        .bjp_op_bge_i         (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_i        (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_i        (dispatch_bjp_op_jalr),
-        .bjp_adder_result_i   (dispatch_bjp_adder_result),
-        .bjp_next_pc_i        (dispatch_bjp_next_pc),
-        .op1_eq_op2_i         (dispatch_op1_eq_op2),
-        .op1_ge_op2_signed_i  (dispatch_op1_ge_op2_signed),
-        .op1_ge_op2_unsigned_i(dispatch_op1_ge_op2_unsigned),
+        .req_bjp_i     (dispatch_req_bjp),
+        .bjp_op_jal_i  (dispatch_bjp_op_jal),
+        .bjp_op_beq_i  (dispatch_bjp_op_beq),
+        .bjp_op_bne_i  (dispatch_bjp_op_bne),
+        .bjp_op_blt_i  (dispatch_bjp_op_blt),
+        .bjp_op_bltu_i (dispatch_bjp_op_bltu),
+        .bjp_op_bge_i  (dispatch_bjp_op_bge),
+        .bjp_op_bgeu_i (dispatch_bjp_op_bgeu),
+        .bjp_op_jalr_i (dispatch_bjp_op_jalr),
+        .bjp_adder_result_i      (dispatch_bjp_adder_result),
+        .bjp_next_pc_i           (dispatch_bjp_next_pc),
+        .op1_eq_op2_i            (dispatch_op1_eq_op2),
+        .op1_ge_op2_signed_i     (dispatch_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_i   (dispatch_op1_ge_op2_unsigned),
 
         .req_mul_i      (dispatch_req_mul),
         .mul_op1_i      (dispatch_mul_op1),
