@@ -59,35 +59,21 @@ module exu_mul (
     // 添加寄存器保存乘法指令的写回信息
     wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr;
     wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul2_waddr;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul3_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul2_commit_id;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul3_commit_id;
 
     wire [3:0] mul_op_sel_mux;
     wire [3:0] mul0_op;
     wire [3:0] mul1_op;
-    wire [3:0] mul2_op;
-    wire [3:0] mul3_op;
     wire ctrl_ready0;
     wire ctrl_ready1;
-    wire ctrl_ready2;
-    wire ctrl_ready3;
     wire mul0_start;
     wire mul1_start;
-    wire mul2_start;
-    wire mul3_start;
 
     wire [`REG_DATA_WIDTH-1:0] mul0_multiplicand;
     wire [`REG_DATA_WIDTH-1:0] mul0_multiplier;
     wire [`REG_DATA_WIDTH-1:0] mul1_multiplicand;
     wire [`REG_DATA_WIDTH-1:0] mul1_multiplier;
-    wire [`REG_DATA_WIDTH-1:0] mul2_multiplicand;
-    wire [`REG_DATA_WIDTH-1:0] mul2_multiplier;
-    wire [`REG_DATA_WIDTH-1:0] mul3_multiplicand;
-    wire [`REG_DATA_WIDTH-1:0] mul3_multiplier;
 
     // 乘法器输出信号
     wire [`REG_DATA_WIDTH-1:0] mul0_result;
@@ -96,17 +82,11 @@ module exu_mul (
     wire [`REG_DATA_WIDTH-1:0] mul1_result;
     wire mul1_busy;
     wire mul1_valid;
-    wire [`REG_DATA_WIDTH-1:0] mul2_result;
-    wire mul2_busy;
-    wire mul2_valid;
-    wire [`REG_DATA_WIDTH-1:0] mul3_result;
-    wire mul3_busy;
-    wire mul3_valid;
 
     // 直接使用输入的总乘法信号
     wire is_mul_op = req_mul_i && !int_assert_i;
 
-    wire mul_busy = mul0_busy || mul1_busy || mul2_busy || mul3_busy;
+    wire mul_busy = mul0_busy || mul1_busy;
 
     // Buffer寄存器定义
     reg [`REG_ADDR_WIDTH-1:0] waddr_buffer;
@@ -128,33 +108,21 @@ module exu_mul (
     assign mul_op_sel_mux    = mul_op_mux;
     assign mul0_op           = mul_op_sel_mux;
     assign mul1_op           = mul_op_sel_mux;
-    assign mul2_op           = mul_op_sel_mux;
-    assign mul3_op           = mul_op_sel_mux;
     // 乘法器输入调整为mux后的数据
     assign mul0_multiplicand = reg1_rdata_mux;
     assign mul0_multiplier = reg2_rdata_mux;
     assign mul1_multiplicand = reg1_rdata_mux;
     assign mul1_multiplier = reg2_rdata_mux;
-    assign mul2_multiplicand = reg1_rdata_mux;
-    assign mul2_multiplier = reg2_rdata_mux;
-    assign mul3_multiplicand = reg1_rdata_mux;
-    assign mul3_multiplier = reg2_rdata_mux;
 
     // 定义控制信号
     wire sel_mul0 = mul0_valid;
     wire sel_mul1 = mul1_valid;
-    wire sel_mul2 = mul2_valid;
-    wire sel_mul3 = mul3_valid;
 
     // 写回地址和commit_id调整为mux后的数据
     wire [`REG_ADDR_WIDTH-1:0] saved_mul0_waddr_nxt = reg_waddr_mux;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul0_commit_id_nxt = commit_id_mux;
     wire [`REG_ADDR_WIDTH-1:0] saved_mul1_waddr_nxt = reg_waddr_mux;
     wire [`COMMIT_ID_WIDTH-1:0] saved_mul1_commit_id_nxt = commit_id_mux;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul2_waddr_nxt = reg_waddr_mux;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul2_commit_id_nxt = commit_id_mux;
-    wire [`REG_ADDR_WIDTH-1:0] saved_mul3_waddr_nxt = reg_waddr_mux;
-    wire [`COMMIT_ID_WIDTH-1:0] saved_mul3_commit_id_nxt = commit_id_mux;
 
     // 保存乘法器写回地址和commit_id
     gnrl_dfflr #(
@@ -197,58 +165,14 @@ module exu_mul (
         .qout (saved_mul1_commit_id)
     );
 
-    gnrl_dfflr #(
-        .DW(`REG_ADDR_WIDTH)
-    ) saved_mul2_waddr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (mul2_start),
-        .dnxt (saved_mul2_waddr_nxt),
-        .qout (saved_mul2_waddr)
-    );
-
-    gnrl_dfflr #(
-        .DW(`COMMIT_ID_WIDTH)
-    ) saved_mul2_commit_id_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (mul2_start),
-        .dnxt (saved_mul2_commit_id_nxt),
-        .qout (saved_mul2_commit_id)
-    );
-
-    gnrl_dfflr #(
-        .DW(`REG_ADDR_WIDTH)
-    ) saved_mul3_waddr_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (mul3_start),
-        .dnxt (saved_mul3_waddr_nxt),
-        .qout (saved_mul3_waddr)
-    );
-
-    gnrl_dfflr #(
-        .DW(`COMMIT_ID_WIDTH)
-    ) saved_mul3_commit_id_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (mul3_start),
-        .dnxt (saved_mul3_commit_id_nxt),
-        .qout (saved_mul3_commit_id)
-    );
-
     // 条件信号定义 - 用于流水线保持逻辑
     wire mul0_result_pending = mul0_valid;
     wire mul1_result_pending = mul1_valid;
-    wire mul2_result_pending = mul2_valid;
-    wire mul3_result_pending = mul3_valid;
-    wire stall_mul_cond = is_mul_op && (mul_busy || mul0_result_pending || mul1_result_pending || mul2_result_pending || mul3_result_pending);
+    wire stall_mul_cond = is_mul_op && (mul_busy || mul0_result_pending || mul1_result_pending);
 
     // 乘法可用信号
     wire mul0_available = !mul0_busy && !mul0_result_pending;
     wire mul1_available = !mul1_busy && !mul1_result_pending;
-    wire mul2_available = !mul2_busy && !mul2_result_pending;
-    wire mul3_available = !mul3_busy && !mul3_result_pending;
 
     // Buffer写入条件
     wire buffer_write_en = stall_mul_cond;
@@ -268,7 +192,7 @@ module exu_mul (
             multiplier_buffer   <= reg2_rdata_i;
             commit_id_buffer    <= commit_id_i;
             mul_op_buffer       <= {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
-        end else if (mul0_start || mul1_start || mul2_start || mul3_start) begin
+        end else if (mul0_start || mul1_start) begin
             buffer_req_valid <= 1'b0;
         end
     end
@@ -277,31 +201,18 @@ module exu_mul (
     assign mul_stall_flag_o = buffer_req_valid & is_mul_op;
     assign ctrl_ready0 = wb_ready || !sel_mul0;
     assign ctrl_ready1 = wb_ready && !sel_mul0 || !sel_mul1;
-    assign ctrl_ready2 = wb_ready && !sel_mul0 && !sel_mul1 || !sel_mul2;
-    assign ctrl_ready3 = wb_ready && !sel_mul0 && !sel_mul1 && !sel_mul2 || !sel_mul3;
 
     // 启动条件调整
     assign mul0_start = (is_mul_op || buffer_req_valid) && mul0_available;
     assign mul1_start = (is_mul_op || buffer_req_valid) && !mul0_available && mul1_available;
-    assign mul2_start = (is_mul_op || buffer_req_valid) && !mul0_available && !mul1_available && mul2_available;
-    assign mul3_start = (is_mul_op || buffer_req_valid) && !mul0_available && !mul1_available && !mul2_available && mul3_available;
 
     // 结果写回数据和地址选择逻辑 - 直接使用乘法器输出
-    assign reg_wdata_o = sel_mul0 ? mul0_result : 
-                        (sel_mul1 ? mul1_result : 
-                        (sel_mul2 ? mul2_result : 
-                        (sel_mul3 ? mul3_result : 0)));
-    assign reg_waddr_o = sel_mul0 ? saved_mul0_waddr : 
-                        (sel_mul1 ? saved_mul1_waddr : 
-                        (sel_mul2 ? saved_mul2_waddr : 
-                        (sel_mul3 ? saved_mul3_waddr : 0)));
-    assign commit_id_o = sel_mul0 ? saved_mul0_commit_id : 
-                        (sel_mul1 ? saved_mul1_commit_id : 
-                        (sel_mul2 ? saved_mul2_commit_id : 
-                        (sel_mul3 ? saved_mul3_commit_id : 0)));
+    assign reg_wdata_o = sel_mul0 ? mul0_result : (sel_mul1 ? mul1_result : 0);
+    assign reg_waddr_o = sel_mul0 ? saved_mul0_waddr : (sel_mul1 ? saved_mul1_waddr : 0);
+    assign commit_id_o = sel_mul0 ? saved_mul0_commit_id : (sel_mul1 ? saved_mul1_commit_id : 0);
 
     // 结果写回使能控制逻辑
-    assign reg_we_o = (sel_mul0 | sel_mul1 | sel_mul2 | sel_mul3);
+    assign reg_we_o = (sel_mul0 | sel_mul1);
 
     mul u_mul0 (
         .clk           (clk),
@@ -327,32 +238,6 @@ module exu_mul (
         .result_o      (mul1_result),
         .busy_o        (mul1_busy),
         .valid_o       (mul1_valid)
-    );
-
-    mul u_mul2 (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .multiplicand_i(mul2_multiplicand),
-        .multiplier_i  (mul2_multiplier),
-        .start_i       (mul2_start),
-        .ctrl_ready_i  (ctrl_ready2),
-        .op_i          (mul2_op),
-        .result_o      (mul2_result),
-        .busy_o        (mul2_busy),
-        .valid_o       (mul2_valid)
-    );
-
-    mul u_mul3 (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .multiplicand_i(mul3_multiplicand),
-        .multiplier_i  (mul3_multiplier),
-        .start_i       (mul3_start),
-        .ctrl_ready_i  (ctrl_ready3),
-        .op_i          (mul3_op),
-        .result_o      (mul3_result),
-        .busy_o        (mul3_busy),
-        .valid_o       (mul3_valid)
     );
 
 endmodule
