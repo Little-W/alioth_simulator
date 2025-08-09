@@ -46,10 +46,10 @@ CFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
 CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL)
 CFLAGS += -ffunction-sections -fdata-sections -fno-builtin-printf -fno-builtin-malloc
 CFLAGS += -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4
-CFLAGS += -ffast-math -fno-strict-aliasing
-CFLAGS += -Ofast
+CFLAGS += -fno-strict-aliasing
+CFLAGS += -O3 -mtune=alioth
 
-COREMARK_CFLAGS := "\"-Ofast -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions -ffast-math -fno-strict-aliasing\""
+COREMARK_CFLAGS := "\"-O3 -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions -ffast-math -fno-strict-aliasing\""
 
 CFLAGS += -DRTOS_RTTHREAD=1
 CFLAGS += -DFLAGS_STR=$(COREMARK_CFLAGS)
