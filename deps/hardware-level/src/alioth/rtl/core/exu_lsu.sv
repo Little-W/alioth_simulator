@@ -127,16 +127,95 @@ module exu_lsu #(
     output wire                           M_AXI_RREADY
 );
     // 内部信号定义
-    wire [                1:0] mem_addr_index;
-    wire                       valid_op;  // 有效操作信号（无中断且有内存请求）
+    wire [1:0] mem_addr_index;
+    wire       valid_op;  // 有效操作信号（无中断且有内存请求）
 
     // 添加之前隐式声明的信号
-    wire                       read_req_valid;
-    wire                       write_req_valid;
+    wire       read_req_valid;
+    wire       write_req_valid;
 
-    // 直接使用输入的load和store信号
-    wire                       is_load_op = mem_op_load_i;
-    wire                       is_store_op = mem_op_store_i;
+    // 输入请求FIFO相关参数和信号
+    localparam INPUT_FIFO_DEPTH = 4;
+    localparam INPUT_FIFO_PTR_WIDTH = $clog2(INPUT_FIFO_DEPTH);
+    localparam INPUT_FIFO_CNT_WIDTH = $clog2(INPUT_FIFO_DEPTH + 1);
+
+    // 输入请求FIFO指针、计数器和状态
+    reg [INPUT_FIFO_PTR_WIDTH-1:0] input_fifo_wr_ptr;
+    reg [INPUT_FIFO_PTR_WIDTH-1:0] input_fifo_rd_ptr;
+    reg [INPUT_FIFO_CNT_WIDTH-1:0] input_fifo_count;
+
+    // 输入请求FIFO数组
+    reg input_fifo_req_mem[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_lb[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_lh[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_lw[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_lbu[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_lhu[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_load[0:INPUT_FIFO_DEPTH-1];
+    reg input_fifo_mem_op_store[0:INPUT_FIFO_DEPTH-1];
+    reg [4:0] input_fifo_rd_addr[0:INPUT_FIFO_DEPTH-1];
+    reg [31:0] input_fifo_mem_addr[0:INPUT_FIFO_DEPTH-1];
+    reg [31:0] input_fifo_mem_wdata[0:INPUT_FIFO_DEPTH-1];
+    reg [3:0] input_fifo_mem_wmask[0:INPUT_FIFO_DEPTH-1];
+    reg [`COMMIT_ID_WIDTH-1:0] input_fifo_commit_id[0:INPUT_FIFO_DEPTH-1];
+
+    // 输入FIFO状态信号
+    wire input_fifo_empty;
+    wire input_fifo_full;
+    wire input_fifo_wr_en;
+    wire input_fifo_rd_en;
+    wire input_fifo_wr_allow;  // 允许写入
+    wire input_fifo_rd_allow;  // 允许读取
+    wire [                     1:0] input_fifo_op;        // FIFO操作码：00-无操作，01-只弹出，10-只推入，11-同时推入弹出
+
+    // 输入FIFO状态计算 - 使用计数器
+    assign input_fifo_empty    = (input_fifo_count == {INPUT_FIFO_CNT_WIDTH{1'b0}});
+    assign input_fifo_full     = (input_fifo_count == INPUT_FIFO_DEPTH[INPUT_FIFO_CNT_WIDTH-1:0]);
+
+    // 输入FIFO保护机制
+    assign input_fifo_wr_allow = !input_fifo_full;
+    assign input_fifo_rd_allow = !input_fifo_empty;
+
+    // 输入源选择 - 如果FIFO非空则使用FIFO输出，否则使用直接输入
+    wire effective_req_mem_i = input_fifo_empty ? req_mem_i : input_fifo_req_mem[input_fifo_rd_ptr];
+    wire effective_mem_op_lb_i = input_fifo_empty ? mem_op_lb_i : input_fifo_mem_op_lb[input_fifo_rd_ptr];
+    wire effective_mem_op_lh_i = input_fifo_empty ? mem_op_lh_i : input_fifo_mem_op_lh[input_fifo_rd_ptr];
+    wire effective_mem_op_lw_i = input_fifo_empty ? mem_op_lw_i : input_fifo_mem_op_lw[input_fifo_rd_ptr];
+    wire effective_mem_op_lbu_i = input_fifo_empty ? mem_op_lbu_i : input_fifo_mem_op_lbu[input_fifo_rd_ptr];
+    wire effective_mem_op_lhu_i = input_fifo_empty ? mem_op_lhu_i : input_fifo_mem_op_lhu[input_fifo_rd_ptr];
+    wire effective_mem_op_load_i = input_fifo_empty ? mem_op_load_i : input_fifo_mem_op_load[input_fifo_rd_ptr];
+    wire effective_mem_op_store_i = input_fifo_empty ? mem_op_store_i : input_fifo_mem_op_store[input_fifo_rd_ptr];
+    wire [4:0] effective_rd_addr_i = input_fifo_empty ? rd_addr_i : input_fifo_rd_addr[input_fifo_rd_ptr];
+    wire [31:0] effective_mem_addr_i = input_fifo_empty ? mem_addr_i : input_fifo_mem_addr[input_fifo_rd_ptr];
+    wire [31:0] effective_mem_wdata_i = input_fifo_empty ? mem_wdata_i : input_fifo_mem_wdata[input_fifo_rd_ptr];
+    wire [3:0] effective_mem_wmask_i = input_fifo_empty ? mem_wmask_i : input_fifo_mem_wmask[input_fifo_rd_ptr];
+    wire [`COMMIT_ID_WIDTH-1:0] effective_commit_id_i = input_fifo_empty ? commit_id_i : input_fifo_commit_id[input_fifo_rd_ptr];
+
+    // 输入FIFO控制逻辑 - 修改推入条件
+    wire input_request_accepted = effective_req_mem_i && !int_assert_i &&
+                                  ((effective_mem_op_load_i && M_AXI_ARVALID && M_AXI_ARREADY) ||
+                                   (effective_mem_op_store_i && M_AXI_AWVALID && M_AXI_AWREADY));
+
+    // 推入条件：输入请求未被接受，或者FIFO现在非空且有了新的输入请求
+    wire should_push_input_fifo = req_mem_i && !int_assert_i && input_fifo_wr_allow &&
+                                  (!input_request_accepted || !input_fifo_empty);
+
+    // 输入FIFO写入使能
+    assign input_fifo_wr_en = should_push_input_fifo;
+
+    // 输入FIFO读取使能 - 当FIFO非空且能够处理请求时
+    assign input_fifo_rd_en = input_fifo_rd_allow && input_request_accepted;
+
+    // 输入FIFO操作码生成
+    assign input_fifo_op    = {input_fifo_wr_en, input_fifo_rd_en};
+
+    // 基本信号计算 - 使用effective信号
+    assign mem_addr_index   = effective_mem_addr_i[1:0];
+    assign valid_op         = effective_req_mem_i && !int_assert_i;
+
+    // 直接使用输入的load和store信号 - 使用effective信号
+    wire                       is_load_op = effective_mem_op_load_i;
+    wire                       is_store_op = effective_mem_op_store_i;
 
     // AXI请求相关寄存器
     wire [`BUS_DATA_WIDTH-1:0] axi_read_data;
@@ -144,20 +223,19 @@ module exu_lsu #(
     // FIFO相关参数定义
     localparam FIFO_DEPTH = 4;
     localparam FIFO_PTR_WIDTH = $clog2(FIFO_DEPTH);
+    localparam FIFO_CNT_WIDTH = $clog2(FIFO_DEPTH + 1);
 
-    // 寄存器信号定义 - 将wire改为reg类型
+    // 读FIFO计数器和状态
     reg [FIFO_PTR_WIDTH-1:0] read_fifo_wr_ptr;
     reg [FIFO_PTR_WIDTH-1:0] read_fifo_rd_ptr;
-    reg [FIFO_DEPTH-1:0] read_fifo_valid;
+    reg [FIFO_CNT_WIDTH-1:0] read_fifo_count;
     reg  [            1:0] read_fifo_op;    // FIFO操作码：00-无操作，01-只弹出，10-只推入，11-同时推入弹出
-    reg  [            1:0] write_fifo_op;   // FIFO操作码：00-无操作，01-只弹出，10-只推入，11-同时推入弹出
 
+    // 写FIFO计数器和状态
     reg [FIFO_PTR_WIDTH-1:0] write_fifo_wr_ptr;
     reg [FIFO_PTR_WIDTH-1:0] write_fifo_rd_ptr;
-    reg [FIFO_DEPTH-1:0] write_fifo_valid;
-
-    wire axi_rready;
-    wire axi_bready;
+    reg [FIFO_CNT_WIDTH-1:0] write_fifo_count;
+    reg  [            1:0] write_fifo_op;   // FIFO操作码：00-无操作，01-只弹出，10-只推入，11-同时推入弹出
 
     // 读取请求FIFO数组 - 改为reg类型
     reg read_fifo_mem_op_lb[0:FIFO_DEPTH-1];
@@ -184,32 +262,34 @@ module exu_lsu #(
     wire read_fifo_full;
     wire write_fifo_empty;
     wire write_fifo_full;
+    wire read_fifo_wr_allow;  // 允许写入
+    wire read_fifo_rd_allow;  // 允许读取
+    wire write_fifo_wr_allow;  // 允许写入
+    wire write_fifo_rd_allow;  // 允许读取
 
-    // FIFO状态计算
-    assign read_fifo_empty = (read_fifo_wr_ptr == read_fifo_rd_ptr) && (read_fifo_valid[read_fifo_rd_ptr] == 1'b0);
-    assign read_fifo_full = (read_fifo_wr_ptr == read_fifo_rd_ptr) && (read_fifo_valid[read_fifo_wr_ptr] == 1'b1);
-    assign write_fifo_empty = (write_fifo_wr_ptr == write_fifo_rd_ptr) && (write_fifo_valid[write_fifo_rd_ptr] == 1'b0);
-    assign write_fifo_full = (write_fifo_wr_ptr == write_fifo_rd_ptr) && (write_fifo_valid[write_fifo_wr_ptr] == 1'b1);
+    // FIFO状态计算 - 使用计数器
+    assign read_fifo_empty     = (read_fifo_count == {FIFO_CNT_WIDTH{1'b0}});
+    assign read_fifo_full      = (read_fifo_count == FIFO_DEPTH[FIFO_CNT_WIDTH-1:0]);
+    assign write_fifo_empty    = (write_fifo_count == {FIFO_CNT_WIDTH{1'b0}});
+    assign write_fifo_full     = (write_fifo_count == FIFO_DEPTH[FIFO_CNT_WIDTH-1:0]);
+
+    // FIFO保护机制
+    assign read_fifo_wr_allow  = !read_fifo_full;
+    assign read_fifo_rd_allow  = !read_fifo_empty;
+    assign write_fifo_wr_allow = !write_fifo_full;
+    assign write_fifo_rd_allow = !write_fifo_empty;
 
     // 生成请求有效信号
-    assign read_req_valid = valid_op && is_load_op;
-    assign write_req_valid = valid_op && is_store_op;
+    assign read_req_valid      = valid_op && is_load_op;
+    assign write_req_valid     = valid_op && is_store_op;
 
     // 同周期响应判断
     wire same_cycle_response;
     assign same_cycle_response = (read_fifo_empty & M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID & axi_rready);
 
-    // 基本信号计算
-    assign mem_addr_index = mem_addr_i[1:0];
-    assign valid_op = req_mem_i && !int_assert_i;
-
-    // 访存阻塞信号
-    wire read_stall;
-    wire write_stall;
-    assign read_stall  = read_req_valid & (read_fifo_full | ~M_AXI_ARREADY);
-    assign write_stall = write_req_valid & (write_fifo_full | ~M_AXI_AWREADY);
-    assign mem_stall_o = read_stall | write_stall;
-    assign mem_busy_o  = !write_fifo_empty;
+    // 访存阻塞信号 - 新的stall条件
+    assign mem_stall_o = req_mem_i && !int_assert_i && input_fifo_full;
+    assign mem_busy_o = !write_fifo_empty;
 
     // 读请求FIFO操作
     wire read_fifo_wr_en;
@@ -219,20 +299,24 @@ module exu_lsu #(
     wire write_fifo_wr_en;
     wire write_fifo_rd_en;
 
+    // AXI控制信号
+    wire axi_rready;
+    wire axi_bready;
+
     // 读控制信号逻辑
     assign axi_rready = 1'b1;  // 始终保持读数据通道ready
 
-    // 读FIFO写入使能 - 当地址握手成功但数据未同时到达时
-    assign read_fifo_wr_en = (M_AXI_ARVALID & M_AXI_ARREADY) & (~(M_AXI_RVALID | read_fifo_full) | ~read_fifo_empty);
+    // 读FIFO写入使能 - 当地址握手成功但数据未同时到达时，添加保护机制
+    assign read_fifo_wr_en = (M_AXI_ARVALID & M_AXI_ARREADY) & (~(M_AXI_RVALID | read_fifo_full) | read_fifo_rd_allow) & read_fifo_wr_allow;
 
-    // 读FIFO读取使能 - 当等待数据且数据到达时
-    assign read_fifo_rd_en = M_AXI_RVALID & axi_rready & ~read_fifo_empty;
+    // 读FIFO读取使能 - 当等待数据且数据到达时，添加保护机制
+    assign read_fifo_rd_en = M_AXI_RVALID & axi_rready & read_fifo_rd_allow;
 
-    // 写FIFO写入使能 - 当地址握手成功但数据握手失败时
-    assign write_fifo_wr_en = write_req_valid & M_AXI_AWREADY & ~M_AXI_WREADY & ~write_fifo_full;
+    // 写FIFO写入使能 - 当地址握手成功但数据握手失败时，添加保护机制
+    assign write_fifo_wr_en = write_req_valid & M_AXI_AWREADY & ~M_AXI_WREADY & write_fifo_wr_allow;
 
-    // 写FIFO读取使能 - 当FIFO非空且数据握手成功时
-    assign write_fifo_rd_en = ~write_fifo_empty & M_AXI_WREADY;
+    // 写FIFO读取使能 - 当FIFO非空且数据握手成功时，添加保护机制
+    assign write_fifo_rd_en = write_fifo_rd_allow & M_AXI_WREADY;
 
     // FIFO操作码生成，使用位拼接整理
     assign read_fifo_op = {read_fifo_wr_en, read_fifo_rd_en};
@@ -248,15 +332,15 @@ module exu_lsu #(
     // 直接从AXI读取数据
     assign axi_read_data       = M_AXI_RDATA;
 
-    // 从FIFO中获取当前处理的请求信息
+    // 从FIFO中获取当前处理的请求信息 - 使用effective信号
     wire [1:0] curr_mem_addr_index = same_cycle_response ? mem_addr_index : read_fifo_mem_addr_index[read_fifo_rd_ptr];
-    wire curr_mem_op_lb = same_cycle_response ? mem_op_lb_i : read_fifo_mem_op_lb[read_fifo_rd_ptr];
-    wire curr_mem_op_lh = same_cycle_response ? mem_op_lh_i : read_fifo_mem_op_lh[read_fifo_rd_ptr];
-    wire curr_mem_op_lw = same_cycle_response ? mem_op_lw_i : read_fifo_mem_op_lw[read_fifo_rd_ptr];
-    wire curr_mem_op_lbu = same_cycle_response ? mem_op_lbu_i : read_fifo_mem_op_lbu[read_fifo_rd_ptr];
-    wire curr_mem_op_lhu = same_cycle_response ? mem_op_lhu_i : read_fifo_mem_op_lhu[read_fifo_rd_ptr];
-    wire [4:0] curr_rd_addr = same_cycle_response ? rd_addr_i : read_fifo_rd_addr[read_fifo_rd_ptr];
-    wire [`COMMIT_ID_WIDTH-1:0] curr_commit_id = same_cycle_response ? commit_id_i : read_fifo_commit_id[read_fifo_rd_ptr];
+    wire curr_mem_op_lb = same_cycle_response ? effective_mem_op_lb_i : read_fifo_mem_op_lb[read_fifo_rd_ptr];
+    wire curr_mem_op_lh = same_cycle_response ? effective_mem_op_lh_i : read_fifo_mem_op_lh[read_fifo_rd_ptr];
+    wire curr_mem_op_lw = same_cycle_response ? effective_mem_op_lw_i : read_fifo_mem_op_lw[read_fifo_rd_ptr];
+    wire curr_mem_op_lbu = same_cycle_response ? effective_mem_op_lbu_i : read_fifo_mem_op_lbu[read_fifo_rd_ptr];
+    wire curr_mem_op_lhu = same_cycle_response ? effective_mem_op_lhu_i : read_fifo_mem_op_lhu[read_fifo_rd_ptr];
+    wire [4:0] curr_rd_addr = same_cycle_response ? effective_rd_addr_i : read_fifo_rd_addr[read_fifo_rd_ptr];
+    wire [`COMMIT_ID_WIDTH-1:0] curr_commit_id = same_cycle_response ? effective_commit_id_i : read_fifo_commit_id[read_fifo_rd_ptr];
 
     // 字节加载数据的与或逻辑
     wire [31:0] lb_data, lh_data, lw_data, lbu_data, lhu_data;
@@ -311,16 +395,92 @@ module exu_lsu #(
            ({32{curr_mem_op_lhu}} & lhu_data) |
            ({32{curr_mem_op_lw}} & lw_data);
 
-    // 从FIFO获取或直接使用的写数据 - 使用新的输入信号
-    wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : mem_wdata_i;
-    wire [3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : mem_wmask_i;
+    // 从FIFO获取或直接使用的写数据 - 使用effective信号
+    wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : effective_mem_wdata_i;
+    wire [3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : effective_mem_wmask_i;
 
-    // 合并读FIFO指针和有效位、数据更新（带循环）
+    // 输入请求FIFO更新逻辑 - 使用操作码
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            input_fifo_wr_ptr <= {INPUT_FIFO_PTR_WIDTH{1'b0}};
+            input_fifo_rd_ptr <= {INPUT_FIFO_PTR_WIDTH{1'b0}};
+            input_fifo_count  <= {INPUT_FIFO_CNT_WIDTH{1'b0}};
+            // 重置所有输入FIFO条目
+            for (int i = 0; i < INPUT_FIFO_DEPTH; i++) begin
+                input_fifo_req_mem[i]      <= 1'b0;
+                input_fifo_mem_op_lb[i]    <= 1'b0;
+                input_fifo_mem_op_lh[i]    <= 1'b0;
+                input_fifo_mem_op_lw[i]    <= 1'b0;
+                input_fifo_mem_op_lbu[i]   <= 1'b0;
+                input_fifo_mem_op_lhu[i]   <= 1'b0;
+                input_fifo_mem_op_load[i]  <= 1'b0;
+                input_fifo_mem_op_store[i] <= 1'b0;
+                input_fifo_rd_addr[i]      <= 5'b0;
+                input_fifo_mem_addr[i]     <= 32'b0;
+                input_fifo_mem_wdata[i]    <= 32'b0;
+                input_fifo_mem_wmask[i]    <= 4'b0;
+                input_fifo_commit_id[i]    <= {`COMMIT_ID_WIDTH{1'b0}};
+            end
+        end else begin
+            case (input_fifo_op)
+                2'b10: begin  // 只推入
+                    if (input_fifo_wr_allow) begin
+                        input_fifo_wr_ptr <= (input_fifo_wr_ptr + 1'b1) % INPUT_FIFO_DEPTH;
+                        input_fifo_count <= input_fifo_count + 1'b1;
+                        // 更新当前写指针位置的数据
+                        input_fifo_req_mem[input_fifo_wr_ptr] <= req_mem_i;
+                        input_fifo_mem_op_lb[input_fifo_wr_ptr] <= mem_op_lb_i;
+                        input_fifo_mem_op_lh[input_fifo_wr_ptr] <= mem_op_lh_i;
+                        input_fifo_mem_op_lw[input_fifo_wr_ptr] <= mem_op_lw_i;
+                        input_fifo_mem_op_lbu[input_fifo_wr_ptr] <= mem_op_lbu_i;
+                        input_fifo_mem_op_lhu[input_fifo_wr_ptr] <= mem_op_lhu_i;
+                        input_fifo_mem_op_load[input_fifo_wr_ptr] <= mem_op_load_i;
+                        input_fifo_mem_op_store[input_fifo_wr_ptr] <= mem_op_store_i;
+                        input_fifo_rd_addr[input_fifo_wr_ptr] <= rd_addr_i;
+                        input_fifo_mem_addr[input_fifo_wr_ptr] <= mem_addr_i;
+                        input_fifo_mem_wdata[input_fifo_wr_ptr] <= mem_wdata_i;
+                        input_fifo_mem_wmask[input_fifo_wr_ptr] <= mem_wmask_i;
+                        input_fifo_commit_id[input_fifo_wr_ptr] <= commit_id_i;
+                    end
+                end
+                2'b01: begin  // 只弹出
+                    if (input_fifo_rd_allow) begin
+                        input_fifo_rd_ptr <= (input_fifo_rd_ptr + 1'b1) % INPUT_FIFO_DEPTH;
+                        input_fifo_count  <= input_fifo_count - 1'b1;
+                    end
+                end
+                2'b11: begin  // 同时推入弹出
+                    input_fifo_wr_ptr <= (input_fifo_wr_ptr + 1'b1) % INPUT_FIFO_DEPTH;
+                    input_fifo_rd_ptr <= (input_fifo_rd_ptr + 1'b1) % INPUT_FIFO_DEPTH;
+                    // 计数器不变
+                    // 更新当前写指针位置的数据
+                    input_fifo_req_mem[input_fifo_wr_ptr] <= req_mem_i;
+                    input_fifo_mem_op_lb[input_fifo_wr_ptr] <= mem_op_lb_i;
+                    input_fifo_mem_op_lh[input_fifo_wr_ptr] <= mem_op_lh_i;
+                    input_fifo_mem_op_lw[input_fifo_wr_ptr] <= mem_op_lw_i;
+                    input_fifo_mem_op_lbu[input_fifo_wr_ptr] <= mem_op_lbu_i;
+                    input_fifo_mem_op_lhu[input_fifo_wr_ptr] <= mem_op_lhu_i;
+                    input_fifo_mem_op_load[input_fifo_wr_ptr] <= mem_op_load_i;
+                    input_fifo_mem_op_store[input_fifo_wr_ptr] <= mem_op_store_i;
+                    input_fifo_rd_addr[input_fifo_wr_ptr] <= rd_addr_i;
+                    input_fifo_mem_addr[input_fifo_wr_ptr] <= mem_addr_i;
+                    input_fifo_mem_wdata[input_fifo_wr_ptr] <= mem_wdata_i;
+                    input_fifo_mem_wmask[input_fifo_wr_ptr] <= mem_wmask_i;
+                    input_fifo_commit_id[input_fifo_wr_ptr] <= commit_id_i;
+                end
+                default: begin
+                    // 保持当前状态
+                end
+            endcase
+        end
+    end
+
+    // 合并读请求类型FIFO
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             read_fifo_wr_ptr <= {FIFO_PTR_WIDTH{1'b0}};
             read_fifo_rd_ptr <= {FIFO_PTR_WIDTH{1'b0}};
-            read_fifo_valid  <= {FIFO_DEPTH{1'b0}};
+            read_fifo_count  <= {FIFO_CNT_WIDTH{1'b0}};
             // 重置所有读FIFO条目
             for (int i = 0; i < FIFO_DEPTH; i++) begin
                 read_fifo_mem_op_lb[i]      <= 1'b0;
@@ -335,36 +495,39 @@ module exu_lsu #(
         end else begin
             case (read_fifo_op)
                 2'b10: begin  // 只推入
-                    read_fifo_wr_ptr <= (read_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
-                    read_fifo_valid[read_fifo_wr_ptr] <= 1'b1;
-                    // 更新当前写指针位置的数据
-                    read_fifo_mem_op_lb[read_fifo_wr_ptr] <= mem_op_lb_i;
-                    read_fifo_mem_op_lh[read_fifo_wr_ptr] <= mem_op_lh_i;
-                    read_fifo_mem_op_lw[read_fifo_wr_ptr] <= mem_op_lw_i;
-                    read_fifo_mem_op_lbu[read_fifo_wr_ptr] <= mem_op_lbu_i;
-                    read_fifo_mem_op_lhu[read_fifo_wr_ptr] <= mem_op_lhu_i;
-                    read_fifo_rd_addr[read_fifo_wr_ptr] <= rd_addr_i;
-                    read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
-                    read_fifo_commit_id[read_fifo_wr_ptr] <= commit_id_i;
+                    if (read_fifo_wr_allow) begin
+                        read_fifo_wr_ptr <= (read_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                        read_fifo_count <= read_fifo_count + 1'b1;
+                        // 更新当前写指针位置的数据 - 使用effective信号
+                        read_fifo_mem_op_lb[read_fifo_wr_ptr] <= effective_mem_op_lb_i;
+                        read_fifo_mem_op_lh[read_fifo_wr_ptr] <= effective_mem_op_lh_i;
+                        read_fifo_mem_op_lw[read_fifo_wr_ptr] <= effective_mem_op_lw_i;
+                        read_fifo_mem_op_lbu[read_fifo_wr_ptr] <= effective_mem_op_lbu_i;
+                        read_fifo_mem_op_lhu[read_fifo_wr_ptr] <= effective_mem_op_lhu_i;
+                        read_fifo_rd_addr[read_fifo_wr_ptr] <= effective_rd_addr_i;
+                        read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
+                        read_fifo_commit_id[read_fifo_wr_ptr] <= effective_commit_id_i;
+                    end
                 end
                 2'b01: begin  // 只弹出
-                    read_fifo_rd_ptr                  <= (read_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
-                    read_fifo_valid[read_fifo_rd_ptr] <= 1'b0;
+                    if (read_fifo_rd_allow) begin
+                        read_fifo_rd_ptr <= (read_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                        read_fifo_count  <= read_fifo_count - 1'b1;
+                    end
                 end
                 2'b11: begin  // 同时推入弹出
                     read_fifo_wr_ptr <= (read_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
                     read_fifo_rd_ptr <= (read_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
-                    read_fifo_valid[read_fifo_wr_ptr] <= 1'b1;
-                    read_fifo_valid[read_fifo_rd_ptr] <= 1'b0;
-                    // 更新当前写指针位置的数据
-                    read_fifo_mem_op_lb[read_fifo_wr_ptr] <= mem_op_lb_i;
-                    read_fifo_mem_op_lh[read_fifo_wr_ptr] <= mem_op_lh_i;
-                    read_fifo_mem_op_lw[read_fifo_wr_ptr] <= mem_op_lw_i;
-                    read_fifo_mem_op_lbu[read_fifo_wr_ptr] <= mem_op_lbu_i;
-                    read_fifo_mem_op_lhu[read_fifo_wr_ptr] <= mem_op_lhu_i;
-                    read_fifo_rd_addr[read_fifo_wr_ptr] <= rd_addr_i;
+                    // 计数器不变
+                    // 更新当前写指针位置的数据 - 使用effective信号
+                    read_fifo_mem_op_lb[read_fifo_wr_ptr] <= effective_mem_op_lb_i;
+                    read_fifo_mem_op_lh[read_fifo_wr_ptr] <= effective_mem_op_lh_i;
+                    read_fifo_mem_op_lw[read_fifo_wr_ptr] <= effective_mem_op_lw_i;
+                    read_fifo_mem_op_lbu[read_fifo_wr_ptr] <= effective_mem_op_lbu_i;
+                    read_fifo_mem_op_lhu[read_fifo_wr_ptr] <= effective_mem_op_lhu_i;
+                    read_fifo_rd_addr[read_fifo_wr_ptr] <= effective_rd_addr_i;
                     read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
-                    read_fifo_commit_id[read_fifo_wr_ptr] <= commit_id_i;
+                    read_fifo_commit_id[read_fifo_wr_ptr] <= effective_commit_id_i;
                 end
                 default: begin
                     // 保持当前状态
@@ -373,12 +536,12 @@ module exu_lsu #(
         end
     end
 
-    // 合并写FIFO指针和有效位、数据更新（带循环）
+    // 合并写数据通道FIFO
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             write_fifo_wr_ptr <= {FIFO_PTR_WIDTH{1'b0}};
             write_fifo_rd_ptr <= {FIFO_PTR_WIDTH{1'b0}};
-            write_fifo_valid  <= {FIFO_DEPTH{1'b0}};
+            write_fifo_count  <= {FIFO_CNT_WIDTH{1'b0}};
             // 重置所有写FIFO条目
             for (int i = 0; i < FIFO_DEPTH; i++) begin
                 write_fifo_data[i] <= 32'b0;
@@ -387,22 +550,25 @@ module exu_lsu #(
         end else begin
             case (write_fifo_op)
                 2'b10: begin  // 只推入
-                    write_fifo_wr_ptr                   <= (write_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
-                    write_fifo_valid[write_fifo_wr_ptr] <= 1'b1;
-                    write_fifo_data[write_fifo_wr_ptr]  <= mem_wdata_i;
-                    write_fifo_strb[write_fifo_wr_ptr]  <= mem_wmask_i;
+                    if (write_fifo_wr_allow) begin
+                        write_fifo_wr_ptr <= (write_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                        write_fifo_count <= write_fifo_count + 1'b1;
+                        write_fifo_data[write_fifo_wr_ptr] <= effective_mem_wdata_i;
+                        write_fifo_strb[write_fifo_wr_ptr] <= effective_mem_wmask_i;
+                    end
                 end
                 2'b01: begin  // 只弹出
-                    write_fifo_rd_ptr                   <= (write_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
-                    write_fifo_valid[write_fifo_rd_ptr] <= 1'b0;
+                    if (write_fifo_rd_allow) begin
+                        write_fifo_rd_ptr <= (write_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                        write_fifo_count  <= write_fifo_count - 1'b1;
+                    end
                 end
                 2'b11: begin  // 同时推入弹出
-                    write_fifo_wr_ptr                   <= (write_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
-                    write_fifo_rd_ptr                   <= (write_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
-                    write_fifo_valid[write_fifo_wr_ptr] <= 1'b1;
-                    write_fifo_valid[write_fifo_rd_ptr] <= 1'b0;
-                    write_fifo_data[write_fifo_wr_ptr]  <= mem_wdata_i;
-                    write_fifo_strb[write_fifo_wr_ptr]  <= mem_wmask_i;
+                    write_fifo_wr_ptr                  <= (write_fifo_wr_ptr + 1'b1) % FIFO_DEPTH;
+                    write_fifo_rd_ptr                  <= (write_fifo_rd_ptr + 1'b1) % FIFO_DEPTH;
+                    // 计数器不变
+                    write_fifo_data[write_fifo_wr_ptr] <= effective_mem_wdata_i;
+                    write_fifo_strb[write_fifo_wr_ptr] <= effective_mem_wmask_i;
                 end
                 default: begin
                     // 保持当前状态
@@ -415,9 +581,9 @@ module exu_lsu #(
     // 写控制信号逻辑
     assign axi_bready    = 1'b1;  // 始终准备接收写响应
 
-    // 写地址通道 - 使用新的地址输入
+    // 写地址通道 - 使用effective信号，添加write_fifo_full阻塞
     assign M_AXI_AWID    = 'b0;
-    assign M_AXI_AWADDR  = mem_addr_i;
+    assign M_AXI_AWADDR  = effective_mem_addr_i;
     assign M_AXI_AWLEN   = 8'b0;  // 单次传输
     assign M_AXI_AWSIZE  = 3'b010;  // 4字节
     assign M_AXI_AWBURST = 2'b01;  // INCR
@@ -426,7 +592,7 @@ module exu_lsu #(
     assign M_AXI_AWPROT  = 3'h0;
     assign M_AXI_AWQOS   = 4'h0;
     assign M_AXI_AWUSER  = 'b1;
-    assign M_AXI_AWVALID = write_req_valid;  // 只在有写请求时有效
+    assign M_AXI_AWVALID = write_req_valid && !write_fifo_full;  // 写FIFO满时不发送写请求
 
     // 写数据通道
     assign M_AXI_WDATA   = mem_wdata_out;
@@ -438,9 +604,9 @@ module exu_lsu #(
     // 写响应通道
     assign M_AXI_BREADY  = axi_bready;
 
-    // 读地址通道 - 使用新的地址输入
+    // 读地址通道 - 使用effective信号，添加read_fifo_full阻塞
     assign M_AXI_ARID    = 'b0;  // ARID固定为0,使用顺序Outstanding
-    assign M_AXI_ARADDR  = mem_addr_i;
+    assign M_AXI_ARADDR  = effective_mem_addr_i;
     assign M_AXI_ARLEN   = 8'b0;  // 单次传输
     assign M_AXI_ARSIZE  = 3'b010;  // 4字节
     assign M_AXI_ARBURST = 2'b01;  // INCR
@@ -449,7 +615,8 @@ module exu_lsu #(
     assign M_AXI_ARPROT  = 3'h0;
     assign M_AXI_ARQOS   = 4'h0;
     assign M_AXI_ARUSER  = 'b1;
-    assign M_AXI_ARVALID = read_req_valid;
+    assign M_AXI_ARVALID = read_req_valid && !read_fifo_full;  // 读FIFO满时不发送读请求
+
     // 读数据通道
     assign M_AXI_RREADY  = axi_rready;
 
