@@ -347,6 +347,14 @@
 `define ALU_OP_AUIPC 11
 `define ALU_OP_JUMP 12
 
+`define EX_INFO_BUS_WIDTH 3
+`define EX_INFO_ALU 0
+`define EX_INFO_BJP 1
+`define EX_INFO_MUL 2
+`define EX_INFO_DIV 3
+`define EX_INFO_CSR 4
+`define EX_INFO_LOAD 5
+
 // CPU字长和指令集扩展定义
 // CPU字长定义
 `define MISA_MXL_32 2'b01      // 32位CPU

@@ -48,19 +48,20 @@ module dispatch (
     input wire [`FREG_DATA_WIDTH-1:0] frs3_rdata_i,
 
     // 寄存器写入信息 - 用于HDU检测冒险
-    input wire [`REG_ADDR_WIDTH-1:0] reg_waddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] rs1_raddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] rs2_raddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] rs3_raddr_i,
-    input wire                       reg_we_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] reg_waddr_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] rs1_raddr_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] rs2_raddr_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] rs3_raddr_i,
+    input wire                          reg_we_i,
     // 新增：rs1和rs2寄存器是否需要访问
-    input wire                       rs1_re_i,
-    input wire                       rs2_re_i,
-    input wire                       rs3_re_i,
+    input wire                          rs1_re_i,
+    input wire                          rs2_re_i,
+    input wire                          rs3_re_i,
     // 从IDU接收额外的CSR信号
-    input wire                       csr_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
+    input wire                          csr_we_i,
+    input wire [   `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input wire [   `BUS_ADDR_WIDTH-1:0] csr_raddr_i,
+    input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
 
     // 长指令有效信号 - 用于HDU
     input wire clint_req_valid_i,
@@ -347,6 +348,7 @@ module dispatch (
         .rs1_re               (rs1_re_i),
         .rs2_re               (rs2_re_i),
         .rs3_re               (rs3_re_i),
+        .ex_info_bus          (ex_info_bus_i),         // 新增：连接到hdu
         .commit_valid_int_i   (commit_valid_int_i),
         .commit_id_int_i      (commit_id_int_i),
         .commit_valid_fp_i    (commit_valid_fp_i),

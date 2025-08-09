@@ -30,20 +30,21 @@ module hdu (
     input wire rst_n, // 复位信号，低电平有效
 
     // 新指令信息
-    input wire                       inst_valid,  // 新长指令有效
-    input wire [`REG_ADDR_WIDTH-1:0] rd_addr,     // 新指令写寄存器地址
-    input wire [`REG_ADDR_WIDTH-1:0] rs1_addr,    // 新指令读寄存器1地址
-    input wire [`REG_ADDR_WIDTH-1:0] rs2_addr,    // 新指令读寄存器2地址
-    input wire [`REG_ADDR_WIDTH-1:0] rs3_addr,  // 新指令读寄存器3地址
-    input wire                       rd_we,       // 新指令是否写寄存器
-    input wire                       rs1_re,      // 是否检测rs1
-    input wire                       rs2_re,      // 是否检测rs2
-    input wire                       rs3_re,      // 是否检测rs3
+    input wire                          inst_valid,          // 新长指令有效
+    input wire [   `REG_ADDR_WIDTH-1:0] rd_addr,             // 新指令写寄存器地址
+    input wire [   `REG_ADDR_WIDTH-1:0] rs1_addr,            // 新指令读寄存器1地址
+    input wire [   `REG_ADDR_WIDTH-1:0] rs2_addr,            // 新指令读寄存器2地址
+    input wire [   `REG_ADDR_WIDTH-1:0] rs3_addr,            // 新指令读寄存器3地址
+    input wire                          rd_we,               // 新指令是否写寄存器
+    input wire                          rs1_re,              // 是否检测rs1
+    input wire                          rs2_re,              // 是否检测rs2
+    input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus,         // 新增：指令ex单元类型
+    input wire                          rs3_re,              // 是否检测rs3
     // 长指令完成信号（支持两路）
-    input wire                        commit_valid_int_i,  // 整数指令完成有效
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_int_i,     // 整数指令ID
-    input wire                        commit_valid_fp_i,   // 浮点指令完成有效
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_fp_i,      // 浮点指令ID
+    input wire                          commit_valid_int_i,  // 整数指令完成有效
+    input wire [  `COMMIT_ID_WIDTH-1:0] commit_id_int_i,     // 整数指令ID
+    input wire                          commit_valid_fp_i,   // 浮点指令完成有效
+    input wire [  `COMMIT_ID_WIDTH-1:0] commit_id_fp_i,      // 浮点指令ID
 
     // 控制信号
     output wire hazard_stall_o,  // 暂停流水线信号
@@ -52,19 +53,24 @@ module hdu (
 );
 
     // 定义FIFO表项结构
+    typedef struct packed {
+        logic [`REG_ADDR_WIDTH-1:0] rd_addr;
+        logic [`EX_INFO_BUS_WIDTH-1:0] exu_type;
+    } fifo_entry_t;
+
     reg [7:0] fifo_valid;  // 有效位，深度8
-    reg [`REG_ADDR_WIDTH-1:0] fifo_rd_addr[0:7];  // 目标寄存器地址，深度8
+    fifo_entry_t fifo_entry[0:7];  // 存储表项结构体
 
     wire inst_rd_valid = inst_valid && rd_we;  // 新指令写寄存器有效
 
     // 冒险检测信号
-    reg                        raw_hazard;  // 读后写冒险
-    reg                        waw_hazard;  // 写后写冒险
-    wire                       hazard;  // 总冒险信号
+    reg raw_hazard;  // 读后写冒险
+    reg waw_hazard;  // 写后写冒险
+    wire hazard;  // 总冒险信号
 
     // 并行冒险检测信号
-    wire [                7:0] raw_hazard_vec;
-    wire [                7:0] waw_hazard_vec;
+    wire [7:0] raw_hazard_vec;
+    wire [7:0] waw_hazard_vec;
 
     genvar i;
     generate
@@ -76,8 +82,8 @@ module hdu (
                     (commit_valid_fp_i  && commit_id_fp_i  == i)
                 ) &&
                 (
-                    (rs1_re && rs1_addr == fifo_rd_addr[i]) ||
-                    (rs2_re && rs2_addr == fifo_rd_addr[i]) ||
+                    (rs1_re && rs1_addr == fifo_entry[i].rd_addr) ||
+                    (rs2_re && rs2_addr == fifo_entry[i].rd_addr) ||
                     (rs3_re && rs3_addr == fifo_rd_addr[i])
                 )
             );
@@ -87,9 +93,8 @@ module hdu (
                     (commit_valid_int_i && commit_id_int_i == i) ||
                     (commit_valid_fp_i  && commit_id_fp_i  == i)
                 ) &&
-                (
-                    rd_we && rd_addr == fifo_rd_addr[i]
-                )
+                    (rd_we && rd_addr == fifo_entry[i].rd_addr &&
+                    ex_info_bus != fifo_entry[i].exu_type)
             );
         end
     endgenerate
@@ -117,8 +122,10 @@ module hdu (
         if (~rst_n) begin
             // 复位时清空FIFO
             for (int i = 0; i < 8; i = i + 1) begin
-                fifo_valid[i]   <= 1'b0;
-                fifo_rd_addr[i] <= 0;
+                fifo_valid[i]          <= 1'b0;
+                fifo_entry[i].rd_addr  <= 5'h0;
+                fifo_entry[i].exu_type <= {`EX_INFO_BUS_WIDTH{1'b0}};
+
             end
         end else begin
             // 清除已完成的长指令（支持两路ID）
@@ -131,9 +138,9 @@ module hdu (
 
             // 添加新的长指令到FIFO
             if (inst_rd_valid && ~hazard) begin
-                // 使用组合逻辑分配的ID更新FIFO
-                fifo_valid[commit_id_o]   <= 1'b1;
-                fifo_rd_addr[commit_id_o] <= rd_addr;
+                fifo_valid[commit_id_o]          <= 1'b1;
+                fifo_entry[commit_id_o].rd_addr  <= rd_addr;
+                fifo_entry[commit_id_o].exu_type <= ex_info_bus;
             end
         end
     end

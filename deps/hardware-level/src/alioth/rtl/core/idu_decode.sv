@@ -54,7 +54,8 @@ module idu_decode (
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,     // 写通用寄存器地址（高位区分float/int）
     output wire csr_we_o,  // 写CSR寄存器标志
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o,  // 写CSR寄存器地址
-    output wire illegal_inst_o  // 非法指令输出
+    output wire illegal_inst_o,  // 非法指令输出
+    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o    // 新增：ex单元类型输出
 );
 
     assign inst_addr_o = inst_addr_i;
@@ -464,5 +465,21 @@ module idu_decode (
         || rv32_illegal_fmv_d  // 新增：RV32中双精度fmv非法
         || rv32_illegal_fcvt_64  // 新增：RV32中64位转换非法
         );
+
+    // ex_info_bus_o类型编码
+    // `define EX_INFO_ALU 0
+    // `define EX_INFO_BJP 1
+    // `define EX_INFO_MUL 2
+    // `define EX_INFO_DIV 3
+    // `define EX_INFO_CSR 4
+    // `define EX_INFO_LOAD 5
+    assign ex_info_bus_o =
+        op_alu    ? 3'd0 :
+        op_bjp    ? 3'd1 :
+        (inst_type_mul) ? 3'd2 :
+        (inst_type_div) ? 3'd3 :
+        op_csr    ? 3'd4 :
+        inst_type_load ? 3'd5 :
+        3'd0; // 默认ALU
 
 endmodule

@@ -80,6 +80,7 @@ module cpu_top (
     wire idu_rs1_re_o;
     wire idu_rs2_re_o;
     wire idu_rs3_re_o;  // 新增rs3读使能信号
+    wire [`EX_INFO_BUS_WIDTH-1:0] idu_ex_info_bus_o;  // 新增：IDU ex_info_bus信号
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -591,7 +592,8 @@ module cpu_top (
         // 新增rs1/rs2读使能信号输出
         .rs1_re_o        (idu_rs1_re_o),
         .rs2_re_o        (idu_rs2_re_o),
-        .rs3_re_o        (idu_rs3_re_o)           // 新增rs3读使能信号连接
+        .rs3_re_o        (idu_rs3_re_o),           // 新增rs3读使能信号连接
+    	.ex_info_bus_o   (idu_ex_info_bus_o)      // 新增
     );
 
     // dispatch模块例化
@@ -628,6 +630,8 @@ module cpu_top (
         .csr_we_i   (idu_csr_we_o),
         .csr_waddr_i(idu_csr_waddr_o),
         .csr_raddr_i(idu_csr_raddr_o),
+
+        .ex_info_bus_i(idu_ex_info_bus_o),  // 新增：连接IDU ex_info_bus到dispatch
 
         // 来自CLINT的指令撤销信号
         .clint_req_valid_i(clint_req_valid_o),
