@@ -274,6 +274,11 @@ module wbu (
     reg reg_we_ff;
     reg commit_valid_ff;
 
+    // csr输出打一拍
+    reg csr_we_ff;
+    reg [`REG_DATA_WIDTH-1:0] csr_wdata_ff;
+    reg [`BUS_ADDR_WIDTH-1:0] csr_waddr_ff;
+
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             reg_wdata_ff    <= '0;
@@ -281,12 +286,20 @@ module wbu (
             commit_id_ff    <= '0;
             reg_we_ff       <= 1'b0;
             commit_valid_ff <= 1'b0;
+            // csr打一拍复位
+            csr_we_ff       <= 1'b0;
+            csr_wdata_ff    <= '0;
+            csr_waddr_ff    <= '0;
         end else begin
             reg_wdata_ff    <= reg_wdata_r;
             reg_waddr_ff    <= reg_waddr_r;
             commit_id_ff    <= commit_id_r;
             reg_we_ff       <= reg_we_r;
             commit_valid_ff <= commit_valid_r;
+            // csr打一拍
+            csr_we_ff       <= csr_we_i;
+            csr_wdata_ff    <= csr_wdata_i;
+            csr_waddr_ff    <= csr_waddr_i;
         end
     end
 
@@ -295,10 +308,10 @@ module wbu (
     assign reg_wdata_o   = reg_wdata_ff;
     assign reg_waddr_o   = reg_waddr_ff;
 
-    // CSR寄存器写回信号无需仲裁和缓冲
-    assign csr_we_o      = csr_we_i;
-    assign csr_wdata_o   = csr_wdata_i;
-    assign csr_waddr_o   = csr_waddr_i;
+    // CSR寄存器写回信号打一拍输出
+    assign csr_we_o      = csr_we_ff;
+    assign csr_wdata_o   = csr_wdata_ff;
+    assign csr_waddr_o   = csr_waddr_ff;
 
     // 长指令完成信号（改为流水寄存器输出）
     assign commit_valid_o = commit_valid_ff;
