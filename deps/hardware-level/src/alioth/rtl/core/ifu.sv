@@ -62,7 +62,7 @@ module ifu (
     input  wire                        M_AXI_ARREADY,
     // AXI读数据通道
     input  wire [   `BUS_ID_WIDTH-1:0] M_AXI_RID,
-    input  wire [`INST_DATA_WIDTH-1:0] M_AXI_RDATA,
+    input  wire [`BUS_DATA_WIDTH-1:0] M_AXI_RDATA,
     input  wire [                 1:0] M_AXI_RRESP,
     input  wire                        M_AXI_RLAST,
     input  wire [                 3:0] M_AXI_RUSER,

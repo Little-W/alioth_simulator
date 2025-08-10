@@ -41,8 +41,8 @@ module ifu_axi_master #(
     output wire read_resp_error_o,  // 读响应错误信号
 
     // 新增输出
-    output wire [`INST_DATA_WIDTH-1:0] inst_data_o,   // 指令数据输出
-    output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,   // 指令地址输出
+    output wire [`BUS_DATA_WIDTH-1:0] inst_data_o,   // 指令数据输出
+    output wire [`BUS_ADDR_WIDTH-1:0] inst_addr_o,   // 指令地址输出
     output wire                        inst_valid_o,  // 指令有效信号输出
     output wire                        pc_stall_o,    // PC暂停信号输出
 
