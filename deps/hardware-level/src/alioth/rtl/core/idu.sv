@@ -49,7 +49,7 @@ module idu (
     output wire [31:0] inst1_csr_raddr_o,   // 读CSR寄存器地址
     output wire [31:0] inst2_csr_raddr_o,  // 第二路读CSR寄存器地址
 
-    // to ex - 第一路
+    // to icu - 第一路
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,          // 指令地址
     output wire                        inst1_reg_we_o,       // 写通用寄存器标志
     output wire [ `REG_ADDR_WIDTH-1:0] inst1_reg_waddr_o,    // 写通用寄存器地址

@@ -316,6 +316,7 @@ module dispatch (
     wire                        inst1_logic_mul_op_mul;
     wire                        inst1_logic_mul_op_mulh;
     wire                        inst1_logic_mul_op_mulhsu;
+    wire                        inst1_logic_mul_op_mulhu;
 
     wire                        inst1_logic_req_div;
     wire [                31:0] inst1_logic_div_op1;
@@ -380,6 +381,7 @@ module dispatch (
     wire                        inst2_logic_mul_op_mul;
     wire                        inst2_logic_mul_op_mulh;
     wire                        inst2_logic_mul_op_mulhsu;
+    wire                        inst2_logic_mul_op_mulhu;
 
     wire                        inst2_logic_req_div;
     wire [                31:0] inst2_logic_div_op1;
@@ -512,6 +514,7 @@ module dispatch (
         .commit_id_i          (inst1_commit_id_i),
 
         .reg_we_i             (inst1_reg_we_i),
+        .reg_waddr_i          (inst1_reg_waddr_i),
         .rs1_rdata_i         (inst1_rs1_rdata_i),
         .rs2_rdata_i         (inst1_rs1_rdata_i),
         .csr_we_i             (inst1_csr_we_i),
@@ -520,6 +523,7 @@ module dispatch (
         .dec_imm_i            (inst1_dec_imm_i),
         .dec_info_bus_i       (inst1_dec_info_bus_i),
         .is_pred_branch_i     (inst1_is_pred_branch_i),
+        .illegal_inst_i      (inst1_illegal_inst_i),
         // alu信号
         .req_alu_i          (inst1_logic_req_alu),
         .alu_op1_i          (inst1_logic_alu_op1),
@@ -603,6 +607,7 @@ module dispatch (
         .rs1_rdata_o          (inst1_rs1_rdata_o),
         .rs2_rdata_o          (inst1_rs2_rdata_o),
         .is_pred_branch_o     (pipe_inst1_is_pred_branch),
+        .illegal_inst_o       (inst1_illegal_inst_o),
         // Alu输出端口
         .req_alu_o            (inst1_req_alu_o),
         .alu_op1_o            (inst1_alu_op1_o),
@@ -759,6 +764,7 @@ module dispatch (
         .commit_id_i          (inst2_commit_id_i),
 
         .reg_we_i             (inst2_reg_we_i),
+        .reg_waddr_i          (inst2_reg_waddr_i),
         .rs1_rdata_i         (inst2_rs1_rdata_i),
         .rs2_rdata_i         (inst2_rs2_rdata_i),
         .csr_we_i             (inst2_csr_we_i),
@@ -767,6 +773,7 @@ module dispatch (
         .dec_imm_i            (inst2_dec_imm_i),
         .dec_info_bus_i       (inst2_dec_info_bus_i),
         .is_pred_branch_i     (inst2_is_pred_branch_i),
+        .illegal_inst_i      (inst2_illegal_inst_i),
         // alu信号
         .req_alu_i            (inst2_logic_req_alu),
         .alu_op1_i            (inst2_logic_alu_op1),
@@ -849,6 +856,7 @@ module dispatch (
         .rs1_rdata_o          (inst2_rs1_rdata_o),
         .rs2_rdata_o          (inst2_rs2_rdata_o),
         .is_pred_branch_o     (pipe_inst2_is_pred_branch),
+        .illegal_inst_o       (inst2_illegal_inst_o),
         // Alu输出端口
         .req_alu_o            (inst2_req_alu_o),
         .alu_op1_o            (inst2_alu_op1_o),

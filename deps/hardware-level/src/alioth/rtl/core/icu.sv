@@ -46,6 +46,7 @@ module icu (
     input wire                        inst1_valid_i,
     input wire                        inst1_jump_i,        // 新增：指令有效输入
     input wire                        inst1_branch_i,      // 新增：分支指令信号输入
+    input wire                        inst1_csr_type_i,   // 新增：CSR指令类型输入
 
     // from idu - 第二路
     input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i,
@@ -62,7 +63,8 @@ module icu (
     input wire [`INST_DATA_WIDTH-1:0] inst2_i,
     input wire                        inst2_illegal_inst_i,
     input wire                        inst2_valid_i,
-    
+    input wire                        inst2_csr_type_i,
+
     // 指令完成信号
     input wire                        commit_valid_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
@@ -148,7 +150,10 @@ module icu (
         .jump_flag_i            (jump_flag_i),
         .inst1_jump_i           (inst1_jump_i),
         .inst1_branch_i         (inst1_branch_i),
-        
+
+        .inst1_csr_type_i       (inst1_csr_type_i),
+        .inst2_csr_type_i       (inst2_csr_type_i),
+
         // 输出信号
         //to ctrl
         .new_issue_stall_o      (new_issue_stall_o),

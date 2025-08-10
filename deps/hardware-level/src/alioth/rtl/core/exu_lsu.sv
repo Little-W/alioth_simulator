@@ -548,13 +548,10 @@ module exu_lsu #(
 
     // Store busy信号逻辑 - 检测store操作是否在进行中
     assign mem0_store_busy_o = (processing_inst1 && mem0_op_store_i) || 
-                               (state == STATE_PROC_FIRST && mem0_op_store_i) ||
-                               (state == STATE_PROC_SECOND && fifo_op_store && processing_inst1);
+                               (current_state == STATE_PROC_FIRST && mem0_op_store_i);
     
     assign mem1_store_busy_o = (!processing_inst1 && mem1_op_store_i) || 
-                               (state == STATE_IDLE && req_mem1_i && mem1_op_store_i && !mem0_req) ||
-                               (state == STATE_PROC_SECOND && fifo_op_store && !processing_inst1);
-
-endmodule
-
+                               (current_state == STATE_IDLE && req_mem1_i && mem1_op_store_i && !req_mem0_i) ||
+                               (current_state == STATE_PROC_SECOND && fifo_op_store);
+    
 endmodule

@@ -36,6 +36,7 @@ module ifu_pipe (
     input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i, // 第二条指令地址
     input wire                        is_pred_branch1_i, // 第一条指令是否为预测分支指令
     input wire                        is_pred_branch2_i, // 第二条指令是否为预测分支指令
+    input wire                        inst2_disable_i,    // 第二条指令使能信号
 
     input wire flush_flag_i,  // 流水线冲刷标志
     input wire inst_valid_i,  // 指令有效信号
@@ -62,7 +63,7 @@ module ifu_pipe (
     
     // 在指令无效或冲刷信号有效时，选择填充NOP作为寄存器输入
     wire [31:0] inst1_selected = (flush_en || !inst_valid_i) ? `INST_NOP : selected_inst1;
-    wire [31:0] inst2_selected = (flush_en || !inst_valid_i) ? `INST_NOP : selected_inst2;
+    wire [31:0] inst2_selected = (flush_en || !inst_valid_i || inst2_disable_i) ? `INST_NOP : selected_inst2;
 
     // 储存第一条指令内容
     wire [31:0] inst1_r;

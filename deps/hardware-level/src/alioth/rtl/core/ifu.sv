@@ -105,6 +105,7 @@ module ifu (
     wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
     wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
+    wire sbpu_inst1_disable_o;
     // 实例化静态分支预测单元（双发射版本）
     sbpu u_sbpu (
         .clk             (clk),
@@ -120,7 +121,8 @@ module ifu (
         .branch_addr_o   (branch_addr),      // 预测的分支地址
         .is_pred_branch0_o(is_pred_branch0), // 第一条指令预测分支信号
         .is_pred_branch1_o(is_pred_branch1), // 第二条指令预测分支信号
-        .branch_inst_slot_o(branch_inst_slot) // 分支指令所在槽位
+        .branch_inst_slot_o(branch_inst_slot), // 分支指令所在槽位
+        .inst1_disable_o       (inst1_disable_o)
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
@@ -145,6 +147,7 @@ module ifu (
         .inst2_addr_i    (inst1_addr),        // 第二条指令地址
         .is_pred_branch1_i(is_pred_branch0),  // 第一条指令预测分支信号
         .is_pred_branch2_i(is_pred_branch1),  // 第二条指令预测分支信号
+        .inst2_disable_i    (sbpu_inst1_disable_o), // 第二条指令使能信号
         .flush_flag_i    (flush_flag),
         .inst_valid_i    (inst_valid),       // 从AXI控制器获取的有效信号
         .pc_misaligned_i (pc_misaligned),    // PC非对齐信号输入

@@ -149,7 +149,6 @@ module cpu_top (
     // EXU双发射CSR输出信号  
     wire [`REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_csr_reg_waddr_o;
-    wire [`COMMIT_ID_WIDTH-1:0] exu_csr_commit_id_o;
     wire exu_csr_reg_we_o;
 
     // EXU CSR寄存器写数据输出
@@ -378,7 +377,7 @@ module cpu_top (
     wire dispatch_mul2_op_mulh;
     wire dispatch_mul2_op_mulhsu;
     wire dispatch_mul2_op_mulhu;
-    wire dispatch_req_muldiv2;
+    wire dispatch_req_div2;
     wire [31:0] dispatch_div2_op1;
     wire [31:0] dispatch_div2_op2;
     wire dispatch_div2_op_div;
@@ -768,6 +767,7 @@ module cpu_top (
         .inst1_valid_i          (idu_inst1_valid_o),
         .inst1_jump_i           (idu_inst1_jump_o),  // 第一路跳转信号
         .inst1_branch_i         (idu_inst1_branch_o), // 第一路分支信号
+        .inst1_csr_type_i       (idu_inst1_csr_type_o), // 第一路CSR类型指令
 
         // from idu - 第二路指令
         .inst2_addr_i           (idu_inst2_addr_o),
@@ -784,7 +784,8 @@ module cpu_top (
         .inst2_i                (idu_inst2_o),
         .inst2_illegal_inst_i   (idu_illegal_inst2_o),
         .inst2_valid_i          (idu_inst2_valid_o),
-      
+        .inst2_csr_type_i       (idu_inst2_csr_type_o),
+
         // 指令完成信号
         .commit_valid_i         (wbu_commit_valid1_o),
         .commit_id_i            (wbu_commit_id1_o),
@@ -1060,7 +1061,7 @@ module cpu_top (
         .alu1_wb_ready_i(wbu_alu1_ready_o),
 
         // 乘法器0接口
-        .req_mul0_i(dispatch_req_mul1),
+        .req_mul0_i(dispatch_req_mul),
         .mul0_op1_i(dispatch_mul_op1),
         .mul0_op2_i(dispatch_mul_op2),
         .mul0_op_mul_i(dispatch_mul_op_mul),
@@ -1097,13 +1098,13 @@ module cpu_top (
 
 
         // 除法器1接口
-        .req_div1_i(dispatch_req_muldiv2 && dispatch_muldiv2_op_div_all),
-        .div1_op1_i(dispatch_muldiv2_op1),
-        .div1_op2_i(dispatch_muldiv2_op2),
-        .div1_op_div_i(dispatch_muldiv2_op_div),
-        .div1_op_divu_i(dispatch_muldiv2_op_divu),
-        .div1_op_rem_i(dispatch_muldiv2_op_rem),
-        .div1_op_remu_i(dispatch_muldiv2_op_remu),
+        .req_div1_i(dispatch_req_div2),
+        .div1_op1_i(dispatch_div2_op1),
+        .div1_op2_i(dispatch_div2_op2),
+        .div1_op_div_i(dispatch_div2_op_div),
+        .div1_op_divu_i(dispatch_div2_op_divu),
+        .div1_op_rem_i(dispatch_div2_op_rem),
+        .div1_op_remu_i(dispatch_div2_op_remu),
         .div1_reg_waddr_i(icu_inst2_reg_waddr_o),
         .div1_commit_id_i(icu_inst2_commit_id_o),
         .div1_wb_ready_i(wbu_div1_ready_o),
@@ -1343,9 +1344,9 @@ module cpu_top (
         .csr_ready_o(wbu_csr_ready_o),
 
         // CSR寄存器写数据输入 (单路) - 合并来自两个CSR单元的输出
-        .csr_reg_wdata_i(exu_csr_reg_we_o ? exu_csr_reg_wdata_o : exu_csr1_reg_wdata_o),
-        .csr_reg_waddr_i(exu_csr_reg_we_o ? exu_csr_reg_waddr_o : exu_csr1_reg_waddr_o),
-        .csr_reg_we_i(exu_csr_reg_we_o | exu_csr1_reg_we_o),
+        .csr_reg_wdata_i(exu_csr_reg_wdata_o),
+        .csr_reg_waddr_i(exu_csr_reg_waddr_o),
+        .csr_reg_we_i(exu_csr_reg_we_o),
 
         // 来自EXU的LSU数据 (双发射)
         .lsu1_reg_wdata_i(exu_lsu0_reg_wdata_o),

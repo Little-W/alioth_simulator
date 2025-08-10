@@ -13,7 +13,7 @@
 // `define DEBUG_DISPLAY_REGS 1
 // `define ENABLE_IRQ_MONITOR // 监控IRQ相关信号变化
 // `define ENABLE_EXT_IRQ_MONITOR // 监控外部中断源变化 
-`define ENABLE_DUMP_EN
+// `define ENABLE_DUMP_EN
 // ToHost程序地址,用于监控测试是否结束
 `ifdef ENABLE_PC_WRITE_TOHOST
 `define PC_WRITE_TOHOST 32'h80000040
