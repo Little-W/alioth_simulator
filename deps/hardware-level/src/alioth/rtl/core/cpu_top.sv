@@ -397,8 +397,8 @@ module cpu_top (
 
     wire [`BUS_ADDR_WIDTH-1:0] idu_inst1_csr_raddr_o;
     wire [`BUS_ADDR_WIDTH-1:0] idu_inst2_csr_raddr_o;
-    wire dispatch_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] dispatch_reg_waddr_o;
+    wire dispatch_csr_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_csr_reg_waddr_o;
     wire dispatch_csr_we_o;
     wire [`BUS_ADDR_WIDTH-1:0] dispatch_csr_waddr_o;
     wire [`BUS_ADDR_WIDTH-1:0] dispatch_csr_raddr_o;
@@ -960,6 +960,8 @@ module cpu_top (
         .csr_we_o (dispatch_csr_we_o),
         .csr_waddr_o(dispatch_csr_waddr_o),
         .csr_raddr_o(dispatch_csr_raddr_o),
+        .csr_reg_we_o(dispatch_csr_reg_we_o),
+        .csr_reg_waddr_o(dispatch_csr_reg_waddr_o),
 
         //to lsu
         .inst1_req_mem_o         (dispatch_req_mem),
@@ -1045,9 +1047,9 @@ module cpu_top (
         .alu0_op1_i(dispatch_alu_op1),
         .alu0_op2_i(dispatch_alu_op2),
         .alu0_op_info_i(dispatch_alu_op_info),
-        .alu0_rd_i(dispatch_reg_waddr_o),
-        .alu0_commit_id_i(icu_inst1_commit_id_o),
-        .alu0_reg_we_i(dispatch_reg_we_o),
+        .alu0_rd_i(dispatch_inst1_reg_waddr_o),
+        .alu0_commit_id_i(dispatch_inst1_commit_id_o),
+        .alu0_reg_we_i(dispatch_inst1_reg_we_o),
         .alu0_wb_ready_i(wbu_alu0_ready_o),
 
         // 双发射ALU1接口 - 来自dispatch
@@ -1055,9 +1057,9 @@ module cpu_top (
         .alu1_op1_i(dispatch_alu1_op1),
         .alu1_op2_i(dispatch_alu1_op2),
         .alu1_op_info_i(dispatch_alu1_op_info),
-        .alu1_rd_i(icu_inst2_reg_waddr_o),
-        .alu1_commit_id_i(icu_inst2_commit_id_o),
-        .alu1_reg_we_i(icu_inst2_reg_we_o && dispatch_req_alu1),
+        .alu1_rd_i(dispatch_inst2_reg_waddr_o),
+        .alu1_commit_id_i(dispatch_inst2_commit_id_o),
+        .alu1_reg_we_i(dispatch_inst2_reg_we_o),
         .alu1_wb_ready_i(wbu_alu1_ready_o),
 
         // 乘法器0接口
@@ -1134,12 +1136,12 @@ module cpu_top (
         .mem0_op_lhu_i(dispatch_mem_op_lhu),
         .mem0_op_load_i(dispatch_mem_op_load),
         .mem0_op_store_i(dispatch_mem_op_store),
-        .mem0_rd_i(dispatch_reg_waddr_o),
+        .mem0_rd_i(dispatch_inst1_reg_waddr_o),
         .mem0_addr_i(dispatch_mem_addr),
         .mem0_wdata_i(dispatch_mem_wdata),
         .mem0_wmask_i(dispatch_mem_wmask),
-        .mem0_commit_id_i(icu_inst1_commit_id_o),
-        .mem0_reg_we_i(dispatch_reg_we_o && dispatch_req_mem),
+        .mem0_commit_id_i(dispatch_inst1_commit_id_o),
+        .mem0_reg_we_i(dispatch_inst1_reg_we_o),
         .mem0_wb_ready_i(wbu_lsu0_ready_o),
 
         // LSU1接口
@@ -1151,12 +1153,12 @@ module cpu_top (
         .mem1_op_lhu_i(dispatch_mem2_op_lhu),
         .mem1_op_load_i(dispatch_mem2_op_load),
         .mem1_op_store_i(dispatch_mem2_op_store),
-        .mem1_rd_i(icu_inst2_reg_waddr_o),
+        .mem1_rd_i(dispatch_inst2_reg_waddr_o),
         .mem1_addr_i(dispatch_mem2_addr),
         .mem1_wdata_i({dispatch_mem2_wdata}),
         .mem1_wmask_i({dispatch_mem2_wmask}),
-        .mem1_commit_id_i(icu_inst2_commit_id_o),
-        .mem1_reg_we_i(icu_inst2_reg_we_o && dispatch_req_mem2),
+        .mem1_commit_id_i(dispatch_inst2_commit_id_o),
+        .mem1_reg_we_i(dispatch_inst2_reg_we_o),
         .mem1_wb_ready_i(wbu_lsu1_ready_o),
 
         // 单一路CSR接口
@@ -1167,11 +1169,11 @@ module cpu_top (
         .csr_csrrs_i(dispatch_csr_csrrs),
         .csr_csrrc_i(dispatch_csr_csrrc),
         .csr_rdata_i(csr_data_o),
-        .csr_commit_id_i(icu_inst1_commit_id_o),
+        .csr_commit_id_i(dispatch_csr_commit_id_o),
         .csr_we_i(dispatch_csr_we_o),
-        .csr_reg_we_i(dispatch_reg_we_o && dispatch_req_csr),
-        .csr_waddr_i(dispatch_csr_addr),
-        .csr_reg_waddr_i(dispatch_reg_waddr_o),
+        .csr_reg_we_i(dispatch_csr_reg_we_o),
+        .csr_waddr_i(dispatch_csr_waddr_o),
+        .csr_reg_waddr_i(dispatch_csr_reg_waddr_o),
         .csr_wb_ready_i(wbu_csr_ready_o),
 
         // 系统操作信号

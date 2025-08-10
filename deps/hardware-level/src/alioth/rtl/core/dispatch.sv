@@ -152,6 +152,8 @@ module dispatch (
     output wire        csr_we_o,
     output wire [31:0] csr_waddr_o,
     output wire [31:0] csr_raddr_o,
+    output wire        csr_reg_we_o,
+    output wire [31:0] csr_reg_waddr_o,
 
     // dispatch to MEM (第一路)
     output wire                        inst1_req_mem_o,
@@ -930,14 +932,16 @@ module dispatch (
     assign req_csr_o = pipe_inst1_req_csr_o | pipe_inst2_req_csr_o;
 
     // 当第一路有CSR请求时，使用第一路的信号；否则使用第二路的信号
-    assign csr_op1_o  = pipe_inst1_req_csr_o ? pipe_inst1_csr_op1_o  : pipe_inst2_csr_op1_o;
-    assign csr_addr_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_addr_o : pipe_inst2_csr_addr_o;
-    assign csr_csrrw_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrw_o : pipe_inst2_csr_csrrw_o;
-    assign csr_csrrs_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrs_o : pipe_inst2_csr_csrrs_o;
-    assign csr_csrrc_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrc_o : pipe_inst2_csr_csrrc_o;
+    assign csr_op1_o  = pipe_inst1_req_csr_o ? pipe_inst1_csr_op1_o  : pipe_inst2_req_csr_o ? pipe_inst2_csr_op1_o : 32'b0;
+    assign csr_addr_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_addr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_addr_o : 32'b0;
+    assign csr_csrrw_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrw_o : pipe_inst2_req_csr_o? pipe_inst2_csr_csrrw_o : 0;
+    assign csr_csrrs_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrs_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_csrrs_o : 0;
+    assign csr_csrrc_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrc_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_csrrc_o : 0;
     assign csr_we_o =  pipe_inst1_csr_we_o | pipe_inst2_csr_we_o;
-    assign csr_waddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_waddr_o : pipe_inst2_csr_waddr_o;
-    assign csr_raddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_raddr_o : pipe_inst2_csr_raddr_o;
+    assign csr_waddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_waddr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_waddr_o : 32'b0;
+    assign csr_raddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_raddr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_raddr_o : 32'b0;
+    assign csr_reg_we_o = pipe_inst1_req_csr_o ? inst1_reg_we_o : pipe_inst2_req_csr_o ? inst2_reg_we_o : 1'b0;
+    assign csr_reg_waddr_o = pipe_inst1_req_csr_o ? inst1_reg_waddr_o : pipe_inst2_req_csr_o ? inst2_reg_waddr_o : 5'b0;
 
     // BJP合并逻辑
     // 由于ICU已经处理了两个指令都是BJP的情况（通过RAW冒险检测），
@@ -945,18 +949,18 @@ module dispatch (
     // 优先级：如果第一路有有效的BJP请求，则使用第一路；否则使用第二路
     assign req_bjp_o = pipe_inst1_req_bjp_o | pipe_inst2_req_bjp_o;
     // 当第一路有BJP请求时，使用第一路的信号；否则使用第二路的信号
-    assign bjp_op1_o        = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op1_o        : pipe_inst2_bjp_op1_o;
-    assign bjp_op2_o        = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op2_o        : pipe_inst2_bjp_op2_o;
-    assign bjp_jump_op1_o   = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_jump_op1_o   : pipe_inst2_bjp_jump_op1_o;
-    assign bjp_jump_op2_o   = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_jump_op2_o   : pipe_inst2_bjp_jump_op2_o;
-    assign bjp_op_jal_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jal_o     : pipe_inst2_bjp_op_jal_o;
-    assign bjp_op_beq_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_beq_o     : pipe_inst2_bjp_op_beq_o;
-    assign bjp_op_bne_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bne_o     : pipe_inst2_bjp_op_bne_o;
-    assign bjp_op_blt_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_blt_o     : pipe_inst2_bjp_op_blt_o;
-    assign bjp_op_bltu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bltu_o    : pipe_inst2_bjp_op_bltu_o;
-    assign bjp_op_bge_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bge_o     : pipe_inst2_bjp_op_bge_o;
-    assign bjp_op_bgeu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bgeu_o    : pipe_inst2_bjp_op_bgeu_o;
-    assign bjp_op_jalr_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jalr_o : pipe_inst2_bjp_op_jalr_o;
+    assign bjp_op1_o        = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op1_o        : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op1_o : 32'b0;
+    assign bjp_op2_o        = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op2_o        : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op2_o : 32'b0;
+    assign bjp_jump_op1_o   = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_jump_op1_o   : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_jump_op1_o : 32'b0;
+    assign bjp_jump_op2_o   = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_jump_op2_o   : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_jump_op2_o : 32'b0;
+    assign bjp_op_jal_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jal_o     : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_jal_o : 0;
+    assign bjp_op_beq_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_beq_o     : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_beq_o : 0;
+    assign bjp_op_bne_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bne_o     : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_bne_o : 0;
+    assign bjp_op_blt_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_blt_o     : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_blt_o : 0;
+    assign bjp_op_bltu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bltu_o    : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_bltu_o : 0;
+    assign bjp_op_bge_o     = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bge_o     : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_bge_o : 0;
+    assign bjp_op_bgeu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bgeu_o    : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_bgeu_o : 0;
+    assign bjp_op_jalr_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jalr_o : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_jalr_o : 0;
 
     assign inst_is_pred_branch_o = pipe_inst1_is_pred_branch | pipe_inst2_is_pred_branch;
 
