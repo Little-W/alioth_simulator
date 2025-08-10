@@ -1,19 +1,8 @@
 /*
  The MIT License (MIT)
 
- Copyri    parameter C_M_AXI_RUSER_WIDTH  = 1,
-    parameter C_M_AXI_BUSER_WIDTH  = 1,
-    parameter UNIT_ID              = 0
-)(
-    input wire clk,
-    input wire rst_n,
-    
-    // 控制信号
-    input wire int_assert_i,
+ Copyright © 2025 Yusen Wang @yusen.w@qq.com
 
-    // 访存请求信号
-    input wire req_mem_i,en Wang @yusen.w@qq.com
-                                                                         
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
  in the Software without restriction, including without limitation the rights

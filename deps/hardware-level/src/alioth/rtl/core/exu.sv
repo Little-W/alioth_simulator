@@ -156,19 +156,19 @@ module exu (
     input wire                        mem1_wb_ready_i,
 
     // CSR接口 (仅保留一路)
-    input wire        req_csr0_i,
-    input wire [31:0] csr0_op1_i,
-    input wire [31:0] csr0_addr_i,
-    input wire        csr0_csrrw_i,
-    input wire        csr0_csrrs_i,
-    input wire        csr0_csrrc_i,
-    input wire [`REG_DATA_WIDTH-1:0] csr0_rdata_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] csr0_commit_id_i,
-    input wire        csr0_we_i,
-    input wire        csr0_reg_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr0_waddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] csr0_reg_waddr_i,
-    input wire        csr0_wb_ready_i,
+    input wire        req_csr_i,
+    input wire [31:0] csr_op1_i,
+    input wire [31:0] csr_addr_i,
+    input wire        csr_csrrw_i,
+    input wire        csr_csrrs_i,
+    input wire        csr_csrrc_i,
+    input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_i,
+    input wire        csr_we_i,
+    input wire        csr_reg_we_i,
+    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_i,
+    input wire        csr_wb_ready_i,
 
     // 系统操作信号
     input wire sys_op_nop_i,
@@ -225,15 +225,15 @@ module exu (
     output wire [`COMMIT_ID_WIDTH-1:0] lsu1_commit_id_o,
 
     // CSR写回 (单一路)
-    output wire [ `REG_DATA_WIDTH-1:0] csr0_reg_wdata_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] csr0_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] csr0_commit_id_o,
-    output wire                        csr0_reg_we_o,
+    output wire [ `REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] csr_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_o,
+    output wire                        csr_reg_we_o,
 
     // CSR寄存器写数据输出 (单一路)
-    output wire [`REG_DATA_WIDTH-1:0] csr0_wdata_o,
-    output wire                       csr0_we_o,
-    output wire [`BUS_ADDR_WIDTH-1:0] csr0_waddr_o,
+    output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
+    output wire                       csr_we_o,
+    output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o,
 
     // 控制输出
     output wire                        stall_flag_o,
@@ -354,7 +354,7 @@ module exu (
     wire mul0_stall, mul1_stall;
     wire div0_stall, div1_stall;
     wire lsu0_stall, lsu1_stall;
-    wire csr0_stall;
+    wire csr_stall;
 
     // 分支单元信号
     wire bru_jump_flag;
@@ -665,38 +665,38 @@ module exu (
     );
 
     // ===================== 单一路CSR实例 =====================
-    exu_csr_unit u_csr0 (
+    exu_csr_unit u_csr (
         .clk(clk),
         .rst_n(rst_n),
         .int_assert_i(int_assert_i),
         .pc_i(inst_addr_i),
-        .req_csr_i(req_csr0_i),
-        .csr_op1_i(csr0_op1_i),
-        .csr_addr_i(csr0_addr_i),
-        .csr_csrrw_i(csr0_csrrw_i),
-        .csr_csrrs_i(csr0_csrrs_i),
-        .csr_csrrc_i(csr0_csrrc_i),
-        .csr_rdata_i(csr0_rdata_i),
-        .commit_id_i(csr0_commit_id_i),
-        .csr_we_i(csr0_we_i),
-        .csr_reg_we_i(csr0_reg_we_i),
-        .csr_waddr_i(csr0_addr_i),
-        .reg_waddr_i(csr0_reg_waddr_i),
-        .wb_ready_i(csr0_wb_ready_i),
-        .csr_wdata_o(csr0_wdata_o),
-        .csr_we_o(csr0_we_o),
-        .csr_waddr_o(csr0_waddr_o),
-        .reg_wdata_o(csr0_reg_wdata_o),
-        .reg_waddr_o(csr0_reg_waddr_o),
-        .commit_id_o(csr0_commit_id_o),
-        .csr_reg_we_o(csr0_reg_we_o),
-        .csr_stall_o(csr0_stall)
+        .req_csr_i(req_csr_i),
+        .csr_op1_i(csr_op1_i),
+        .csr_addr_i(csr_addr_i),
+        .csr_csrrw_i(csr_csrrw_i),
+        .csr_csrrs_i(csr_csrrs_i),
+        .csr_csrrc_i(csr_csrrc_i),
+        .csr_rdata_i(csr_rdata_i),
+        .commit_id_i(csr_commit_id_i),
+        .csr_we_i(csr_we_i),
+        .csr_reg_we_i(csr_reg_we_i),
+        .csr_waddr_i(csr_addr_i),
+        .reg_waddr_i(csr_reg_waddr_i),
+        .wb_ready_i(csr_wb_ready_i),
+        .csr_wdata_o(csr_wdata_o),
+        .csr_we_o(csr_we_o),
+        .csr_waddr_o(csr_waddr_o),
+        .reg_wdata_o(csr_reg_wdata_o),
+        .reg_waddr_o(csr_reg_waddr_o),
+        .commit_id_o(csr_commit_id_o),
+        .csr_reg_we_o(csr_reg_we_o),
+        .csr_stall_o(csr_stall)
     );
 
     // 控制信号汇总 (移除csr1)
     assign stall_flag_o = alu0_stall | alu1_stall | mul0_stall | mul1_stall |
                           div0_stall | div1_stall | lsu0_stall | lsu1_stall |
-                          csr0_stall;
+                          csr_stall;
 
     assign jump_flag_o = bru_jump_flag || int_jump_i;
     assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;

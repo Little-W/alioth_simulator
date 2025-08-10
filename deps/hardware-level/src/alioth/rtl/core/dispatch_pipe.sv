@@ -222,7 +222,7 @@ module dispatch_pipe (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o,
+    output wire illegal_inst_o
 );
 
     wire                        flush_en = |stall_flag_i;
