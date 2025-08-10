@@ -79,6 +79,8 @@ module hdu (
     reg inst1_jump;
     reg [2:0] pending_inst1_id;
     wire fifo_full;
+    // 新增：inst1_jump 计数器，保持 3 个周期
+    reg [1:0] inst1_jump_cnt; // 剩余保持周期计数
 
     // 检测x0寄存器（x0忽略）
     wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inst1_valid;
@@ -97,7 +99,6 @@ module hdu (
         waw_hazard_inst1_fifo  = 1'b0;
         waw_hazard_inst2_fifo  = 1'b0;
         waw_hazard_inst2_inst1 = 1'b0;
-        inst1_jump = 1'b0;
         // FIFO遍历
         for (int i = 0; i < 8; i = i + 1) begin
             if (fifo_valid[i]) begin
@@ -131,16 +132,37 @@ module hdu (
                 raw_hazard_inst2_inst1 = 1'b1;
             end
             // inst1 为跳转/分支也视为与 inst2 有相关性，需要序列化
-            if (inst1_jump_i || inst1_branch_i) begin
-                inst1_jump = 1'b1;
-            end
             // WAW: inst2 写 与 inst1 写同一寄存器
             if (inst1_rd_check && inst2_rd_check && inst2_rd_addr == inst1_rd_addr) begin
                 waw_hazard_inst2_inst1 = 1'b1;
             end
         end
     end
-    
+
+    // inst1_jump 处理：0->1 上升沿后保持 3 个周期（当前周期 + 后续 2 个周期），然后强制清 0
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            inst1_jump <= 1'b0;
+            inst1_jump_cnt <= 2'd0;
+        end else begin
+            if (!inst1_jump && (inst1_jump_i || inst1_branch_i)) begin
+                // 上升沿，置 1 并加载剩余保持周期 2（加上本周期共 3 周期）
+                inst1_jump <= 1'b1;
+                inst1_jump_cnt <= 2'd2;
+            end else if (inst1_jump) begin
+                if (inst1_jump_cnt == 2'd0) begin
+                    // 计数结束，强制清 0
+                    inst1_jump <= 1'b0;
+                end else begin
+                    inst1_jump_cnt <= inst1_jump_cnt - 1'b1;
+                end
+            end else begin
+                // 处于 0 状态且无上升沿，保持
+                inst1_jump_cnt <= 2'd0;
+            end
+        end
+    end
+
     // 综合 RAW + WAW 冒险（统一用于发射控制）
     wire hazard_inst1_fifo  = raw_hazard_inst1_fifo  | waw_hazard_inst1_fifo;
     wire hazard_inst2_fifo  = raw_hazard_inst2_fifo  | waw_hazard_inst2_fifo;
@@ -151,7 +173,7 @@ module hdu (
     always @(*) begin
         issue_inst_reg = 2'b11; // 默认都可发射
         if (inst1_jump) begin
-            issue_inst_reg = jump_true ? 2'b11 : 2'b01; // 序列化等待跳转确认
+            issue_inst_reg = jump_true ? 2'b01 : 2'b11; // 序列化等待跳转确认
         end else if (!hazard_inst1_fifo && !hazard_inst2_fifo) begin
             if (hazard_inst2_inst1) issue_inst_reg = 2'b01; // 序列化
             else issue_inst_reg = 2'b11;
