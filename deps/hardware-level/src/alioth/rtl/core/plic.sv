@@ -25,47 +25,70 @@ module plic (
     parameter PLIC_INT_OBJS_ADDR = `PLIC_INT_OBJS_ADDR;  // 中断对象参数表地址
 
     // 使能寄存器，每位对应一个中断源
-    reg     [`PLIC_NUM_SOURCES-1:0] int_en;
+    reg [`PLIC_NUM_SOURCES-1:0] int_en;
 
     // 优先级寄存器，每个中断源8位优先级
-    reg     [                  7:0] int_pri [`PLIC_NUM_SOURCES-1:0];
+    reg [7:0] int_pri[`PLIC_NUM_SOURCES-1:0];
+    reg [7:0] int_pri_r[`PLIC_NUM_SOURCES-1:0];
 
     // 中断向量表，每个中断源32位入口地址
-    reg     [                 31:0] vectable[`PLIC_NUM_SOURCES-1:0];
+    reg [31:0] vectable[`PLIC_NUM_SOURCES-1:0];
+    reg [31:0] vectable_r[`PLIC_NUM_SOURCES-1:0];
 
     // MVEC寄存器
-    reg     [                 31:0] mvec;
+    reg [31:0] mvec;
+    reg [31:0] mvec_next;
 
     // OBJ参数表，每个中断源32位参数
-    reg     [                 31:0] objtable[`PLIC_NUM_SOURCES-1:0];
+    reg [31:0] objtable[`PLIC_NUM_SOURCES-1:0];
+    reg [31:0] objtable_r[`PLIC_NUM_SOURCES-1:0];
 
     // MARG寄存器
-    reg     [                 31:0] marg;
+    reg [31:0] marg;
+    reg [31:0] marg_next;
 
-    integer                         i;
+    integer i;
 
-    reg [        `PLIC_NUM_SOURCES-1:0] valid_mask;
-    reg [        `PLIC_NUM_SOURCES-1:0] valid_mask_r;
+    reg [`PLIC_NUM_SOURCES-1:0] valid_mask;
+    reg [`PLIC_NUM_SOURCES-1:0] valid_mask_r;
+    reg [`PLIC_NUM_SOURCES-1:0] int_en_r;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id_next;
-    reg                                 irq_valid_next;
+    reg irq_valid_next;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id;  // 最高优先级中断号
 
     // 实例化流水优先级选择模块
     wire [$clog2(`PLIC_NUM_SOURCES)-1:0] arbiter_max_id;
-    wire                                arbiter_max_valid;
+    wire arbiter_max_valid;
     plic_priority_arbiter #(
         .PLIC_NUM_SOURCES(`PLIC_NUM_SOURCES)
     ) u_plic_priority_arbiter (
-        .clk(clk),
-        .rst_n(rst_n),
-        .pri_in(int_pri),
-        .valid_in(valid_mask_r),
-        .find_max_id_out(arbiter_max_id),
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .pri_in            (int_pri_r),
+        .valid_in          (valid_mask_r),
+        .find_max_id_out   (arbiter_max_id),
         .find_max_valid_out(arbiter_max_valid)
     );
 
+    // 打一拍操作
+    integer j, k, l;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            int_en_r <= {`PLIC_NUM_SOURCES{1'b0}};
+            for (j = 0; j < `PLIC_NUM_SOURCES; j = j + 1) int_pri_r[j] <= 8'd0;
+            for (k = 0; k < `PLIC_NUM_SOURCES; k = k + 1) vectable_r[k] <= 32'd0;
+            for (l = 0; l < `PLIC_NUM_SOURCES; l = l + 1) objtable_r[l] <= 32'd0;
+        end else begin
+            int_en_r <= int_en;
+            for (j = 0; j < `PLIC_NUM_SOURCES; j = j + 1) int_pri_r[j] <= int_pri[j];
+            for (k = 0; k < `PLIC_NUM_SOURCES; k = k + 1) vectable_r[k] <= vectable[k];
+            for (l = 0; l < `PLIC_NUM_SOURCES; l = l + 1) objtable_r[l] <= objtable[l];
+        end
+    end
+
+    // valid_mask使用打一拍以后的int_en
     always @(*) begin
-        valid_mask = irq_sources & int_en;
+        valid_mask = irq_sources & int_en_r;
     end
 
     // valid_mask打一拍
@@ -77,7 +100,7 @@ module plic (
     // 优先级选择和中断有效判断使用valid_mask_r
     always @(*) begin
         irq_valid_next = arbiter_max_valid;
-        irq_id_next    = arbiter_max_id; // 用流水模块输出替换原函数
+        irq_id_next    = arbiter_max_id;  // 用流水模块输出替换原函数
     end
 
     always @(posedge clk or negedge rst_n) begin
@@ -88,14 +111,18 @@ module plic (
             mvec      <= 32'd0;
             // MARG寄存器复位
             marg      <= 32'd0;
+            mvec_next <= 32'd0;
+            marg_next <= 32'd0;
         end else begin
             irq_id    <= irq_id_next;
             irq_valid <= irq_valid_next;
-            // irq_valid有效时，MVEC寄存器更新为对应vectable项
-            if (irq_valid) begin
-                mvec <= vectable[irq_id];
-                marg <= objtable[irq_id];
+            // 先打一拍优化时序
+            if (irq_valid_next) begin
+                mvec_next <= vectable_r[irq_id_next];
+                marg_next <= objtable_r[irq_id_next];
             end
+            mvec <= mvec_next;
+            marg <= marg_next;
         end
     end
 
