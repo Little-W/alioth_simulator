@@ -127,7 +127,7 @@ module hdu (
         // inst2 依赖 inst1 的 RAW (读 inst1 写)
         if (!(commit_valid_i && commit_id_i == pending_inst1_id)) begin
             if ((inst2_rs1_check && inst1_rd_check && inst2_rs1_addr == inst1_rd_addr) ||
-                (inst1_csr_type_i == inst2_csr_type_i)) begin
+                (inst1_csr_type_i && inst2_csr_type_i)) begin
                 raw_hazard_inst2_inst1 = 1'b1;
             end
             // inst1 为跳转/分支也视为与 inst2 有相关性，需要序列化
@@ -140,7 +140,7 @@ module hdu (
             end
         end
     end
-
+    
     // 综合 RAW + WAW 冒险（统一用于发射控制）
     wire hazard_inst1_fifo  = raw_hazard_inst1_fifo  | waw_hazard_inst1_fifo;
     wire hazard_inst2_fifo  = raw_hazard_inst2_fifo  | waw_hazard_inst2_fifo;
@@ -166,7 +166,7 @@ module hdu (
     end
 
     // new_issue_stall: 不是双发射或 FIFO 满
-    assign new_issue_stall_o = (issue_inst_reg != 2'b11) || fifo_full;
+    assign new_issue_stall_o = ((issue_inst_reg != 2'b11) || fifo_full) ? 1'b1 : 1'b0;
     assign issue_inst_o = fifo_full ? 2'b00 : issue_inst_reg;
 
     // FIFO满
