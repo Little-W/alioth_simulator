@@ -32,7 +32,7 @@
 
 // 总线宽度定义
 `define BUS_DATA_WIDTH 64       // 双发射：64位数据总线
-`define BUS_ADDR_WIDTH 64      // 双发射：64位地址总线
+`define BUS_ADDR_WIDTH 32      // 双发射：32位地址总线
 `define BUS_ID_WIDTH 3          // 双发射：3位ID支持8个并发事务，匹配FIFO深度
 
 `define INST_DATA_WIDTH 32      // 修改为32位：单条指令数据宽度
