@@ -184,7 +184,7 @@ module icu (
         .inst1_dec_info_bus_i   (inst1_dec_info_bus_i),
         .inst1_is_pred_branch_i (inst1_is_pred_branch_i),
         .inst1_i                (inst1_i),
-        
+
         .inst2_addr_i           (inst2_addr_i),
         .inst2_reg_we_i         (inst2_reg_we_i),
         .inst2_reg_waddr_i      (inst2_reg_waddr_i),
