@@ -100,6 +100,21 @@ module gnrl_ram_pseudo_dual_axi #(
     wire [(DATA_WIDTH/8)-1:0] ram_we_mask;
     wire ram_we;
     wire [DATA_WIDTH-1:0] ram_rdata;
+    wire [C_S_AXI_DATA_WIDTH-1:0] ram_rdata_extended;  // 数据宽度扩展后的RAM读数据
+
+    // 数据宽度转换逻辑：将RAM数据扩展到AXI数据宽度
+    generate
+        if (DATA_WIDTH == C_S_AXI_DATA_WIDTH) begin
+            // 数据宽度匹配，直接连接
+            assign ram_rdata_extended = ram_rdata;
+        end else if (DATA_WIDTH < C_S_AXI_DATA_WIDTH) begin
+            // RAM数据宽度小于AXI宽度，扩展到AXI宽度
+            assign ram_rdata_extended = {{(C_S_AXI_DATA_WIDTH-DATA_WIDTH){1'b0}}, ram_rdata};
+        end else begin
+            // RAM数据宽度大于AXI宽度，截取到AXI宽度
+            assign ram_rdata_extended = ram_rdata[C_S_AXI_DATA_WIDTH-1:0];
+        end
+    endgenerate
 
     // 读FIFO相关信号定义
     reg [PTR_WIDTH-1:0] rfifo_rd_ptr;
@@ -346,21 +361,6 @@ module gnrl_ram_pseudo_dual_axi #(
             end
         end
     end
-
-    // 数据扩展逻辑：将RAM数据扩展到AXI数据宽度
-    wire [C_S_AXI_DATA_WIDTH-1:0] ram_rdata_extended;
-    generate
-        if (DATA_WIDTH == C_S_AXI_DATA_WIDTH) begin
-            // 数据宽度匹配，直接连接
-            assign ram_rdata_extended = ram_rdata;
-        end else if (DATA_WIDTH < C_S_AXI_DATA_WIDTH) begin
-            // RAM数据宽度小于AXI宽度，扩展到AXI宽度
-            assign ram_rdata_extended = {{(C_S_AXI_DATA_WIDTH-DATA_WIDTH){1'b0}}, ram_rdata};
-        end else begin
-            // RAM数据宽度大于AXI宽度，截取到AXI宽度
-            assign ram_rdata_extended = ram_rdata[C_S_AXI_DATA_WIDTH-1:0];
-        end
-    endgenerate
 
     // 生成RLAST信号的逻辑，如果当前传输计数等于总长度，则表示这是最后一个数据
     assign axi_rlast_signal = (axi_arlen_cntr == axi_arlen) ? 1'b1 : 1'b0;
