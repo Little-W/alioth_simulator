@@ -681,7 +681,7 @@ module dispatch (
         .sys_op_dret_o      (pipe_inst1_sys_op_dret_o),
         //fake_commit信号，inst1的输出空置
         .req_fake_commit_o  (),
-        .fake_commit_id_o   (),
+        .fake_commit_id_o   ()
     );
 
     // 实例化dispatch_logic模块 (第二路)
