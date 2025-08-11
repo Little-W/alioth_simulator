@@ -222,16 +222,21 @@ module dispatch_pipe (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o
+    output wire illegal_inst_o,
+
+    // Fake_commit输出端口
+    output wire req_fake_commit_o,
+    output wire [31:0] fake_commit_data_o
 );
 
     wire                        flush_en = |stall_flag_i;
+    wire                        flush_fakecommit_en = stall_flag_i[`CU_FLUSH];
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器
-    wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;
+    wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = inst_addr_i; // 去除flush清零
     wire [`INST_ADDR_WIDTH-1:0] inst_addr;
     gnrl_dfflr #(32) inst_addr_ff (
         clk,
@@ -255,7 +260,7 @@ module dispatch_pipe (
     assign commit_id_o = commit_id;
 
     // 新增：寄存器写使能寄存器
-    wire reg_we_dnxt = flush_en ? 1'b0 : reg_we_i;
+    wire reg_we_dnxt = reg_we_i; // 去除flush清零
     wire reg_we;
     gnrl_dfflr #(1) reg_we_ff (
         clk,
@@ -267,7 +272,7 @@ module dispatch_pipe (
     assign reg_we_o = reg_we;
 
     // 新增：寄存器写地址寄存器
-    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = flush_en ? {`REG_ADDR_WIDTH{1'b0}} : reg_waddr_i;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_dnxt = reg_waddr_i; // 去除flush清零
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr;
     gnrl_dfflr #(`REG_ADDR_WIDTH) reg_waddr_ff (
         clk,
@@ -279,7 +284,7 @@ module dispatch_pipe (
     assign reg_waddr_o = reg_waddr;
 
     // 新增：CSR写使能寄存器
-    wire csr_we_dnxt = flush_en ? 1'b0 : csr_we_i;
+    wire csr_we_dnxt = csr_we_i; // 去除flush清零
     wire csr_we;
     gnrl_dfflr #(1) csr_we_ff (
         clk,
@@ -291,7 +296,7 @@ module dispatch_pipe (
     assign csr_we_o = csr_we;
 
     // 新增：CSR写地址寄存器
-    wire [31:0] csr_waddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_waddr_i;
+    wire [31:0] csr_waddr_dnxt = csr_waddr_i; // 去除flush清零
     wire [31:0] csr_waddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) csr_waddr_ff (
         clk,
@@ -303,7 +308,7 @@ module dispatch_pipe (
     assign csr_waddr_o = csr_waddr;
 
     // 新增：CSR读地址寄存器
-    wire [31:0] csr_raddr_dnxt = flush_en ? {`BUS_ADDR_WIDTH{1'b0}} : csr_raddr_i;
+    wire [31:0] csr_raddr_dnxt = csr_raddr_i; // 去除flush清零
     wire [31:0] csr_raddr;
     gnrl_dfflr #(`BUS_ADDR_WIDTH) csr_raddr_ff (
         clk,
@@ -315,7 +320,7 @@ module dispatch_pipe (
     assign csr_raddr_o = csr_raddr;
 
     // 新增：立即数寄存器
-    wire [31:0] dec_imm_dnxt = flush_en ? 32'b0 : dec_imm_i;
+    wire [31:0] dec_imm_dnxt = dec_imm_i; // 去除flush清零
     wire [31:0] dec_imm;
     gnrl_dfflr #(32) dec_imm_ff (
         clk,
@@ -326,7 +331,7 @@ module dispatch_pipe (
     );
     assign dec_imm_o = dec_imm;
 
-    // 新增：译码信息总线寄存器
+    // 新增：译码信息总线寄存器 (仍保留flush)
     wire [`DECINFO_WIDTH-1:0] dec_info_bus_dnxt = flush_en ? {`DECINFO_WIDTH{1'b0}} : dec_info_bus_i;
     wire [`DECINFO_WIDTH-1:0] dec_info_bus;
     gnrl_dfflr #(`DECINFO_WIDTH) dec_info_bus_ff (
@@ -338,7 +343,7 @@ module dispatch_pipe (
     );
     assign dec_info_bus_o = dec_info_bus;
 
-    // ALU信号寄存
+    // ALU信号寄存 (req_alu 保留flush)
     wire req_alu_dnxt = flush_en ? 1'b0 : req_alu_i;
     wire req_alu;
     gnrl_dfflr #(1) req_alu_ff (
@@ -350,7 +355,7 @@ module dispatch_pipe (
     );
     assign req_alu_o = req_alu;
 
-    wire [31:0] alu_op1_dnxt = flush_en ? `ZeroWord : alu_op1_i;
+    wire [31:0] alu_op1_dnxt = alu_op1_i; // 去除flush清零
     wire [31:0] alu_op1;
     gnrl_dfflr #(32) alu_op1_ff (
         clk,
@@ -361,7 +366,7 @@ module dispatch_pipe (
     );
     assign alu_op1_o = alu_op1;
 
-    wire [31:0] alu_op2_dnxt = flush_en ? `ZeroWord : alu_op2_i;
+    wire [31:0] alu_op2_dnxt = alu_op2_i; // 去除flush清零
     wire [31:0] alu_op2;
     gnrl_dfflr #(32) alu_op2_ff (
         clk,
@@ -372,7 +377,7 @@ module dispatch_pipe (
     );
     assign alu_op2_o = alu_op2;
 
-    wire [`ALU_OP_WIDTH-1:0] alu_op_info_dnxt = flush_en ? {`ALU_OP_WIDTH{1'b0}} : alu_op_info_i;
+    wire [`ALU_OP_WIDTH-1:0] alu_op_info_dnxt = alu_op_info_i; // 去除flush清零
     wire [`ALU_OP_WIDTH-1:0] alu_op_info;
     gnrl_dfflr #(`ALU_OP_WIDTH) alu_op_info_ff (
         clk,
@@ -383,7 +388,7 @@ module dispatch_pipe (
     );
     assign alu_op_info_o = alu_op_info;
 
-    // BJP信号寄存
+    // BJP信号寄存 (req_bjp 保留flush)
     wire req_bjp_dnxt = flush_en ? 1'b0 : req_bjp_i;
     wire req_bjp;
     gnrl_dfflr #(1) req_bjp_ff (
@@ -395,7 +400,7 @@ module dispatch_pipe (
     );
     assign req_bjp_o = req_bjp;
 
-    wire [31:0] bjp_op1_dnxt = flush_en ? `ZeroWord : bjp_op1_i;
+    wire [31:0] bjp_op1_dnxt = bjp_op1_i; // 去除flush清零
     wire [31:0] bjp_op1;
     gnrl_dfflr #(32) bjp_op1_ff (
         clk,
@@ -406,7 +411,7 @@ module dispatch_pipe (
     );
     assign bjp_op1_o = bjp_op1;
 
-    wire [31:0] bjp_op2_dnxt = flush_en ? `ZeroWord : bjp_op2_i;
+    wire [31:0] bjp_op2_dnxt = bjp_op2_i; // 去除flush清零
     wire [31:0] bjp_op2;
     gnrl_dfflr #(32) bjp_op2_ff (
         clk,
@@ -417,7 +422,7 @@ module dispatch_pipe (
     );
     assign bjp_op2_o = bjp_op2;
 
-    wire [31:0] bjp_jump_op1_dnxt = flush_en ? `ZeroWord : bjp_jump_op1_i;
+    wire [31:0] bjp_jump_op1_dnxt = bjp_jump_op1_i; // 去除flush清零
     wire [31:0] bjp_jump_op1;
     gnrl_dfflr #(32) bjp_jump_op1_ff (
         clk,
@@ -428,7 +433,7 @@ module dispatch_pipe (
     );
     assign bjp_jump_op1_o = bjp_jump_op1;
 
-    wire [31:0] bjp_jump_op2_dnxt = flush_en ? `ZeroWord : bjp_jump_op2_i;
+    wire [31:0] bjp_jump_op2_dnxt = bjp_jump_op2_i; // 去除flush清零
     wire [31:0] bjp_jump_op2;
     gnrl_dfflr #(32) bjp_jump_op2_ff (
         clk,
@@ -439,7 +444,7 @@ module dispatch_pipe (
     );
     assign bjp_jump_op2_o = bjp_jump_op2;
 
-    wire bjp_op_jal_dnxt = flush_en ? 1'b0 : bjp_op_jal_i;
+    wire bjp_op_jal_dnxt = bjp_op_jal_i; // 去除flush清零
     wire bjp_op_jal;
     gnrl_dfflr #(1) bjp_op_jal_ff (
         clk,
@@ -450,7 +455,7 @@ module dispatch_pipe (
     );
     assign bjp_op_jal_o = bjp_op_jal;
 
-    wire bjp_op_beq_dnxt = flush_en ? 1'b0 : bjp_op_beq_i;
+    wire bjp_op_beq_dnxt = bjp_op_beq_i; // 去除flush清零
     wire bjp_op_beq;
     gnrl_dfflr #(1) bjp_op_beq_ff (
         clk,
@@ -461,7 +466,7 @@ module dispatch_pipe (
     );
     assign bjp_op_beq_o = bjp_op_beq;
 
-    wire bjp_op_bne_dnxt = flush_en ? 1'b0 : bjp_op_bne_i;
+    wire bjp_op_bne_dnxt = bjp_op_bne_i; // 去除flush清零
     wire bjp_op_bne;
     gnrl_dfflr #(1) bjp_op_bne_ff (
         clk,
@@ -472,7 +477,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bne_o = bjp_op_bne;
 
-    wire bjp_op_blt_dnxt = flush_en ? 1'b0 : bjp_op_blt_i;
+    wire bjp_op_blt_dnxt = bjp_op_blt_i; // 去除flush清零
     wire bjp_op_blt;
     gnrl_dfflr #(1) bjp_op_blt_ff (
         clk,
@@ -483,7 +488,7 @@ module dispatch_pipe (
     );
     assign bjp_op_blt_o = bjp_op_blt;
 
-    wire bjp_op_bltu_dnxt = flush_en ? 1'b0 : bjp_op_bltu_i;
+    wire bjp_op_bltu_dnxt = bjp_op_bltu_i; // 去除flush清零
     wire bjp_op_bltu;
     gnrl_dfflr #(1) bjp_op_bltu_ff (
         clk,
@@ -494,7 +499,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bltu_o = bjp_op_bltu;
 
-    wire bjp_op_bge_dnxt = flush_en ? 1'b0 : bjp_op_bge_i;
+    wire bjp_op_bge_dnxt = bjp_op_bge_i; // 去除flush清零
     wire bjp_op_bge;
     gnrl_dfflr #(1) bjp_op_bge_ff (
         clk,
@@ -505,7 +510,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bge_o = bjp_op_bge;
 
-    wire bjp_op_bgeu_dnxt = flush_en ? 1'b0 : bjp_op_bgeu_i;
+    wire bjp_op_bgeu_dnxt = bjp_op_bgeu_i; // 去除flush清零
     wire bjp_op_bgeu;
     gnrl_dfflr #(1) bjp_op_bgeu_ff (
         clk,
@@ -516,7 +521,7 @@ module dispatch_pipe (
     );
     assign bjp_op_bgeu_o = bjp_op_bgeu;
 
-    wire bjp_op_jalr_dnxt = flush_en ? 1'b0 : bjp_op_jalr_i;
+    wire bjp_op_jalr_dnxt = bjp_op_jalr_i; // 去除flush清零
     wire bjp_op_jalr;
     gnrl_dfflr #(1) bjp_op_jalr_ff (
         clk,
@@ -527,7 +532,7 @@ module dispatch_pipe (
     );
     assign bjp_op_jalr_o = bjp_op_jalr;
 
-    // MUL信号寄存器
+    // MUL信号 (req_mul 保留flush，其余本来就无flush)
     wire req_mul_dnxt = flush_en ? 1'b0 : req_mul_i;
     wire req_mul;
     gnrl_dfflr #(1) req_mul_ff (
@@ -605,7 +610,7 @@ module dispatch_pipe (
     );
     assign mul_op_mulhu_o = mul_op_mulhu;
 
-    // DIV信号寄存器
+    // DIV信号 (req_div 保留flush)
     wire req_div_dnxt = flush_en ? 1'b0 : req_div_i;
     wire req_div;
     gnrl_dfflr #(1) req_div_ff (
@@ -683,7 +688,7 @@ module dispatch_pipe (
     );
     assign div_op_remu_o = div_op_remu;
 
-    // CSR信号寄存
+    // CSR信号 (req_csr 保留flush)
     wire req_csr_dnxt = flush_en ? 1'b0 : req_csr_i;
     wire req_csr;
     gnrl_dfflr #(1) req_csr_ff (
@@ -695,7 +700,7 @@ module dispatch_pipe (
     );
     assign req_csr_o = req_csr;
 
-    wire [31:0] csr_op1_dnxt = flush_en ? `ZeroWord : csr_op1_i;
+    wire [31:0] csr_op1_dnxt = csr_op1_i; // 去除flush清零
     wire [31:0] csr_op1;
     gnrl_dfflr #(32) csr_op1_ff (
         clk,
@@ -706,7 +711,7 @@ module dispatch_pipe (
     );
     assign csr_op1_o = csr_op1;
 
-    wire [31:0] csr_addr_dnxt = flush_en ? `ZeroWord : csr_addr_i;
+    wire [31:0] csr_addr_dnxt = csr_addr_i; // 去除flush清零
     wire [31:0] csr_addr;
     gnrl_dfflr #(32) csr_addr_ff (
         clk,
@@ -717,7 +722,7 @@ module dispatch_pipe (
     );
     assign csr_addr_o = csr_addr;
 
-    wire csr_csrrw_dnxt = flush_en ? 1'b0 : csr_csrrw_i;
+    wire csr_csrrw_dnxt = csr_csrrw_i; // 去除flush清零
     wire csr_csrrw;
     gnrl_dfflr #(1) csr_csrrw_ff (
         clk,
@@ -728,7 +733,7 @@ module dispatch_pipe (
     );
     assign csr_csrrw_o = csr_csrrw;
 
-    wire csr_csrrs_dnxt = flush_en ? 1'b0 : csr_csrrs_i;
+    wire csr_csrrs_dnxt = csr_csrrs_i; // 去除flush清零
     wire csr_csrrs;
     gnrl_dfflr #(1) csr_csrrs_ff (
         clk,
@@ -739,7 +744,7 @@ module dispatch_pipe (
     );
     assign csr_csrrs_o = csr_csrrs;
 
-    wire csr_csrrc_dnxt = flush_en ? 1'b0 : csr_csrrc_i;
+    wire csr_csrrc_dnxt = csr_csrrc_i; // 去除flush清零
     wire csr_csrrc;
     gnrl_dfflr #(1) csr_csrrc_ff (
         clk,
@@ -750,7 +755,7 @@ module dispatch_pipe (
     );
     assign csr_csrrc_o = csr_csrrc;
 
-    // MEM信号寄存
+    // MEM信号 (req_mem 保留flush 其余去除flush)
     wire req_mem_dnxt = flush_en ? 1'b0 : req_mem_i;
     wire req_mem;
     gnrl_dfflr #(1) req_mem_ff (
@@ -762,7 +767,7 @@ module dispatch_pipe (
     );
     assign req_mem_o = req_mem;
 
-    wire mem_op_lb_dnxt = flush_en ? 1'b0 : mem_op_lb_i;
+    wire mem_op_lb_dnxt = mem_op_lb_i; // 去除flush清零
     wire mem_op_lb;
     gnrl_dfflr #(1) mem_op_lb_ff (
         clk,
@@ -773,7 +778,7 @@ module dispatch_pipe (
     );
     assign mem_op_lb_o = mem_op_lb;
 
-    wire mem_op_lh_dnxt = flush_en ? 1'b0 : mem_op_lh_i;
+    wire mem_op_lh_dnxt = mem_op_lh_i; // 去除flush清零
     wire mem_op_lh;
     gnrl_dfflr #(1) mem_op_lh_ff (
         clk,
@@ -784,7 +789,7 @@ module dispatch_pipe (
     );
     assign mem_op_lh_o = mem_op_lh;
 
-    wire mem_op_lw_dnxt = flush_en ? 1'b0 : mem_op_lw_i;
+    wire mem_op_lw_dnxt = mem_op_lw_i; // 去除flush清零
     wire mem_op_lw;
     gnrl_dfflr #(1) mem_op_lw_ff (
         clk,
@@ -795,7 +800,7 @@ module dispatch_pipe (
     );
     assign mem_op_lw_o = mem_op_lw;
 
-    wire mem_op_lbu_dnxt = flush_en ? 1'b0 : mem_op_lbu_i;
+    wire mem_op_lbu_dnxt = mem_op_lbu_i; // 去除flush清零
     wire mem_op_lbu;
     gnrl_dfflr #(1) mem_op_lbu_ff (
         clk,
@@ -806,7 +811,7 @@ module dispatch_pipe (
     );
     assign mem_op_lbu_o = mem_op_lbu;
 
-    wire mem_op_lhu_dnxt = flush_en ? 1'b0 : mem_op_lhu_i;
+    wire mem_op_lhu_dnxt = mem_op_lhu_i; // 去除flush清零
     wire mem_op_lhu;
     gnrl_dfflr #(1) mem_op_lhu_ff (
         clk,
@@ -817,7 +822,7 @@ module dispatch_pipe (
     );
     assign mem_op_lhu_o = mem_op_lhu;
 
-    wire mem_op_load_dnxt = flush_en ? 1'b0 : mem_op_load_i;
+    wire mem_op_load_dnxt = mem_op_load_i; // 去除flush清零
     wire mem_op_load;
     gnrl_dfflr #(1) mem_op_load_ff (
         clk,
@@ -828,7 +833,7 @@ module dispatch_pipe (
     );
     assign mem_op_load_o = mem_op_load;
 
-    wire mem_op_store_dnxt = flush_en ? 1'b0 : mem_op_store_i;
+    wire mem_op_store_dnxt = mem_op_store_i; // 去除flush清零
     wire mem_op_store;
     gnrl_dfflr #(1) mem_op_store_ff (
         clk,
@@ -839,8 +844,8 @@ module dispatch_pipe (
     );
     assign mem_op_store_o = mem_op_store;
 
-    // SYS信号寄存
-    wire sys_op_nop_dnxt = flush_en ? 1'b0 : sys_op_nop_i;
+    // SYS信号 (仅列出的几个保持flush)
+    wire sys_op_nop_dnxt = sys_op_nop_i; // 去除flush清零
     wire sys_op_nop;
     gnrl_dfflr #(1) sys_op_nop_ff (
         clk,
@@ -851,7 +856,7 @@ module dispatch_pipe (
     );
     assign sys_op_nop_o = sys_op_nop;
 
-    wire sys_op_mret_dnxt = flush_en ? 1'b0 : sys_op_mret_i;
+    wire sys_op_mret_dnxt = flush_en ? 1'b0 : sys_op_mret_i; // 保留flush
     wire sys_op_mret;
     gnrl_dfflr #(1) sys_op_mret_ff (
         clk,
@@ -862,7 +867,7 @@ module dispatch_pipe (
     );
     assign sys_op_mret_o = sys_op_mret;
 
-    wire sys_op_ecall_dnxt = flush_en ? 1'b0 : sys_op_ecall_i;
+    wire sys_op_ecall_dnxt = flush_en ? 1'b0 : sys_op_ecall_i; // 保留flush
     wire sys_op_ecall;
     gnrl_dfflr #(1) sys_op_ecall_ff (
         clk,
@@ -873,7 +878,7 @@ module dispatch_pipe (
     );
     assign sys_op_ecall_o = sys_op_ecall;
 
-    wire sys_op_ebreak_dnxt = flush_en ? 1'b0 : sys_op_ebreak_i;
+    wire sys_op_ebreak_dnxt = flush_en ? 1'b0 : sys_op_ebreak_i; // 保留flush
     wire sys_op_ebreak;
     gnrl_dfflr #(1) sys_op_ebreak_ff (
         clk,
@@ -884,7 +889,7 @@ module dispatch_pipe (
     );
     assign sys_op_ebreak_o = sys_op_ebreak;
 
-    wire sys_op_fence_dnxt = flush_en ? 1'b0 : sys_op_fence_i;
+    wire sys_op_fence_dnxt = flush_en ? 1'b0 : sys_op_fence_i; // 保留flush
     wire sys_op_fence;
     gnrl_dfflr #(1) sys_op_fence_ff (
         clk,
@@ -895,7 +900,7 @@ module dispatch_pipe (
     );
     assign sys_op_fence_o = sys_op_fence;
 
-    wire sys_op_dret_dnxt = flush_en ? 1'b0 : sys_op_dret_i;
+    wire sys_op_dret_dnxt = flush_en ? 1'b0 : sys_op_dret_i; // 保留flush
     wire sys_op_dret;
     gnrl_dfflr #(1) sys_op_dret_ff (
         clk,
@@ -907,7 +912,7 @@ module dispatch_pipe (
     assign sys_op_dret_o = sys_op_dret;
 
     // 新增：rs1_rdata寄存器
-    wire [31:0] rs1_rdata_dnxt = flush_en ? 32'b0 : rs1_rdata_i;
+    wire [31:0] rs1_rdata_dnxt = rs1_rdata_i; // 去除flush清零
     wire [31:0] rs1_rdata;
     gnrl_dfflr #(32) rs1_rdata_ff (
         clk,
@@ -919,7 +924,7 @@ module dispatch_pipe (
     assign rs1_rdata_o = rs1_rdata;
 
     // 新增：rs2_rdata寄存器
-    wire [31:0] rs2_rdata_dnxt = flush_en ? 32'b0 : rs2_rdata_i;
+    wire [31:0] rs2_rdata_dnxt = rs2_rdata_i; // 去除flush清零
     wire [31:0] rs2_rdata;
     gnrl_dfflr #(32) rs2_rdata_ff (
         clk,
@@ -931,7 +936,7 @@ module dispatch_pipe (
     assign rs2_rdata_o = rs2_rdata;
 
     // 新增：预测分支信号寄存器
-    wire is_pred_branch_dnxt = flush_en ? 1'b0 : is_pred_branch_i;
+    wire is_pred_branch_dnxt = is_pred_branch_i; // 去除flush清零
     wire is_pred_branch;
     gnrl_dfflr #(1) is_pred_branch_ff (
         clk,
@@ -943,7 +948,7 @@ module dispatch_pipe (
     assign is_pred_branch_o = is_pred_branch;
 
     // 新增：内存地址寄存器
-    wire [31:0] mem_addr_dnxt = flush_en ? `ZeroWord : mem_addr_i;
+    wire [31:0] mem_addr_dnxt = mem_addr_i; // 去除flush清零
     wire [31:0] mem_addr;
     gnrl_dfflr #(32) mem_addr_ff (
         clk,
@@ -955,7 +960,7 @@ module dispatch_pipe (
     assign mem_addr_o = mem_addr;
 
     // 新增：内存写掩码寄存器 - 适配双发射8位掩码
-    wire [7:0] mem_wmask_dnxt = flush_en ? 8'b0 : mem_wmask_i;
+    wire [7:0] mem_wmask_dnxt = mem_wmask_i; // 去除flush清零
     wire [7:0] mem_wmask;
     gnrl_dfflr #(8) mem_wmask_ff (
         clk,
@@ -967,7 +972,7 @@ module dispatch_pipe (
     assign mem_wmask_o = mem_wmask;
 
     // 新增：内存写数据寄存器 - 适配双发射64位数据
-    wire [63:0] mem_wdata_dnxt = flush_en ? 64'b0 : mem_wdata_i;
+    wire [63:0] mem_wdata_dnxt = mem_wdata_i; // 去除flush清零
     wire [63:0] mem_wdata;
     gnrl_dfflr #(64) mem_wdata_ff (
         clk,
@@ -978,7 +983,7 @@ module dispatch_pipe (
     );
     assign mem_wdata_o = mem_wdata;
 
-    // 新增：指令有效信号寄存器
+    // 新增：指令有效信号寄存器 (保留flush)
     wire inst_valid_dnxt = flush_en ? 1'b0 : inst_valid_i;
     wire inst_valid;
     gnrl_dfflr #(1) inst_valid_ff (
@@ -990,7 +995,7 @@ module dispatch_pipe (
     );
     assign inst_valid_o = inst_valid;
 
-    // 新增：未对齐访存异常流水线寄存器
+    // 新增：未对齐访存异常流水线寄存器 (保留flush)
     wire misaligned_load_dnxt = flush_en ? 1'b0 : misaligned_load_i;
     wire misaligned_load;
     gnrl_dfflr #(1) misaligned_load_ff (
@@ -1014,7 +1019,7 @@ module dispatch_pipe (
     assign misaligned_store_o = misaligned_store;
 
     // 新增：指令内容流水线寄存器
-    wire [31:0] inst_dnxt = flush_en ? 32'b0 : inst_i;
+    wire [31:0] inst_dnxt = inst_i; // 去除flush清零
     wire [31:0] inst;
     gnrl_dfflr #(32) inst_ff (
         clk,
@@ -1025,7 +1030,7 @@ module dispatch_pipe (
     );
     assign inst_o = inst;
 
-    // 新增：非法指令流水线寄存器
+    // 新增：非法指令流水线寄存器 (保留flush)
     wire illegal_inst_dnxt = flush_en ? 1'b0 : illegal_inst_i;
     wire illegal_inst;
     gnrl_dfflr #(1) illegal_inst_ff (
@@ -1036,5 +1041,18 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
+
+    wire   req_fake_commit_dnxt = flush_fakecommit_en ? 1 : 0;
+    wire   req_fake_commit;
+    gnrl_dfflr #(1) req_fake_commit_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        req_fake_commit_dnxt,
+        req_fake_commit
+    );
+    assign req_fake_commit_o = req_fake_commit;
+
+    assign fake_commit_data_o = flush_fakecommit_en ? fake_commit_data_i : 0;
 
 endmodule

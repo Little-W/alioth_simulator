@@ -92,6 +92,13 @@ module wbu (
     input wire [`COMMIT_ID_WIDTH-1:0] lsu2_commit_id_i,
     output wire                       lsu2_ready_o,
 
+    // 来自EXU的FAKECOMMIT数据
+    input wire [ `REG_DATA_WIDTH-1:0] fakecommit_reg_wdata_i,
+    input wire                        fakecommit_reg_we_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] fakecommit_reg_waddr_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] fakecommit_commit_id_i,
+    output wire                       fakecommit_ready_o,
+
     // 提交输出
     output wire                        commit_valid1_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id1_o,
@@ -123,20 +130,20 @@ module wbu (
     localparam EU_CSR   = 4'd6;
     localparam EU_LSU1  = 4'd7;
     localparam EU_LSU2  = 4'd8;
+    localparam EU_FAKECOMMIT = 4'd9;
+    // 聚合各执行单元写回意图 (总数 10)
+    wire [9:0] eu_reg_we;
+    wire [9:0] eu_csr_we; // 仅CSR位有效
+    wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:9];
+    wire [4:0]                 eu_reg_waddr [0:9];
+    wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:9];
+    wire [`BUS_ADDR_WIDTH-1:0]  eu_csr_waddr [0:9];
+    wire [`REG_DATA_WIDTH-1:0]  eu_csr_wdata [0:9];
 
-    // 聚合各执行单元写回意图 (总数 9)
-    wire [8:0] eu_reg_we;
-    wire [8:0] eu_csr_we; // 仅CSR位有效
-    wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:8];
-    wire [4:0]                 eu_reg_waddr [0:8];
-    wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:8];
-    wire [`BUS_ADDR_WIDTH-1:0]  eu_csr_waddr [0:8];
-    wire [`REG_DATA_WIDTH-1:0]  eu_csr_wdata [0:8];
-
-    assign eu_reg_we = {lsu2_reg_we_i, lsu1_reg_we_i, csr_reg_we_i,
+    assign eu_reg_we = {fakecommit_reg_we_i, lsu2_reg_we_i, lsu1_reg_we_i, csr_reg_we_i,
                         div2_reg_we_i, div1_reg_we_i, mul2_reg_we_i, mul1_reg_we_i,
                         alu2_reg_we_i, alu1_reg_we_i};
-    assign eu_csr_we = {2'b0, csr_we_i, 6'b0};
+    assign eu_csr_we = {3'b0, csr_we_i, 6'b0};
 
     assign eu_reg_wdata[EU_ALU1] = alu1_reg_wdata_i;
     assign eu_reg_wdata[EU_ALU2] = alu2_reg_wdata_i;
@@ -147,6 +154,7 @@ module wbu (
     assign eu_reg_wdata[EU_CSR]  = csr_reg_wdata_i;
     assign eu_reg_wdata[EU_LSU1] = lsu1_reg_wdata_i;
     assign eu_reg_wdata[EU_LSU2] = lsu2_reg_wdata_i;
+    assign eu_reg_wdata[EU_FAKECOMMIT] = fakecommit_reg_wdata_i;
 
     assign eu_reg_waddr[EU_ALU1] = alu1_reg_waddr_i;
     assign eu_reg_waddr[EU_ALU2] = alu2_reg_waddr_i;
@@ -154,9 +162,10 @@ module wbu (
     assign eu_reg_waddr[EU_MUL2] = mul2_reg_waddr_i;
     assign eu_reg_waddr[EU_DIV1] = div1_reg_waddr_i;
     assign eu_reg_waddr[EU_DIV2] = div2_reg_waddr_i;
-    assign eu_reg_waddr[EU_CSR]  = csr_reg_waddr_i; // CSR指令写通用寄存器目的
+    assign eu_reg_waddr[EU_CSR]  = csr_reg_waddr_i;
     assign eu_reg_waddr[EU_LSU1] = lsu1_reg_waddr_i;
     assign eu_reg_waddr[EU_LSU2] = lsu2_reg_waddr_i;
+    assign eu_reg_waddr[EU_FAKECOMMIT] = fakecommit_reg_waddr_i;
 
     assign eu_commit_id[EU_ALU1] = alu1_commit_id_i;
     assign eu_commit_id[EU_ALU2] = alu2_commit_id_i;
@@ -167,12 +176,10 @@ module wbu (
     assign eu_commit_id[EU_CSR]  = csr_commit_id_i;
     assign eu_commit_id[EU_LSU1] = lsu1_commit_id_i;
     assign eu_commit_id[EU_LSU2] = lsu2_commit_id_i;
-
-    assign eu_csr_waddr[EU_CSR] = csr_waddr_i;
-    assign eu_csr_wdata[EU_CSR] = csr_wdata_i;
+    assign eu_commit_id[EU_FAKECOMMIT] = fakecommit_commit_id_i;
 
     // 可写回集合
-    wire [8:0] eu_can_writeback = (eu_reg_we | eu_csr_we);
+    wire [9:0] eu_can_writeback = (eu_reg_we | eu_csr_we);
 
     // 简单双通道优先级仲裁（保持原先大类优先顺序）
     reg [3:0] wb_ch1_eu, wb_ch2_eu; reg wb_ch1_valid, wb_ch2_valid;
@@ -224,7 +231,7 @@ module wbu (
     assign commit_id2_o    = wb_ch2_valid ? eu_commit_id[wb_ch2_eu] : {`COMMIT_ID_WIDTH{1'b0}};
 
     // Ready 信号
-    wire eu_selected [0:8];
+    wire eu_selected [0:9];
     assign eu_selected[EU_ALU1] = (wb_ch1_valid && wb_ch1_eu==EU_ALU1) || (wb_ch2_valid && wb_ch2_eu==EU_ALU1);
     assign eu_selected[EU_ALU2] = (wb_ch1_valid && wb_ch1_eu==EU_ALU2) || (wb_ch2_valid && wb_ch2_eu==EU_ALU2);
     assign eu_selected[EU_MUL1] = (wb_ch1_valid && wb_ch1_eu==EU_MUL1) || (wb_ch2_valid && wb_ch2_eu==EU_MUL1);
@@ -234,7 +241,9 @@ module wbu (
     assign eu_selected[EU_CSR ] = (wb_ch1_valid && wb_ch1_eu==EU_CSR ) || (wb_ch2_valid && wb_ch2_eu==EU_CSR );
     assign eu_selected[EU_LSU1] = (wb_ch1_valid && wb_ch1_eu==EU_LSU1) || (wb_ch2_valid && wb_ch2_eu==EU_LSU1);
     assign eu_selected[EU_LSU2] = (wb_ch1_valid && wb_ch1_eu==EU_LSU2) || (wb_ch2_valid && wb_ch2_eu==EU_LSU2);
+    assign eu_selected[EU_FAKECOMMIT] = (wb_ch1_valid && wb_ch1_eu==EU_FAKECOMMIT) || (wb_ch2_valid && wb_ch2_eu==EU_FAKECOMMIT);
 
+    assign fakecommit_ready_o = ~eu_can_writeback[EU_FAKECOMMIT] || eu_selected[EU_FAKECOMMIT];
     assign alu1_ready_o = ~eu_can_writeback[EU_ALU1] || eu_selected[EU_ALU1];
     assign alu2_ready_o = ~eu_can_writeback[EU_ALU2] || eu_selected[EU_ALU2];
     assign mul1_ready_o = ~eu_can_writeback[EU_MUL1] || eu_selected[EU_MUL1];

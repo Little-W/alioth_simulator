@@ -199,6 +199,10 @@ module dispatch (
     output wire inst2_misaligned_store_o,
     output wire inst2_illegal_inst_o,
 
+    //fake_commit信号，inst1的输出空置
+    output wire req_fake_commit_o,
+    output wire [31:0] fake_commit_id_o,
+
     // 输出指令地址和提交ID以及保留到后续模块的其他指令信息
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
     output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,
@@ -674,7 +678,10 @@ module dispatch (
         .sys_op_ecall_o     (pipe_inst1_sys_op_ecall_o),
         .sys_op_ebreak_o    (pipe_inst1_sys_op_ebreak_o),
         .sys_op_fence_o     (pipe_inst1_sys_op_fence_o),
-        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o)
+        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o),
+        //fake_commit信号，inst1的输出空置
+        .req_fake_commit_o  (),
+        .fake_commit_id_o   (),
     );
 
     // 实例化dispatch_logic模块 (第二路)
@@ -923,7 +930,10 @@ module dispatch (
         .sys_op_ecall_o     (pipe_inst2_sys_op_ecall_o),
         .sys_op_ebreak_o    (pipe_inst2_sys_op_ebreak_o),
         .sys_op_fence_o     (pipe_inst2_sys_op_fence_o),
-        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o)
+        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o),
+        //fake_commit信号，inst2的输出空置
+        .req_fake_commit_o  (req_fake_commit_o),
+        .fake_commit_id_o   (fake_commit_id_o)
     );
     // CSR合并逻辑
     // 由于ICU已经处理了两个指令都是CSR的情况（通过RAW冒险检测），

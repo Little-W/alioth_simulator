@@ -96,6 +96,12 @@ module cpu_top (
     wire exu_ebreak_o;
     wire exu_mret_o;
 
+    // EXU的Fake Commit信号
+    wire [`COMMIT_ID_WIDTH-1:0] exu_fakecommit_commit_id_o;
+    wire [`REG_DATA_WIDTH-1:0] exu_fakecommit_reg_wdata_o;
+    wire exu_fakecommit_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] exu_fakecommit_reg_waddr_o;
+
     // EXU的Commit ID信号
     wire [`COMMIT_ID_WIDTH-1:0] exu_csr_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_alu_commit_id_o;
@@ -193,6 +199,7 @@ module cpu_top (
     wire wbu_div0_ready_o, wbu_div1_ready_o;
     wire wbu_lsu0_ready_o, wbu_lsu1_ready_o;
     wire wbu_csr_ready_o;
+    wire wbu_fakecommit_ready_o;
 
     // WBU提交信号
     wire wbu_commit_valid1_o, wbu_commit_valid2_o;
@@ -442,6 +449,10 @@ module cpu_top (
     wire dispatch_sys_op_ebreak;
     wire dispatch_sys_op_fence;
     wire dispatch_sys_op_dret;
+
+    //dispatch to fakecommit
+    wire dispatch_req_fakecommit_o;
+    wire [31:0] dispatch_fake_commit_id_o;
 
     wire  dispatch_inst1_misaligned_load_o;
     wire  dispatch_inst1_misaligned_store_o;
@@ -1007,6 +1018,10 @@ module cpu_top (
         .inst2_misaligned_store_o(dispatch_inst2_misaligned_store_o),
         .inst2_illegal_inst_o    (dispatch_inst2_illegal_o),
 
+        //fake commit信号
+        .req_fake_commit_o    (dispatch_req_fakecommit_o),
+        .fake_commit_id_o     (dispatch_fake_commit_id_o),
+
         .inst1_addr_o          (dispatch_inst1_addr_o),
         .inst2_addr_o          (dispatch_inst2_addr_o),
         .inst1_o                (dispatch_inst1_o),
@@ -1184,6 +1199,11 @@ module cpu_top (
         .sys_op_fence_i(dispatch_sys_op_fence),
         .sys_op_dret_i(dispatch_sys_op_dret),
 
+        // fake commit输入信号
+        .req_fakecommit_i(dispatch_req_fakecommit_o),
+        .fake_commit_id_i(dispatch_fake_commit_id_o),
+        .fakecommit_wb_ready_i(wbu_fakecommit_ready_o),
+
         // 输出信号 - 到WBU的写回接口
         .alu0_reg_wdata_o(exu_alu0_reg_wdata_o),
         .alu0_reg_we_o(exu_alu0_reg_we_o),
@@ -1245,6 +1265,12 @@ module cpu_top (
         .exu_op_ecall_o(exu_ecall_o),
         .exu_op_ebreak_o(exu_ebreak_o),
         .exu_op_mret_o(exu_mret_o),
+
+        // fake commit信号输出
+        .fakecommit_reg_wdata_o(exu_fakecommit_reg_wdata_o),
+        .fakecommit_commit_id_o(exu_fakecommit_commit_id_o),
+        .fakecommit_reg_we_o(exu_fakecommit_reg_we_o),
+        .fakecommit_reg_waddr_o(exu_fakecommit_reg_waddr_o),
 
         // misaligned_fetch信号输出
         .misaligned_fetch_o(misaligned_fetch_o),
@@ -1362,6 +1388,13 @@ module cpu_top (
         .lsu2_reg_waddr_i(exu_lsu1_reg_waddr_o),
         .lsu2_commit_id_i(exu_lsu1_commit_id_o),
         .lsu2_ready_o(wbu_lsu1_ready_o),
+
+        // 来自EXU的FAKECOMMIT数据
+        .fakecommit_reg_wdata_i(exu_fakecommit_reg_wdata_o),
+        .fakecommit_reg_we_i(exu_fakecommit_reg_we_o),
+        .fakecommit_reg_waddr_i(exu_fakecommit_reg_waddr_o),
+        .fakecommit_commit_id_i(exu_fakecommit_commit_id_o),
+        .fakecommit_ready_o(wbu_fakecommit_ready_o),
 
         // 长指令完成信号（对接icu）
         .commit_valid1_o(wbu_commit_valid1_o),
