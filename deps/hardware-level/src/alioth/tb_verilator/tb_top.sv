@@ -15,6 +15,7 @@
 // `define ENABLE_EXT_IRQ_MONITOR // 监控外部中断源变化 
 // `define ENABLE_DUMP_EN
 // ToHost程序地址,用于监控测试是否结束
+`define ENABLE_PC_WRITE_TOHOST
 `ifdef ENABLE_PC_WRITE_TOHOST
 `define PC_WRITE_TOHOST 32'h80000040
 `endif
@@ -58,11 +59,11 @@ module tb_top (
     reg [8*300:1] testcase;
     integer dumpwave;
 
-    // 计算ITCM和DTCM的深度和字节大小
-    localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 2));  // ITCM中的字数
-    localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 4;  // 总字节数
-    localparam DTCM_DEPTH = (1 << (`DTCM_ADDR_WIDTH - 2));  // DTCM中的字数
-    localparam DTCM_BYTE_SIZE = DTCM_DEPTH * 4;  // 总字节数
+    // 计算ITCM和DTCM的深度和字节大小（64位内存版本）
+    localparam ITCM_DEPTH = (1 << (`ITCM_ADDR_WIDTH - 3));  // ITCM中的64位字数 (减3位因为64位=8字节)
+    localparam ITCM_BYTE_SIZE = ITCM_DEPTH * 8;  // 总字节数（64位字 * 8字节）
+    localparam DTCM_DEPTH = (1 << (`DTCM_ADDR_WIDTH - 3));  // DTCM中的64位字数 (减3位因为64位=8字节)
+    localparam DTCM_BYTE_SIZE = DTCM_DEPTH * 8;  // 总字节数（64位字 * 8字节）
 
     // 创建与ITCM和DTCM容量相同的临时字节数组
     reg     [ 7:0] itcm_prog_mem                                             [0:ITCM_BYTE_SIZE-1];
@@ -195,24 +196,29 @@ module tb_top (
         $readmemh({testcase, "_itcm.verilog"}, itcm_prog_mem);
         $readmemh({testcase, "_dtcm.verilog"}, dtcm_prog_mem);
 
-        // 处理小端序格式并更新到ITCM
-        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个字
-            `ITCM.mem_r[i] = {
-                itcm_prog_mem[i*4+3],
-                itcm_prog_mem[i*4+2],
-                itcm_prog_mem[i*4+1],
-                itcm_prog_mem[i*4+0]
-            };
+        // 处理小端序格式并更新到ITCM（64位内存版本）
+        // 每个64位字包含两个32位指令：{inst1[31:0], inst0[31:0]}
+        for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个64位字
+            if (i*8+7 < ITCM_BYTE_SIZE) begin
+                `ITCM.mem_r[i] = {
+                    itcm_prog_mem[i*8+7], itcm_prog_mem[i*8+6], itcm_prog_mem[i*8+5], itcm_prog_mem[i*8+4],  // inst1[31:0]
+                    itcm_prog_mem[i*8+3], itcm_prog_mem[i*8+2], itcm_prog_mem[i*8+1], itcm_prog_mem[i*8+0]   // inst0[31:0]
+                };
+            end else begin
+                `ITCM.mem_r[i] = 64'h0;
+            end
         end
 
-        // 处理小端序格式并更新到DTCM
-        for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个字
-            `DTCM.mem_r[i] = {
-                dtcm_prog_mem[i*4+3],
-                dtcm_prog_mem[i*4+2],
-                dtcm_prog_mem[i*4+1],
-                dtcm_prog_mem[i*4+0]
-            };
+        // 处理小端序格式并更新到DTCM（64位内存版本）
+        for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个64位字
+            if (i*8+7 < DTCM_BYTE_SIZE) begin
+                `DTCM.mem_r[i] = {
+                    dtcm_prog_mem[i*8+7], dtcm_prog_mem[i*8+6], dtcm_prog_mem[i*8+5], dtcm_prog_mem[i*8+4],  // high 32 bits
+                    dtcm_prog_mem[i*8+3], dtcm_prog_mem[i*8+2], dtcm_prog_mem[i*8+1], dtcm_prog_mem[i*8+0]   // low 32 bits
+                };
+            end else begin
+                `DTCM.mem_r[i] = 64'h0;
+            end
         end
 
         $display("Successfully loaded instructions to ITCM and data to DTCM");
