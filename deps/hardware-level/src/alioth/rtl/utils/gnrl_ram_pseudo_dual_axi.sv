@@ -97,7 +97,7 @@ module gnrl_ram_pseudo_dual_axi #(
     wire [ADDR_WIDTH-1:0] ram_waddr;
     wire [ADDR_WIDTH-1:0] ram_raddr;
     wire [DATA_WIDTH-1:0] ram_wdata;
-    wire [3:0] ram_we_mask;
+    wire [(DATA_WIDTH/8)-1:0] ram_we_mask;
     wire ram_we;
     wire [DATA_WIDTH-1:0] ram_rdata;
 
@@ -256,9 +256,9 @@ module gnrl_ram_pseudo_dual_axi #(
             rdata_fifo_count  <= 0;
         end else begin
             // 处理FIFO推入和弹出
-            case (rdata_fifo_op)
+                case (rdata_fifo_op)
                 2'b10: begin  // 只推入
-                    rdata_fifo[rdata_fifo_wr_ptr] <= ram_rdata;  // 保存RAM读取的数据
+                    rdata_fifo[rdata_fifo_wr_ptr] <= ram_rdata_extended;  // 保存RAM读取的扩展数据
                     rdata_fifo_last[rdata_fifo_wr_ptr] <= axi_rlast_signal;  // 保存是否为最后一个数据
                     rdata_fifo_wr_ptr <= rdata_fifo_wr_ptr + 1'd1;  // 循环指针
                     rdata_fifo_count <= rdata_fifo_count + 1'd1;
@@ -272,7 +272,7 @@ module gnrl_ram_pseudo_dual_axi #(
                 end
                 2'b11: begin  // 同时推入和弹出
                     rdata_fifo_rid[rdata_fifo_wr_ptr] <= fifo_arid[rfifo_rd_ptr];  // 保存对应的ID
-                    rdata_fifo[rdata_fifo_wr_ptr] <= ram_rdata;  // 保存RAM读取的数据
+                    rdata_fifo[rdata_fifo_wr_ptr] <= ram_rdata_extended;  // 保存RAM读取的扩展数据
                     rdata_fifo_last[rdata_fifo_wr_ptr] <= axi_rlast_signal;  // 保存是否为最后一个数据
                     rdata_fifo_wr_ptr <= rdata_fifo_wr_ptr + 1'd1;
                     rdata_fifo_rd_ptr <= rdata_fifo_rd_ptr + 1'd1;
@@ -347,6 +347,21 @@ module gnrl_ram_pseudo_dual_axi #(
         end
     end
 
+    // 数据扩展逻辑：将RAM数据扩展到AXI数据宽度
+    wire [C_S_AXI_DATA_WIDTH-1:0] ram_rdata_extended;
+    generate
+        if (DATA_WIDTH == C_S_AXI_DATA_WIDTH) begin
+            // 数据宽度匹配，直接连接
+            assign ram_rdata_extended = ram_rdata;
+        end else if (DATA_WIDTH < C_S_AXI_DATA_WIDTH) begin
+            // RAM数据宽度小于AXI宽度，扩展到AXI宽度
+            assign ram_rdata_extended = {{(C_S_AXI_DATA_WIDTH-DATA_WIDTH){1'b0}}, ram_rdata};
+        end else begin
+            // RAM数据宽度大于AXI宽度，截取到AXI宽度
+            assign ram_rdata_extended = ram_rdata[C_S_AXI_DATA_WIDTH-1:0];
+        end
+    endgenerate
+
     // 生成RLAST信号的逻辑，如果当前传输计数等于总长度，则表示这是最后一个数据
     assign axi_rlast_signal = (axi_arlen_cntr == axi_arlen) ? 1'b1 : 1'b0;
 
@@ -355,7 +370,7 @@ module gnrl_ram_pseudo_dual_axi #(
     assign S_AXI_RID = fifo_arid[rfifo_rd_ptr];
     assign S_AXI_RRESP = 2'b00;  // OKAY
     assign S_AXI_RLAST = (rdata_fifo_count > 0) ? rdata_fifo_last[rdata_fifo_rd_ptr] : axi_rlast_signal;  // 使用FIFO中保存的最后一个标志
-    assign S_AXI_RDATA = (rdata_fifo_count > 0) ? rdata_fifo[rdata_fifo_rd_ptr] : ram_rdata;
+    assign S_AXI_RDATA = (rdata_fifo_count > 0) ? rdata_fifo[rdata_fifo_rd_ptr] : ram_rdata_extended;
 
     // 添加S_AXI_ARREADY的赋值逻辑
     // 当地址FIFO未满且当前没有正在进行的BURST传输时才接受新的读请求
@@ -514,7 +529,7 @@ module gnrl_ram_pseudo_dual_axi #(
     assign ram_waddr = (wr_fifo_count > 0) ? 
                        wr_fifo_addr[wfifo_rd_ptr][ADDR_WIDTH-1:0] : 
                        S_AXI_AWADDR[ADDR_WIDTH-1:0];
-    assign ram_wdata = S_AXI_WDATA;
+    assign ram_wdata = S_AXI_WDATA[DATA_WIDTH-1:0];
     assign ram_we_mask = S_AXI_WSTRB;
     assign ram_we = (S_AXI_WVALID && S_AXI_WREADY) ? 1'b1 : 1'b0;
 

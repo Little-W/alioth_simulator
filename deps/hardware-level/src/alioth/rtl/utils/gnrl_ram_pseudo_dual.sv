@@ -35,18 +35,20 @@ module gnrl_ram_pseudo_dual #(
     input wire rst_n,
 
     // 写端口
-    input wire                  we_i,       // write enable
-    input wire [           3:0] we_mask_i,  // 字节写入掩码 (byte write enable)
-    input wire [ADDR_WIDTH-1:0] waddr_i,    // write addr
-    input wire [DATA_WIDTH-1:0] data_i,     // write data
+    input wire                       we_i,       // write enable
+    input wire [(DATA_WIDTH/8)-1:0]  we_mask_i,  // 字节写入掩码 (byte write enable)
+    input wire [     ADDR_WIDTH-1:0] waddr_i,    // write addr
+    input wire [     DATA_WIDTH-1:0] data_i,     // write data
 
     // 读端口
     input  wire [ADDR_WIDTH-1:0] raddr_i,   // read addr
     output reg  [DATA_WIDTH-1:0] data_o     // read data
 );
 
-    // 字节地址到字地址转换的偏移量（每个字4字节，需要右移2位）
-    localparam ADDR_OFFSET = 2;
+    // 字节地址到字地址转换的偏移量
+    // 32位数据：每个字4字节，需要右移2位
+    // 64位数据：每个字8字节，需要右移3位
+    localparam ADDR_OFFSET = (DATA_WIDTH == 64) ? 3 : 2;
 
     // 自动计算深度 = 2^(ADDR_WIDTH - ADDR_OFFSET)，因为是按字寻址
     localparam DEPTH = (1 << (ADDR_WIDTH - ADDR_OFFSET));
@@ -56,7 +58,19 @@ module gnrl_ram_pseudo_dual #(
 
     initial begin
         if (INIT_MEM) begin
-            $readmemh(INIT_FILE, mem_r);
+            if (DATA_WIDTH == 64) begin
+                // 64位模式：从32位指令文件读取并组合成64位数据
+                reg [31:0] temp_mem[0:DEPTH*2-1];
+                integer i;
+                $readmemh(INIT_FILE, temp_mem);
+                for (i = 0; i < DEPTH; i = i + 1) begin
+                    // 组合两个连续的32位指令成64位：{inst1, inst0}
+                    mem_r[i] = {temp_mem[i*2+1], temp_mem[i*2]};
+                end
+            end else begin
+                // 非64位模式：直接读取
+                $readmemh(INIT_FILE, mem_r);
+            end
         end
     end
 
@@ -66,16 +80,17 @@ module gnrl_ram_pseudo_dual #(
     assign rword_addr = raddr_i[ADDR_WIDTH-1:ADDR_OFFSET];
     assign wword_addr = waddr_i[ADDR_WIDTH-1:ADDR_OFFSET];
 
-    // 写入逻辑
-    always @(posedge clk) begin
-        if (we_i == 1'b1) begin
-            // 根据掩码对每个字节单独处理
-            if (we_mask_i[0]) mem_r[wword_addr][7:0] <= data_i[7:0];
-            if (we_mask_i[1]) mem_r[wword_addr][15:8] <= data_i[15:8];
-            if (we_mask_i[2]) mem_r[wword_addr][23:16] <= data_i[23:16];
-            if (we_mask_i[3]) mem_r[wword_addr][31:24] <= data_i[31:24];
+    // 写入逻辑 - 支持任意DATA_WIDTH
+    genvar i;
+    generate
+        for (i = 0; i < (DATA_WIDTH/8); i = i + 1) begin : gen_write_mask
+            always @(posedge clk) begin
+                if (we_i == 1'b1 && we_mask_i[i]) begin
+                    mem_r[wword_addr][i*8+7:i*8] <= data_i[i*8+7:i*8];
+                end
+            end
         end
-    end
+    endgenerate
 
     // 同步读取逻辑
     always @(posedge clk) begin
