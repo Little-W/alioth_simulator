@@ -413,6 +413,7 @@ module cpu_top (
     wire [`DECINFO_WIDTH-1:0] dispatch_dec_info_bus_o;
     wire [`INST_ADDR_WIDTH-1:0] dispatch_inst_addr_o;
     wire [31:0] dispatch_inst_o;  // 修改为32位：指令内容输出
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_csr_commit_id_o;
 
     // dispatch to MEM
     wire dispatch_req_mem;
@@ -973,6 +974,7 @@ module cpu_top (
         .csr_raddr_o(dispatch_csr_raddr_o),
         .csr_reg_we_o(dispatch_csr_reg_we_o),
         .csr_reg_waddr_o(dispatch_csr_reg_waddr_o),
+        .csr_commit_id_o(dispatch_csr_commit_id_o),
 
         //to lsu
         .inst1_req_mem_o         (dispatch_req_mem),

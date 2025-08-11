@@ -226,7 +226,7 @@ module dispatch_pipe (
 
     // Fake_commit输出端口
     output wire req_fake_commit_o,
-    output wire [31:0] fake_commit_data_o
+    output wire [`COMMIT_ID_WIDTH-1:0] fake_commit_id_o
 );
 
     wire                        flush_en = |stall_flag_i;
@@ -1053,6 +1053,6 @@ module dispatch_pipe (
     );
     assign req_fake_commit_o = req_fake_commit;
 
-    assign fake_commit_data_o = flush_fakecommit_en ? fake_commit_data_i : 0;
+    assign fake_commit_id_o = flush_fakecommit_en ? commit_id_o : 3'b0;
 
 endmodule

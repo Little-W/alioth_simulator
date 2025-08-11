@@ -154,6 +154,7 @@ module dispatch (
     output wire [31:0] csr_raddr_o,
     output wire        csr_reg_we_o,
     output wire [31:0] csr_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_o,
 
     // dispatch to MEM (第一路)
     output wire                        inst1_req_mem_o,
@@ -681,7 +682,7 @@ module dispatch (
         .sys_op_dret_o      (pipe_inst1_sys_op_dret_o),
         //fake_commit信号，inst1的输出空置
         .req_fake_commit_o  (),
-        .fake_commit_id_o   ()
+        .fake_commit_id_o  ()
     );
 
     // 实例化dispatch_logic模块 (第二路)
@@ -952,6 +953,7 @@ module dispatch (
     assign csr_raddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_raddr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_raddr_o : 32'b0;
     assign csr_reg_we_o = pipe_inst1_req_csr_o ? inst1_reg_we_o : pipe_inst2_req_csr_o ? inst2_reg_we_o : 1'b0;
     assign csr_reg_waddr_o = pipe_inst1_req_csr_o ? inst1_reg_waddr_o : pipe_inst2_req_csr_o ? inst2_reg_waddr_o : 5'b0;
+    assign csr_commit_id_o = pipe_inst1_req_csr_o ? inst1_commit_id_o : pipe_inst2_req_csr_o ? inst2_commit_id_o : 3'b0;
 
     // BJP合并逻辑
     // 由于ICU已经处理了两个指令都是BJP的情况（通过RAW冒险检测），
