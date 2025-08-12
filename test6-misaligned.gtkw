@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Aug 12 09:04:38 2025
+[*] Tue Aug 12 14:32:18 2025
 [*]
 [dumpfile] "/home/sym/main/alioth_simulator/build/test_out/tb_top.vcd"
-[dumpfile_mtime] "Tue Aug 12 08:46:30 2025"
-[dumpfile_size] 858989
+[dumpfile_mtime] "Tue Aug 12 12:05:59 2025"
+[dumpfile_size] 887316
 [savefile] "/home/sym/main/alioth_simulator/test6-misaligned.gtkw"
-[timestart] 389
-[size] 2145 1373
-[pos] 796 -536
-*-5.000000 497 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 508
+[size] 1908 1143
+[pos] 274 37
+*-4.000000 576 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb_top.
 [treeopen] tb_top.alioth_soc_top_0.
 [treeopen] tb_top.alioth_soc_top_0.u_cpu_top.
@@ -22,12 +22,48 @@
 [sst_width] 330
 [signals_width] 351
 [sst_expanded] 1
-[sst_vpaned_height] 889
+[sst_vpaned_height] 717
 @28
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.clk
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.rst_n
-@22
+@c00023
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+@28
+(0)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(1)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(2)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(3)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(4)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(5)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(6)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(7)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(8)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(9)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(10)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(11)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(12)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(13)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(14)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(15)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(16)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(17)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(18)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(19)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(20)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(21)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(22)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(23)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(24)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(25)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(26)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(27)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(28)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(29)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(30)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+(31)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+@1401201
+-group_end
+@22
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst2_addr_o[31:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_o[31:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst2_o[31:0]
@@ -41,8 +77,44 @@ tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_axi_master.M_AXI_RREADY
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_axi_master.stall_axi_i
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.stall_flag_i[2:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.pc_misaligned
-@29
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_misaligned_o
+@c00022
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+@28
+(0)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(1)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(2)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(3)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(4)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(5)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(6)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(7)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(8)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(9)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(10)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(11)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(12)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(13)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(14)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(15)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(16)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(17)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(18)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(19)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(20)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(21)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(22)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(23)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(24)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(25)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(26)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(27)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(28)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(29)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(30)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+(31)tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.u_ifu_ifetch.pc_o[31:0]
+@1401200
+-group_end
 @200
 -
 @22
