@@ -76,11 +76,13 @@ module hdu (
     reg waw_hazard_inst1_fifo;  // inst1 写 与 FIFO 里未完成写回冲突
     reg waw_hazard_inst2_fifo;  // inst2 写 与 FIFO 里未完成写回冲突
     reg waw_hazard_inst2_inst1; // inst2 写 与 inst1 写同一寄存器
-    // reg inst1_jump; // 已移除，使用 jump_serialize 实现一拍序列化
     reg [2:0] pending_inst1_id;
     wire fifo_full;
-    // 新增：jump_serialize=1 表示当前拍因 jump/branch 进行单发射序列化（issue=01 & stall）
-    reg jump_serialize;
+    // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 当拍的单周期脉冲（只影响当拍）
+    // 移除原 jump_serialize 延后一拍策略
+    reg jump_detect_d1; // 上一拍检测寄存器
+    wire jump_detect_now = inst1_valid && (inst1_jump_i || inst1_branch_i);
+    wire jump_serialize_pulse = jump_detect_now & ~jump_detect_d1; // 首次检测当拍形成脉冲
 
     // 检测x0寄存器（x0忽略）
     wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inst1_valid;
@@ -145,12 +147,12 @@ module hdu (
     wire hazard_inst2_fifo  = raw_hazard_inst2_fifo  | waw_hazard_inst2_fifo;
     wire hazard_inst2_inst1 = raw_hazard_inst2_inst1 | waw_hazard_inst2_inst1;
 
-    // 发射控制逻辑（加入 jump_serialize 一拍序列化：检测到jump/branch首拍 issue=01 + stall，下一拍恢复）
+    // 发射控制逻辑：当拍检测到 jump/branch 立即序列化 issue=01，并仅持续一拍
     reg [1:0] issue_inst_reg;
     always @(*) begin
-        issue_inst_reg = 2'b11; // 默认
-        if (jump_serialize) begin
-            issue_inst_reg = 2'b01; // 第一拍：只发射A，暂停新发射
+        issue_inst_reg = 2'b11; // 默认双发射
+        if (jump_serialize_pulse) begin
+            issue_inst_reg = 2'b01; // 当拍序列化（只发射A）
         end else begin
             if (!hazard_inst1_fifo && !hazard_inst2_fifo) begin
                 if (hazard_inst2_inst1) issue_inst_reg = 2'b01; else issue_inst_reg = 2'b11;
@@ -214,14 +216,14 @@ module hdu (
     assign inst1_commit_id_o = (inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
     assign inst2_commit_id_o = (inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
 
-    // FIFO 与 序列化状态 更新
+    // FIFO 与 序列化状态 更新（仅记录上一拍跳转检测用于形成单拍脉冲）
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             for (int i = 0; i < 8; i = i + 1) begin
                 fifo_valid[i]   <= 1'b0;
                 fifo_rd_addr[i] <= 5'h0;
             end
-            jump_serialize <= 1'b0;
+            jump_detect_d1 <= 1'b0;
         end else begin
             if (commit_valid_i)  fifo_valid[commit_id_i]  <= 1'b0;
             if (commit_valid2_i) fifo_valid[commit_id2_i] <= 1'b0;
@@ -233,12 +235,7 @@ module hdu (
                 fifo_valid[next_id2]   <= inst2_rd_check;
                 fifo_rd_addr[next_id2] <= inst2_rd_addr;
             end
-            // jump_serialize 一拍状态机：检测到jump/branch -> 置1一拍；下一拍自动清零
-            if (jump_serialize) begin
-                jump_serialize <= 1'b0; // 第二拍恢复双发射
-            end else if (inst1_valid && (inst1_jump_i || inst1_branch_i)) begin
-                jump_serialize <= 1'b1; // 第一拍序列化
-            end
+            jump_detect_d1 <= jump_detect_now; // 保存上一拍
         end
         pending_inst1_id <= (inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;
     end
