@@ -103,7 +103,11 @@ module icu_issue (
     output wire        inst1_illegal_inst_o,
     output wire        inst2_illegal_inst_o,
     output wire        inst1_valid_o,
-    output wire        inst2_valid_o
+    output wire        inst2_valid_o,
+
+    // 新增：已发射且本拍指令未变化标志输出
+    output wire        inst1_already_issued_o,
+    output wire        inst2_already_issued_o
 );
 
         // 控制信号解析
@@ -148,36 +152,39 @@ module icu_issue (
     wire flush_en_1 = other_flush_en || (~issue_inst_i[0]) || (inst1_same_as_prev && prev_inst1_issued);
     wire flush_en_2 = other_flush_en || (~issue_inst_i[1]) || (inst2_same_as_prev && prev_inst2_issued);
 
+    assign inst1_already_issued_o = (inst1_same_as_prev && prev_inst1_issued);
+    assign inst2_already_issued_o = (inst2_same_as_prev && prev_inst2_issued);
+
     wire other_stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire update_output = ~other_stall_en; 
 
-    // 下一个时钟周期的指令信号 - 取消flush清零，仅在输出端进行flush屏蔽
-    wire [`INST_ADDR_WIDTH-1:0] nxt_inst1_addr = inst1_addr_i;
-    wire                        nxt_inst1_reg_we = inst1_reg_we_i;
-    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg_waddr = inst1_reg_waddr_i;
-    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg1_raddr = inst1_reg1_raddr_i;
-    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg2_raddr = inst1_reg2_raddr_i;
-    wire [ 31:0] nxt_inst1_csr_waddr = inst1_csr_waddr_i;
-    wire [ 31:0] nxt_inst1_csr_raddr = inst1_csr_raddr_i;
-    wire                        nxt_inst1_csr_we = inst1_csr_we_i;
-    wire [                31:0] nxt_inst1_dec_imm = inst1_dec_imm_i;
-    wire [  `DECINFO_WIDTH-1:0] nxt_inst1_dec_info_bus = inst1_dec_info_bus_i;
-    wire                        nxt_inst1_is_pred_branch = inst1_is_pred_branch_i;
-    wire [`INST_DATA_WIDTH-1:0] nxt_inst1 = inst1_i;
+    // 下一个时钟周期的指令信号 - 将flush作用在nxt阶段
+    wire [`INST_ADDR_WIDTH-1:0] nxt_inst1_addr = flush_en_1 ? {`INST_ADDR_WIDTH{1'b0}} : inst1_addr_i;
+    wire                        nxt_inst1_reg_we = flush_en_1 ? 1'b0 : inst1_reg_we_i;
+    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg_waddr = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg_waddr_i;
+    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg1_raddr = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg1_raddr_i;
+    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst1_reg2_raddr = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg2_raddr_i;
+    wire [ 31:0] nxt_inst1_csr_waddr = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_waddr_i;
+    wire [ 31:0] nxt_inst1_csr_raddr = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_raddr_i;
+    wire                        nxt_inst1_csr_we = flush_en_1 ? 1'b0 : inst1_csr_we_i;
+    wire [                31:0] nxt_inst1_dec_imm = flush_en_1 ? 32'b0 : inst1_dec_imm_i;
+    wire [  `DECINFO_WIDTH-1:0] nxt_inst1_dec_info_bus = flush_en_1 ? {`DECINFO_WIDTH{1'b0}} : inst1_dec_info_bus_i;
+    wire                        nxt_inst1_is_pred_branch = flush_en_1 ? 1'b0 : inst1_is_pred_branch_i;
+    wire [`INST_DATA_WIDTH-1:0] nxt_inst1 = flush_en_1 ? {`INST_DATA_WIDTH{1'b0}} : inst1_i;
 
-    // 去掉对inst2路径的flush_en_i_2阶段清零，改为与inst1一致仅在输出端flush
-    wire [`INST_ADDR_WIDTH-1:0] nxt_inst2_addr = inst2_addr_i;
-    wire                        nxt_inst2_reg_we = inst2_reg_we_i;
-    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg_waddr = inst2_reg_waddr_i;
-    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg1_raddr = inst2_reg1_raddr_i;
-    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg2_raddr = inst2_reg2_raddr_i;
-    wire [ 31:0] nxt_inst2_csr_waddr = inst2_csr_waddr_i;
-    wire [ 31:0] nxt_inst2_csr_raddr = inst2_csr_raddr_i;
-    wire                        nxt_inst2_csr_we = inst2_csr_we_i;
-    wire [                31:0] nxt_inst2_dec_imm = inst2_dec_imm_i;
-    wire [  `DECINFO_WIDTH-1:0] nxt_inst2_dec_info_bus = inst2_dec_info_bus_i;
-    wire                        nxt_inst2_is_pred_branch = inst2_is_pred_branch_i;
-    wire [`INST_DATA_WIDTH-1:0] nxt_inst2 = inst2_i;
+    // inst2路径flush提前
+    wire [`INST_ADDR_WIDTH-1:0] nxt_inst2_addr = flush_en_2 ? {`INST_ADDR_WIDTH{1'b0}} : inst2_addr_i;
+    wire                        nxt_inst2_reg_we = flush_en_2 ? 1'b0 : inst2_reg_we_i;
+    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg_waddr = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg_waddr_i;
+    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg1_raddr = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg1_raddr_i;
+    wire [ `REG_ADDR_WIDTH-1:0] nxt_inst2_reg2_raddr = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg2_raddr_i;
+    wire [ 31:0] nxt_inst2_csr_waddr = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_waddr_i;
+    wire [ 31:0] nxt_inst2_csr_raddr = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_raddr_i;
+    wire                        nxt_inst2_csr_we = flush_en_2 ? 1'b0 : inst2_csr_we_i;
+    wire [                31:0] nxt_inst2_dec_imm = flush_en_2 ? 32'b0 : inst2_dec_imm_i;
+    wire [  `DECINFO_WIDTH-1:0] nxt_inst2_dec_info_bus = flush_en_2 ? {`DECINFO_WIDTH{1'b0}} : inst2_dec_info_bus_i;
+    wire                        nxt_inst2_is_pred_branch = flush_en_2 ? 1'b0 : inst2_is_pred_branch_i;
+    wire [`INST_DATA_WIDTH-1:0] nxt_inst2 = flush_en_2 ? {`INST_DATA_WIDTH{1'b0}} : inst2_i;
     
 
     // 指令1地址寄存器
@@ -189,7 +196,7 @@ module icu_issue (
         nxt_inst1_addr,
         inst1_addr
     );
-    assign inst1_addr_o = flush_en_1 ? {`INST_ADDR_WIDTH{1'b0}} : inst1_addr;
+    assign inst1_addr_o = inst1_addr;
 
     // 指令1寄存器写使能寄存器
     wire inst1_reg_we;
@@ -200,7 +207,7 @@ module icu_issue (
         nxt_inst1_reg_we,
         inst1_reg_we
     );
-    assign inst1_reg_we_o = flush_en_1 ? 1'b0 : inst1_reg_we;
+    assign inst1_reg_we_o = inst1_reg_we;
 
     // 指令1寄存器写地址寄存器
     wire [`REG_ADDR_WIDTH-1:0] inst1_reg_waddr;
@@ -211,7 +218,7 @@ module icu_issue (
         nxt_inst1_reg_waddr,
         inst1_reg_waddr
     );
-    assign inst1_reg_waddr_o = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg_waddr;
+    assign inst1_reg_waddr_o = inst1_reg_waddr;
 
     // 指令1寄存器1读地址寄存器
     wire [`REG_ADDR_WIDTH-1:0] inst1_reg1_raddr;
@@ -222,7 +229,7 @@ module icu_issue (
         nxt_inst1_reg1_raddr,
         inst1_reg1_raddr
     );
-    assign inst1_reg1_raddr_o = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg1_raddr;
+    assign inst1_reg1_raddr_o = inst1_reg1_raddr;
 
     // 指令1寄存器2读地址寄存器
     wire [`REG_ADDR_WIDTH-1:0] inst1_reg2_raddr;
@@ -233,7 +240,7 @@ module icu_issue (
         nxt_inst1_reg2_raddr,
         inst1_reg2_raddr
     );
-    assign inst1_reg2_raddr_o = flush_en_1 ? {`REG_ADDR_WIDTH{1'b0}} : inst1_reg2_raddr;
+    assign inst1_reg2_raddr_o = inst1_reg2_raddr;
 
     // 指令1 CSR写地址寄存器
     wire [31:0] inst1_csr_waddr;
@@ -244,7 +251,7 @@ module icu_issue (
         nxt_inst1_csr_waddr,
         inst1_csr_waddr
     );
-    assign inst1_csr_waddr_o = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_waddr;
+    assign inst1_csr_waddr_o = inst1_csr_waddr;
 
     // 指令1 CSR读地址寄存器
     wire [31:0] inst1_csr_raddr;
@@ -255,7 +262,7 @@ module icu_issue (
         nxt_inst1_csr_raddr,
         inst1_csr_raddr
     );
-    assign inst1_csr_raddr_o = flush_en_1 ? {`BUS_ADDR_WIDTH{1'b0}} : inst1_csr_raddr;
+    assign inst1_csr_raddr_o = inst1_csr_raddr;
 
     // 指令1 CSR写使能寄存器
     wire inst1_csr_we;
@@ -266,7 +273,7 @@ module icu_issue (
         nxt_inst1_csr_we,
         inst1_csr_we
     );
-    assign inst1_csr_we_o = flush_en_1 ? 1'b0 : inst1_csr_we;
+    assign inst1_csr_we_o = inst1_csr_we;
 
     // 指令1立即数寄存器
     wire [31:0] inst1_dec_imm;
@@ -277,7 +284,7 @@ module icu_issue (
         nxt_inst1_dec_imm,
         inst1_dec_imm
     );
-    assign inst1_dec_imm_o = flush_en_1 ? 32'b0 : inst1_dec_imm;
+    assign inst1_dec_imm_o = inst1_dec_imm;
 
     // 指令1译码信息总线寄存器
     wire [`DECINFO_WIDTH-1:0] inst1_dec_info_bus;
@@ -288,7 +295,7 @@ module icu_issue (
         nxt_inst1_dec_info_bus,
         inst1_dec_info_bus
     );
-    assign inst1_dec_info_bus_o = flush_en_1 ? {`DECINFO_WIDTH{1'b0}} : inst1_dec_info_bus;
+    assign inst1_dec_info_bus_o = inst1_dec_info_bus;
 
     // 指令1预测分支寄存器
     wire inst1_is_pred_branch;
@@ -299,7 +306,7 @@ module icu_issue (
         nxt_inst1_is_pred_branch,
         inst1_is_pred_branch
     );
-    assign inst1_is_pred_branch_o = flush_en_1 ? 1'b0 : inst1_is_pred_branch;
+    assign inst1_is_pred_branch_o = inst1_is_pred_branch;
 
     wire [`INST_DATA_WIDTH-1:0] inst1;
     gnrl_dfflr #(`INST_DATA_WIDTH) inst1_ff (
@@ -309,7 +316,7 @@ module icu_issue (
         nxt_inst1,
         inst1
     );
-    assign inst1_o = flush_en_1 ? {`INST_DATA_WIDTH{1'b0}} : inst1; // 输出端flush
+    assign inst1_o = inst1;
 
     // 指令2地址寄存器
     wire [`INST_ADDR_WIDTH-1:0] inst2_addr;
@@ -320,7 +327,7 @@ module icu_issue (
         nxt_inst2_addr,
         inst2_addr
     );
-    assign inst2_addr_o = flush_en_2 ? {`INST_ADDR_WIDTH{1'b0}} : inst2_addr;
+    assign inst2_addr_o = inst2_addr;
 
     // 指令2寄存器写使能寄存器
     wire inst2_reg_we;
@@ -331,7 +338,7 @@ module icu_issue (
         nxt_inst2_reg_we,
         inst2_reg_we
     );
-    assign inst2_reg_we_o = flush_en_2 ? 1'b0 : inst2_reg_we;
+    assign inst2_reg_we_o = inst2_reg_we;
 
     // 指令2寄存器写地址寄存器
     wire [`REG_ADDR_WIDTH-1:0] inst2_reg_waddr;
@@ -342,7 +349,7 @@ module icu_issue (
         nxt_inst2_reg_waddr,
         inst2_reg_waddr
     );
-    assign inst2_reg_waddr_o = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg_waddr;
+    assign inst2_reg_waddr_o = inst2_reg_waddr;
 
     // 指令2寄存器1读地址寄存器
     wire [`REG_ADDR_WIDTH-1:0] inst2_reg1_raddr;
@@ -353,7 +360,7 @@ module icu_issue (
         nxt_inst2_reg1_raddr,
         inst2_reg1_raddr
     );
-    assign inst2_reg1_raddr_o = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg1_raddr;
+    assign inst2_reg1_raddr_o = inst2_reg1_raddr;
 
     // 指令2寄存器2读地址寄存器
     wire [`REG_ADDR_WIDTH-1:0] inst2_reg2_raddr;
@@ -364,7 +371,7 @@ module icu_issue (
         nxt_inst2_reg2_raddr,
         inst2_reg2_raddr
     );
-    assign inst2_reg2_raddr_o = flush_en_2 ? {`REG_ADDR_WIDTH{1'b0}} : inst2_reg2_raddr;
+    assign inst2_reg2_raddr_o = inst2_reg2_raddr;
 
     // 指令2 CSR写地址寄存器
     wire [31:0] inst2_csr_waddr;
@@ -375,7 +382,7 @@ module icu_issue (
         nxt_inst2_csr_waddr,
         inst2_csr_waddr
     );
-    assign inst2_csr_waddr_o = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_waddr;
+    assign inst2_csr_waddr_o = inst2_csr_waddr;
 
     // 指令2 CSR读地址寄存器
     wire [31:0] inst2_csr_raddr;
@@ -386,7 +393,7 @@ module icu_issue (
         nxt_inst2_csr_raddr,
         inst2_csr_raddr
     );
-    assign inst2_csr_raddr_o = flush_en_2 ? {`BUS_ADDR_WIDTH{1'b0}} : inst2_csr_raddr;
+    assign inst2_csr_raddr_o = inst2_csr_raddr;
 
     // 指令2 CSR写使能寄存器
     wire inst2_csr_we;
@@ -397,7 +404,7 @@ module icu_issue (
         nxt_inst2_csr_we,
         inst2_csr_we
     );
-    assign inst2_csr_we_o = flush_en_2 ? 1'b0 : inst2_csr_we;
+    assign inst2_csr_we_o = inst2_csr_we;
 
     // 指令2立即数寄存器
     wire [31:0] inst2_dec_imm;
@@ -408,7 +415,7 @@ module icu_issue (
         nxt_inst2_dec_imm,
         inst2_dec_imm
     );
-    assign inst2_dec_imm_o = flush_en_2 ? 32'b0 : inst2_dec_imm;
+    assign inst2_dec_imm_o = inst2_dec_imm;
 
     // 指令2译码信息总线寄存器
     wire [`DECINFO_WIDTH-1:0] inst2_dec_info_bus;
@@ -419,7 +426,7 @@ module icu_issue (
         nxt_inst2_dec_info_bus,
         inst2_dec_info_bus
     );
-    assign inst2_dec_info_bus_o = flush_en_2 ? {`DECINFO_WIDTH{1'b0}} : inst2_dec_info_bus;
+    assign inst2_dec_info_bus_o = inst2_dec_info_bus;
 
     // 指令2预测分支寄存器
     wire inst2_is_pred_branch;
@@ -430,7 +437,7 @@ module icu_issue (
         nxt_inst2_is_pred_branch,
         inst2_is_pred_branch
     );
-    assign inst2_is_pred_branch_o = flush_en_2 ? 1'b0 : inst2_is_pred_branch;
+    assign inst2_is_pred_branch_o = inst2_is_pred_branch;
 
     wire [`INST_DATA_WIDTH-1:0] inst2;
     gnrl_dfflr #(`INST_DATA_WIDTH) inst2_ff (   
@@ -440,12 +447,12 @@ module icu_issue (
         nxt_inst2,
         inst2
     );
-    assign inst2_o = flush_en_2 ? {`INST_DATA_WIDTH{1'b0}} : inst2; // 输出端flush
+    assign inst2_o = inst2;
 
     // 流水线寄存器实现
 
     // commit ID寄存器实现 (取消nxt阶段flush, 输出端屏蔽)
-    wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_nxt = hdu_inst1_commit_id_i; 
+    wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_nxt = flush_en_1 ? {`COMMIT_ID_WIDTH{1'b0}} : hdu_inst1_commit_id_i; 
     wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_reg;
     gnrl_dfflr #(`COMMIT_ID_WIDTH) inst1_commit_id_ff (
         clk,
@@ -454,9 +461,9 @@ module icu_issue (
         inst1_commit_id_nxt,
         inst1_commit_id_reg
     );
-    assign inst1_commit_id_o = flush_en_1 ? {`COMMIT_ID_WIDTH{1'b0}} : inst1_commit_id_reg;
+    assign inst1_commit_id_o = inst1_commit_id_reg;
 
-    wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_nxt = hdu_inst2_commit_id_i;
+    wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_nxt = flush_en_2 ? {`COMMIT_ID_WIDTH{1'b0}} : hdu_inst2_commit_id_i;
     wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_reg;
     gnrl_dfflr #(`COMMIT_ID_WIDTH) inst2_commit_id_ff (
         clk,
@@ -465,9 +472,9 @@ module icu_issue (
         inst2_commit_id_nxt,
         inst2_commit_id_reg
     );
-    assign inst2_commit_id_o = flush_en_2 ? {`COMMIT_ID_WIDTH{1'b0}} : inst2_commit_id_reg;
+    assign inst2_commit_id_o = inst2_commit_id_reg;
 
-    wire inst1_illegal_inst_nxt = inst1_illegal_inst_i;
+    wire inst1_illegal_inst_nxt = flush_en_1 ? 1'b0 : inst1_illegal_inst_i;
     wire inst1_illegal_inst_reg;
     gnrl_dfflr #(1) inst1_illegal_inst_ff (
         clk,
@@ -476,9 +483,9 @@ module icu_issue (
         inst1_illegal_inst_nxt,
         inst1_illegal_inst_reg
     );
-    assign inst1_illegal_inst_o = flush_en_1 ? 1'b0 : inst1_illegal_inst_reg;
+    assign inst1_illegal_inst_o = inst1_illegal_inst_reg;
 
-    wire inst2_illegal_inst_nxt = inst2_illegal_inst_i;
+    wire inst2_illegal_inst_nxt = flush_en_2 ? 1'b0 : inst2_illegal_inst_i;
     wire inst2_illegal_inst_reg;
     gnrl_dfflr #(1) inst2_illegal_inst_ff (
         clk,
@@ -487,9 +494,9 @@ module icu_issue (
         inst2_illegal_inst_nxt,
         inst2_illegal_inst_reg
     );
-    assign inst2_illegal_inst_o = flush_en_2 ? 1'b0 : inst2_illegal_inst_reg;
+    assign inst2_illegal_inst_o = inst2_illegal_inst_reg;
 
-    wire inst1_valid_nxt = issue_inst_i[0];
+    wire inst1_valid_nxt = flush_en_1 ? 1'b0 : issue_inst_i[0];
     wire inst1_valid_reg;
     gnrl_dfflr #(1) inst1_valid_ff (
         clk,
@@ -498,9 +505,9 @@ module icu_issue (
         inst1_valid_nxt,
         inst1_valid_reg
     );
-    assign inst1_valid_o = flush_en_1 ? 1'b0 : inst1_valid_reg;
+    assign inst1_valid_o = inst1_valid_reg;
 
-    wire inst2_valid_nxt = issue_inst_i[1];
+    wire inst2_valid_nxt = flush_en_2 ? 1'b0 : issue_inst_i[1];
     wire inst2_valid_reg;
     gnrl_dfflr #(1) inst2_valid_ff (
         clk,
@@ -509,6 +516,6 @@ module icu_issue (
         inst2_valid_nxt,
         inst2_valid_reg
     );
-    assign inst2_valid_o = flush_en_2 ? 1'b0 : inst2_valid_reg;
+    assign inst2_valid_o = inst2_valid_reg;
 
 endmodule

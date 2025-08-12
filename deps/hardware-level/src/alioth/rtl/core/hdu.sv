@@ -35,6 +35,8 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] inst1_rs1_addr,  // 指令1读寄存器1地址
     input wire [`REG_ADDR_WIDTH-1:0] inst1_rs2_addr,  // 指令1读寄存器2地址
     input wire                       inst1_rd_we,     // 指令1是否写寄存器
+    // 新增：已发射保持标志（来自issue stage），若已发射则不再参与FIFO冒险判断
+    input wire                       inst1_already_issued_i,
 
     // 指令2信息（标签2）
     input wire                       inst2_valid,      // 指令2有效
@@ -42,6 +44,7 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] inst2_rs1_addr,  // 指令2读寄存器1地址
     input wire [`REG_ADDR_WIDTH-1:0] inst2_rs2_addr,  // 指令2读寄存器2地址
     input wire                       inst2_rd_we,     // 指令2是否写寄存器
+    input wire                       inst2_already_issued_i,
 
     // 指令完成信号
     input wire                        commit_valid_i,  // 指令执行完成有效信号
@@ -81,17 +84,19 @@ module hdu (
     // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
     // 首拍通过 jump_edge 保证立即生效
     reg jump_detect_d1; // 上一拍检测寄存器
-    wire jump_detect_now = inst1_valid && (inst1_jump_i || inst1_branch_i);
+    wire jump_detect_now = inner_inst1_valid && (inst1_jump_i || inst1_branch_i);
     wire jump_edge = jump_detect_now & ~jump_detect_d1; // 首次检测到的边沿
     reg jump_serialize_pulse; // 改为保持寄存器
 
     // 检测x0寄存器（x0忽略）
-    wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inst1_valid;
-    wire inst1_rs2_check = (inst1_rs2_addr != 5'h0) && inst1_valid;
-    wire inst1_rd_check  = (inst1_rd_addr  != 5'h0) && inst1_rd_we && inst1_valid;
-    wire inst2_rs1_check = (inst2_rs1_addr != 5'h0) && inst2_valid;
-    wire inst2_rs2_check = (inst2_rs2_addr != 5'h0) && inst2_valid;
-    wire inst2_rd_check  = (inst2_rd_addr  != 5'h0) && inst2_rd_we && inst2_valid;
+    wire inner_inst1_valid = inst1_valid && ~inst1_already_issued_i; // 已发射保持时不再参与冒险
+    wire inner_inst2_valid = inst2_valid && ~inst2_already_issued_i;
+    wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inner_inst1_valid;
+    wire inst1_rs2_check = (inst1_rs2_addr != 5'h0) && inner_inst1_valid;
+    wire inst1_rd_check  = (inst1_rd_addr  != 5'h0) && inst1_rd_we && inner_inst1_valid;
+    wire inst2_rs1_check = (inst2_rs1_addr != 5'h0) && inner_inst2_valid;
+    wire inst2_rs2_check = (inst2_rs2_addr != 5'h0) && inner_inst2_valid;
+    wire inst2_rd_check  = (inst2_rd_addr  != 5'h0) && inst2_rd_we && inner_inst2_valid;
     // wire jump_true = jump_flag_i; // 不再需要
 
     // 冒险检测逻辑（RAW + 新增 WAW）
@@ -226,8 +231,8 @@ module hdu (
                           (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : 3'd6))))))) :
                       next_id1;
 
-    assign inst1_commit_id_o = (inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
-    assign inst2_commit_id_o = (inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
+    assign inst1_commit_id_o = (inner_inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
+    assign inst2_commit_id_o = (inner_inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
 
     // FIFO 与 序列化状态 更新（仅记录上一拍跳转检测用于形成单拍脉冲）
     always @(posedge clk or negedge rst_n) begin
@@ -257,7 +262,7 @@ module hdu (
             end
             jump_detect_d1 <= jump_detect_now; // 保存上一拍
         end
-        pending_inst1_id <= (inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;
+        pending_inst1_id <= (inner_inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;
     end
 
     // 原子锁：FIFO 中尚有未完成指令

@@ -119,6 +119,8 @@ module icu (
     wire [1:0] issue_inst;
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst1_commit_id_o; 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_o;
+    wire inst1_already_issued;
+    wire inst2_already_issued;
 
 
     // 实例化hdu模块
@@ -132,14 +134,16 @@ module icu (
         .inst1_rs1_addr         (inst1_reg1_raddr_i),
         .inst1_rs2_addr         (inst1_reg2_raddr_i),
         .inst1_rd_we            (inst1_reg_we_i),
-        
+        .inst1_already_issued_i (inst1_already_issued),
+
         // 指令2输入信号
         .inst2_valid            (inst2_valid_i),
         .inst2_rd_addr          (inst2_reg_waddr_i),
         .inst2_rs1_addr         (inst2_reg1_raddr_i),
         .inst2_rs2_addr         (inst2_reg2_raddr_i),
         .inst2_rd_we            (inst2_reg_we_i),
-        
+        .inst2_already_issued_i (inst2_already_issued),
+
         // 指令完成信号
         .commit_valid_i         (commit_valid_i),
         .commit_id_i            (commit_id_i),
@@ -245,7 +249,9 @@ module icu (
         .inst1_illegal_inst_o   (inst1_illegal_inst_o),
         .inst2_illegal_inst_o   (inst2_illegal_inst_o),
         .inst1_valid_o          (inst1_valid_o),
-        .inst2_valid_o          (inst2_valid_o)
+        .inst2_valid_o          (inst2_valid_o),
+        .inst1_already_issued_o (inst1_already_issued),
+        .inst2_already_issued_o (inst2_already_issued)
     );
 
 endmodule

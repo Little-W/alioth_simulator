@@ -229,7 +229,7 @@ module dispatch_pipe (
     output wire [`COMMIT_ID_WIDTH-1:0] fake_commit_id_o
 );
 
-    wire                        flush_en = |stall_flag_i;
+    wire                        flush_en = stall_flag_i[`CU_FLUSH];
     wire                        flush_fakecommit_en = stall_flag_i[`CU_FLUSH];
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];

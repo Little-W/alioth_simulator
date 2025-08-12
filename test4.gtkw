@@ -1,0 +1,101 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue Aug 12 06:11:37 2025
+[*]
+[dumpfile] "/home/sym/main/alioth_simulator/build/test_out/tb_top.vcd"
+[dumpfile_mtime] "Tue Aug 12 05:51:44 2025"
+[dumpfile_size] 800477
+[savefile] "/home/sym/main/alioth_simulator/test4.gtkw"
+[timestart] 203
+[size] 1981 1062
+[pos] -874 -250
+*-5.000000 267 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_top.
+[treeopen] tb_top.alioth_soc_top_0.
+[treeopen] tb_top.alioth_soc_top_0.u_cpu_top.
+[treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.
+[treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_icu.
+[treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.
+[treeopen] tb_top.alioth_soc_top_0.u_perip_top.
+[sst_width] 330
+[signals_width] 351
+[sst_expanded] 1
+[sst_vpaned_height] 659
+@28
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.clk
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.rst_n
+@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_addr_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst2_addr_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst1_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.inst2_o[31:0]
+@200
+-
+@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_idu.inst1_addr_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_idu.inst2_addr_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_idu.inst1_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_idu.inst2_o[31:0]
+@200
+-
+@28
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.hazard_inst1_fifo
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.hazard_inst2_fifo
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.hazard_inst2_inst1
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.jump_flag_i
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.jump_serialize_pulse
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.new_issue_stall_o
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.issue_inst_o[1:0]
+@200
+-
+@28
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.raw_hazard_inst1_fifo
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.waw_hazard_inst1_fifo
+@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.inst1_rs2_addr[4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.inst1_rs1_addr[4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[0][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[1][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[2][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[3][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[4][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[5][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[6][4:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.fifo_rd_addr[7][4:0]
+@28
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.commit_valid_i
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.commit_valid2_i
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_hdu.commit_id_i[2:0]
+@200
+-
+@28
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.clk
+@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_csr_raddr[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2[31:0]
+@c00022
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_i[4:0]
+@28
+(0)tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_i[4:0]
+(1)tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_i[4:0]
+(2)tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_i[4:0]
+(3)tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_i[4:0]
+(4)tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_i[4:0]
+@1401200
+-group_end
+@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_reg_waddr_o[4:0]
+@200
+-
+@28
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.req_csr_o
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.pipe_inst1_req_csr_o
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.pipe_inst2_req_csr_o
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.u_inst2_dispatch_logic.req_csr_o
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.u_inst2_dispatch_pipe.req_csr_i
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.u_inst2_dispatch_pipe.req_csr_o
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.u_inst2_dispatch_pipe.stall_flag_i[2:0]
+@29
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.u_inst2_dispatch_pipe.flush_en
+[pattern_trace] 1
+[pattern_trace] 0
