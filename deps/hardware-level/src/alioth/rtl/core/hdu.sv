@@ -78,11 +78,12 @@ module hdu (
     reg waw_hazard_inst2_inst1; // inst2 写 与 inst1 写同一寄存器
     reg [2:0] pending_inst1_id;
     wire fifo_full;
-    // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 当拍的单周期脉冲（只影响当拍）
-    // 移除原 jump_serialize 延后一拍策略
+    // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
+    // 首拍通过 jump_edge 保证立即生效
     reg jump_detect_d1; // 上一拍检测寄存器
     wire jump_detect_now = inst1_valid && (inst1_jump_i || inst1_branch_i);
-    wire jump_serialize_pulse = jump_detect_now & ~jump_detect_d1; // 首次检测当拍形成脉冲
+    wire jump_edge = jump_detect_now & ~jump_detect_d1; // 首次检测到的边沿
+    reg jump_serialize_pulse; // 改为保持寄存器
 
     // 检测x0寄存器（x0忽略）
     wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inst1_valid;
@@ -147,21 +148,33 @@ module hdu (
     wire hazard_inst2_fifo  = raw_hazard_inst2_fifo  | waw_hazard_inst2_fifo;
     wire hazard_inst2_inst1 = raw_hazard_inst2_inst1 | waw_hazard_inst2_inst1;
 
-    // 发射控制逻辑：当拍检测到 jump/branch 立即序列化 issue=01，并仅持续一拍
+    // 发射控制逻辑：按优先级判断 hazard 与 jump_serialize_effect
     reg [1:0] issue_inst_reg;
+    wire jump_serialize_effect = jump_edge | jump_serialize_pulse; // 组合效果
     always @(*) begin
-        issue_inst_reg = 2'b11; // 默认双发射
-        if (jump_serialize_pulse) begin
-            issue_inst_reg = 2'b01; // 当拍序列化（只发射A）
-        end else begin
-            if (!hazard_inst1_fifo && !hazard_inst2_fifo) begin
-                if (hazard_inst2_inst1) issue_inst_reg = 2'b01; else issue_inst_reg = 2'b11;
-            end else if (hazard_inst1_fifo && !hazard_inst2_fifo) begin
-                if (hazard_inst2_inst1) issue_inst_reg = 2'b00; else issue_inst_reg = 2'b10;
-            end else if (!hazard_inst1_fifo && hazard_inst2_fifo) begin
-                issue_inst_reg = 2'b01;
+        // 默认设为 11 默认双发射
+        issue_inst_reg = 2'b11;
+        if (hazard_inst1_fifo) begin
+            if (jump_serialize_effect) begin
+                issue_inst_reg = 2'b00;         // inst1 有 FIFO 冒险且需要序列化 -> 全停
             end else begin
-                issue_inst_reg = 2'b00;
+                if (!hazard_inst2_fifo) begin
+                    if (!hazard_inst2_inst1)    issue_inst_reg = 2'b10; // 只发射 B
+                    else                        issue_inst_reg = 2'b00; // 相关 -> 全停
+                end else begin
+                    issue_inst_reg = 2'b00;     // 两侧或 B 也有 FIFO 冒险 -> 全停
+                end
+            end
+        end else begin // inst1 无 FIFO 冒险
+            if (jump_serialize_effect) begin
+                issue_inst_reg = 2'b01;         // 序列化：仅发射 A
+            end else begin
+                if (!hazard_inst2_fifo) begin
+                    if (!hazard_inst2_inst1)    issue_inst_reg = 2'b11; // 双发射
+                    else                        issue_inst_reg = 2'b01; // B 依赖 A -> 只发射 A
+                end else begin
+                    issue_inst_reg = 2'b01;     // B 有 FIFO 冒险 -> 只发 A
+                end
             end
         end
     end
@@ -224,6 +237,7 @@ module hdu (
                 fifo_rd_addr[i] <= 5'h0;
             end
             jump_detect_d1 <= 1'b0;
+            jump_serialize_pulse <= 1'b0;
         end else begin
             if (commit_valid_i)  fifo_valid[commit_id_i]  <= 1'b0;
             if (commit_valid2_i) fifo_valid[commit_id2_i] <= 1'b0;
@@ -234,6 +248,12 @@ module hdu (
             if (inst2_valid && issue_inst_o[1]) begin
                 fifo_valid[next_id2]   <= inst2_rd_check;
                 fifo_rd_addr[next_id2] <= inst2_rd_addr;
+            end
+            // jump_serialize_pulse 保持逻辑：检测到跳转置 1；若仍存在 inst1 与 FIFO 冒险则保持；冒险解除后清零
+            if (jump_edge) begin
+                jump_serialize_pulse <= 1'b1;
+            end else if (jump_serialize_pulse && !hazard_inst1_fifo) begin
+                jump_serialize_pulse <= 1'b0;
             end
             jump_detect_d1 <= jump_detect_now; // 保存上一拍
         end
