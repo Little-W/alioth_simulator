@@ -101,7 +101,7 @@ module ifu (
     wire pc_misaligned;  // 新增：PC非对齐信号
 
     wire axi_pc_stall;
-    wire stall_axi = (stall_flag_i != 0) | pc_misaligned;  // AXI暂停信号，增加pc_misaligned
+    wire stall_axi = (stall_flag_i != 0);  // AXI暂停信号，移除pc_misaligned
     wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
     wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
