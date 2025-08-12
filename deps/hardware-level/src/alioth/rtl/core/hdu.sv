@@ -80,7 +80,6 @@ module hdu (
     reg waw_hazard_inst2_fifo;  // inst2 写 与 FIFO 里未完成写回冲突
     reg waw_hazard_inst2_inst1; // inst2 写 与 inst1 写同一寄存器
     reg [2:0] pending_inst1_id;
-    wire fifo_full;
     // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
     // 首拍通过 jump_edge 保证立即生效
     reg jump_detect_d1; // 上一拍检测寄存器
@@ -188,49 +187,52 @@ module hdu (
     assign new_issue_stall_o = ((issue_inst_reg != 2'b11) || fifo_full) ? 1'b1 : 1'b0;
     assign issue_inst_o = fifo_full ? 2'b00 : issue_inst_reg;
 
-    // FIFO满
-    assign fifo_full = &fifo_valid;
-
+    // FIFO满 (忽略 index 0，因其保留)
+    // assign fifo_full = &fifo_valid; // 旧逻辑
+    wire fifo_full; // 前置声明位置保持不变
     // ID 分配
     wire [2:0] next_id1, next_id2;
     wire can_alloc_two;
-    wire [3:0] fifo_used_count = fifo_valid[0] + fifo_valid[1] + fifo_valid[2] + fifo_valid[3] +
-                                 fifo_valid[4] + fifo_valid[5] + fifo_valid[6] + fifo_valid[7];
-    assign can_alloc_two = (fifo_used_count <= 6);
-    assign next_id1 = inst1_valid ? ((~fifo_valid[0]) ? 3'd0 :
-                      (~fifo_valid[1]) ? 3'd1 :
+    // 仅统计 1..7 七个有效槽位
+    wire [3:0] fifo_used_count = fifo_valid[1] + fifo_valid[2] + fifo_valid[3] + fifo_valid[4] +
+                                 fifo_valid[5] + fifo_valid[6] + fifo_valid[7];
+    // 当已使用 <=5 时，说明剩余至少 2 个空槽位，可双分配
+    assign can_alloc_two = (fifo_used_count <= 4'd5);
+
+    // 选择最先空闲的 1..7 槽位；若全部占用则给 0（后续因 fifo_full=1 会阻止发射）
+    assign next_id1 = inst1_valid ? ((~fifo_valid[1]) ? 3'd1 :
                       (~fifo_valid[2]) ? 3'd2 :
                       (~fifo_valid[3]) ? 3'd3 :
                       (~fifo_valid[4]) ? 3'd4 :
                       (~fifo_valid[5]) ? 3'd5 :
                       (~fifo_valid[6]) ? 3'd6 :
                       (~fifo_valid[7]) ? 3'd7 : 3'd0) : 3'd0;
+
+    // 基于 next_id1 的 next_id2 选择（循环扫描 1..7，跳过已选的 next_id1）
     assign next_id2 = (inst2_valid && can_alloc_two) ?
-                      ((next_id1 == 3'd0) ? 
-                          (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : 
-                          (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : 3'd7)))))) :
-                       (next_id1 == 3'd1) ?
-                          (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : 
+                      ((next_id1 == 3'd1) ?
+                          (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 :
                           (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 : 3'd0)))))) :
                        (next_id1 == 3'd2) ?
-                          (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : 
-                          (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 : (~fifo_valid[0] ? 3'd0 : 3'd1)))))) :
+                          (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 :
+                          (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 : (~fifo_valid[1] ? 3'd1 : 3'd0)))))) :
                        (next_id1 == 3'd3) ?
-                          (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : 
-                          (~fifo_valid[7] ? 3'd7 : (~fifo_valid[0] ? 3'd0 : (~fifo_valid[1] ? 3'd1 : 3'd2)))))) :
+                          (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 :
+                          (~fifo_valid[7] ? 3'd7 : (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : 3'd0)))))) :
                        (next_id1 == 3'd4) ?
-                          (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 : 
-                          (~fifo_valid[0] ? 3'd0 : (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : 3'd3)))))) :
+                          (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 :
+                          (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : 3'd0)))))) :
                        (next_id1 == 3'd5) ?
-                          (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 : (~fifo_valid[0] ? 3'd0 : 
-                          (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : 3'd4)))))) :
+                          (~fifo_valid[6] ? 3'd6 : (~fifo_valid[7] ? 3'd7 : (~fifo_valid[1] ? 3'd1 :
+                          (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : 3'd0)))))) :
                        (next_id1 == 3'd6) ?
-                          (~fifo_valid[7] ? 3'd7 : (~fifo_valid[0] ? 3'd0 : (~fifo_valid[1] ? 3'd1 : 
-                          (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : 3'd5)))))) :
-                          (~fifo_valid[0] ? 3'd0 : (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : 
-                          (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : 3'd6))))))) :
+                          (~fifo_valid[7] ? 3'd7 : (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 :
+                          (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : 3'd0)))))) :
+                          (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 :
+                          (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : 3'd0))))))) :
                       next_id1;
 
+    // 输出时若未发射或无效则为 0；有效永不输出 0
     assign inst1_commit_id_o = (inner_inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
     assign inst2_commit_id_o = (inner_inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
 
@@ -244,13 +246,15 @@ module hdu (
             jump_detect_d1 <= 1'b0;
             jump_serialize_pulse <= 1'b0;
         end else begin
-            if (commit_valid_i)  fifo_valid[commit_id_i]  <= 1'b0;
-            if (commit_valid2_i) fifo_valid[commit_id2_i] <= 1'b0;
-            if (inst1_valid && issue_inst_o[0]) begin
-                fifo_valid[next_id1]   <= inst1_rd_check; // 仅写指令进入
+            // 释放时忽略 commit_id == 0（理论上不会出现）
+            if (commit_valid_i  && commit_id_i  != 3'd0) fifo_valid[commit_id_i]  <= 1'b0;
+            if (commit_valid2_i && commit_id2_i != 3'd0) fifo_valid[commit_id2_i] <= 1'b0;
+            // 分配：永不写 index 0
+            if (inst1_valid && issue_inst_o[0] && next_id1 != 3'd0) begin
+                fifo_valid[next_id1]   <= inst1_rd_check;
                 fifo_rd_addr[next_id1] <= inst1_rd_addr;
             end
-            if (inst2_valid && issue_inst_o[1]) begin
+            if (inst2_valid && issue_inst_o[1] && next_id2 != 3'd0) begin
                 fifo_valid[next_id2]   <= inst2_rd_check;
                 fifo_rd_addr[next_id2] <= inst2_rd_addr;
             end
@@ -262,7 +266,8 @@ module hdu (
             end
             jump_detect_d1 <= jump_detect_now; // 保存上一拍
         end
-        pending_inst1_id <= (inner_inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;
+        // pending_inst1_id 逻辑保持，但不会出现 0 分配导致的依赖问题
+        pending_inst1_id <= (inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;
     end
 
     // 原子锁：FIFO 中尚有未完成指令

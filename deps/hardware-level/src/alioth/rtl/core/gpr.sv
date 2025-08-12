@@ -92,11 +92,23 @@ module gpr (
         end
     endgenerate
 
-    // 4路读寄存器输出
-    // 如果读地址为零寄存器，则返回零
-    assign inst1_rs1_rdata_o = (inst1_rs1_raddr_i == `ZeroReg) ? `ZeroWord : regs[inst1_rs1_raddr_i];
-    assign inst1_rs2_rdata_o = (inst1_rs2_raddr_i == `ZeroReg) ? `ZeroWord : regs[inst1_rs2_raddr_i];
-    assign inst2_rs1_rdata_o = (inst2_rs1_raddr_i == `ZeroReg) ? `ZeroWord : regs[inst2_rs1_raddr_i];
-    assign inst2_rs2_rdata_o = (inst2_rs2_raddr_i == `ZeroReg) ? `ZeroWord : regs[inst2_rs2_raddr_i];
+    // 4路读寄存器输出 (加入同周期写前递逻辑)
+    // 优先级: ZeroReg 判定 > 写端口1匹配 > 写端口2匹配 > 寄存器阵列值
+    assign inst1_rs1_rdata_o = (inst1_rs1_raddr_i == `ZeroReg) ? `ZeroWord :
+                               (we1_i && (waddr1_i == inst1_rs1_raddr_i)) ? wdata1_i :
+                               (we2_i && (waddr2_i == inst1_rs1_raddr_i)) ? wdata2_i :
+                               regs[inst1_rs1_raddr_i];
+    assign inst1_rs2_rdata_o = (inst1_rs2_raddr_i == `ZeroReg) ? `ZeroWord :
+                               (we1_i && (waddr1_i == inst1_rs2_raddr_i)) ? wdata1_i :
+                               (we2_i && (waddr2_i == inst1_rs2_raddr_i)) ? wdata2_i :
+                               regs[inst1_rs2_raddr_i];
+    assign inst2_rs1_rdata_o = (inst2_rs1_raddr_i == `ZeroReg) ? `ZeroWord :
+                               (we1_i && (waddr1_i == inst2_rs1_raddr_i)) ? wdata1_i :
+                               (we2_i && (waddr2_i == inst2_rs1_raddr_i)) ? wdata2_i :
+                               regs[inst2_rs1_raddr_i];
+    assign inst2_rs2_rdata_o = (inst2_rs2_raddr_i == `ZeroReg) ? `ZeroWord :
+                               (we1_i && (waddr1_i == inst2_rs2_raddr_i)) ? wdata1_i :
+                               (we2_i && (waddr2_i == inst2_rs2_raddr_i)) ? wdata2_i :
+                               regs[inst2_rs2_raddr_i];
 
 endmodule
