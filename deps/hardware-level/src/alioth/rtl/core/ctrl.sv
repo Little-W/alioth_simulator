@@ -43,6 +43,9 @@ module ctrl (
     // from hdu
     input wire stall_flag_hdu_i,
 
+    // 新增：from agu
+    input wire agu_stall_req_i,
+
     output wire [`CU_BUS_WIDTH-1:0] stall_flag_o,
 
     // to pc_reg
@@ -67,5 +70,7 @@ module ctrl (
     assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | (stall_flag_hdu_i & ~jump_flag_i);
     assign stall_flag_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i;
     assign stall_flag_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
+    // 新增AGU暂停信号
+    assign stall_flag_o[`CU_AGU_STALL] = agu_stall_req_i;
 
 endmodule

@@ -63,13 +63,13 @@ module wbu (
     input wire                       csr_reg_we_i,     // 新增：csr写回使能输入
 
     // 来自EXU的LSU数据
-    input wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_i,
+    input wire [`FREG_DATA_WIDTH-1:0] lsu_reg_wdata_i,
     input wire                        lsu_reg_we_i,
     input wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_i,  // LSU指令ID，修改为3位
 
     // 来自EXU的FPU数据
-    input wire [`REG_DATA_WIDTH-1:0] fpu_reg_wdata_i,
+    input wire [`FREG_DATA_WIDTH-1:0] fpu_reg_wdata_i,
     input wire fpu_reg_we_i,
     input wire [`REG_ADDR_WIDTH-1:0] fpu_reg_waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] fpu_commit_id_i,  // FPU指令ID
@@ -105,10 +105,13 @@ module wbu (
     wire [`COMMIT_ID_WIDTH-1:0] mul_fifo_commit_id, div_fifo_commit_id, alu_fifo_commit_id, csr_fifo_commit_id, fpu_int_fifo_commit_id;
     wire mul_fifo_push, mul_fifo_pop, div_fifo_push, div_fifo_pop, alu_fifo_push, alu_fifo_pop, csr_fifo_push, csr_fifo_pop, fpu_int_fifo_push, fpu_int_fifo_pop;
     wire mul_fifo_full, mul_fifo_empty, div_fifo_full, div_fifo_empty, alu_fifo_full, alu_fifo_empty, csr_fifo_full, csr_fifo_empty, fpu_int_fifo_full, fpu_int_fifo_empty;
-    wire [$clog2(FIFO_DEPTH):0] mul_fifo_count, div_fifo_count, alu_fifo_count, csr_fifo_count, fpu_int_fifo_count;
+    wire [$clog2(
+FIFO_DEPTH
+):0] mul_fifo_count, div_fifo_count, alu_fifo_count, csr_fifo_count, fpu_int_fifo_count;
 
     reg_wb_fifo #(
-        .FIFO_DEPTH(FIFO_DEPTH)
+        .FIFO_DEPTH    (FIFO_DEPTH),
+        .REG_DATA_WIDTH(`REG_DATA_WIDTH)
     ) mul_fifo_inst (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -126,7 +129,8 @@ module wbu (
     );
 
     reg_wb_fifo #(
-        .FIFO_DEPTH(FIFO_DEPTH)
+        .FIFO_DEPTH    (FIFO_DEPTH),
+        .REG_DATA_WIDTH(`REG_DATA_WIDTH)
     ) div_fifo_inst (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -144,7 +148,8 @@ module wbu (
     );
 
     reg_wb_fifo #(
-        .FIFO_DEPTH(FIFO_DEPTH)
+        .FIFO_DEPTH    (FIFO_DEPTH),
+        .REG_DATA_WIDTH(`REG_DATA_WIDTH)
     ) alu_fifo_inst (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -162,7 +167,8 @@ module wbu (
     );
 
     reg_wb_fifo #(
-        .FIFO_DEPTH(FIFO_DEPTH)
+        .FIFO_DEPTH    (FIFO_DEPTH),
+        .REG_DATA_WIDTH(`REG_DATA_WIDTH)
     ) csr_fifo_inst (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -181,7 +187,8 @@ module wbu (
 
     // FPU写回整数寄存器时的独立FIFO
     reg_wb_fifo #(
-        .FIFO_DEPTH(FIFO_DEPTH)
+        .FIFO_DEPTH    (FIFO_DEPTH),
+        .REG_DATA_WIDTH(`REG_DATA_WIDTH)
     ) fpu_int_fifo_inst (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -199,6 +206,7 @@ module wbu (
     );
 
     // 浮点写回相关FIFO
+    // 浮点写回相关FIFO
     wire [ `REG_DATA_WIDTH-1:0] fpu_fp_fifo_wdata;
     wire [ `REG_ADDR_WIDTH-1:0] fpu_fp_fifo_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] fpu_fp_fifo_commit_id;
@@ -207,7 +215,8 @@ module wbu (
     wire [$clog2(FIFO_DEPTH):0] fpu_fp_fifo_count;
 
     reg_wb_fifo #(
-        .FIFO_DEPTH(FIFO_DEPTH)
+        .FIFO_DEPTH    (FIFO_DEPTH),
+        .REG_DATA_WIDTH(`FREG_DATA_WIDTH)
     ) fpu_fp_fifo_inst (
         .clk        (clk),
         .rst_n      (rst_n),
@@ -252,8 +261,8 @@ module wbu (
 
     // === 整数寄存器写回仲裁 ===
     // 优先级: lsu > mul_fifo > div_fifo > fpu_int_fifo > alu_fifo > csr_fifo > mul > div > fpu_int > alu > csr
-    wire mul_fifo_en      = !mul_fifo_empty      && !lsu_int_active;
-    wire div_fifo_en      = !div_fifo_empty      && !lsu_int_active && mul_fifo_empty;
+    wire mul_fifo_en = !mul_fifo_empty && !lsu_int_active;
+    wire div_fifo_en = !div_fifo_empty && !lsu_int_active && mul_fifo_empty;
     wire fpu_int_fifo_en  = !fpu_int_fifo_empty  && !lsu_int_active && mul_fifo_empty && div_fifo_empty;
     wire alu_fifo_en      = !alu_fifo_empty      && !lsu_int_active && mul_fifo_empty && div_fifo_empty && fpu_int_fifo_empty;
     wire csr_fifo_en      = !csr_fifo_empty      && !lsu_int_active && mul_fifo_empty && div_fifo_empty && fpu_int_fifo_empty && alu_fifo_empty;
@@ -272,22 +281,22 @@ module wbu (
 
     // === FIFO操作控制（优先级与仲裁一致） ===
     assign mul_fifo_push = mul_int_active && mul_ready_o && (lsu_int_active || any_int_fifo_valid);
-    assign mul_fifo_pop  = mul_fifo_en;
+    assign mul_fifo_pop = mul_fifo_en;
 
     assign div_fifo_push = div_int_active && div_ready_o && (lsu_int_active || mul_int_active || any_int_fifo_valid);
-    assign div_fifo_pop  = div_fifo_en;
+    assign div_fifo_pop = div_fifo_en;
 
     assign fpu_int_fifo_push = fpu_int_active && fpu_ready_o && (lsu_int_active || mul_int_active || div_int_active || any_int_fifo_valid);
-    assign fpu_int_fifo_pop  = fpu_int_fifo_en;
+    assign fpu_int_fifo_pop = fpu_int_fifo_en;
 
     assign alu_fifo_push = alu_int_active && alu_ready_o && (lsu_int_active || mul_int_active || div_int_active || fpu_int_active || any_int_fifo_valid);
-    assign alu_fifo_pop  = alu_fifo_en;
+    assign alu_fifo_pop = alu_fifo_en;
 
     assign csr_fifo_push = csr_int_active && csr_ready_o && (lsu_int_active || mul_int_active || div_int_active || fpu_int_active || alu_int_active || any_int_fifo_valid);
-    assign csr_fifo_pop  = csr_fifo_en;
+    assign csr_fifo_pop = csr_fifo_en;
 
     assign fpu_fp_fifo_push = fpu_fp_active && fpu_ready_o && (lsu_fp_active || any_fp_fifo_valid);
-    assign fpu_fp_fifo_pop  = fpu_fp_fifo_en;
+    assign fpu_fp_fifo_pop = fpu_fp_fifo_en;
 
     // === 整数寄存器写数据和地址多路选择器 ===
     wire [ `REG_DATA_WIDTH-1:0] int_reg_wdata_r;
@@ -338,20 +347,20 @@ module wbu (
                           mul_int_en || div_int_en || alu_int_en || csr_int_en || fpu_int_en || lsu_int_active;
 
     // === 浮点寄存器写数据和地址多路选择器 ===
-    wire [ `REG_DATA_WIDTH-1:0] fp_reg_wdata_r;
-    wire [ `REG_ADDR_WIDTH-1:0] fp_reg_waddr_r;
+    wire [`FREG_DATA_WIDTH-1:0] fp_reg_wdata_r;
+    wire [`FREG_ADDR_WIDTH-1:0] fp_reg_waddr_r;
     wire [`COMMIT_ID_WIDTH-1:0] fp_commit_id_r;
     wire                        fp_reg_we_r;
 
     assign fp_reg_wdata_r =
-        ({`REG_DATA_WIDTH{lsu_fp_active}}       & lsu_reg_wdata_i)   |
-        ({`REG_DATA_WIDTH{fpu_fp_fifo_en}}      & fpu_fp_fifo_wdata) |
-        ({`REG_DATA_WIDTH{fpu_fp_en}}           & fpu_reg_wdata_i);
+        ({`FREG_DATA_WIDTH{lsu_fp_active}}       & lsu_reg_wdata_i)   |
+        ({`FREG_DATA_WIDTH{fpu_fp_fifo_en}}      & fpu_fp_fifo_wdata) |
+        ({`FREG_DATA_WIDTH{fpu_fp_en}}           & fpu_reg_wdata_i);
 
     assign fp_reg_waddr_r =
-        ({`REG_ADDR_WIDTH{lsu_fp_active}}       & lsu_reg_waddr_i)   |
-        ({`REG_ADDR_WIDTH{fpu_fp_fifo_en}}      & fpu_fp_fifo_waddr) |
-        ({`REG_ADDR_WIDTH{fpu_fp_en}}           & fpu_reg_waddr_i);
+        ({`FREG_ADDR_WIDTH{lsu_fp_active}}       & lsu_reg_waddr_i[`FREG_ADDR_WIDTH-1:0])   |
+        ({`FREG_ADDR_WIDTH{fpu_fp_fifo_en}}      & fpu_fp_fifo_waddr[`FREG_ADDR_WIDTH-1:0]) |
+        ({`FREG_ADDR_WIDTH{fpu_fp_en}}           & fpu_reg_waddr_i[`FREG_ADDR_WIDTH-1:0]);
 
     assign fp_commit_id_r =
         ({`COMMIT_ID_WIDTH{lsu_fp_active}}      & lsu_commit_id_i)   |
@@ -368,7 +377,7 @@ module wbu (
     reg                        int_reg_we_ff;
 
     // 浮点寄存器流水寄存器
-    reg [ `REG_DATA_WIDTH-1:0] fp_reg_wdata_ff;
+    reg [`FREG_DATA_WIDTH-1:0] fp_reg_wdata_ff;
     reg [ `REG_ADDR_WIDTH-1:0] fp_reg_waddr_ff;
     reg [`COMMIT_ID_WIDTH-1:0] fp_commit_id_ff;
     reg                        fp_reg_we_ff;

@@ -38,7 +38,9 @@ module clint (
     // from ex
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
-    input wire                        atom_opt_busy_i, // 原子操作忙标志
+    input wire                        atom_opt_busy_i,  // 原子操作忙标志
+    input wire                        agu_atom_lock_i,  // AGU原子锁标志
+
 
     // 添加系统操作输入端口
     input wire sys_op_ecall_i,
@@ -155,7 +157,8 @@ module clint (
     // wire exception_or_int = exception_req_r | int_req_r;
     wire exception_or_int = exception_req | int_req;
     wire int_pending = (int_state == S_INT_PENDING);
-    wire exception_or_int_valid = (exception_or_int && !exu_stall_i && inst_valid_i);
+    wire exception_or_int_valid = (exception_or_int && !exu_stall_i &&
+                                  !agu_atom_lock_i && inst_valid_i);
 
     assign int_assert_o      = int_pending;
 

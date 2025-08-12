@@ -43,12 +43,12 @@ module exu (
     input wire [                31:0] dec_imm_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
-    input wire alu_wb_ready_i,   // ALU写回握手信号
-    input wire mul_wb_ready_i,   // MUL写回握手信号
-    input wire div_wb_ready_i,   // DIV写回握手信号
-    input wire csr_wb_ready_i,   // CSR写回握手信号
-    input wire is_pred_branch_i, // 添加预测分支指令标志输入
-    input wire fpu_wb_ready_i,     // FPU写回握手信号
+    input wire alu_wb_ready_i,    // ALU写回握手信号
+    input wire mul_wb_ready_i,    // MUL写回握手信号
+    input wire div_wb_ready_i,    // DIV写回握手信号
+    input wire csr_wb_ready_i,    // CSR写回握手信号
+    input wire is_pred_branch_i,  // 添加预测分支指令标志输入
+    input wire fpu_wb_ready_i,    // FPU写回握手信号
 
     // from regs
     input wire [`REG_DATA_WIDTH-1:0] reg1_rdata_i,
@@ -64,30 +64,33 @@ module exu (
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
 
     // dispatch to FPU
-    input wire        req_fpu_i,
-    input wire        fpu_op_fadd_s_i,
-    input wire        fpu_op_fsub_s_i,
-    input wire        fpu_op_fmul_s_i,
-    input wire        fpu_op_fdiv_s_i,
-    input wire        fpu_op_fsqrt_s_i,
-    input wire        fpu_op_fsgnj_s_i,
-    input wire        fpu_op_fmax_s_i,
-    input wire        fpu_op_fcmp_s_i,
-    input wire        fpu_op_fcvt_f2i_s_i,
-    input wire        fpu_op_fcvt_i2f_s_i,
-    input wire        fpu_op_fmadd_s_i,
-    input wire        fpu_op_fmsub_s_i,
-    input wire        fpu_op_fnmadd_s_i,
-    input wire        fpu_op_fnmsub_s_i,
-    input wire        fpu_op_fmv_i2f_s_i,
-    input wire        fpu_op_fmv_f2i_s_i,
-    input wire        fpu_op_fclass_s_i,
-    input wire [31:0] fpu_op1_i,
-    input wire [31:0] fpu_op2_i,
-    input wire [31:0] fpu_op3_i,
-    input wire [ 2:0] frm_i,
-    input wire [ 1:0] fcvt_op_i,
-    input wire [ 2:0] csr_frm_i,
+    input wire                         req_fpu_i,
+    input wire                         fpu_op_fadd_i,
+    input wire                         fpu_op_fsub_i,
+    input wire                         fpu_op_fmul_i,
+    input wire                         fpu_op_fdiv_i,
+    input wire                         fpu_op_fsqrt_i,
+    input wire                         fpu_op_fsgnj_i,
+    input wire                         fpu_op_fmax_i,
+    input wire                         fpu_op_fcmp_i,
+    input wire                         fpu_op_fcvt_f2i_i,
+    input wire                         fpu_op_fcvt_i2f_i,
+    input wire                         fpu_op_fcvt_f2f_i,  // 新增fcvt_f2f输入
+    input wire                         fpu_op_fmadd_i,
+    input wire                         fpu_op_fmsub_i,
+    input wire                         fpu_op_fnmadd_i,
+    input wire                         fpu_op_fnmsub_i,
+    input wire                         fpu_op_fmv_i2f_i,
+    input wire                         fpu_op_fmv_f2i_i,
+    input wire                         fpu_op_fclass_i,
+    input wire  [`FREG_DATA_WIDTH-1:0] fpu_op1_i,
+    input wire  [`FREG_DATA_WIDTH-1:0] fpu_op2_i,
+    input wire  [`FREG_DATA_WIDTH-1:0] fpu_op3_i,
+    input wire  [                 2:0] frm_i,
+    input wire  [                 1:0] fcvt_op_i,
+    input wire  [                 2:0] csr_frm_i,
+    // 新增FPU格式信号
+    input logic [                 1:0] fmt_i,
 
     // dispatch to BJP
     input wire        req_bjp_i,
@@ -143,10 +146,15 @@ module exu (
     input wire                        mem_op_load_i,
     input wire                        mem_op_store_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
+    input wire [ `REG_ADDR_WIDTH-1:0] mem_reg_waddr_i,  // 新增：输入寄存器写地址
+
+    // 64位指令支持 - 改为接收AGU拆分后的信号
+    input wire        mem_op_ldl_i,  // 64位加载低位指令
+    input wire        mem_op_ldh_i,  // 64位加载高位指令
     // 新增：直接访存信号
-    input wire [                31:0] mem_addr_i,
-    input wire [                31:0] mem_wdata_i,
-    input wire [                 3:0] mem_wmask_i,
+    input wire [31:0] mem_addr_i,
+    input wire [31:0] mem_wdata_i,
+    input wire [ 3:0] mem_wmask_i,
 
     // dispatch to SYS
     input wire sys_op_nop_i,
@@ -175,13 +183,13 @@ module exu (
     output wire [ `REG_ADDR_WIDTH-1:0] div_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] div_commit_id_o,
 
-    output wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_o,
-    output wire                        lsu_reg_we_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_o,
+    output wire [`DOUBLE_REG_WIDTH-1:0] lsu_reg_wdata_o,
+    output wire                         lsu_reg_we_o,
+    output wire [  `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_o,
+    output wire [ `COMMIT_ID_WIDTH-1:0] lsu_commit_id_o,
 
     // FPU输出
-    output wire [ `REG_DATA_WIDTH-1:0] fpu_reg_wdata_o,
+    output wire [`FREG_DATA_WIDTH-1:0] fpu_reg_wdata_o,
     output wire                        fpu_reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] fpu_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] fpu_commit_id_o,
@@ -326,11 +334,12 @@ module exu (
         .mem_op_lw_i   (mem_op_lw_i),
         .mem_op_lbu_i  (mem_op_lbu_i),
         .mem_op_lhu_i  (mem_op_lhu_i),
-        .mem_op_ldl_i  (1'b0), // 未实现
-        .mem_op_ldh_i  (1'b0), // 未实现
         .mem_op_load_i (mem_op_load_i),
         .mem_op_store_i(mem_op_store_i),
-        .rd_addr_i     (reg_waddr_i),
+        // 64位指令支持信号连接
+        .mem_op_ldl_i  (mem_op_ldl_i),
+        .mem_op_ldh_i  (mem_op_ldh_i),
+        .rd_addr_i     (mem_reg_waddr_i),
         .mem_addr_i    (mem_addr_i),
         .mem_wdata_i   (mem_wdata_i),
         .mem_wmask_i   (mem_wmask_i),
@@ -413,30 +422,30 @@ module exu (
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
-        .rst_n             (rst_n),
-        .req_bjp_i         (req_bjp_i),
-        .bjp_op_jal_i      (bjp_op_jal_i),
-        .bjp_op_beq_i      (bjp_op_beq_i),
-        .bjp_op_bne_i      (bjp_op_bne_i),
-        .bjp_op_blt_i      (bjp_op_blt_i),
-        .bjp_op_bltu_i     (bjp_op_bltu_i),
-        .bjp_op_bge_i      (bjp_op_bge_i),
-        .bjp_op_bgeu_i     (bjp_op_bgeu_i),
-        .bjp_op_jalr_i     (bjp_op_jalr_i),
-        .is_pred_branch_i  (is_pred_branch_i),     // 新增：预测分支指令标志输入
+        .rst_n                (rst_n),
+        .req_bjp_i            (req_bjp_i),
+        .bjp_op_jal_i         (bjp_op_jal_i),
+        .bjp_op_beq_i         (bjp_op_beq_i),
+        .bjp_op_bne_i         (bjp_op_bne_i),
+        .bjp_op_blt_i         (bjp_op_blt_i),
+        .bjp_op_bltu_i        (bjp_op_bltu_i),
+        .bjp_op_bge_i         (bjp_op_bge_i),
+        .bjp_op_bgeu_i        (bjp_op_bgeu_i),
+        .bjp_op_jalr_i        (bjp_op_jalr_i),
+        .is_pred_branch_i     (is_pred_branch_i),       // 新增：预测分支指令标志输入
         // 新增信号
-        .bjp_adder_result_i    (bjp_adder_result_i),
-        .bjp_next_pc_i         (bjp_next_pc_i),
-        .op1_eq_op2_i          (op1_eq_op2_i),
-        .op1_ge_op2_signed_i   (op1_ge_op2_signed_i),
-        .op1_ge_op2_unsigned_i (op1_ge_op2_unsigned_i),
-        .sys_op_fence_i    (sys_op_fence_i),
-        .int_assert_i      (int_assert_i),
-        .int_addr_i        (int_addr_i),
-        .jump_flag_o       (bru_jump_flag),
-        .jump_addr_o       (bru_jump_addr),
+        .bjp_adder_result_i   (bjp_adder_result_i),
+        .bjp_next_pc_i        (bjp_next_pc_i),
+        .op1_eq_op2_i         (op1_eq_op2_i),
+        .op1_ge_op2_signed_i  (op1_ge_op2_signed_i),
+        .op1_ge_op2_unsigned_i(op1_ge_op2_unsigned_i),
+        .sys_op_fence_i       (sys_op_fence_i),
+        .int_assert_i         (int_assert_i),
+        .int_addr_i           (int_addr_i),
+        .jump_flag_o          (bru_jump_flag),
+        .jump_addr_o          (bru_jump_addr),
         // 新增：连接misaligned_fetch信号
-        .misaligned_fetch_o(misaligned_fetch_bru)
+        .misaligned_fetch_o   (misaligned_fetch_bru)
     );
 
     // CSR处理单元模块例化
@@ -514,43 +523,46 @@ module exu (
 
     // FPU模块例化
     exu_fpu u_fpu (
-        .clk                (clk),
-        .rst_n              (rst_n),
-        .req_fpu_i          (req_fpu_i),
-        .fpu_op_fadd_s_i    (fpu_op_fadd_s_i),
-        .fpu_op_fsub_s_i    (fpu_op_fsub_s_i),
-        .fpu_op_fmul_s_i    (fpu_op_fmul_s_i),
-        .fpu_op_fdiv_s_i    (fpu_op_fdiv_s_i),
-        .fpu_op_fsqrt_s_i   (fpu_op_fsqrt_s_i),
-        .fpu_op_fsgnj_s_i   (fpu_op_fsgnj_s_i),
-        .fpu_op_fmax_s_i    (fpu_op_fmax_s_i),
-        .fpu_op_fcmp_s_i    (fpu_op_fcmp_s_i),
-        .fpu_op_fcvt_f2i_s_i(fpu_op_fcvt_f2i_s_i),
-        .fpu_op_fcvt_i2f_s_i(fpu_op_fcvt_i2f_s_i),
-        .fpu_op_fmadd_s_i   (fpu_op_fmadd_s_i),
-        .fpu_op_fmsub_s_i   (fpu_op_fmsub_s_i),
-        .fpu_op_fnmadd_s_i  (fpu_op_fnmadd_s_i),
-        .fpu_op_fnmsub_s_i  (fpu_op_fnmsub_s_i),
-        .fpu_op_fmv_i2f_s_i (fpu_op_fmv_i2f_s_i),
-        .fpu_op_fmv_f2i_s_i (fpu_op_fmv_f2i_s_i),
-        .fpu_op_fclass_s_i  (fpu_op_fclass_s_i),
-        .fpu_op1_i          (fpu_op1_i),
-        .fpu_op2_i          (fpu_op2_i),
-        .fpu_op3_i          (fpu_op3_i),
-        .frm_i              (frm_i),
-        .fcvt_op_i          (fcvt_op_i),
-        .csr_frm_i          (csr_frm_i),
-        .commit_id_i        (commit_id_i),
-        .reg_waddr_i        (reg_waddr_i),
-        .wb_ready_i         (fpu_wb_ready_i),
-        .reg_we_o           (fpu_reg_we_o),
-        .reg_waddr_o        (fpu_reg_waddr_o),
-        .reg_wdata_o        (fpu_reg_wdata_o),
-        .fcsr_we_o          (fcsr_we_o),
-        .fcsr_fflags_o      (fcsr_fflags_o),
-        .fflags_pending_o   (fflags_pending),
-        .fpu_stall_o        (fpu_stall),
-        .commit_id_o        (fpu_commit_id_o)
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .req_fpu_i        (req_fpu_i),
+        .fpu_op_fadd_i    (fpu_op_fadd_i),
+        .fpu_op_fsub_i    (fpu_op_fsub_i),
+        .fpu_op_fmul_i    (fpu_op_fmul_i),
+        .fpu_op_fdiv_i    (fpu_op_fdiv_i),
+        .fpu_op_fsqrt_i   (fpu_op_fsqrt_i),
+        .fpu_op_fsgnj_i   (fpu_op_fsgnj_i),
+        .fpu_op_fmax_i    (fpu_op_fmax_i),
+        .fpu_op_fcmp_i    (fpu_op_fcmp_i),
+        .fpu_op_fcvt_f2i_i(fpu_op_fcvt_f2i_i),
+        .fpu_op_fcvt_i2f_i(fpu_op_fcvt_i2f_i),
+        .fpu_op_fcvt_f2f_i(fpu_op_fcvt_f2f_i),  // 新增fcvt_f2f连线
+        .fpu_op_fmadd_i   (fpu_op_fmadd_i),
+        .fpu_op_fmsub_i   (fpu_op_fmsub_i),
+        .fpu_op_fnmadd_i  (fpu_op_fnmadd_i),
+        .fpu_op_fnmsub_i  (fpu_op_fnmsub_i),
+        .fpu_op_fmv_i2f_i (fpu_op_fmv_i2f_i),
+        .fpu_op_fmv_f2i_i (fpu_op_fmv_f2i_i),
+        .fpu_op_fclass_i  (fpu_op_fclass_i),
+        .fpu_op1_i        (fpu_op1_i),
+        .fpu_op2_i        (fpu_op2_i),
+        .fpu_op3_i        (fpu_op3_i),
+        .frm_i            (frm_i),
+        .fcvt_op_i        (fcvt_op_i),
+        .csr_frm_i        (csr_frm_i),
+        // 新增FPU格式信号连接
+        .fmt_i            (fmt_i),
+        .commit_id_i      (commit_id_i),
+        .reg_waddr_i      (reg_waddr_i),
+        .wb_ready_i       (fpu_wb_ready_i),
+        .reg_we_o         (fpu_reg_we_o),
+        .reg_waddr_o      (fpu_reg_waddr_o),
+        .reg_wdata_o      (fpu_reg_wdata_o),
+        .fcsr_we_o        (fcsr_we_o),
+        .fcsr_fflags_o    (fcsr_fflags_o),
+        .fflags_pending_o (fflags_pending),
+        .fpu_stall_o      (fpu_stall),
+        .commit_id_o      (fpu_commit_id_o)
     );
 
     assign mul_reg_wdata_o = mul_reg_wdata;
@@ -564,13 +576,13 @@ module exu (
     assign div_commit_id_o = div_commit_id;
 
     assign stall_flag_o = mul_stall_flag | div_stall_flag | alu_stall | csr_stall | mem_stall_o | fpu_stall;
-    assign jump_flag_o        = bru_jump_flag || int_jump_i;
-    assign jump_addr_o        = int_jump_i ? int_addr_i : bru_jump_addr;
+    assign jump_flag_o = bru_jump_flag || int_jump_i;
+    assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
 
     // 将SYS操作信号连接到输出
-    assign exu_op_ecall_o     = sys_op_ecall_i;
-    assign exu_op_ebreak_o    = sys_op_ebreak_i;
-    assign exu_op_mret_o      = sys_op_mret_i;
+    assign exu_op_ecall_o = sys_op_ecall_i;
+    assign exu_op_ebreak_o = sys_op_ebreak_i;
+    assign exu_op_mret_o = sys_op_mret_i;
 
     // 新增：misaligned_fetch信号输出
     assign misaligned_fetch_o = misaligned_fetch_bru;

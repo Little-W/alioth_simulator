@@ -56,7 +56,7 @@ module exu_lsu #(
 
     // 新增的输入信号，直接提供写数据相关信号
     input wire [                 31:0] mem_addr_i,
-    input wire [`REG_DATA_WIDTH*2-1:0] mem_wdata_i,
+    input wire [`DOUBLE_REG_WIDTH-1:0] mem_wdata_i,
 
     input wire [3:0] mem_wmask_i,
 
@@ -72,7 +72,7 @@ module exu_lsu #(
     output wire mem_busy_o,
 
     // 寄存器写回接口
-    output wire [`REG_DATA_WIDTH*2-1:0] reg_wdata_o,
+    output wire [`DOUBLE_REG_WIDTH-1:0] reg_wdata_o,
     output wire                         reg_we_o,
     output wire [  `REG_ADDR_WIDTH-1:0] reg_waddr_o,
 
@@ -426,11 +426,11 @@ module exu_lsu #(
     end
 
     // 64位数据拼接逻辑
-    wire [`REG_DATA_WIDTH*2-1:0] current_reg_wdata_64bit = {axi_read_data, ld_low_data_r};
+    wire [`DOUBLE_REG_WIDTH-1:0] current_reg_wdata_64bit = {axi_read_data, ld_low_data_r};
 
     // 最终寄存器写回数据选择
-    wire [`REG_DATA_WIDTH*2-1:0] current_reg_wdata = curr_mem_op_ldh ? current_reg_wdata_64bit : 
-                                   {32'b0, current_reg_wdata_32bit};
+    wire [`DOUBLE_REG_WIDTH-1:0] current_reg_wdata = curr_mem_op_ldh ? current_reg_wdata_64bit : 
+                                 {32'hFFFF_FFFF, current_reg_wdata_32bit};
 
     // 从FIFO获取或直接使用的写数据 - 使用effective信号
     wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : effective_mem_wdata_i;

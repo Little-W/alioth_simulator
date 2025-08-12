@@ -36,12 +36,12 @@ module idu_decode (
 
     // to regs (统一为三个读端口，最高位区分float/int)
     output wire [`REG_ADDR_WIDTH:0] rs1_raddr_o,
-    output wire [`REG_ADDR_WIDTH:0] rs2_raddr_o, // 保持端口名一致
-    output wire [`REG_ADDR_WIDTH:0] rs3_raddr_o, // 保持端口名一致
+    output wire [`REG_ADDR_WIDTH:0] rs2_raddr_o,  // 保持端口名一致
+    output wire [`REG_ADDR_WIDTH:0] rs3_raddr_o,  // 保持端口名一致
 
-    output wire                       rs1_re_o,
-    output wire                       rs2_re_o,
-    output wire                       rs3_re_o,
+    output wire rs1_re_o,
+    output wire rs2_re_o,
+    output wire rs3_re_o,
 
     // to csr reg
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // 读CSR寄存器地址
@@ -184,33 +184,45 @@ module idu_decode (
     wire inst_type_div = inst_div | inst_divu | inst_rem | inst_remu;
     wire inst_type_muldiv = inst_type_mul | inst_type_div;
 
-    // 浮点指令识别
-    wire inst_fadd_s = opcode_1010011 & (funct7 == 7'b0000000);
-    wire inst_fsub_s = opcode_1010011 & (funct7 == 7'b0000100);
-    wire inst_fmul_s = opcode_1010011 & (funct7 == 7'b0001000);
-    wire inst_fdiv_s = opcode_1010011 & (funct7 == 7'b0001100);
-    wire inst_fsqrt_s = opcode_1010011 & (funct7 == 7'b0101100);
-    wire inst_fsgnj_s  = opcode_1010011 & (funct7 == 7'b0010000) & (funct3_000 | funct3_001 | funct3_010);
-    wire inst_fmax_s = opcode_1010011 & (funct7 == 7'b0010100) & (funct3_000 | funct3_001);
-    wire inst_fcmp_s   = opcode_1010011 & (funct7 == 7'b1010000) & (funct3_000 | funct3_001 | funct3_010);
-    wire inst_fcvt_f2i_s = opcode_1010011 & (funct7 == 7'b1100000);
-    wire inst_fcvt_i2f_s = opcode_1010011 & (funct7 == 7'b1101000);
-    wire inst_fmv_i2f_s = opcode_1010011 & (funct7 == 7'b1111000) & funct3_000;
-    wire inst_fmv_f2i_s = opcode_1010011 & (funct7 == 7'b1110000) & funct3_000;
-    wire inst_fmadd_s = opcode_1000011 & (inst[26:25] == 2'b00);
-    wire inst_fmsub_s = opcode_1000111 & (inst[26:25] == 2'b00);
-    wire inst_fnmsub_s = opcode_1001011 & (inst[26:25] == 2'b00);
-    wire inst_fnmadd_s = opcode_1001111 & (inst[26:25] == 2'b00);
-    wire inst_fclass_s = opcode_1010011 & (funct7 == 7'b1110000) & funct3_001;
-    wire inst_flw_s = opcode_0000111 & funct3_010;
-    wire inst_fsw_s = opcode_0100111 & funct3_010;
+    // 浮点指令识别 - 合并单双精度指令解码
+    wire [1:0] fmt = inst[26:25];  // 提取fmt字段
+    wire inst_fadd = opcode_1010011 & (funct7 == 7'b0000000 | funct7 == 7'b0000001) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fsub = opcode_1010011 & (funct7 == 7'b0000100 | funct7 == 7'b0000101) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fmul = opcode_1010011 & (funct7 == 7'b0001000 | funct7 == 7'b0001001) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fdiv = opcode_1010011 & (funct7 == 7'b0001100 | funct7 == 7'b0001101) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fsqrt = opcode_1010011 & (funct7 == 7'b0101100 | funct7 == 7'b0101101) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fsgnj = opcode_1010011 & (funct7 == 7'b0010000 | funct7 == 7'b0010001) & (funct3_000 | funct3_001 | funct3_010) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fmax = opcode_1010011 & (funct7 == 7'b0010100 | funct7 == 7'b0010101) & (funct3_000 | funct3_001) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fcmp = opcode_1010011 & (funct7 == 7'b1010000 | funct7 == 7'b1010001) & (funct3_000 | funct3_001 | funct3_010) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fcvt_f2i = opcode_1010011 & (funct7 == 7'b1100000 | funct7 == 7'b1100001) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fcvt_i2f = opcode_1010011 & (funct7 == 7'b1101000 | funct7 == 7'b1101001) & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fclass = opcode_1010011 & (funct7 == 7'b1110000 | funct7 == 7'b1110001) & funct3_001 & (fmt == 2'b00 | fmt == 2'b01);
+
+    // 新增：单双精度浮点互转指令 (FCVT.S.D / FCVT.D.S)
+    wire inst_fcvt_f2f = opcode_1010011 & (funct7 == 7'b0100000 | funct7 == 7'b0100001) & (fmt == 2'b00 | fmt == 2'b01);
+
+    // FMV指令：RV32只支持单精度fmv
+    wire inst_fmv_i2f = opcode_1010011 & (funct7 == 7'b1111000) & funct3_000 & (fmt == 2'b00);  // 只支持单精度
+    wire inst_fmv_f2i = opcode_1010011 & (funct7 == 7'b1110000) & funct3_000 & (fmt == 2'b00);  // 只支持单精度
+
+    // FMA系列指令（支持单双精度）
+    wire inst_fmadd = opcode_1000011 & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fmsub = opcode_1000111 & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fnmsub = opcode_1001011 & (fmt == 2'b00 | fmt == 2'b01);
+    wire inst_fnmadd = opcode_1001111 & (fmt == 2'b00 | fmt == 2'b01);
+
+    // 浮点加载/存储指令
+    wire inst_flw = opcode_0000111 & funct3_010;  // FLW
+    wire inst_fsw = opcode_0100111 & funct3_010;  // FSW
+    wire inst_fld = opcode_0000111 & funct3_011;  // FLD
+    wire inst_fsd = opcode_0100111 & funct3_011;  // FSD
 
     // 浮点指令分组
     wire inst_type_fp_compute = opcode_1010011;
     wire inst_type_fp_fused = opcode_1000011 | opcode_1000111 | opcode_1001011 | opcode_1001111;
     wire inst_type_fp_load = opcode_0000111;
     wire inst_type_fp_store = opcode_0100111;
-    wire inst_type_sfpu = inst_type_fp_compute | inst_type_fp_fused;
+    wire inst_type_fpu = inst_type_fp_compute | inst_type_fp_fused;
 
     // 立即数指令分组
     wire inst_i_type = inst_addi | inst_slti | inst_sltiu | inst_xori | inst_ori | inst_andi | inst_type_load | inst_jalr;
@@ -222,8 +234,9 @@ module idu_decode (
     wire inst_sel_j_imm = inst_jal;
     wire inst_sel_jr_imm = inst_jalr;
     wire inst_sel_b_imm = inst_type_branch;
-    wire inst_sel_s_imm = inst_type_store | inst_fsw_s;  // FSW也用S型立即数
-    wire inst_sel_i_imm = inst_i_type | inst_flw_s;  // FLW也用I型立即数
+    // FSW/FLW/FLD/FSD立即数类型
+    wire inst_sel_s_imm = inst_type_store | inst_fsw | inst_fsd;  // FSW/FSD也用S型立即数
+    wire inst_sel_i_imm = inst_i_type | inst_flw | inst_fld;  // FLW/FLD也用I型立即数
     wire inst_sel_csr_imm = inst_csr_i_type;
     wire inst_sel_shift_imm = inst_shift_i_type;
 
@@ -238,33 +251,42 @@ module idu_decode (
                        ({32{inst_sel_shift_imm}} & inst_shift_type_imm);
 
     // 浮点指令译码信息总线
-    wire [`DECINFO_SFPU_BUS_WIDTH-1:0] dec_sfpu_info_bus;
-    assign dec_sfpu_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_SFPU;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FADD_S] = inst_fadd_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FSUB_S] = inst_fsub_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FMUL_S] = inst_fmul_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FDIV_S] = inst_fdiv_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FSQRT_S] = inst_fsqrt_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FSGNJ_S] = inst_fsgnj_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FMAX_S] = inst_fmax_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FCMP_S] = inst_fcmp_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FCVT_F2I_S] = inst_fcvt_f2i_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FCVT_I2F_S] = inst_fcvt_i2f_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FMADD_S] = inst_fmadd_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FMSUB_S] = inst_fmsub_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FNMADD_S] = inst_fnmadd_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FNMSUB_S] = inst_fnmsub_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FMV_I2F_S] = inst_fmv_i2f_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FMV_F2I_S] = inst_fmv_f2i_s;
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FCLASS_S] = inst_fclass_s;
+    wire [`DECINFO_FPU_BUS_WIDTH-1:0] dec_fpu_info_bus;
+    assign dec_fpu_info_bus[`DECINFO_GRP_BUS] = `DECINFO_GRP_FPU;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMT] = fmt;
+
+    // 使用合并后的指令信号
+    assign dec_fpu_info_bus[`DECINFO_FPU_FADD] = inst_fadd;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FSUB] = inst_fsub;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMUL] = inst_fmul;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FDIV] = inst_fdiv;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FSQRT] = inst_fsqrt;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FSGNJ] = inst_fsgnj;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMAX] = inst_fmax;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FCMP] = inst_fcmp;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FCVT_F2I] = inst_fcvt_f2i;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FCVT_I2F] = inst_fcvt_i2f;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FCVT_F2F] = inst_fcvt_f2f;  // 新增
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMADD] = inst_fmadd;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMSUB] = inst_fmsub;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FNMADD] = inst_fnmadd;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FNMSUB] = inst_fnmsub;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMV_I2F] = inst_fmv_i2f;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FMV_F2I] = inst_fmv_f2i;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FCLASS] = inst_fclass;
 
     // 设置浮点舍入模式等
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FRM] = funct3;
+    assign dec_fpu_info_bus[`DECINFO_FPU_FRM] = funct3;
 
-    // 设置浮点转换操作类型
-    // 仅在fcvt_f2i_s和fcvt_i2f_s时，fcvt_op为{1'b0, rs2[0]}，否则为2'b00
-    assign dec_sfpu_info_bus[`DECINFO_SFPU_FCVT_OP] =
-        (inst_fcvt_f2i_s | inst_fcvt_i2f_s) ? {1'b0, rs2[0]} : 2'b00;
+    // 设置浮点转换操作类型 
+    // RV32架构下的转换支持：
+    // fcvt_i2f: "00"=INT32->FLOAT/DOUBLE, "01"=UINT32->FLOAT/DOUBLE
+    // fcvt_f2i: "00"=FLOAT/DOUBLE->INT32, "01"=FLOAT/DOUBLE->UINT32
+    // fcvt_f2f: "01"=DOUBLE->FLOAT, "00"=FLOAT->DOUBLE
+    assign dec_fpu_info_bus[`DECINFO_FPU_FCVT_OP] =
+        (inst_fcvt_f2i | inst_fcvt_i2f) ? {1'b0, rs2[0]} :  // RV32只支持32位整数转换
+        (inst_fcvt_f2f) ? {1'b0, !fmt[0]} :  // fcvt_f2f根据源格式设置：单精度源为0，双精度源为1
+        2'b00;
 
     wire [`DECINFO_ALU_BUS_WIDTH-1:0] dec_alu_info_bus;
     assign dec_alu_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_ALU;
@@ -329,8 +351,10 @@ module idu_decode (
     // 直接使用之前定义的类型信号
     assign dec_mem_info_bus[`DECINFO_MEM_OP_LOAD]  = inst_type_load;
     assign dec_mem_info_bus[`DECINFO_MEM_OP_STORE] = inst_type_store;
-    assign dec_mem_info_bus[`DECINFO_MEM_FLW]      = inst_flw_s;
-    assign dec_mem_info_bus[`DECINFO_MEM_FSW]      = inst_fsw_s;
+    assign dec_mem_info_bus[`DECINFO_MEM_FLW]      = inst_flw;
+    assign dec_mem_info_bus[`DECINFO_MEM_FSW]      = inst_fsw;
+    assign dec_mem_info_bus[`DECINFO_MEM_FLD]      = inst_fld;
+    assign dec_mem_info_bus[`DECINFO_MEM_FSD]      = inst_fsd;
 
     wire [`DECINFO_SYS_BUS_WIDTH-1:0] dec_sys_info_bus;
     assign dec_sys_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_SYS;
@@ -348,7 +372,7 @@ module idu_decode (
     wire op_csr = insr_type_cstr & (funct3_001 | funct3_010 | funct3_011 | funct3_101 | funct3_110 | funct3_111);
     wire op_sys = inst_ebreak | inst_ecall | inst_nop | inst_mret | inst_fence | inst_fence_i | inst_dret;
     wire op_mem = inst_type_load | inst_type_store | inst_type_fp_store | inst_type_fp_load;
-    wire op_sfpu = inst_type_sfpu;  // 添加浮点指令组
+    wire op_fpu = inst_type_fpu;  // 添加浮点指令组
 
     assign dec_info_bus_o = ({`DECINFO_WIDTH{op_alu}} & {{`DECINFO_WIDTH-`DECINFO_ALU_BUS_WIDTH{1'b0}}, dec_alu_info_bus}) |
                             ({`DECINFO_WIDTH{op_bjp}} & {{`DECINFO_WIDTH-`DECINFO_BJP_BUS_WIDTH{1'b0}}, dec_bjp_info_bus}) |
@@ -356,37 +380,36 @@ module idu_decode (
                             ({`DECINFO_WIDTH{op_csr}} & {{`DECINFO_WIDTH-`DECINFO_CSR_BUS_WIDTH{1'b0}}, dec_csr_info_bus}) |
                             ({`DECINFO_WIDTH{op_mem}} & {{`DECINFO_WIDTH-`DECINFO_MEM_BUS_WIDTH{1'b0}}, dec_mem_info_bus}) |
                             ({`DECINFO_WIDTH{op_sys}} & {{`DECINFO_WIDTH-`DECINFO_SYS_BUS_WIDTH{1'b0}}, dec_sys_info_bus}) |
-                            ({`DECINFO_WIDTH{op_sfpu}} & {{`DECINFO_WIDTH-`DECINFO_SFPU_BUS_WIDTH{1'b0}}, dec_sfpu_info_bus});
+                            ({`DECINFO_WIDTH{op_fpu}} & {{`DECINFO_WIDTH-`DECINFO_FPU_BUS_WIDTH{1'b0}}, dec_fpu_info_bus});
 
     // 是否需要访问rs1寄存器 - 优化为使用指令类型判断
-    wire access_rs1 = (~inst_lui) & (~inst_auipc) & (~inst_jal) & 
-                      (~inst_ecall) & (~inst_ebreak) & (~inst_csr_i_type) & 
+    wire access_rs1 = (~inst_lui) & (~inst_auipc) & (~inst_jal) &
+                      (~inst_ecall) & (~inst_ebreak) & (~inst_csr_i_type) &
                       (~inst_nop) & (~inst_fence) & (~inst_fence_i) & (~inst_mret) &
                       (~inst_dret) |
     // 需要读取整数rs1的浮点指令
-    inst_fcvt_i2f_s | inst_fmv_i2f_s | inst_flw_s | inst_fsw_s;
+    inst_fcvt_i2f | inst_fmv_i2f | inst_flw | inst_fsw | inst_fld | inst_fsd;
 
     // 是否需要访问浮点rs1寄存器
-    wire access_frs1 = (inst_type_fp_compute & ~inst_fcvt_i2f_s & ~inst_fmv_i2f_s) |
-                       inst_type_fp_fused;
+    wire access_frs1 = (inst_type_fp_compute & ~inst_fcvt_i2f & ~inst_fmv_i2f) | inst_type_fp_fused;
 
     // 是否需要访问浮点rs2寄存器
-    wire access_frs2 = (inst_type_fp_compute & ~inst_fcvt_i2f_s & ~inst_fcvt_f2i_s &
-                        ~inst_fclass_s & ~inst_fsqrt_s &
-                        ~inst_fmv_i2f_s & ~inst_fmv_f2i_s) |
-                       inst_type_fp_fused | inst_fsw_s;
+    wire access_frs2 = (inst_type_fp_compute & ~inst_fcvt_i2f & ~inst_fcvt_f2i &
+                        ~inst_fclass & ~inst_fsqrt & ~inst_fcvt_f2f &
+                        ~inst_fmv_i2f & ~inst_fmv_f2i) |
+                       inst_type_fp_fused | inst_fsw | inst_fsd;
 
     assign rs1_raddr_o = access_frs1 ? {1'b1, rs1} : (access_rs1 ? {1'b0, rs1} : {1'b0, 5'h0});
-    assign rs1_re_o = (access_rs1 && (rs1 != 0)) || access_frs1;
+    assign rs1_re_o    = (access_rs1 && (rs1 != 0)) || access_frs1;
 
     // 是否需要访问rs2寄存器
     wire access_rs2 = opcode_0110011 | inst_type_store | inst_type_branch |
     // 需要读取整数rs2的浮点指令
-    inst_fsw_s;  // FSW需要读取rs2存储的数据
+    inst_fsw | inst_fsd;  // FSW/FSD需要读取rs2存储的数据
 
     assign rs2_raddr_o = access_frs2 ? {1'b1, rs2} : (access_rs2 ? {1'b0, rs2} : {1'b0, 5'h0});
 
-    assign rs2_re_o = (access_rs2 && (rs2 != 0)) || access_frs2;
+    assign rs2_re_o    = (access_rs2 && (rs2 != 0)) || access_frs2;
 
     // rs3仅用于FMA指令(fmadd, fmsub, fnmadd, fnmsub)
     wire [4:0] rs3 = inst_i[31:27];  // 浮点FMA系列指令使用的第三个源寄存器
@@ -397,20 +420,20 @@ module idu_decode (
     // 统一寄存器读地址输出
     assign rs3_raddr_o = access_frs3 ? {1'b1, rs3} : {1'b0, 5'h0};
 
-    assign rs3_re_o = access_frs3;
+    assign rs3_re_o    = access_frs3;
 
     // 添加浮点目标寄存器写入逻辑
     wire rd_not_zero = (rd != 5'h0);
     // 合并access_rd和access_fp2int_rd
     wire access_rd = (inst_lui | inst_auipc | inst_jal | inst_jalr |
                       inst_type_load | (opcode_0010011 & (~inst_nop)) | opcode_0110011 |
-                      op_csr | inst_fcvt_f2i_s | inst_fmv_f2i_s | inst_fclass_s | 
-                      inst_fcmp_s) & rd_not_zero;
+                      op_csr | inst_fcvt_f2i | inst_fmv_f2i | inst_fclass | 
+                      inst_fcmp) & rd_not_zero;
 
-    // 浮点指令写浮点寄存器（如fadd, fmadd, fcvt_i2f_s, fmv_i2f_s, flw）
-    wire access_frd = ((inst_type_fp_compute & ~inst_fcvt_f2i_s & ~inst_fmv_f2i_s &
-                        ~inst_fclass_s & ~inst_fcmp_s) |
-                       inst_type_fp_fused | inst_flw_s);
+    // 浮点指令写浮点寄存器
+    wire access_frd = ((inst_type_fp_compute & ~inst_fcvt_f2i & ~inst_fmv_f2i &
+                        ~inst_fclass & ~inst_fcmp) |
+                       inst_type_fp_fused | inst_flw | inst_fld);
 
     // reg_waddr_o最高位区分float/int，float为1，仅写浮点寄存器时为1
     assign reg_waddr_o = access_frd ? {1'b1, rd} : (access_rd ? {1'b0, rd} : {1'b0, 5'h0});
@@ -424,13 +447,22 @@ module idu_decode (
     wire slli_illegal_shamt = opcode_0010011 & funct3_001 & funct7_0000001;
 
     // 增加对浮点指令的非法指令检测
-    wire fp_illegal_fmt = inst_type_sfpu & (inst[26:25] != 2'b00); // 检查浮点格式是否为单精度
+    wire fp_illegal_fmt = inst_type_fpu & (fmt != 2'b00 && fmt != 2'b01); // 检查浮点格式是否为单/双精度
+
+    // RV32中双精度fmv指令非法
+    wire rv32_illegal_fmv_d = opcode_1010011 & (funct7 == 7'b1111001 | funct7 == 7'b1110001) & 
+                              funct3_000 & (fmt == 2'b01);
+
+    // RV32中64位转换指令非法 (rs2[1]=1表示64位整数)
+    wire rv32_illegal_fcvt_64 = (inst_fcvt_f2i | inst_fcvt_i2f) & rs2[1];
 
     // 增加非法指令检测输出
     assign illegal_inst_o = (
         ((dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_NONE) && inst_valid_i)
         || slli_illegal_shamt
         || fp_illegal_fmt
-    );
+        || rv32_illegal_fmv_d  // 新增：RV32中双精度fmv非法
+        || rv32_illegal_fcvt_64  // 新增：RV32中64位转换非法
+        );
 
 endmodule

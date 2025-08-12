@@ -24,15 +24,15 @@
 
 `include "defines.svh"
 
-// 寄存器写回FIFO模块 - 用于缓冲写回数据
 module reg_wb_fifo #(
-    parameter FIFO_DEPTH = 2
+    parameter FIFO_DEPTH = 2,
+    parameter REG_DATA_WIDTH = 32
 ) (
     input wire clk,
     input wire rst_n,
 
     // 输入端口
-    input wire [`REG_DATA_WIDTH-1:0] wdata_i,
+    input wire [REG_DATA_WIDTH-1:0] wdata_i,
     input wire [`REG_ADDR_WIDTH-1:0] waddr_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
@@ -41,7 +41,7 @@ module reg_wb_fifo #(
     input wire pop,   // 弹出使能
 
     // 输出端口
-    output wire [`REG_DATA_WIDTH-1:0] wdata_o,
+    output wire [REG_DATA_WIDTH-1:0] wdata_o,
     output wire [`REG_ADDR_WIDTH-1:0] waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
 
@@ -53,7 +53,7 @@ module reg_wb_fifo #(
 
     // 内部数据结构
     typedef struct packed {
-        logic [`REG_DATA_WIDTH-1:0] wdata;
+        logic [REG_DATA_WIDTH-1:0] wdata;
         logic [`REG_ADDR_WIDTH-1:0] waddr;
         logic [`COMMIT_ID_WIDTH-1:0] commit_id;
     } reg_entry_t;

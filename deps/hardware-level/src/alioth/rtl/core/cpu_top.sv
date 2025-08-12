@@ -79,7 +79,7 @@ module cpu_top (
     // 新增rs1/rs2读使能信号
     wire idu_rs1_re_o;
     wire idu_rs2_re_o;
-    wire idu_rs3_re_o; // 新增rs3读使能信号
+    wire idu_rs3_re_o;  // 新增rs3读使能信号
 
     // exu模块输出信号
     wire exu_stall_flag_o;
@@ -109,7 +109,7 @@ module cpu_top (
     wire [`COMMIT_ID_WIDTH-1:0] exu_lsu_commit_id_o;
 
     // EXU到WBU的FPU数据通路信号
-    wire [`REG_DATA_WIDTH-1:0] exu_fpu_reg_wdata_o;
+    wire [`FREG_DATA_WIDTH-1:0] exu_fpu_reg_wdata_o;
     wire exu_fpu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_fpu_reg_waddr_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_fpu_commit_id_o;
@@ -127,7 +127,7 @@ module cpu_top (
     wire exu_div_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_div_reg_waddr_o;
 
-    wire [`REG_DATA_WIDTH-1:0] exu_lsu_reg_wdata_o;
+    wire [`DOUBLE_REG_WIDTH-1:0] exu_lsu_reg_wdata_o;
     wire exu_lsu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_lsu_reg_waddr_o;
 
@@ -137,7 +137,7 @@ module cpu_top (
     wire [`REG_ADDR_WIDTH-1:0] wbu_reg_waddr_o;
 
     // WBU FPREG输出信号
-    wire [`REG_DATA_WIDTH-1:0] wbu_fpreg_wdata_o;
+    wire [`FREG_DATA_WIDTH-1:0] wbu_fpreg_wdata_o;
     wire wbu_fpreg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] wbu_fpreg_waddr_o;
 
@@ -157,9 +157,9 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] regs_rdata2_o;
 
     // fpregs模块输出信号
-    wire [`REG_DATA_WIDTH-1:0] fpr_rdata1_o;
-    wire [`REG_DATA_WIDTH-1:0] fpr_rdata2_o;
-    wire [`REG_DATA_WIDTH-1:0] fpr_rdata3_o;
+    wire [`FREG_DATA_WIDTH-1:0] fpr_rdata1_o;
+    wire [`FREG_DATA_WIDTH-1:0] fpr_rdata2_o;
+    wire [`FREG_DATA_WIDTH-1:0] fpr_rdata3_o;
 
     // csr_reg模块输出信号
     wire [`REG_DATA_WIDTH-1:0] csr_data_o;
@@ -305,29 +305,31 @@ module cpu_top (
     wire dispatch_mem_op_load;
     wire dispatch_mem_op_store;
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_mem_commit_id;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_mem_reg_waddr_o;  // 新增：寄存器写地址
     wire [31:0] dispatch_mem_addr;
     wire [31:0] dispatch_mem_wdata;
     wire [3:0] dispatch_mem_wmask;
 
     // dispatch to FPU
     wire dispatch_req_fpu_o;
-    wire dispatch_fpu_op_fadd_s_o;
-    wire dispatch_fpu_op_fsub_s_o;
-    wire dispatch_fpu_op_fmul_s_o;
-    wire dispatch_fpu_op_fdiv_s_o;
-    wire dispatch_fpu_op_fsqrt_s_o;
-    wire dispatch_fpu_op_fsgnj_s_o;
-    wire dispatch_fpu_op_fmax_s_o;
-    wire dispatch_fpu_op_fcmp_s_o;
-    wire dispatch_fpu_op_fcvt_f2i_s_o;
-    wire dispatch_fpu_op_fcvt_i2f_s_o;
-    wire dispatch_fpu_op_fmadd_s_o;
-    wire dispatch_fpu_op_fmsub_s_o;
-    wire dispatch_fpu_op_fnmadd_s_o;
-    wire dispatch_fpu_op_fnmsub_s_o;
-    wire dispatch_fpu_op_fmv_i2f_s_o;
-    wire dispatch_fpu_op_fmv_f2i_s_o;
-    wire dispatch_fpu_op_fclass_s_o;
+    wire dispatch_fpu_op_fadd_o;
+    wire dispatch_fpu_op_fsub_o;
+    wire dispatch_fpu_op_fmul_o;
+    wire dispatch_fpu_op_fdiv_o;
+    wire dispatch_fpu_op_fsqrt_o;
+    wire dispatch_fpu_op_fsgnj_o;
+    wire dispatch_fpu_op_fmax_o;
+    wire dispatch_fpu_op_fcmp_o;
+    wire dispatch_fpu_op_fcvt_f2i_o;
+    wire dispatch_fpu_op_fcvt_i2f_o;
+    wire dispatch_fpu_op_fmadd_o;
+    wire dispatch_fpu_op_fmsub_o;
+    wire dispatch_fpu_op_fnmadd_o;
+    wire dispatch_fpu_op_fnmsub_o;
+    wire dispatch_fpu_op_fmv_i2f_o;
+    wire dispatch_fpu_op_fmv_f2i_o;
+    wire dispatch_fpu_op_fclass_o;
+    wire dispatch_fpu_op_fcvt_f2f_o;  // 新增fcvt_f2f信号
     wire [`FREG_DATA_WIDTH-1:0] dispatch_fpu_op1_o;
     wire [`FREG_DATA_WIDTH-1:0] dispatch_fpu_op2_o;
     wire [`FREG_DATA_WIDTH-1:0] dispatch_fpu_op3_o;
@@ -401,6 +403,13 @@ module cpu_top (
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
     wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
+
+    // 新增dispatch到exu/ctrl/clint/agu信号
+    wire dispatch_mem_op_ldh_o;
+    wire dispatch_mem_op_ldl_o;
+    wire [1:0] dispatch_fpu_fmt_o;
+    wire dispatch_agu_stall_req_o;
+    wire dispatch_agu_atom_lock_o;
 
     // CLINT AXI-Lite接口信号
     wire OM1_AXI_ACLK;
@@ -493,11 +502,13 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
-        .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
-        .stall_flag_hdu_i  (dispatch_stall_flag_o),  // 修改为从dispatch获取HDU暂停信号
+        .flush_flag_clint_i(clint_int_assert_o),       // 添加连接到clint的flush信号
+        .stall_flag_hdu_i  (dispatch_stall_flag_o),    // 修改为从dispatch获取HDU暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
-        .jump_addr_o       (ctrl_jump_addr_o)
+        .jump_addr_o       (ctrl_jump_addr_o),
+        // 新增AGU暂停请求信号
+        .agu_stall_req_i   (dispatch_agu_stall_req_o)
     );
 
     // gpr模块例化
@@ -580,7 +591,7 @@ module cpu_top (
         // 新增rs1/rs2读使能信号输出
         .rs1_re_o        (idu_rs1_re_o),
         .rs2_re_o        (idu_rs2_re_o),
-        .rs3_re_o        (idu_rs3_re_o) // 新增rs3读使能信号连接
+        .rs3_re_o        (idu_rs3_re_o)           // 新增rs3读使能信号连接
     );
 
     // dispatch模块例化
@@ -609,9 +620,9 @@ module cpu_top (
         .rs3_raddr_i     (idu_rs3_raddr_o),
         .reg_we_i        (idu_reg_we_o),
         // 新增rs1/rs2读使能信号输入
-        .rs1_re_i    (idu_rs1_re_o),
-        .rs2_re_i    (idu_rs2_re_o),
-        .rs3_re_i    (idu_rs3_re_o), // 新增rs3读使能信号连接
+        .rs1_re_i        (idu_rs1_re_o),
+        .rs2_re_i        (idu_rs2_re_o),
+        .rs3_re_i        (idu_rs3_re_o),          // 新增rs3读使能信号连接
 
         // 从IDU接收CSR信号
         .csr_we_i   (idu_csr_we_o),
@@ -653,20 +664,20 @@ module cpu_top (
         .alu_op2_o    (dispatch_alu_op2),
         .alu_op_info_o(dispatch_alu_op_info),
 
-        .req_bjp_o     (dispatch_req_bjp),
-        .bjp_op_jal_o  (dispatch_bjp_op_jal),
-        .bjp_op_beq_o  (dispatch_bjp_op_beq),
-        .bjp_op_bne_o  (dispatch_bjp_op_bne),
-        .bjp_op_blt_o  (dispatch_bjp_op_blt),
-        .bjp_op_bltu_o (dispatch_bjp_op_bltu),
-        .bjp_op_bge_o  (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_o (dispatch_bjp_op_jalr),
-        .bjp_adder_result_o      (dispatch_bjp_adder_result),
-        .bjp_next_pc_o           (dispatch_bjp_next_pc),
-        .op1_eq_op2_o            (dispatch_op1_eq_op2),
-        .op1_ge_op2_signed_o     (dispatch_op1_ge_op2_signed),
-        .op1_ge_op2_unsigned_o   (dispatch_op1_ge_op2_unsigned),
+        .req_bjp_o            (dispatch_req_bjp),
+        .bjp_op_jal_o         (dispatch_bjp_op_jal),
+        .bjp_op_beq_o         (dispatch_bjp_op_beq),
+        .bjp_op_bne_o         (dispatch_bjp_op_bne),
+        .bjp_op_blt_o         (dispatch_bjp_op_blt),
+        .bjp_op_bltu_o        (dispatch_bjp_op_bltu),
+        .bjp_op_bge_o         (dispatch_bjp_op_bge),
+        .bjp_op_bgeu_o        (dispatch_bjp_op_bgeu),
+        .bjp_op_jalr_o        (dispatch_bjp_op_jalr),
+        .bjp_adder_result_o   (dispatch_bjp_adder_result),
+        .bjp_next_pc_o        (dispatch_bjp_next_pc),
+        .op1_eq_op2_o         (dispatch_op1_eq_op2),
+        .op1_ge_op2_signed_o  (dispatch_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_o(dispatch_op1_ge_op2_unsigned),
 
         .req_mul_o      (dispatch_req_mul),
         .mul_op1_o      (dispatch_mul_op1),
@@ -696,46 +707,56 @@ module cpu_top (
         .mem_op_lb_o    (dispatch_mem_op_lb),
         .mem_op_lh_o    (dispatch_mem_op_lh),
         .mem_op_lw_o    (dispatch_mem_op_lw),
+        .mem_op_ldl_o   (dispatch_mem_op_ldl_o),     // 新增：连接到AGU的信号
+        .mem_op_ldh_o   (dispatch_mem_op_ldh_o),     // 新增：连接到AGU的信号
         .mem_op_lbu_o   (dispatch_mem_op_lbu),
         .mem_op_lhu_o   (dispatch_mem_op_lhu),
         .mem_op_load_o  (dispatch_mem_op_load),
         .mem_op_store_o (dispatch_mem_op_store),
         .mem_commit_id_o(dispatch_mem_commit_id),
+        .mem_reg_waddr_o(dispatch_mem_reg_waddr_o),
         .mem_addr_o     (dispatch_mem_addr),
         .mem_wmask_o    (dispatch_mem_wmask),
         .mem_wdata_o    (dispatch_mem_wdata),
 
         // FPU
-        .req_fpu_o          (dispatch_req_fpu_o),
-        .fpu_op_fadd_s_o    (dispatch_fpu_op_fadd_s_o),
-        .fpu_op_fsub_s_o    (dispatch_fpu_op_fsub_s_o),
-        .fpu_op_fmul_s_o    (dispatch_fpu_op_fmul_s_o),
-        .fpu_op_fdiv_s_o    (dispatch_fpu_op_fdiv_s_o),
-        .fpu_op_fsqrt_s_o   (dispatch_fpu_op_fsqrt_s_o),
-        .fpu_op_fsgnj_s_o   (dispatch_fpu_op_fsgnj_s_o),
-        .fpu_op_fmax_s_o    (dispatch_fpu_op_fmax_s_o),
-        .fpu_op_fcmp_s_o    (dispatch_fpu_op_fcmp_s_o),
-        .fpu_op_fcvt_f2i_s_o(dispatch_fpu_op_fcvt_f2i_s_o),
-        .fpu_op_fcvt_i2f_s_o(dispatch_fpu_op_fcvt_i2f_s_o),
-        .fpu_op_fmadd_s_o   (dispatch_fpu_op_fmadd_s_o),
-        .fpu_op_fmsub_s_o   (dispatch_fpu_op_fmsub_s_o),
-        .fpu_op_fnmadd_s_o  (dispatch_fpu_op_fnmadd_s_o),
-        .fpu_op_fnmsub_s_o  (dispatch_fpu_op_fnmsub_s_o),
-        .fpu_op_fmv_i2f_s_o (dispatch_fpu_op_fmv_i2f_s_o),
-        .fpu_op_fmv_f2i_s_o (dispatch_fpu_op_fmv_f2i_s_o),
-        .fpu_op_fclass_s_o  (dispatch_fpu_op_fclass_s_o),
-        .fpu_op1_o          (dispatch_fpu_op1_o),
-        .fpu_op2_o          (dispatch_fpu_op2_o),
-        .fpu_op3_o          (dispatch_fpu_op3_o),
-        .frm_o              (dispatch_frm_o),
-        .fcvt_op_o          (dispatch_fcvt_op_o),
+        .req_fpu_o        (dispatch_req_fpu_o),
+        .fpu_op_fadd_o    (dispatch_fpu_op_fadd_o),
+        .fpu_op_fsub_o    (dispatch_fpu_op_fsub_o),
+        .fpu_op_fmul_o    (dispatch_fpu_op_fmul_o),
+        .fpu_op_fdiv_o    (dispatch_fpu_op_fdiv_o),
+        .fpu_op_fsqrt_o   (dispatch_fpu_op_fsqrt_o),
+        .fpu_op_fsgnj_o   (dispatch_fpu_op_fsgnj_o),
+        .fpu_op_fmax_o    (dispatch_fpu_op_fmax_o),
+        .fpu_op_fcmp_o    (dispatch_fpu_op_fcmp_o),
+        .fpu_op_fcvt_f2i_o(dispatch_fpu_op_fcvt_f2i_o),
+        .fpu_op_fcvt_i2f_o(dispatch_fpu_op_fcvt_i2f_o),
+        .fpu_op_fmadd_o   (dispatch_fpu_op_fmadd_o),
+        .fpu_op_fmsub_o   (dispatch_fpu_op_fmsub_o),
+        .fpu_op_fnmadd_o  (dispatch_fpu_op_fnmadd_o),
+        .fpu_op_fnmsub_o  (dispatch_fpu_op_fnmsub_o),
+        .fpu_op_fmv_i2f_o (dispatch_fpu_op_fmv_i2f_o),
+        .fpu_op_fmv_f2i_o (dispatch_fpu_op_fmv_f2i_o),
+        .fpu_op_fcvt_f2f_o(dispatch_fpu_op_fcvt_f2f_o),  // 新增fcvt_f2f信号
+        .fpu_op_fclass_o  (dispatch_fpu_op_fclass_o),
+        .fpu_op1_o        (dispatch_fpu_op1_o),
+        .fpu_op2_o        (dispatch_fpu_op2_o),
+        .fpu_op3_o        (dispatch_fpu_op3_o),
+        .frm_o            (dispatch_frm_o),
+        .fcvt_op_o        (dispatch_fcvt_op_o),
+        .fpu_fmt_o        (dispatch_fpu_fmt_o),          // FPU格式信号输出
 
-        .sys_op_nop_o      (dispatch_sys_op_nop),
-        .sys_op_mret_o     (dispatch_sys_op_mret),
-        .sys_op_ecall_o    (dispatch_sys_op_ecall),
-        .sys_op_ebreak_o   (dispatch_sys_op_ebreak),
-        .sys_op_fence_o    (dispatch_sys_op_fence),
-        .sys_op_dret_o     (dispatch_sys_op_dret),
+        .sys_op_nop_o   (dispatch_sys_op_nop),
+        .sys_op_mret_o  (dispatch_sys_op_mret),
+        .sys_op_ecall_o (dispatch_sys_op_ecall),
+        .sys_op_ebreak_o(dispatch_sys_op_ebreak),
+        .sys_op_fence_o (dispatch_sys_op_fence),
+        .sys_op_dret_o  (dispatch_sys_op_dret),
+
+        // 新增：连接到AGU的信号
+        .agu_stall_req_o(dispatch_agu_stall_req_o),
+        .agu_atom_lock_o(dispatch_agu_atom_lock_o),
+
         .is_pred_branch_o  (dis_is_pred_branch_o),         // 连接预测分支信号输出
         .misaligned_load_o (dispatch_misaligned_load_o),
         .misaligned_store_o(dispatch_misaligned_store_o),
@@ -768,7 +789,7 @@ module cpu_top (
         .mul_wb_ready_i(wbu_mul_ready_o),
         .div_wb_ready_i(wbu_div_ready_o),
         .csr_wb_ready_i(wbu_csr_ready_o),
-        .fpu_wb_ready_i   (wbu_fpu_ready_o),     // FPU握手信号
+        .fpu_wb_ready_i(wbu_fpu_ready_o),  // FPU握手信号
 
         .reg1_rdata_i(dispatch_rs1_rdata),
         .reg2_rdata_i(dispatch_rs2_rdata),
@@ -781,46 +802,50 @@ module cpu_top (
         .alu_op2_i    (dispatch_alu_op2),
         .alu_op_info_i(dispatch_alu_op_info),
 
-        // FPU
-        .req_fpu_i          (dispatch_req_fpu_o),
-        .fpu_op_fadd_s_i    (dispatch_fpu_op_fadd_s_o),
-        .fpu_op_fsub_s_i    (dispatch_fpu_op_fsub_s_o),
-        .fpu_op_fmul_s_i    (dispatch_fpu_op_fmul_s_o),
-        .fpu_op_fdiv_s_i    (dispatch_fpu_op_fdiv_s_o),
-        .fpu_op_fsqrt_s_i   (dispatch_fpu_op_fsqrt_s_o),
-        .fpu_op_fsgnj_s_i   (dispatch_fpu_op_fsgnj_s_o),
-        .fpu_op_fmax_s_i    (dispatch_fpu_op_fmax_s_o),
-        .fpu_op_fcmp_s_i    (dispatch_fpu_op_fcmp_s_o),
-        .fpu_op_fcvt_f2i_s_i(dispatch_fpu_op_fcvt_f2i_s_o),
-        .fpu_op_fcvt_i2f_s_i(dispatch_fpu_op_fcvt_i2f_s_o),
-        .fpu_op_fmadd_s_i   (dispatch_fpu_op_fmadd_s_o),
-        .fpu_op_fmsub_s_i   (dispatch_fpu_op_fmsub_s_o),
-        .fpu_op_fnmadd_s_i  (dispatch_fpu_op_fnmadd_s_o),
-        .fpu_op_fnmsub_s_i  (dispatch_fpu_op_fnmsub_s_o),
-        .fpu_op_fmv_i2f_s_i (dispatch_fpu_op_fmv_i2f_s_o),
-        .fpu_op_fmv_f2i_s_i (dispatch_fpu_op_fmv_f2i_s_o),
-        .fpu_op_fclass_s_i  (dispatch_fpu_op_fclass_s_o),
-        .fpu_op1_i          (dispatch_fpu_op1_o),
-        .fpu_op2_i          (dispatch_fpu_op2_o),
-        .fpu_op3_i          (dispatch_fpu_op3_o),
-        .frm_i              (dispatch_frm_o),
-        .fcvt_op_i          (dispatch_fcvt_op_o),
-        .csr_frm_i          (csr_frm_o),
+        // 新增FPU格式信号
+        .fmt_i(dispatch_fpu_fmt_o),
 
-        .req_bjp_i     (dispatch_req_bjp),
-        .bjp_op_jal_i  (dispatch_bjp_op_jal),
-        .bjp_op_beq_i  (dispatch_bjp_op_beq),
-        .bjp_op_bne_i  (dispatch_bjp_op_bne),
-        .bjp_op_blt_i  (dispatch_bjp_op_blt),
-        .bjp_op_bltu_i (dispatch_bjp_op_bltu),
-        .bjp_op_bge_i  (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_i (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_i (dispatch_bjp_op_jalr),
-        .bjp_adder_result_i      (dispatch_bjp_adder_result),
-        .bjp_next_pc_i           (dispatch_bjp_next_pc),
-        .op1_eq_op2_i            (dispatch_op1_eq_op2),
-        .op1_ge_op2_signed_i     (dispatch_op1_ge_op2_signed),
-        .op1_ge_op2_unsigned_i   (dispatch_op1_ge_op2_unsigned),
+        // FPU
+        .req_fpu_i        (dispatch_req_fpu_o),
+        .fpu_op_fadd_i    (dispatch_fpu_op_fadd_o),
+        .fpu_op_fsub_i    (dispatch_fpu_op_fsub_o),
+        .fpu_op_fmul_i    (dispatch_fpu_op_fmul_o),
+        .fpu_op_fdiv_i    (dispatch_fpu_op_fdiv_o),
+        .fpu_op_fsqrt_i   (dispatch_fpu_op_fsqrt_o),
+        .fpu_op_fsgnj_i   (dispatch_fpu_op_fsgnj_o),
+        .fpu_op_fmax_i    (dispatch_fpu_op_fmax_o),
+        .fpu_op_fcmp_i    (dispatch_fpu_op_fcmp_o),
+        .fpu_op_fcvt_f2i_i(dispatch_fpu_op_fcvt_f2i_o),
+        .fpu_op_fcvt_i2f_i(dispatch_fpu_op_fcvt_i2f_o),
+        .fpu_op_fcvt_f2f_i(dispatch_fpu_op_fcvt_f2f_o),  // 新增fcvt_f2f信号
+        .fpu_op_fmadd_i   (dispatch_fpu_op_fmadd_o),
+        .fpu_op_fmsub_i   (dispatch_fpu_op_fmsub_o),
+        .fpu_op_fnmadd_i  (dispatch_fpu_op_fnmadd_o),
+        .fpu_op_fnmsub_i  (dispatch_fpu_op_fnmsub_o),
+        .fpu_op_fmv_i2f_i (dispatch_fpu_op_fmv_i2f_o),
+        .fpu_op_fmv_f2i_i (dispatch_fpu_op_fmv_f2i_o),
+        .fpu_op_fclass_i  (dispatch_fpu_op_fclass_o),
+        .fpu_op1_i        (dispatch_fpu_op1_o),
+        .fpu_op2_i        (dispatch_fpu_op2_o),
+        .fpu_op3_i        (dispatch_fpu_op3_o),
+        .frm_i            (dispatch_frm_o),
+        .fcvt_op_i        (dispatch_fcvt_op_o),
+        .csr_frm_i        (csr_frm_o),
+
+        .req_bjp_i            (dispatch_req_bjp),
+        .bjp_op_jal_i         (dispatch_bjp_op_jal),
+        .bjp_op_beq_i         (dispatch_bjp_op_beq),
+        .bjp_op_bne_i         (dispatch_bjp_op_bne),
+        .bjp_op_blt_i         (dispatch_bjp_op_blt),
+        .bjp_op_bltu_i        (dispatch_bjp_op_bltu),
+        .bjp_op_bge_i         (dispatch_bjp_op_bge),
+        .bjp_op_bgeu_i        (dispatch_bjp_op_bgeu),
+        .bjp_op_jalr_i        (dispatch_bjp_op_jalr),
+        .bjp_adder_result_i   (dispatch_bjp_adder_result),
+        .bjp_next_pc_i        (dispatch_bjp_next_pc),
+        .op1_eq_op2_i         (dispatch_op1_eq_op2),
+        .op1_ge_op2_signed_i  (dispatch_op1_ge_op2_signed),
+        .op1_ge_op2_unsigned_i(dispatch_op1_ge_op2_unsigned),
 
         .req_mul_i      (dispatch_req_mul),
         .mul_op1_i      (dispatch_mul_op1),
@@ -846,26 +871,29 @@ module cpu_top (
         .csr_csrrs_i(dispatch_csr_csrrs),
         .csr_csrrc_i(dispatch_csr_csrrc),
 
-        .req_mem_i      (dispatch_req_mem),
-        .mem_op_lb_i    (dispatch_mem_op_lb),
-        .mem_op_lh_i    (dispatch_mem_op_lh),
-        .mem_op_lw_i    (dispatch_mem_op_lw),
-        .mem_op_lbu_i   (dispatch_mem_op_lbu),
-        .mem_op_lhu_i   (dispatch_mem_op_lhu),
-        .mem_op_load_i  (dispatch_mem_op_load),
-        .mem_op_store_i (dispatch_mem_op_store),
+        .req_mem_i(dispatch_req_mem),
+        .mem_op_lb_i(dispatch_mem_op_lb),
+        .mem_op_lh_i(dispatch_mem_op_lh),
+        .mem_op_lw_i(dispatch_mem_op_lw),
+        .mem_op_lbu_i(dispatch_mem_op_lbu),
+        .mem_op_lhu_i(dispatch_mem_op_lhu),
+        // 新增64位加载信号
+        .mem_op_ldl_i(dispatch_mem_op_ldl_o),
+        .mem_op_ldh_i(dispatch_mem_op_ldh_o),
+        .mem_op_load_i(dispatch_mem_op_load),
+        .mem_op_store_i(dispatch_mem_op_store),
         .mem_commit_id_i(dispatch_mem_commit_id),
-        .mem_addr_i     (dispatch_mem_addr),
-        .mem_wdata_i    (dispatch_mem_wdata),
-        .mem_wmask_i    (dispatch_mem_wmask),
+        .mem_reg_waddr_i(dispatch_mem_reg_waddr_o),  // 修改为从dispatch pipe获取寄存器写地址
+        .mem_addr_i(dispatch_mem_addr),
+        .mem_wdata_i(dispatch_mem_wdata),
+        .mem_wmask_i(dispatch_mem_wmask),
 
-        .sys_op_nop_i   (dispatch_sys_op_nop),
-        .sys_op_mret_i  (dispatch_sys_op_mret),
-        .sys_op_ecall_i (dispatch_sys_op_ecall),
-        .sys_op_ebreak_i(dispatch_sys_op_ebreak),
-        .sys_op_fence_i (dispatch_sys_op_fence),
-        .sys_op_dret_i  (dispatch_sys_op_dret),
-
+        .sys_op_nop_i    (dispatch_sys_op_nop),
+        .sys_op_mret_i   (dispatch_sys_op_mret),
+        .sys_op_ecall_i  (dispatch_sys_op_ecall),
+        .sys_op_ebreak_i (dispatch_sys_op_ebreak),
+        .sys_op_fence_i  (dispatch_sys_op_fence),
+        .sys_op_dret_i   (dispatch_sys_op_dret),
         .mem_stall_o     (exu_mem_stall_o),
         .mem_store_busy_o(exu_mem_store_busy_o),
 
@@ -1004,10 +1032,10 @@ module cpu_top (
         .csr_reg_waddr_i(exu_csr_reg_waddr_o),
         .csr_reg_we_i   (exu_csr_reg_we_o),     // 新增：csr_reg_we输入端口
 
-        .lsu_reg_wdata_i(exu_lsu_reg_wdata_o),
-        .lsu_reg_we_i   (exu_lsu_reg_we_o),
-        .lsu_reg_waddr_i(exu_lsu_reg_waddr_o),
-        .lsu_commit_id_i(exu_lsu_commit_id_o),  // 直接使用全宽度
+        .lsu_reg_wdata_i   (exu_lsu_reg_wdata_o),
+        .lsu_reg_we_i      (exu_lsu_reg_we_o),
+        .lsu_reg_waddr_i   (exu_lsu_reg_waddr_o),
+        .lsu_commit_id_i   (exu_lsu_commit_id_o),     // 直接使用全宽度
         // 新增长指令完成输出
         .commit_valid_int_o(wbu_commit_valid_int_o),
         .commit_id_int_o   (wbu_commit_id_int_o),
@@ -1039,6 +1067,7 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .stall_flag_i      (ctrl_stall_flag_o),
         .atom_opt_busy_i   (atom_opt_busy),
+        .agu_atom_lock_i   (dispatch_agu_atom_lock_o),
         .sys_op_ecall_i    (exu_ecall_o),
         .sys_op_ebreak_i   (exu_ebreak_o),
         .sys_op_mret_i     (exu_mret_o),

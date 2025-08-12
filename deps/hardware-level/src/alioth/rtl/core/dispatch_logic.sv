@@ -26,6 +26,10 @@
 
 
 module dispatch_logic (
+    // 新增：时钟、复位、流水线暂停信号
+    input wire                     clk,
+    input wire                     rst_n,
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
@@ -35,6 +39,9 @@ module dispatch_logic (
     input wire [`FREG_DATA_WIDTH-1:0] frs1_rdata_i,
     input wire [`FREG_DATA_WIDTH-1:0] frs2_rdata_i,
     input wire [`FREG_DATA_WIDTH-1:0] frs3_rdata_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
+
+    input wire [`REG_ADDR_WIDTH-1:0] mem_reg_waddr_i,  // 新增：输入寄存器写地址
 
     // dispatch to ALU
     output wire                     req_alu_o,
@@ -93,13 +100,17 @@ module dispatch_logic (
     output wire mem_op_lw_o,
     output wire mem_op_lbu_o,
     output wire mem_op_lhu_o,
+    output wire mem_op_ldh_o,   // 新增
+    output wire mem_op_ldl_o,   // 新增
     output wire mem_op_load_o,
     output wire mem_op_store_o,
 
     // 直接计算的内存地址和掩码/数据
-    output wire [31:0] mem_addr_o,
-    output wire [ 3:0] mem_wmask_o,
-    output wire [31:0] mem_wdata_o,
+    output wire [                31:0] mem_addr_o,
+    output wire [                 3:0] mem_wmask_o,
+    output wire [                31:0] mem_wdata_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] mem_reg_waddr_o,  // 新增：输出寄存器写地址
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -114,28 +125,33 @@ module dispatch_logic (
 
     // FPU接口
     output logic                        req_fpu_o,
-    output logic                        fpu_op_fadd_s_o,
-    output logic                        fpu_op_fsub_s_o,
-    output logic                        fpu_op_fmul_s_o,
-    output logic                        fpu_op_fdiv_s_o,
-    output logic                        fpu_op_fsqrt_s_o,
-    output logic                        fpu_op_fsgnj_s_o,
-    output logic                        fpu_op_fmax_s_o,
-    output logic                        fpu_op_fcmp_s_o,
-    output logic                        fpu_op_fcvt_f2i_s_o,
-    output logic                        fpu_op_fcvt_i2f_s_o,
-    output logic                        fpu_op_fmadd_s_o,
-    output logic                        fpu_op_fmsub_s_o,
-    output logic                        fpu_op_fnmadd_s_o,
-    output logic                        fpu_op_fnmsub_s_o,
-    output logic                        fpu_op_fmv_i2f_s_o,
-    output logic                        fpu_op_fmv_f2i_s_o,
-    output logic                        fpu_op_fclass_s_o,
+    output logic                        fpu_op_fadd_o,
+    output logic                        fpu_op_fsub_o,
+    output logic                        fpu_op_fmul_o,
+    output logic                        fpu_op_fdiv_o,
+    output logic                        fpu_op_fsqrt_o,
+    output logic                        fpu_op_fsgnj_o,
+    output logic                        fpu_op_fmax_o,
+    output logic                        fpu_op_fcmp_o,
+    output logic                        fpu_op_fcvt_f2i_o,
+    output logic                        fpu_op_fcvt_i2f_o,
+    output logic                        fpu_op_fmadd_o,
+    output logic                        fpu_op_fmsub_o,
+    output logic                        fpu_op_fnmadd_o,
+    output logic                        fpu_op_fnmsub_o,
+    output logic                        fpu_op_fmv_i2f_o,
+    output logic                        fpu_op_fmv_f2i_o,
+    output logic                        fpu_op_fclass_o,
+    output logic                        fpu_op_fcvt_f2f_o,  // 新增
     output logic [`FREG_DATA_WIDTH-1:0] fpu_op1_o,
     output logic [`FREG_DATA_WIDTH-1:0] fpu_op2_o,
     output logic [`FREG_DATA_WIDTH-1:0] fpu_op3_o,
     output logic [                 2:0] frm_o,
-    output logic [                 1:0] fcvt_op_o
+    output logic [                 1:0] fcvt_op_o,
+    output wire  [                 1:0] fpu_fmt_o,
+
+    output wire agu_stall_req_o,  // 新增
+    output wire agu_atom_lock_o   // 新增
 );
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
@@ -247,52 +263,76 @@ module dispatch_logic (
 
     // AGU实例化，负责所有mem op相关输出
     wire agu_mem_op_lb, agu_mem_op_lh, agu_mem_op_lw, agu_mem_op_lbu, agu_mem_op_lhu;
+    wire agu_mem_op_ldh, agu_mem_op_ldl;  // 新增
     wire agu_mem_op_sb, agu_mem_op_sh, agu_mem_op_sw;
     wire agu_mem_op_load, agu_mem_op_store;
     wire [31:0] agu_mem_addr;
     wire [ 3:0] agu_mem_wmask;
     wire [31:0] agu_mem_wdata;
     wire agu_misaligned_load, agu_misaligned_store;
+    wire agu_mem_req;  // 新增
+    wire agu_stall_req;  // 新增
+    wire agu_atom_lock;  // 新增
+    wire op_valid = !(stall_flag_i[`CU_STALL] | stall_flag_i[`CU_FLUSH]);
 
     agu u_agu (
-        .op_mem        (op_mem),
-        .mem_info      (mem_info),
-        .rs1_rdata_i   (rs1_rdata_i),
-        .rs2_rdata_i   (rs2_rdata_i),
-	.frs2_rdata_i  (frs2_rdata_i),
-        .dec_imm_i     (dec_imm_i),
-        .mem_op_lb_o   (agu_mem_op_lb),
-        .mem_op_lh_o   (agu_mem_op_lh),
-        .mem_op_lw_o   (agu_mem_op_lw),
-        .mem_op_lbu_o  (agu_mem_op_lbu),
-        .mem_op_lhu_o  (agu_mem_op_lhu),
-        .mem_op_sb_o   (agu_mem_op_sb),
-        .mem_op_sh_o   (agu_mem_op_sh),
-        .mem_op_sw_o   (agu_mem_op_sw),
-        .mem_op_load_o (agu_mem_op_load),
-        .mem_op_store_o(agu_mem_op_store),
-        .mem_addr_o    (agu_mem_addr),
-        .mem_wmask_o   (agu_mem_wmask),
-        .mem_wdata_o   (agu_mem_wdata),
-        .misaligned_load_o  (agu_misaligned_load),
-        .misaligned_store_o (agu_misaligned_store)
+        .clk               (clk),                  // 新增
+        .rst_n             (rst_n),                // 新增
+        .op_valid_i        (op_valid),         // 新增
+        .exu_stall_i       (stall_flag_i[`CU_STALL_DISPATCH]), // 来自EXU的暂停信号
+        .op_mem            (op_mem),
+        .mem_info          (mem_info),
+        .rs1_rdata_i       (rs1_rdata_i),
+        .rs2_rdata_i       (rs2_rdata_i),
+        .dec_imm_i         (dec_imm_i),
+        .frs2_rdata_i      (frs2_rdata_i),
+        .commit_id_i       (commit_id_i),
+        .mem_reg_waddr_i   (mem_reg_waddr_i),      // 新增
+        .mem_op_lb_o       (agu_mem_op_lb),
+        .mem_op_lh_o       (agu_mem_op_lh),
+        .mem_op_lw_o       (agu_mem_op_lw),
+        .mem_op_lbu_o      (agu_mem_op_lbu),
+        .mem_op_lhu_o      (agu_mem_op_lhu),
+        .mem_op_ldh_o      (agu_mem_op_ldh),       // 新增
+        .mem_op_ldl_o      (agu_mem_op_ldl),       // 新增
+        .mem_op_sb_o       (agu_mem_op_sb),
+        .mem_op_sh_o       (agu_mem_op_sh),
+        .mem_op_sw_o       (agu_mem_op_sw),
+        .mem_op_load_o     (agu_mem_op_load),
+        .mem_op_store_o    (agu_mem_op_store),
+        .mem_req_o         (agu_mem_req),          // 新增
+        .agu_atom_lock     (agu_atom_lock),        // 新增
+        .agu_stall_req_o   (agu_stall_req),        // 新增
+        .mem_addr_o        (agu_mem_addr),
+        .mem_wmask_o       (agu_mem_wmask),
+        .mem_wdata_o       (agu_mem_wdata),
+        .commit_id_o       (mem_commit_id_o),      // 新增：连接到流水线寄存器
+        .mem_reg_waddr_o   (mem_reg_waddr_o),      // 新增
+        .misaligned_load_o (agu_misaligned_load),
+        .misaligned_store_o(agu_misaligned_store)
     );
 
-    assign req_mem_o      = op_mem;
-    assign mem_op_lb_o    = agu_mem_op_lb;
-    assign mem_op_lh_o    = agu_mem_op_lh;
-    assign mem_op_lw_o    = agu_mem_op_lw;
-    assign mem_op_lbu_o   = agu_mem_op_lbu;
-    assign mem_op_lhu_o   = agu_mem_op_lhu;
-    assign mem_op_load_o  = agu_mem_op_load;
-    assign mem_op_store_o = agu_mem_op_store;
-    assign mem_addr_o     = agu_mem_addr;
-    assign mem_wmask_o    = agu_mem_wmask;
-    assign mem_wdata_o    = agu_mem_wdata;
+    assign req_mem_o          = agu_mem_req;  // 由agu输出
+    assign mem_op_lb_o        = agu_mem_op_lb;
+    assign mem_op_lh_o        = agu_mem_op_lh;
+    assign mem_op_lw_o        = agu_mem_op_lw;
+    assign mem_op_lbu_o       = agu_mem_op_lbu;
+    assign mem_op_lhu_o       = agu_mem_op_lhu;
+    assign mem_op_ldh_o       = agu_mem_op_ldh;  // 新增
+    assign mem_op_ldl_o       = agu_mem_op_ldl;  // 新增
+    assign mem_op_load_o      = agu_mem_op_load;
+    assign mem_op_store_o     = agu_mem_op_store;
+    assign mem_addr_o         = agu_mem_addr;
+    assign mem_wmask_o        = agu_mem_wmask;
+    assign mem_wdata_o        = agu_mem_wdata;
 
     // 地址对齐检测逻辑直接由agu输出
     assign misaligned_load_o  = agu_misaligned_load;
     assign misaligned_store_o = agu_misaligned_store;
+
+    // AGU相关控制信号输出
+    assign agu_stall_req_o    = agu_stall_req;  // 新增
+    assign agu_atom_lock_o    = agu_atom_lock;  // 新增
 
     // SYS info
 
@@ -306,36 +346,38 @@ module dispatch_logic (
     assign sys_op_dret_o   = sys_info[`DECINFO_SYS_DRET];  // DRET指令：从调试模式返回
 
     // 浮点指令分组判定与信号分解
-    wire op_sfpu = (disp_info_grp == `DECINFO_GRP_SFPU);
-    wire [`DECINFO_SFPU_BUS_WIDTH-1:0] sfpu_info = {`DECINFO_SFPU_BUS_WIDTH{op_sfpu}} & dec_info_bus_i;
+    wire op_fpu = (disp_info_grp == `DECINFO_GRP_FPU);
+    wire [`DECINFO_FPU_BUS_WIDTH-1:0] fpu_info = {`DECINFO_FPU_BUS_WIDTH{op_fpu}} & dec_info_bus_i;
+
 
     // 浮点指令操作数类型判断
-    wire fpu_op1_use_int = sfpu_info[`DECINFO_SFPU_FCVT_I2F_S] | sfpu_info[`DECINFO_SFPU_FMV_I2F_S];
+    wire fpu_op1_use_int = fpu_info[`DECINFO_FPU_FCVT_I2F] | fpu_info[`DECINFO_FPU_FMV_I2F];
 
-    assign req_fpu_o           = op_sfpu;
-    assign fpu_op_fadd_s_o     = sfpu_info[`DECINFO_SFPU_FADD_S];
-    assign fpu_op_fsub_s_o     = sfpu_info[`DECINFO_SFPU_FSUB_S];
-    assign fpu_op_fmul_s_o     = sfpu_info[`DECINFO_SFPU_FMUL_S];
-    assign fpu_op_fdiv_s_o     = sfpu_info[`DECINFO_SFPU_FDIV_S];
-    assign fpu_op_fsqrt_s_o    = sfpu_info[`DECINFO_SFPU_FSQRT_S];
-    assign fpu_op_fsgnj_s_o    = sfpu_info[`DECINFO_SFPU_FSGNJ_S];
-    assign fpu_op_fmax_s_o     = sfpu_info[`DECINFO_SFPU_FMAX_S];
-    assign fpu_op_fcmp_s_o     = sfpu_info[`DECINFO_SFPU_FCMP_S];
-    assign fpu_op_fcvt_f2i_s_o = sfpu_info[`DECINFO_SFPU_FCVT_F2I_S];
-    assign fpu_op_fcvt_i2f_s_o = sfpu_info[`DECINFO_SFPU_FCVT_I2F_S];
-    assign fpu_op_fmadd_s_o    = sfpu_info[`DECINFO_SFPU_FMADD_S];
-    assign fpu_op_fmsub_s_o    = sfpu_info[`DECINFO_SFPU_FMSUB_S];
-    assign fpu_op_fnmadd_s_o   = sfpu_info[`DECINFO_SFPU_FNMADD_S];
-    assign fpu_op_fnmsub_s_o   = sfpu_info[`DECINFO_SFPU_FNMSUB_S];
-    assign fpu_op_fmv_i2f_s_o  = sfpu_info[`DECINFO_SFPU_FMV_I2F_S];
-    assign fpu_op_fmv_f2i_s_o  = sfpu_info[`DECINFO_SFPU_FMV_F2I_S];
-    assign fpu_op_fclass_s_o   = sfpu_info[`DECINFO_SFPU_FCLASS_S];
-
+    assign req_fpu_o         = op_fpu;
+    assign fpu_op_fadd_o     = fpu_info[`DECINFO_FPU_FADD];
+    assign fpu_op_fsub_o     = fpu_info[`DECINFO_FPU_FSUB];
+    assign fpu_op_fmul_o     = fpu_info[`DECINFO_FPU_FMUL];
+    assign fpu_op_fdiv_o     = fpu_info[`DECINFO_FPU_FDIV];
+    assign fpu_op_fsqrt_o    = fpu_info[`DECINFO_FPU_FSQRT];
+    assign fpu_op_fsgnj_o    = fpu_info[`DECINFO_FPU_FSGNJ];
+    assign fpu_op_fmax_o     = fpu_info[`DECINFO_FPU_FMAX];
+    assign fpu_op_fcmp_o     = fpu_info[`DECINFO_FPU_FCMP];
+    assign fpu_op_fcvt_f2i_o = fpu_info[`DECINFO_FPU_FCVT_F2I];
+    assign fpu_op_fcvt_i2f_o = fpu_info[`DECINFO_FPU_FCVT_I2F];
+    assign fpu_op_fcvt_f2f_o = fpu_info[`DECINFO_FPU_FCVT_F2F];  // 新增
+    assign fpu_op_fmadd_o    = fpu_info[`DECINFO_FPU_FMADD];
+    assign fpu_op_fmsub_o    = fpu_info[`DECINFO_FPU_FMSUB];
+    assign fpu_op_fnmadd_o   = fpu_info[`DECINFO_FPU_FNMADD];
+    assign fpu_op_fnmsub_o   = fpu_info[`DECINFO_FPU_FNMSUB];
+    assign fpu_op_fmv_i2f_o  = fpu_info[`DECINFO_FPU_FMV_I2F];
+    assign fpu_op_fmv_f2i_o  = fpu_info[`DECINFO_FPU_FMV_F2I];
+    assign fpu_op_fclass_o   = fpu_info[`DECINFO_FPU_FCLASS];
+    assign fpu_fmt_o         = fpu_info[`DECINFO_FPU_FMT];
     // 根据指令类型选择正确的操作数源
-    assign fpu_op1_o           = op_sfpu ? (fpu_op1_use_int ? rs1_rdata_i : frs1_rdata_i) : 32'h0;
-    assign fpu_op2_o           = op_sfpu ? frs2_rdata_i : 32'h0;
-    assign fpu_op3_o           = op_sfpu ? frs3_rdata_i : 32'h0;
-    assign frm_o               = op_sfpu ? sfpu_info[`DECINFO_SFPU_FRM] : 3'b000;
-    assign fcvt_op_o           = op_sfpu ? sfpu_info[`DECINFO_SFPU_FCVT_OP] : 2'b00;
+    assign fpu_op1_o         = op_fpu ? (fpu_op1_use_int ? rs1_rdata_i : frs1_rdata_i) : 32'h0;
+    assign fpu_op2_o         = op_fpu ? frs2_rdata_i : 32'h0;
+    assign fpu_op3_o         = op_fpu ? frs3_rdata_i : 32'h0;
+    assign frm_o             = op_fpu ? fpu_info[`DECINFO_FPU_FRM] : 3'b000;
+    assign fcvt_op_o         = op_fpu ? fpu_info[`DECINFO_FPU_FCVT_OP] : 2'b00;
 
 endmodule
