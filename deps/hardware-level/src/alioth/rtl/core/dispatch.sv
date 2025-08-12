@@ -63,7 +63,7 @@ module dispatch (
     input wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_i,
 
     // 长指令有效信号 - 用于HDU
-    input wire rd_access_inst_valid_i,
+    input wire clint_req_valid_i,
 
     // 写回阶段提交信号 - 用于HDU
     input wire                        commit_valid_int_i,
@@ -322,17 +322,23 @@ module dispatch (
     wire                        logic_agu_stall_req;
     wire                        logic_agu_atom_lock;
 
+    wire                        hdu_new_inst_valid;
+    wire                        agu_new_inst_valid;
+
     assign mul_commit_id_o = commit_id_o;
     assign div_commit_id_o = commit_id_o;
 
     assign agu_stall_req_o = logic_agu_stall_req;
     assign agu_atom_lock_o = logic_agu_atom_lock;
 
+    assign hdu_new_inst_valid = !stall_flag_i && !clint_req_valid_i;
+    assign agu_new_inst_valid = !stall_flag_i[`CU_STALL] && !stall_flag_i[`CU_FLUSH] && !clint_req_valid_i;
+
     // 实例化HDU模块
     hdu u_hdu (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .inst_valid           (rd_access_inst_valid_i),
+        .inst_valid           (hdu_new_inst_valid),
         .rd_addr              (reg_waddr_i),
         .rs1_addr             (rs1_raddr_i),
         .rs2_addr             (rs2_raddr_i),
@@ -352,9 +358,10 @@ module dispatch (
 
     // dispatch_logic实例化
     dispatch_logic u_dispatch_logic (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .stall_flag_i(stall_flag_i),
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .new_inst_valid_i(agu_new_inst_valid),
+        .exu_stall_flag_i(stall_flag_i[`CU_STALL_DISPATCH]),
 
         .dec_info_bus_i (dec_info_bus_i),
         .dec_imm_i      (dec_imm_i),

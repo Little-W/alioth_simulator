@@ -401,7 +401,7 @@ module cpu_top (
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    wire new_inst_valid = !ctrl_stall_flag_o && !clint_req_valid_o;
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
 
     // 新增dispatch到exu/ctrl/clint/agu信号
@@ -629,8 +629,8 @@ module cpu_top (
         .csr_waddr_i(idu_csr_waddr_o),
         .csr_raddr_i(idu_csr_raddr_o),
 
-        // 长指令有效信号 - 用于HDU
-        .rd_access_inst_valid_i(rd_access_inst_valid),
+        // 来自CLINT的指令撤销信号
+        .clint_req_valid_i(clint_req_valid_o),
 
         // 写回阶段提交信号
         .commit_valid_int_i(wbu_commit_valid_int_o),

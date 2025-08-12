@@ -150,15 +150,14 @@ module clint (
                             || misaligned_load_i || misaligned_store_i
                             || misaligned_fetch_i);
 
-    wire int_env_valid = (atom_opt_busy_i == 1'b0);
+    wire int_env_valid = (atom_opt_busy_i == 1'b0) && !agu_atom_lock_i;
 
     wire int_req = (ext_irq_en | timer_irq_en | soft_irq_en) & global_int_en;
 
     // wire exception_or_int = exception_req_r | int_req_r;
     wire exception_or_int = exception_req | int_req;
     wire int_pending = (int_state == S_INT_PENDING);
-    wire exception_or_int_valid = (exception_or_int && !exu_stall_i &&
-                                  !agu_atom_lock_i && inst_valid_i);
+    wire exception_or_int_valid = (exception_or_int && !exu_stall_i && inst_valid_i);
 
     assign int_assert_o      = int_pending;
 

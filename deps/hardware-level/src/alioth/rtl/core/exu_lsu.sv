@@ -203,12 +203,12 @@ module exu_lsu #(
     wire [`COMMIT_ID_WIDTH-1:0] effective_commit_id_i = input_fifo_empty ? commit_id_i : input_fifo_commit_id[input_fifo_rd_ptr];
 
     // 输入FIFO控制逻辑 - 简化为普通请求处理
-    wire input_request_accepted = effective_req_mem_i && !int_assert_i &&
+    wire input_request_accepted = effective_req_mem_i &&
                                   ((effective_mem_op_load_i && M_AXI_ARVALID && M_AXI_ARREADY) ||
                                    (effective_mem_op_store_i && M_AXI_AWVALID && M_AXI_AWREADY));
 
     // 推入条件：所有指令都按32位指令处理
-    wire should_push_input_fifo = req_mem_i && !int_assert_i && input_fifo_wr_allow && 
+    wire should_push_input_fifo = req_mem_i && input_fifo_wr_allow && 
                                   (!input_request_accepted || !input_fifo_empty);
 
     // 输入FIFO写入使能
@@ -222,7 +222,7 @@ module exu_lsu #(
 
     // 基本信号计算 - 使用effective信号
     assign mem_addr_index   = effective_mem_addr_i[1:0];
-    assign valid_op         = effective_req_mem_i && !int_assert_i;
+    assign valid_op         = effective_req_mem_i;
 
     // 直接使用输入的load和store信号 - 使用effective信号
     wire                       is_load_op = effective_mem_op_load_i;
@@ -304,7 +304,7 @@ module exu_lsu #(
     assign same_cycle_response = (read_fifo_empty & M_AXI_ARVALID & M_AXI_ARREADY & M_AXI_RVALID & axi_rready);
 
     // 访存阻塞信号 - 简化为32位指令处理
-    assign mem_stall_o = req_mem_i && !int_assert_i && input_fifo_full;
+    assign mem_stall_o = req_mem_i && input_fifo_full;
     assign mem_busy_o = !write_fifo_empty;
 
     // 读请求FIFO操作

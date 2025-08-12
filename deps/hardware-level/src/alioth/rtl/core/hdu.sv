@@ -55,6 +55,8 @@ module hdu (
     reg [7:0] fifo_valid;  // 有效位，深度8
     reg [`REG_ADDR_WIDTH-1:0] fifo_rd_addr[0:7];  // 目标寄存器地址，深度8
 
+    wire inst_rd_valid = inst_valid && rd_we;  // 新指令写寄存器有效
+
     // 冒险检测信号
     reg                        raw_hazard;  // 读后写冒险
     reg                        waw_hazard;  // 写后写冒险
@@ -100,7 +102,7 @@ module hdu (
     assign hazard_stall_o = hazard || (fifo_valid == 8'b11111111); // 如果FIFO已满也暂停流水线
 
     // 为新的长指令分配ID - 使用assign语句
-    assign commit_id_o = (inst_valid && ~hazard) ? 
+    assign commit_id_o = (inst_rd_valid && ~hazard) ? 
         ( ~fifo_valid[0] ? 0 :
           ~fifo_valid[1] ? 1 :
           ~fifo_valid[2] ? 2 :
@@ -128,7 +130,7 @@ module hdu (
             end
 
             // 添加新的长指令到FIFO
-            if (inst_valid && ~hazard) begin
+            if (inst_rd_valid && ~hazard) begin
                 // 使用组合逻辑分配的ID更新FIFO
                 fifo_valid[commit_id_o]   <= 1'b1;
                 fifo_rd_addr[commit_id_o] <= rd_addr;

@@ -27,9 +27,10 @@
 
 module dispatch_logic (
     // 新增：时钟、复位、流水线暂停信号
-    input wire                     clk,
-    input wire                     rst_n,
-    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
+    input wire clk,
+    input wire rst_n,
+    input wire new_inst_valid_i,  // 新指令有效输入
+    input wire exu_stall_flag_i,  // 执行单元暂停信号
 
     input wire [  `DECINFO_WIDTH-1:0] dec_info_bus_i,
     input wire [                31:0] dec_imm_i,
@@ -273,42 +274,41 @@ module dispatch_logic (
     wire agu_mem_req;  // 新增
     wire agu_stall_req;  // 新增
     wire agu_atom_lock;  // 新增
-    wire op_valid = !(stall_flag_i[`CU_STALL] | stall_flag_i[`CU_FLUSH]);
 
     agu u_agu (
-        .clk               (clk),                  // 新增
-        .rst_n             (rst_n),                // 新增
-        .op_valid_i        (op_valid),         // 新增
-        .exu_stall_i       (stall_flag_i[`CU_STALL_DISPATCH]), // 来自EXU的暂停信号
-        .op_mem            (op_mem),
-        .mem_info          (mem_info),
-        .rs1_rdata_i       (rs1_rdata_i),
-        .rs2_rdata_i       (rs2_rdata_i),
-        .dec_imm_i         (dec_imm_i),
-        .frs2_rdata_i      (frs2_rdata_i),
-        .commit_id_i       (commit_id_i),
-        .mem_reg_waddr_i   (mem_reg_waddr_i),      // 新增
-        .mem_op_lb_o       (agu_mem_op_lb),
-        .mem_op_lh_o       (agu_mem_op_lh),
-        .mem_op_lw_o       (agu_mem_op_lw),
-        .mem_op_lbu_o      (agu_mem_op_lbu),
-        .mem_op_lhu_o      (agu_mem_op_lhu),
-        .mem_op_ldh_o      (agu_mem_op_ldh),       // 新增
-        .mem_op_ldl_o      (agu_mem_op_ldl),       // 新增
-        .mem_op_sb_o       (agu_mem_op_sb),
-        .mem_op_sh_o       (agu_mem_op_sh),
-        .mem_op_sw_o       (agu_mem_op_sw),
-        .mem_op_load_o     (agu_mem_op_load),
-        .mem_op_store_o    (agu_mem_op_store),
-        .mem_req_o         (agu_mem_req),          // 新增
-        .agu_atom_lock     (agu_atom_lock),        // 新增
-        .agu_stall_req_o   (agu_stall_req),        // 新增
-        .mem_addr_o        (agu_mem_addr),
-        .mem_wmask_o       (agu_mem_wmask),
-        .mem_wdata_o       (agu_mem_wdata),
-        .commit_id_o       (mem_commit_id_o),      // 新增：连接到流水线寄存器
-        .mem_reg_waddr_o   (mem_reg_waddr_o),      // 新增
-        .misaligned_load_o (agu_misaligned_load),
+        .clk(clk),  // 新增
+        .rst_n(rst_n),  // 新增
+        .op_valid_i(new_inst_valid_i),  // 新增
+        .exu_stall_i(exu_stall_flag_i),  // 来自EXU的暂停信号
+        .op_mem(op_mem),
+        .mem_info(mem_info),
+        .rs1_rdata_i(rs1_rdata_i),
+        .rs2_rdata_i(rs2_rdata_i),
+        .dec_imm_i(dec_imm_i),
+        .frs2_rdata_i(frs2_rdata_i),
+        .commit_id_i(commit_id_i),
+        .mem_reg_waddr_i(mem_reg_waddr_i),  // 新增
+        .mem_op_lb_o(agu_mem_op_lb),
+        .mem_op_lh_o(agu_mem_op_lh),
+        .mem_op_lw_o(agu_mem_op_lw),
+        .mem_op_lbu_o(agu_mem_op_lbu),
+        .mem_op_lhu_o(agu_mem_op_lhu),
+        .mem_op_ldh_o(agu_mem_op_ldh),  // 新增
+        .mem_op_ldl_o(agu_mem_op_ldl),  // 新增
+        .mem_op_sb_o(agu_mem_op_sb),
+        .mem_op_sh_o(agu_mem_op_sh),
+        .mem_op_sw_o(agu_mem_op_sw),
+        .mem_op_load_o(agu_mem_op_load),
+        .mem_op_store_o(agu_mem_op_store),
+        .mem_req_o(agu_mem_req),  // 新增
+        .agu_atom_lock(agu_atom_lock),  // 新增
+        .agu_stall_req_o(agu_stall_req),  // 新增
+        .mem_addr_o(agu_mem_addr),
+        .mem_wmask_o(agu_mem_wmask),
+        .mem_wdata_o(agu_mem_wdata),
+        .commit_id_o(mem_commit_id_o),  // 新增：连接到流水线寄存器
+        .mem_reg_waddr_o(mem_reg_waddr_o),  // 新增
+        .misaligned_load_o(agu_misaligned_load),
         .misaligned_store_o(agu_misaligned_store)
     );
 
