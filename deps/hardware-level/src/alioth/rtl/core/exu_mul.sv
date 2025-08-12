@@ -168,14 +168,13 @@ module exu_mul (
     // 条件信号定义 - 用于流水线保持逻辑
     wire mul0_result_pending = mul0_valid;
     wire mul1_result_pending = mul1_valid;
-    wire stall_mul_cond = is_mul_op && (mul_busy || mul0_result_pending || mul1_result_pending);
 
     // 乘法可用信号
     wire mul0_available = !mul0_busy && !mul0_result_pending;
     wire mul1_available = !mul1_busy && !mul1_result_pending;
 
     // Buffer写入条件
-    wire buffer_write_en = stall_mul_cond;
+    wire buffer_write_en = is_mul_op && !mul0_available && !mul1_available;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin

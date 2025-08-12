@@ -167,14 +167,13 @@ module exu_div (
     // 条件信号定义 - 用于流水线保持逻辑
     wire div0_result_pending = div0_valid;
     wire div1_result_pending = div1_valid;
-    wire stall_div_cond = is_div_op && (div_busy || div0_result_pending || div1_result_pending);
 
     // 除法可用信号
     wire div0_available = !div0_busy && !div0_result_pending;
     wire div1_available = !div1_busy && !div1_result_pending;
 
     // Buffer写入条件
-    wire buffer_write_en = stall_div_cond;
+    wire buffer_write_en = is_div_op && !div1_available && !div1_available;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
