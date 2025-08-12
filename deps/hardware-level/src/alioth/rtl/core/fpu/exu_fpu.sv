@@ -6,23 +6,24 @@ module exu_fpu (
     input  logic                        rst_n,
     // 外部输入信号
     input  logic                        req_fpu_i,
-    input  logic                        fpu_op_fadd_s_i,
-    input  logic                        fpu_op_fsub_s_i,
-    input  logic                        fpu_op_fmul_s_i,
-    input  logic                        fpu_op_fdiv_s_i,
-    input  logic                        fpu_op_fsqrt_s_i,
-    input  logic                        fpu_op_fsgnj_s_i,
-    input  logic                        fpu_op_fmax_s_i,
-    input  logic                        fpu_op_fcmp_s_i,
-    input  logic                        fpu_op_fcvt_f2i_s_i,
-    input  logic                        fpu_op_fcvt_i2f_s_i,
-    input  logic                        fpu_op_fmadd_s_i,
-    input  logic                        fpu_op_fmsub_s_i,
-    input  logic                        fpu_op_fnmadd_s_i,
-    input  logic                        fpu_op_fnmsub_s_i,
-    input  logic                        fpu_op_fmv_i2f_s_i,
-    input  logic                        fpu_op_fmv_f2i_s_i,
-    input  logic                        fpu_op_fclass_s_i,
+    input  logic                        fpu_op_fadd_i,
+    input  logic                        fpu_op_fsub_i,
+    input  logic                        fpu_op_fmul_i,
+    input  logic                        fpu_op_fdiv_i,
+    input  logic                        fpu_op_fsqrt_i,
+    input  logic                        fpu_op_fsgnj_i,
+    input  logic                        fpu_op_fmax_i,
+    input  logic                        fpu_op_fcmp_i,
+    input  logic                        fpu_op_fcvt_f2i_i,
+    input  logic                        fpu_op_fcvt_i2f_i,
+    input  logic                        fpu_op_fcvt_f2f_i, // 新增fcvt_f2f输入
+    input  logic                        fpu_op_fmadd_i,
+    input  logic                        fpu_op_fmsub_i,
+    input  logic                        fpu_op_fnmadd_i,
+    input  logic                        fpu_op_fnmsub_i,
+    input  logic                        fpu_op_fmv_i2f_i,
+    input  logic                        fpu_op_fmv_f2i_i,
+    input  logic                        fpu_op_fclass_i,
     input  logic [`FREG_DATA_WIDTH-1:0] fpu_op1_i,
     input  logic [`FREG_DATA_WIDTH-1:0] fpu_op2_i,
     input  logic [`FREG_DATA_WIDTH-1:0] fpu_op3_i,
@@ -32,6 +33,7 @@ module exu_fpu (
     input  logic [`COMMIT_ID_WIDTH-1:0] commit_id_i,
     input  logic [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input  logic                        wb_ready_i,
+    input  logic [                 1:0] fmt_i,
     // 输出寄存器接口
     output logic                        reg_we_o,
     output logic [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,
@@ -65,26 +67,27 @@ module exu_fpu (
         fp_exe_in_s.data1       = fpu_op1_i;
         fp_exe_in_s.data2       = fpu_op2_i;
         fp_exe_in_s.data3       = fpu_op3_i;
-        fp_exe_in_s.fmt         = 2'b00;
+        fp_exe_in_s.fmt         = fmt_i;
         fp_exe_in_s.enable      = fpu_req_valid;
         fp_exe_in_s.op          = fp_wire::init_fp_operation;
-        fp_exe_in_s.op.fmadd    = fpu_op_fmadd_s_i;
-        fp_exe_in_s.op.fmsub    = fpu_op_fmsub_s_i;
-        fp_exe_in_s.op.fnmadd   = fpu_op_fnmadd_s_i;
-        fp_exe_in_s.op.fnmsub   = fpu_op_fnmsub_s_i;
-        fp_exe_in_s.op.fadd     = fpu_op_fadd_s_i;
-        fp_exe_in_s.op.fsub     = fpu_op_fsub_s_i;
-        fp_exe_in_s.op.fmul     = fpu_op_fmul_s_i;
-        fp_exe_in_s.op.fdiv     = fpu_op_fdiv_s_i;
-        fp_exe_in_s.op.fsqrt    = fpu_op_fsqrt_s_i;
-        fp_exe_in_s.op.fsgnj    = fpu_op_fsgnj_s_i;
-        fp_exe_in_s.op.fcmp     = fpu_op_fcmp_s_i;
-        fp_exe_in_s.op.fmax     = fpu_op_fmax_s_i;
-        fp_exe_in_s.op.fmv_i2f  = fpu_op_fmv_i2f_s_i;
-        fp_exe_in_s.op.fmv_f2i  = fpu_op_fmv_f2i_s_i;
-        fp_exe_in_s.op.fcvt_i2f = fpu_op_fcvt_i2f_s_i;
-        fp_exe_in_s.op.fcvt_f2i = fpu_op_fcvt_f2i_s_i;
-        fp_exe_in_s.op.fclass   = fpu_op_fclass_s_i;
+        fp_exe_in_s.op.fmadd    = fpu_op_fmadd_i;
+        fp_exe_in_s.op.fmsub    = fpu_op_fmsub_i;
+        fp_exe_in_s.op.fnmadd   = fpu_op_fnmadd_i;
+        fp_exe_in_s.op.fnmsub   = fpu_op_fnmsub_i;
+        fp_exe_in_s.op.fadd     = fpu_op_fadd_i;
+        fp_exe_in_s.op.fsub     = fpu_op_fsub_i;
+        fp_exe_in_s.op.fmul     = fpu_op_fmul_i;
+        fp_exe_in_s.op.fdiv     = fpu_op_fdiv_i;
+        fp_exe_in_s.op.fsqrt    = fpu_op_fsqrt_i;
+        fp_exe_in_s.op.fsgnj    = fpu_op_fsgnj_i;
+        fp_exe_in_s.op.fcmp     = fpu_op_fcmp_i;
+        fp_exe_in_s.op.fmax     = fpu_op_fmax_i;
+        fp_exe_in_s.op.fmv_i2f  = fpu_op_fmv_i2f_i;
+        fp_exe_in_s.op.fmv_f2i  = fpu_op_fmv_f2i_i;
+        fp_exe_in_s.op.fcvt_i2f = fpu_op_fcvt_i2f_i;
+        fp_exe_in_s.op.fcvt_f2i = fpu_op_fcvt_f2i_i;
+        fp_exe_in_s.op.fcvt_f2f = fpu_op_fcvt_f2f_i; // 新增fcvt_f2f赋值
+        fp_exe_in_s.op.fclass   = fpu_op_fclass_i;
         fp_exe_in_s.op.fcvt_op  = fcvt_op_i;
         // frm选择逻辑：frm_i为111时用csr_frm_i，否则用frm_i
         fp_exe_in_s.rm          = (frm_i == 3'b111) ? csr_frm_i : frm_i;
@@ -110,7 +113,7 @@ module exu_fpu (
 
     // 结果寄存器
     gnrl_dfflr #(
-        .DW(32)
+        .DW(`FREG_DATA_WIDTH)
     ) u_result_dfflr (
         .clk  (clk),
         .rst_n(rst_n),
@@ -176,10 +179,11 @@ module exu_fpu (
 
     // FFLAGS相关指令检测wire（筛除不影响FFLAGS的指令）
     wire fflags_req = fpu_req_valid & (
-        fpu_op_fadd_s_i    | fpu_op_fsub_s_i    | fpu_op_fmul_s_i    | fpu_op_fdiv_s_i    |
-        fpu_op_fsqrt_s_i   | fpu_op_fmax_s_i    | fpu_op_fcmp_s_i    |
-        fpu_op_fcvt_f2i_s_i| fpu_op_fcvt_i2f_s_i| fpu_op_fmadd_s_i   | fpu_op_fmsub_s_i   |
-        fpu_op_fnmadd_s_i  | fpu_op_fnmsub_s_i
+        fpu_op_fadd_i    | fpu_op_fsub_i    | fpu_op_fmul_i    | fpu_op_fdiv_i    |
+        fpu_op_fsqrt_i   | fpu_op_fmax_i    | fpu_op_fcmp_i    |
+        fpu_op_fcvt_f2i_i| fpu_op_fcvt_i2f_i| fpu_op_fcvt_f2f_i| // 新增fcvt_f2f
+        fpu_op_fmadd_i   | fpu_op_fmsub_i   |
+        fpu_op_fnmadd_i  | fpu_op_fnmsub_i
     );
 
     // FFLAGS等待更新状态寄存器
