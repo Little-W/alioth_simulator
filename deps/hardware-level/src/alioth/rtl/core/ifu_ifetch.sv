@@ -35,7 +35,7 @@ module ifu_ifetch (
     input wire                        stall_pc_i,    // PC暂停信号
     input wire                        axi_arready_i, // AXI读地址通道准备好信号
 
-    output wire [`INST_ADDR_WIDTH-1:0] pc_o,  // PC指针
+    output reg [`INST_ADDR_WIDTH-1:0] pc_o,  // PC指针
     // 新增输出：非对齐取指信号
     output wire pc_misaligned_o
 );
@@ -47,8 +47,7 @@ module ifu_ifetch (
     wire                        stall_pc_actual = stall_pc_i || !axi_arready_i;
 
     // 根据控制信号计算下一个PC值
-    assign pc_nxt = (!rst_n) ? `PC_RESET_ADDR :  // 复位
-        (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
+    assign pc_nxt = (jump_flag_i == `JumpEnable) ? jump_addr_i :  // 跳转
         (stall_pc_actual) ? pc_o :  // 暂停（包括AXI未就绪的情况）
         pc_o + 4'h8;  // 地址加8
 
@@ -56,14 +55,17 @@ module ifu_ifetch (
     // PC[2]=0: 指令在低32位, PC[2]=1: 指令在高32位
     assign pc_misaligned_o = pc_o[2];
 
-    // 使用gnrl_dff模块实现PC寄存器
-    gnrl_dff #(
-        .DW(`INST_ADDR_WIDTH)
-    ) pc_dff (
-        .clk  (clk),
-        .rst_n(rst_n),  // 正确连接复位信号
-        .dnxt (pc_nxt),
-        .qout (pc_o)
-    );
+    // 定制PC寄存器，复位到正确地址
+    reg [`INST_ADDR_WIDTH-1:0] pc_reg;
+    
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            pc_reg <= `PC_RESET_ADDR;  // 复位到正确地址
+        end else begin
+            pc_reg <= pc_nxt;
+        end
+    end
+    
+    assign pc_o = pc_reg;
 
 endmodule
