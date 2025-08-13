@@ -7,7 +7,6 @@
 //   fp_unit_i/o     : 主输入输出结构体
 //   clear           : 清除/暂停信号
 
-import lzc_types::*;
 import fp_types::*;
 
 module fp_unit (
@@ -18,13 +17,6 @@ module fp_unit (
     input                   clear
 );
     timeunit 1ns; timeprecision 1ps;
-
-    lzc_64_in_type      lzc1_64_i;
-    lzc_64_out_type     lzc1_64_o;
-    lzc_64_in_type      lzc2_64_i;
-    lzc_64_out_type     lzc2_64_o;
-    lzc_64_in_type      lzc3_64_i;
-    lzc_64_out_type     lzc3_64_o;
 
     fp_ext_in_type      fp_ext1_i;
     fp_ext_out_type     fp_ext1_o;
@@ -54,43 +46,19 @@ module fp_unit (
     fp_fdiv_in_type     fp_fdiv_i;
     fp_fdiv_out_type    fp_fdiv_o;
 
-    lzc_64 lzc_64_1 (
-        .data_in(lzc1_64_i.data_in),
-        .lzc    (lzc1_64_o.lzc),
-        .valid  (lzc1_64_o.valid)
-    );
-
-    lzc_64 lzc_64_2 (
-        .data_in(lzc2_64_i.data_in),
-        .lzc    (lzc2_64_o.lzc),
-        .valid  (lzc2_64_o.valid)
-    );
-
-    lzc_64 lzc_64_3 (
-        .data_in(lzc3_64_i.data_in),
-        .lzc    (lzc3_64_o.lzc),
-        .valid  (lzc3_64_o.valid)
-    );
-
-    fp_ext fp_ext_1 (
+    fp_extract fp_extract_1 (
         .fp_ext_i(fp_ext1_i),
-        .fp_ext_o(fp_ext1_o),
-        .lzc_o   (lzc1_64_o),
-        .lzc_i   (lzc1_64_i)
+        .fp_ext_o(fp_ext1_o)
     );
 
-    fp_ext fp_ext_2 (
+    fp_extract fp_extract_2 (
         .fp_ext_i(fp_ext2_i),
-        .fp_ext_o(fp_ext2_o),
-        .lzc_o   (lzc2_64_o),
-        .lzc_i   (lzc2_64_i)
+        .fp_ext_o(fp_ext2_o)
     );
 
-    fp_ext fp_ext_3 (
+    fp_extract fp_extract_3 (
         .fp_ext_i(fp_ext3_i),
-        .fp_ext_o(fp_ext3_o),
-        .lzc_o   (lzc3_64_o),
-        .lzc_i   (lzc3_64_i)
+        .fp_ext_o(fp_ext3_o)
     );
 
     fp_cmp fp_cmp (
@@ -140,9 +108,9 @@ module fp_unit (
         .fp_rnd_o(fp_rnd_o)
     );
 
-    fp_exe fp_exe (
-        .fp_exe_i    (fp_unit_i.fp_exe_i),
-        .fp_exe_o    (fp_unit_o.fp_exe_o),
+    fp_hub fp_hub (
+        .fp_hub_i    (fp_unit_i.fp_hub_i),
+        .fp_hub_o    (fp_unit_o.fp_hub_o),
         .fp_ext1_o   (fp_ext1_o),
         .fp_ext1_i   (fp_ext1_i),
         .fp_ext2_o   (fp_ext2_o),

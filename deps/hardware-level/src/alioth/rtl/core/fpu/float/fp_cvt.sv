@@ -7,7 +7,6 @@
 //   fp_cvt_i2f_i/o : 整型到浮点转换
 //   lzc_o/lzc_i    : 前导零计数器接口（保留兼容性）
 
-import lzc_types::*;
 import fp_types::*;
 
 module fp_cvt (
@@ -18,9 +17,7 @@ module fp_cvt (
     input  fp_cvt_f2i_in_type  fp_cvt_f2i_i,
     output fp_cvt_f2i_out_type fp_cvt_f2i_o,
     input  fp_cvt_i2f_in_type  fp_cvt_i2f_i,
-    output fp_cvt_i2f_out_type fp_cvt_i2f_o,
-    input  lzc_64_out_type     lzc_o,
-    output lzc_64_in_type      lzc_i
+    output fp_cvt_i2f_out_type fp_cvt_i2f_o
 );
     timeunit 1ns; timeprecision 1ps;
 
@@ -140,7 +137,7 @@ module fp_cvt (
             end
             PROCESS: begin
                 i2f_state_next = COMPLETE;
-                v_i2f_next     = i2f_process_stage(v_i2f_r, lzc_internal);
+                v_i2f_next     = i2f_process_stage(v_i2f_r, lzc_result); // 直接传递lzc_result
             end
             COMPLETE: begin
                 i2f_state_next    = IDLE;
@@ -433,12 +430,12 @@ module fp_cvt (
     endfunction
 
     function automatic fp_cvt_i2f_var_type i2f_process_stage(input fp_cvt_i2f_var_type i2f_var_in,
-                                                             input lzc_64_out_type lzc_result);
+                                                             input logic [5:0] lzc_result); // 修改类型为logic [5:0]
         fp_cvt_i2f_var_type i2f_var_out;
         i2f_var_out               = i2f_var_in;
 
         i2f_var_out.zero = ~|i2f_var_out.mantissa_uint;
-        i2f_var_out.counter_uint = ~lzc_result.lzc;
+        i2f_var_out.counter_uint = ~lzc_result;
         i2f_var_out.mantissa_uint = i2f_var_out.mantissa_uint << i2f_var_out.counter_uint;
 
         i2f_var_out.sign_rnd = i2f_var_in.sign_uint;
@@ -477,9 +474,6 @@ module fp_cvt (
     logic           [ 5:0] lzc_result;
     logic                  lzc_valid;
 
-    // 内部LZC输出结构
-    lzc_64_out_type        lzc_internal;
-
     // LZC输入控制 - 在PROCESS状态时连接正确的数据
     always_comb begin
         lzc_data_in = 64'h0;
@@ -487,13 +481,6 @@ module fp_cvt (
             lzc_data_in = v_i2f_r.mantissa_uint;
         end
     end
-
-    // 内部LZC结果组装
-    assign lzc_internal.lzc   = lzc_result;
-    assign lzc_internal.valid = lzc_valid;
-
-    // 兼容性接口 - 保持原有外部接口
-    assign lzc_i.data_in      = lzc_data_in;
 
     // 实例化内部LZC模块
     lzc_64 u_lzc_64 (

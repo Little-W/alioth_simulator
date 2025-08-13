@@ -1,4 +1,3 @@
-import lzc_types::*;
 import fp_types::*;
 
 module exu_fpu (
@@ -58,41 +57,41 @@ module exu_fpu (
     logic                     [                 4:0] fcsr_fflags_r;
 
     // 输入信号转结构体
-    fp_types::fp_exe_in_type                          fp_exe_in_s;
+    fp_types::fp_hub_in_type                          fp_hub_in_s;
 
     logic                                            fpu_req_valid;
     assign fpu_req_valid = req_fpu_i & ~fpu_busy;
 
     always_comb begin
-        fp_exe_in_s.data1       = fpu_op1_i;
-        fp_exe_in_s.data2       = fpu_op2_i;
-        fp_exe_in_s.data3       = fpu_op3_i;
-        fp_exe_in_s.fmt         = fmt_i;
-        fp_exe_in_s.enable      = fpu_req_valid;
-        fp_exe_in_s.op          = fp_types::init_fp_operation;
-        fp_exe_in_s.op.fmadd    = fpu_op_fmadd_i;
-        fp_exe_in_s.op.fmsub    = fpu_op_fmsub_i;
-        fp_exe_in_s.op.fnmadd   = fpu_op_fnmadd_i;
-        fp_exe_in_s.op.fnmsub   = fpu_op_fnmsub_i;
-        fp_exe_in_s.op.fadd     = fpu_op_fadd_i;
-        fp_exe_in_s.op.fsub     = fpu_op_fsub_i;
-        fp_exe_in_s.op.fmul     = fpu_op_fmul_i;
-        fp_exe_in_s.op.fdiv     = fpu_op_fdiv_i;
-        fp_exe_in_s.op.fsqrt    = fpu_op_fsqrt_i;
-        fp_exe_in_s.op.fsgnj    = fpu_op_fsgnj_i;
-        fp_exe_in_s.op.fcmp     = fpu_op_fcmp_i;
-        fp_exe_in_s.op.fmax     = fpu_op_fmax_i;
-        fp_exe_in_s.op.fmv_i2f  = fpu_op_fmv_i2f_i;
-        fp_exe_in_s.op.fmv_f2i  = fpu_op_fmv_f2i_i;
-        fp_exe_in_s.op.fcvt_i2f = fpu_op_fcvt_i2f_i;
-        fp_exe_in_s.op.fcvt_f2i = fpu_op_fcvt_f2i_i;
-        fp_exe_in_s.op.fcvt_f2f = fpu_op_fcvt_f2f_i; // 新增fcvt_f2f赋值
-        fp_exe_in_s.op.fclass   = fpu_op_fclass_i;
-        fp_exe_in_s.op.fcvt_op  = fcvt_op_i;
+        fp_hub_in_s.data1       = fpu_op1_i;
+        fp_hub_in_s.data2       = fpu_op2_i;
+        fp_hub_in_s.data3       = fpu_op3_i;
+        fp_hub_in_s.fmt         = fmt_i;
+        fp_hub_in_s.enable      = fpu_req_valid;
+        fp_hub_in_s.op          = fp_types::init_fp_operation;
+        fp_hub_in_s.op.fmadd    = fpu_op_fmadd_i;
+        fp_hub_in_s.op.fmsub    = fpu_op_fmsub_i;
+        fp_hub_in_s.op.fnmadd   = fpu_op_fnmadd_i;
+        fp_hub_in_s.op.fnmsub   = fpu_op_fnmsub_i;
+        fp_hub_in_s.op.fadd     = fpu_op_fadd_i;
+        fp_hub_in_s.op.fsub     = fpu_op_fsub_i;
+        fp_hub_in_s.op.fmul     = fpu_op_fmul_i;
+        fp_hub_in_s.op.fdiv     = fpu_op_fdiv_i;
+        fp_hub_in_s.op.fsqrt    = fpu_op_fsqrt_i;
+        fp_hub_in_s.op.fsgnj    = fpu_op_fsgnj_i;
+        fp_hub_in_s.op.fcmp     = fpu_op_fcmp_i;
+        fp_hub_in_s.op.fmax     = fpu_op_fmax_i;
+        fp_hub_in_s.op.fmv_i2f  = fpu_op_fmv_i2f_i;
+        fp_hub_in_s.op.fmv_f2i  = fpu_op_fmv_f2i_i;
+        fp_hub_in_s.op.fcvt_i2f = fpu_op_fcvt_i2f_i;
+        fp_hub_in_s.op.fcvt_f2i = fpu_op_fcvt_f2i_i;
+        fp_hub_in_s.op.fcvt_f2f = fpu_op_fcvt_f2f_i; // 新增fcvt_f2f赋值
+        fp_hub_in_s.op.fclass   = fpu_op_fclass_i;
+        fp_hub_in_s.op.fcvt_op  = fcvt_op_i;
         // frm选择逻辑：frm_i为111时用csr_frm_i，否则用frm_i
-        fp_exe_in_s.rm          = (frm_i == 3'b111) ? csr_frm_i : frm_i;
+        fp_hub_in_s.rm          = (frm_i == 3'b111) ? csr_frm_i : frm_i;
     end
-    assign fp_unit_i = '{fp_exe_i: fp_exe_in_s};
+    assign fp_unit_i = '{fp_hub_i: fp_hub_in_s};
 
     // 直接实例化 fp_unit
     fp_unit u_fp_unit (
@@ -103,9 +102,9 @@ module exu_fpu (
         .clear    (1'b0)
     );
 
-    wire                        fp_ready = fp_unit_o.fp_exe_o.ready;
-    wire [`FREG_DATA_WIDTH-1:0] fp_result = fp_unit_o.fp_exe_o.result;
-    wire [                 4:0] fp_flags = fp_unit_o.fp_exe_o.flags;
+    wire                        fp_ready = fp_unit_o.fp_hub_o.ready;
+    wire [`FREG_DATA_WIDTH-1:0] fp_result = fp_unit_o.fp_hub_o.result;
+    wire [                 4:0] fp_flags = fp_unit_o.fp_hub_o.flags;
 
     wire                        wb_hsk = (reg_we_r & wb_ready_i);
     // 输出暂存一级寄存器改为握手式

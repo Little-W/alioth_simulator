@@ -8,7 +8,6 @@
 //   fp_fma_o        : 输出结果及标志
 //   clear           : 清除/暂停信号
 
-import lzc_types::*;
 import fp_types::*;
 
 module fp_fma (

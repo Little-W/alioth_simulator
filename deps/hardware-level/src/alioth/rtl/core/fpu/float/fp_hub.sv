@@ -1,17 +1,16 @@
-
-// 浮点主执行模块
+// 浮点主互联模块
 // 负责调度和连接各类浮点子模块，完成浮点指令的整体执行流程
 //
 // 端口说明：
-//   fp_exe_i/o    : 主输入输出结构体
+//   fp_hub_i/o    : 主输入输出结构体
 //   其余为各功能子模块的输入输出接口
 //   clear         : 清除/暂停信号
 
 import fp_types::*;
 
-module fp_exe (
-    input  fp_exe_in_type      fp_exe_i,
-    output fp_exe_out_type     fp_exe_o,
+module fp_hub (
+    input  fp_hub_in_type      fp_hub_i,
+    output fp_hub_out_type     fp_hub_o,
     input  fp_ext_out_type     fp_ext1_o,
     output fp_ext_in_type      fp_ext1_i,
     input  fp_ext_out_type     fp_ext2_o,
@@ -65,13 +64,13 @@ module fp_exe (
 
     always_comb begin
 
-        if (fp_exe_i.enable) begin
-            data1 = fp_exe_i.data1;
-            data2 = fp_exe_i.data2;
-            data3 = fp_exe_i.data3;
-            op    = fp_exe_i.op;
-            fmt   = fp_exe_i.fmt;
-            rm    = fp_exe_i.rm;
+        if (fp_hub_i.enable) begin
+            data1 = fp_hub_i.data1;
+            data2 = fp_hub_i.data2;
+            data3 = fp_hub_i.data3;
+            op    = fp_hub_i.op;
+            fmt   = fp_hub_i.fmt;
+            rm    = fp_hub_i.rm;
         end else begin
             data1 = 0;
             data2 = 0;
@@ -83,12 +82,12 @@ module fp_exe (
 
         result = 0;
         flags  = 0;
-        ready  = fp_exe_i.enable;
+        ready  = fp_hub_i.enable;
 
         if (op.fcvt_f2f) begin
-            fmt_ext = fp_exe_i.op.fcvt_op;
+            fmt_ext = fp_hub_i.op.fcvt_op;
         end else begin
-            fmt_ext = fp_exe_i.fmt;
+            fmt_ext = fp_hub_i.fmt;
         end
 
         fp_ext1_i.data              = data1;
@@ -148,19 +147,19 @@ module fp_exe (
         fp_cvt_i2f_i.op             = op;
         fp_cvt_i2f_i.fmt            = fmt;
         fp_cvt_i2f_i.rm             = rm;
-        fp_cvt_i2f_i.valid          = fp_exe_i.op.fcvt_i2f;
+        fp_cvt_i2f_i.valid          = fp_hub_i.op.fcvt_i2f;
 
         fp_cvt_f2f_i.data           = extend1;
         fp_cvt_f2f_i.fmt            = fmt;
         fp_cvt_f2f_i.rm             = rm;
         fp_cvt_f2f_i.classification = class1;
-        fp_cvt_f2f_i.valid          = fp_exe_i.op.fcvt_f2f;
+        fp_cvt_f2f_i.valid          = fp_hub_i.op.fcvt_f2f;
 
         fp_cvt_f2i_i.data           = extend1;
         fp_cvt_f2i_i.op             = op;
         fp_cvt_f2i_i.rm             = rm;
         fp_cvt_f2i_i.classification = class1;
-        fp_cvt_f2i_i.valid          = fp_exe_i.op.fcvt_f2i;
+        fp_cvt_f2i_i.valid          = fp_hub_i.op.fcvt_f2i;
 
         fp_rnd                      = init_fp_rnd_in;
 
@@ -231,9 +230,9 @@ module fp_exe (
             ready  = 0;
         end
 
-        fp_exe_o.result = result;
-        fp_exe_o.flags  = flags;
-        fp_exe_o.ready  = ready;
+        fp_hub_o.result = result;
+        fp_hub_o.flags  = flags;
+        fp_hub_o.ready  = ready;
 
     end
 

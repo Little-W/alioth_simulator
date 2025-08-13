@@ -57,13 +57,13 @@ package fp_types;
         logic [1:0] fmt;
         logic [2:0] rm;
         logic enable;
-    } fp_exe_in_type;
+    } fp_hub_in_type;
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0] flags;
         logic ready;
-    } fp_exe_out_type;
+    } fp_hub_out_type;
 
     typedef struct packed {
         logic [64:0] data1;
@@ -113,9 +113,9 @@ package fp_types;
         logic [9:0]  classification;
     } fp_ext_out_type;
 
-    typedef struct packed {fp_exe_in_type fp_exe_i;} fp_unit_in_type;
+    typedef struct packed {fp_hub_in_type fp_hub_i;} fp_unit_in_type;
 
-    typedef struct packed {fp_exe_out_type fp_exe_o;} fp_unit_out_type;
+    typedef struct packed {fp_hub_out_type fp_hub_o;} fp_unit_out_type;
 
     typedef struct packed {
         logic        sig;   // 最终结果符号位（0正1负）

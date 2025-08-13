@@ -3,18 +3,14 @@
 //
 // 端口说明：
 //   fp_ext_i/o : 输入输出结构体
-//   lzc_o/i    : 前导零计数器接口
 
-import lzc_types::*;
 import fp_types::*;
 
-module fp_ext (
+module fp_extract (
     input clk,
     input rst_n,
     input  fp_ext_in_type  fp_ext_i,
-    output fp_ext_out_type fp_ext_o,
-    input  lzc_64_out_type lzc_o,
-    output lzc_64_in_type  lzc_i
+    output fp_ext_out_type fp_ext_o
 );
   timeunit 1ns; timeprecision 1ps;
 
@@ -28,6 +24,17 @@ module fp_ext (
   logic mantissa_zero;
   logic exponent_zero;
   logic exponent_ones;
+
+  logic [63:0] lzc_data_in;
+  logic [5:0] lzc_lzc;
+  logic lzc_valid;
+
+  // 实例化 lzc_64
+  lzc_64 u_lzc_64 (
+    .data_in(lzc_data_in),
+    .lzc(lzc_lzc),
+    .valid(lzc_valid)
+  );
 
   always_comb begin
 
@@ -56,8 +63,8 @@ module fp_ext (
       mantissa_zero = ~|data[51:0];
     end
 
-    lzc_i.data_in = mantissa;
-    counter = ~lzc_o.lzc;
+    lzc_data_in = mantissa;
+    counter = ~lzc_lzc;
 
     if (fmt == 0) begin
       result[64] = data[31];
