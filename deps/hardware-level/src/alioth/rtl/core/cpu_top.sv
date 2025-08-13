@@ -286,7 +286,8 @@ module cpu_top (
     wire [`INST_DATA_WIDTH-1:0] icu_inst2_o;
 
     // inst_valid相关信号定义
-    wire if_valid_o;  // IFU输出指令有效信号
+    wire if_inst1_valid_o;  // IFU输出指令有效信号
+    wire if_inst2_valid_o
     wire pc_misaligned_o;  // IFU输出PC非对齐信号
     wire idu_inst1_valid_o;  // IDU输出指令有效信号
     wire idu_inst2_valid_o;  // 第二路IDU输出指令有效信号
@@ -616,7 +617,8 @@ module cpu_top (
         .read_resp_error_o(ifu_read_resp_error_o),
         .is_pred_branch1_o(if_inst1_is_pred_branch_o),    // 第一条指令预测分支信号输出
         .is_pred_branch2_o(if_inst2_is_pred_branch_o),    // 第二条指令预测分支信号输出
-        .inst_valid_o     (if_valid_o),        // 添加指令有效信号输出
+        .inst1_valid_o     (if_inst1_valid_o),   
+        .inst2_valid_o     (if_inst2_valid_o),       // 添加指令有效信号输出
         .pc_misaligned_o  (pc_misaligned_o),   // PC非对齐信号输出
 
         // AXI接口
@@ -711,13 +713,13 @@ module cpu_top (
         .inst_i          (if_inst1_o),
         .inst_addr_i     (if_inst1_addr_o),
         .is_pred_branch_i(if_inst1_is_pred_branch_o),  // 连接预测分支信号输入
-        .inst_valid_i    (if_valid_o),            // 添加指令有效信号输入
-        
+        .inst_valid_i    (if_inst1_valid_o),            // 添加指令有效信号输入
+
         // 第二路指令输入（暂时未实现，连接到无效值）
         .inst2_i         (if_inst2_o),                 // 第二路指令
         .inst2_addr_i    (if_inst2_addr_o),            // 第二路地址
         .is_pred_branch2_i(if_inst2_is_pred_branch_o), // 第二路预测分支
-        .inst2_valid_i   (if_valid_o),            // 第二路指令有效信号输入
+        .inst2_valid_i   (if_inst2_valid_o),            // 第二路指令有效信号输入
 
         // CSR读地址输出
         .inst1_csr_raddr_o     (idu_inst1_csr_raddr_o),

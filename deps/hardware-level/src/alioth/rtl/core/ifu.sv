@@ -43,7 +43,8 @@ module ifu (
     output wire                        read_resp_error_o,  // AXI读响应错误信号
     output wire                        is_pred_branch1_o,  // 第一条指令预测分支标志输出
     output wire                        is_pred_branch2_o,  // 第二条指令预测分支标志输出
-    output wire                        inst_valid_o,        // 添加指令有效信号输出
+    output wire                        inst1_valid_o,        // 添加指令有效信号输出
+    output wire                        inst2_valid_o,        // 添加指令有效信号输出
     output wire                        pc_misaligned_o,     // PC非对齐信号输出
 
     // AXI接口
@@ -158,7 +159,8 @@ module ifu (
         .inst2_addr_o    (inst2_addr_o),     // 第二条指令地址输出
         .is_pred_branch1_o(is_pred_branch0_r), // 第一条指令预测分支信号输出
         .is_pred_branch2_o(is_pred_branch1_r), // 第二条指令预测分支信号输出
-        .inst_valid_o    (inst_valid_o)      // 连接指令有效信号输出
+        .inst1_valid_o    (inst1_valid_o),      // 连接指令有效信号输出
+        .inst2_valid_o    (inst2_valid_o)       // 连接指令有效信号输出
     );
 
     // 将内部信号连接到输出端口

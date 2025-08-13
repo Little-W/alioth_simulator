@@ -49,7 +49,8 @@ module ifu_pipe (
     output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o, // 第二条指令地址
     output wire                        is_pred_branch1_o,  // 第一条指令输出到ID/EXU的预测分支标志
     output wire                        is_pred_branch2_o,  // 第二条指令输出到ID/EXU的预测分支标志
-    output wire                        inst_valid_o       // 输出指令有效信号
+    output wire                        inst1_valid_o,       // 输出指令有效信号
+    output wire                        inst2_valid_o        // 输出指令有效信号
 );
 
     // 直接使用flush_flag_i，不再寄存
@@ -154,6 +155,7 @@ module ifu_pipe (
         .dnxt (flush_en ? 1'b0 : inst_valid_i),
         .qout (inst_valid_r)
     );
-    assign inst_valid_o = inst_valid_r;
+    assign inst1_valid_o = inst_valid_r && (inst1_o != `INST_NOP);
+    assign inst2_valid_o = inst_valid_r && (inst2_o != `INST_NOP);
 
 endmodule
