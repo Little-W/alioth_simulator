@@ -147,19 +147,19 @@ module fp_hub (
         fp_cvt_i2f_i.op             = op;
         fp_cvt_i2f_i.fmt            = fmt;
         fp_cvt_i2f_i.rm             = rm;
-        fp_cvt_i2f_i.valid          = fp_hub_i.op.fcvt_i2f;
+        fp_cvt_i2f_i.valid          = fp_hub_i.op.fcvt_i2f & fp_hub_i.enable;
 
         fp_cvt_f2f_i.data           = extend1;
         fp_cvt_f2f_i.fmt            = fmt;
         fp_cvt_f2f_i.rm             = rm;
         fp_cvt_f2f_i.classification = class1;
-        fp_cvt_f2f_i.valid          = fp_hub_i.op.fcvt_f2f;
+        fp_cvt_f2f_i.valid          = fp_hub_i.op.fcvt_f2f & fp_hub_i.enable;
 
         fp_cvt_f2i_i.data           = extend1;
         fp_cvt_f2i_i.op             = op;
         fp_cvt_f2i_i.rm             = rm;
         fp_cvt_f2i_i.classification = class1;
-        fp_cvt_f2i_i.valid          = fp_hub_i.op.fcvt_f2i;
+        fp_cvt_f2i_i.valid          = fp_hub_i.op.fcvt_f2i & fp_hub_i.enable;
 
         fp_rnd                      = init_fp_rnd_in;
 
