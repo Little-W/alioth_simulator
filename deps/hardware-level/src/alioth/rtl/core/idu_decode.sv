@@ -324,10 +324,10 @@ module idu_decode (
     );
 
     // 跳转指令信号
-    assign inst_jump_o = inst_jalr | inst_mret | inst_ecall | inst_ebreak;
+    assign inst_jump_o =  inst_mret | inst_ecall | inst_ebreak;
     
     // 分支指令信号
-    assign inst_branch_o = inst_type_branch;
+    assign inst_branch_o = inst_jalr |inst_type_branch;
 
     // CSR类型指令信号
     assign inst_csr_type_o = op_csr;

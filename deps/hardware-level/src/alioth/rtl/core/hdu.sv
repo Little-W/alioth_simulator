@@ -55,6 +55,7 @@ module hdu (
     // 跳转控制信号
     input wire                        jump_flag_i,     // 跳转标志 (保留，与新序列化策略无直接关系，可用于后续扩展)
     input wire                        inst1_jump_i,    // 指令1跳转信号
+    input wire                        clint_req_valid, //中断请求有效信号
     input wire                        inst1_branch_i,  // 指令1分支信号
 
     input wire                        inst1_csr_type_i,    // 指令1 CSR类型信号
@@ -83,9 +84,14 @@ module hdu (
     // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
     // 首拍通过 jump_edge 保证立即生效
     reg jump_detect_d1; // 上一拍检测寄存器
-    wire jump_detect_now = inner_inst1_valid && (inst1_jump_i || inst1_branch_i);
+    wire jump_detect_now = inner_inst1_valid && inst1_branch_i;
     wire jump_edge = jump_detect_now & ~jump_detect_d1; // 首次检测到的边沿
     reg jump_serialize_pulse; // 改为保持寄存器
+    wire inst1_jump;
+    assign inst1_jump = inst1_jump_i && (~inst1_jump_cancel);
+    // 新增：inst1_jump保持逻辑相关寄存器
+    reg inst1_jump_cancel;               // 跳转保持：inst1_jump_i 置位，clint_req_valid 下降沿清零
+    reg clint_req_valid_d1;       // clint_req_valid 上一拍，用于下降沿检测
 
     // 检测x0寄存器（x0忽略）
     wire inner_inst1_valid = inst1_valid && ~inst1_already_issued_i; // 已发射保持时不再参与冒险
@@ -158,7 +164,10 @@ module hdu (
     always @(*) begin
         // 默认设为 11 默认双发射
         issue_inst_reg = 2'b11;
-        if (hazard_inst1_fifo) begin
+        if(inst1_jump) begin
+            issue_inst_reg = 2'b01;
+        end
+        else if (hazard_inst1_fifo) begin
             if (jump_serialize_effect) begin
                 issue_inst_reg = 2'b00;         // inst1 有 FIFO 冒险且需要序列化 -> 全停
             end else begin
@@ -245,6 +254,8 @@ module hdu (
             end
             jump_detect_d1 <= 1'b0;
             jump_serialize_pulse <= 1'b0;
+            // 新增复位s
+            clint_req_valid_d1 <= 1'b0;
         end else begin
             // 释放时忽略 commit_id == 0（理论上不会出现）
             if (commit_valid_i  && commit_id_i  != 3'd0) fifo_valid[commit_id_i]  <= 1'b0;
@@ -265,6 +276,17 @@ module hdu (
                 jump_serialize_pulse <= 1'b0;
             end
             jump_detect_d1 <= jump_detect_now; // 保存上一拍
+
+            // 新增：inst1_jump 保持与清除逻辑
+            // 置位条件：inst1_jump_i 为 1
+            if (inst1_jump_i) begin
+                inst1_jump_cancel <= 1'b0;
+            end else if (clint_req_valid_d1 && ~clint_req_valid) begin
+                // 解除条件：clint_req_valid 从 1 -> 0 的下降沿
+                inst1_jump_cancel <= 1'b1;
+            end
+            // 记录 clint_req_valid 上一拍用于下降沿检测
+            clint_req_valid_d1 <= clint_req_valid;
         end
         // pending_inst1_id 逻辑保持，但不会出现 0 分配导致的依赖问题
         pending_inst1_id <= (inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;

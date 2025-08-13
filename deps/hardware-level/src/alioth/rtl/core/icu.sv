@@ -73,7 +73,9 @@ module icu (
     
     // from control 控制信号
     input wire [`CU_BUS_WIDTH-1:0]   stall_flag_i,
-    input wire                       jump_flag_i,   
+    input wire                       jump_flag_i,  
+    // 中断请求有效信号
+    input wire clint_req_valid_i,  
     
     // 发射指令的完整decode信息- to dispatch
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
@@ -176,6 +178,8 @@ module icu (
         .new_issue_stall_o      (new_issue_stall_o),
         //to icu_issue
         .issue_inst_o           (issue_inst),
+        .clint_req_valid        (clint_req_valid_i),
+
         //to irf
         .inst1_commit_id_o      (hdu_inst1_commit_id_o),
         .inst2_commit_id_o      (hdu_inst2_commit_id_o),

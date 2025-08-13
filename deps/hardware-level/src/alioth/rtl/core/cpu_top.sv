@@ -809,7 +809,9 @@ module cpu_top (
         // from control 控制信号
         .stall_flag_i           (ctrl_stall_flag_o),
         .jump_flag_i            (ctrl_jump_flag_o),  // 跳转标志
-        
+
+        .clint_req_valid_i      (clint_req_valid_o),
+
         // 发射指令的完整decode信息 - 第一路输出
         .inst1_addr_o           (icu_inst1_addr_o),
         .inst1_reg_we_o         (icu_inst1_reg_we_o),
