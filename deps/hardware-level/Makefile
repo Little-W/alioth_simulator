@@ -47,14 +47,14 @@ SIM_OPTIONS   := -o vvp.exec -I "${VSRC_DIR}/core/" -I "${VSRC_DIR}/perips/" -I 
 SIM_OPTIONS   += ${SIM_OPTIONS_COMMON}
 endif
 
-# Explicitly list package files to ensure they are compiled first.
-FPU_PKG_FILES   := ${VSRC_DIR}/core/fpu/float/fp_wire.sv ${VSRC_DIR}/core/fpu/lzc/lzc_wire.sv
+# 搜索所有 .svh 文件
+SVH_FILES      := $(wildcard ${VSRC_DIR}/*.svh ${VSRC_DIR}/*/*.svh ${VSRC_DIR}/*/*/*.svh ${VSRC_DIR}/*/*/*/*.svh ${VSRC_DIR}/*/*/*/*/*.svh)
 
 # Get all other Verilog and SystemVerilog files.
-OTHER_RTL_FILES	:= $(filter-out $(FPU_PKG_FILES), $(wildcard ${VSRC_DIR}/*/*.v ${VSRC_DIR}/*/*/*.v ${VSRC_DIR}/*/*/*/*.v ${VSRC_DIR}/*/*/*/*/*.v ${VSRC_DIR}/*/*.sv ${VSRC_DIR}/*/*/*.sv ${VSRC_DIR}/*/*/*/*.sv ${VSRC_DIR}/*/*/*/*/*.sv))
+OTHER_RTL_FILES	:= $(wildcard ${VSRC_DIR}/*/*.v ${VSRC_DIR}/*/*/*.v ${VSRC_DIR}/*/*/*/*.v ${VSRC_DIR}/*/*/*/*/*.v ${VSRC_DIR}/*/*.sv ${VSRC_DIR}/*/*/*.sv ${VSRC_DIR}/*/*/*/*.sv ${VSRC_DIR}/*/*/*/*/*.sv)
 
-# Prepend package files to the list.
-RTL_V_FILES     := $(FPU_PKG_FILES) $(OTHER_RTL_FILES)
+# Prepend svh and package files to the list.
+RTL_V_FILES     := $(SVH_FILES) $(OTHER_RTL_FILES)
 
 TB_V_FILES		:= $(wildcard ${VTB_DIR}/*.v ${VTB_DIR}/*.sv)
 
