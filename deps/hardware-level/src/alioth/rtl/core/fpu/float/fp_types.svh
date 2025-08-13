@@ -118,19 +118,20 @@ package fp_types;
     typedef struct packed {fp_hub_out_type fp_hub_o;} fp_unit_out_type;
 
     typedef struct packed {
-        logic        sig;   // 最终结果符号位（0正1负）
-        logic [13:0] expo;  // 最终结果阶码（规格化后）
-        logic [53:0] mant;  // 最终结果尾数（规格化后，含隐藏位）
-        logic [1:0]  rema;  // 余数（用于舍入判断）
-        logic [1:0]  fmt;   // 浮点格式（如0:单精度，1:双精度）
-        logic [2:0]  rm;    // 舍入模式（0:最近偶数，1:向零，2:向下，3:向上等）
-        logic [2:0]  grs;   // GRS位（Guard, Round, Sticky，辅助舍入）
-        logic        snan;  // signaling NaN 标志
-        logic        qnan;  // quiet NaN 标志
-        logic        dbz;   // 除零异常标志
-        logic        infs;  // 无穷标志
-        logic        zero;  // 零标志
-        logic        diff;  // 加减法符号差异标志（如正负零）
+        logic        sig;    // 最终结果符号位（0正1负）
+        logic [13:0] expo;   // 最终结果阶码（规格化后）
+        logic [53:0] mant;   // 最终结果尾数（规格化后，含隐藏位）
+        logic [1:0]  rema;   // 余数（用于舍入判断）
+        logic [1:0]  fmt;    // 浮点格式（如0:单精度，1:双精度）
+        logic [2:0]  rm;     // 舍入模式（0:最近偶数，1:向零，2:向下，3:向上等）
+        logic [2:0]  grs;    // GRS位（Guard, Round, Sticky，辅助舍入）
+        logic        snan;   // signaling NaN 标志
+        logic        qnan;   // quiet NaN 标志
+        logic        dbz;    // 除零异常标志
+        logic        infs;   // 无穷标志
+        logic        zero;   // 零标志
+        logic        diff;   // 加减法符号差异标志（如正负零）
+        logic        valid;  // 输入数据有效标志
     } fp_rnd_in_type;
 
     parameter fp_rnd_in_type init_fp_rnd_in = '{
@@ -146,12 +147,14 @@ package fp_types;
         dbz : 0,
         infs : 0,
         zero : 0,
-        diff : 0
+        diff : 0,
+        valid : 0
     };
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0]  flags;
+        logic        ready;   // 输出就绪标志
     } fp_rnd_out_type;
 
     typedef struct packed {
@@ -435,9 +438,9 @@ package fp_types;
 
     typedef struct packed {
         logic [64:0] data;
-        logic [1:0]  fmt;
-        logic [2:0]  rm;
-        logic [9:0]  classification;
+        logic [1:0] fmt;
+        logic [2:0] rm;
+        logic [9:0] classification;
         logic valid;
     } fp_cvt_f2f_in_type;
 

@@ -61,6 +61,7 @@ module fp_hub (
     logic             [ 9:0] class3;
 
     fp_rnd_in_type           fp_rnd;
+    logic                    fp_rnd_valid;
 
     always_comb begin
 
@@ -162,24 +163,27 @@ module fp_hub (
         fp_cvt_f2i_i.valid          = fp_hub_i.op.fcvt_f2i & fp_hub_i.enable;
 
         fp_rnd                      = init_fp_rnd_in;
+        fp_rnd_valid                = 0;
 
         if (fp_fma_o.ready) begin
             fp_rnd = fp_fma_o.fp_rnd;
+            fp_rnd_valid = 1;
         end else if (fp_fdiv_o.ready) begin
             fp_rnd = fp_fdiv_o.fp_rnd;
+            fp_rnd_valid = 1;
         end else if (fp_cvt_f2f_o.ready) begin
             fp_rnd = fp_cvt_f2f_o.fp_rnd;
+            fp_rnd_valid = 1;
         end else if (fp_cvt_i2f_o.ready) begin
             fp_rnd = fp_cvt_i2f_o.fp_rnd;
+            fp_rnd_valid = 1;
         end
 
         fp_rnd_i = fp_rnd;
+        fp_rnd_i.valid = fp_rnd_valid;
 
-        if (fp_fma_o.ready) begin
-            result = fp_rnd_o.result;
-            flags  = fp_rnd_o.flags;
-            ready  = 1;
-        end else if (fp_fdiv_o.ready) begin
+
+        if (fp_rnd_o.ready) begin
             result = fp_rnd_o.result;
             flags  = fp_rnd_o.flags;
             ready  = 1;
@@ -210,14 +214,6 @@ module fp_hub (
         end else if (op.fmv_i2f) begin
             result = data1;
             flags  = 0;
-        end else if (fp_cvt_f2f_o.ready) begin
-            result = fp_rnd_o.result;
-            flags  = fp_rnd_o.flags;
-            ready  = 1;
-        end else if (fp_cvt_i2f_o.ready) begin
-            result = fp_rnd_o.result;
-            flags  = fp_rnd_o.flags;
-            ready  = 1;
         end else if (fp_cvt_f2i_o.ready) begin
             result = fp_cvt_f2i_o.result;
             flags  = fp_cvt_f2i_o.flags;
@@ -235,5 +231,4 @@ module fp_hub (
         fp_hub_o.ready  = ready;
 
     end
-
 endmodule

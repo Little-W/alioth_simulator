@@ -104,6 +104,8 @@ module fp_unit (
     );
 
     fp_rnd fp_rnd (
+        .clk     (clk),
+        .rst_n   (rst_n),
         .fp_rnd_i(fp_rnd_i),
         .fp_rnd_o(fp_rnd_o)
     );
