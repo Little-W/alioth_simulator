@@ -137,8 +137,6 @@ module wbu (
     wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:9];
     wire [4:0]                 eu_reg_waddr [0:9];
     wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:9];
-    wire [`BUS_ADDR_WIDTH-1:0]  eu_csr_waddr [0:9];
-    wire [`REG_DATA_WIDTH-1:0]  eu_csr_wdata [0:9];
 
     assign eu_reg_we = {fakecommit_reg_we_i, lsu2_reg_we_i, lsu1_reg_we_i, csr_reg_we_i,
                         div2_reg_we_i, div1_reg_we_i, mul2_reg_we_i, mul1_reg_we_i,
@@ -219,10 +217,9 @@ module wbu (
     assign reg2_wdata_o = reg2_we_o ? eu_reg_wdata[wb_ch2_eu] : {`REG_DATA_WIDTH{1'b0}};
 
     // CSR 写回（独立）
-    assign csr_we_o    = (wb_ch1_valid && wb_ch1_eu==EU_CSR) ? eu_csr_we[EU_CSR] :
-                         (wb_ch2_valid && wb_ch2_eu==EU_CSR) ? eu_csr_we[EU_CSR] : 1'b0;
-    assign csr_waddr_o = csr_we_o ? eu_csr_waddr[EU_CSR] : {`BUS_ADDR_WIDTH{1'b0}};
-    assign csr_wdata_o = csr_we_o ? eu_csr_wdata[EU_CSR] : {`REG_DATA_WIDTH{1'b0}};
+    assign csr_we_o    =  csr_we_i; 
+    assign csr_waddr_o =  csr_waddr_i;
+    assign csr_wdata_o =  csr_wdata_i;
 
     // 提交信号与ID
     assign commit_valid1_o = wb_ch1_valid;
