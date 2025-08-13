@@ -1,4 +1,13 @@
-import fp_wire::*;
+
+// 浮点主执行模块
+// 负责调度和连接各类浮点子模块，完成浮点指令的整体执行流程
+//
+// 端口说明：
+//   fp_exe_i/o    : 主输入输出结构体
+//   其余为各功能子模块的输入输出接口
+//   clear         : 清除/暂停信号
+
+import fp_types::*;
 
 module fp_exe (
     input fp_exe_in_type fp_exe_i,

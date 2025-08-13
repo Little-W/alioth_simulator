@@ -1,65 +1,63 @@
 module lzc_128 (
-    input [127:0] a,
-    output [6:0] c,
-    output v
+    input [127:0] data_in,
+    output [6:0] lzc,
+    output valid
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic [5:0] z0;
-  logic [5:0] z1;
+  logic [5:0] lower_half_count;   // Count from lower 64 bits
+  logic [5:0] upper_half_count;   // Count from upper 64 bits
 
-  logic v0;
-  logic v1;
+  logic lower_half_valid;         // Valid bit from lower 64 bits
+  logic upper_half_valid;         // Valid bit from upper 64 bits
 
-  logic s0;
-  logic s1;
-  logic s2;
-  logic s3;
-  logic s4;
-  logic s5;
-  logic s6;
-  logic s7;
-  logic s8;
-  logic s9;
-  logic s10;
-  logic s11;
-  logic s12;
-  logic s13;
-  logic s14;
+  logic overall_valid;            // Overall valid flag
+  logic bit0_mux_sel;             // Selector for bit 0 of final count
+  logic bit0_final;               // Final bit 0 of count
+  logic bit1_mux_sel;             // Selector for bit 1 of final count
+  logic bit1_final;               // Final bit 1 of count
+  logic bit2_mux_sel;             // Selector for bit 2 of final count
+  logic bit2_final;               // Final bit 2 of count
+  logic bit3_mux_sel;             // Selector for bit 3 of final count
+  logic bit3_final;               // Final bit 3 of count
+  logic bit4_mux_sel;             // Selector for bit 4 of final count
+  logic bit4_final;               // Final bit 4 of count
+  logic bit5_mux_sel;             // Selector for bit 5 of final count
+  logic bit5_final;               // Final bit 5 of count
 
-  lzc_64 lzc_64_comp_0 (
-      .a(a[63:0]),
-      .c(z0),
-      .v(v0)
+  lzc_64 lzc_64_0 (
+      .data_in(data_in[63:0]),
+      .lzc(lower_half_count),
+      .valid(lower_half_valid)
   );
 
-  lzc_64 lzc_64_comp_1 (
-      .a(a[127:64]),
-      .c(z1),
-      .v(v1)
+  lzc_64 lzc_64_1 (
+      .data_in(data_in[127:64]),
+      .lzc(upper_half_count),
+      .valid(upper_half_valid)
   );
 
-  assign s0 = v1 | v0;
-  assign s1 = (~v1) & z0[0];
-  assign s2 = z1[0] | s1;
-  assign s3 = (~v1) & z0[1];
-  assign s4 = z1[1] | s3;
-  assign s5 = (~v1) & z0[2];
-  assign s6 = z1[2] | s5;
-  assign s7 = (~v1) & z0[3];
-  assign s8 = z1[3] | s7;
-  assign s9 = (~v1) & z0[4];
-  assign s10 = z1[4] | s9;
-  assign s11 = (~v1) & z0[5];
-  assign s12 = z1[5] | s11;
+  assign overall_valid = upper_half_valid | lower_half_valid;
+  assign bit0_mux_sel = (~upper_half_valid) & lower_half_count[0];
+  assign bit0_final = upper_half_count[0] | bit0_mux_sel;
+  assign bit1_mux_sel = (~upper_half_valid) & lower_half_count[1];
+  assign bit1_final = upper_half_count[1] | bit1_mux_sel;
+  assign bit2_mux_sel = (~upper_half_valid) & lower_half_count[2];
+  assign bit2_final = upper_half_count[2] | bit2_mux_sel;
+  assign bit3_mux_sel = (~upper_half_valid) & lower_half_count[3];
+  assign bit3_final = upper_half_count[3] | bit3_mux_sel;
+  assign bit4_mux_sel = (~upper_half_valid) & lower_half_count[4];
+  assign bit4_final = upper_half_count[4] | bit4_mux_sel;
+  assign bit5_mux_sel = (~upper_half_valid) & lower_half_count[5];
+  assign bit5_final = upper_half_count[5] | bit5_mux_sel;
 
-  assign v = s0;
-  assign c[0] = s2;
-  assign c[1] = s4;
-  assign c[2] = s6;
-  assign c[3] = s8;
-  assign c[4] = s10;
-  assign c[5] = s12;
-  assign c[6] = v1;
+  assign valid = overall_valid;
+  assign lzc[0] = bit0_final;
+  assign lzc[1] = bit1_final;
+  assign lzc[2] = bit2_final;
+  assign lzc[3] = bit3_final;
+  assign lzc[4] = bit4_final;
+  assign lzc[5] = bit5_final;
+  assign lzc[6] = upper_half_valid;
 
 endmodule

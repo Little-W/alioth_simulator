@@ -1,4 +1,8 @@
-package fp_wire;
+// 浮点运算相关类型定义包
+// 包含所有浮点相关操作类型、输入输出结构体、参数定义等
+// 用于各浮点子模块间的统一接口和类型复用
+
+package fp_types;
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
@@ -114,19 +118,19 @@ package fp_wire;
   typedef struct packed {fp_exe_out_type fp_exe_o;} fp_unit_out_type;
 
   typedef struct packed {
-    logic sig;
-    logic [13:0] expo;
-    logic [53:0] mant;
-    logic [1:0] rema;
-    logic [1:0] fmt;
-    logic [2:0] rm;
-    logic [2:0] grs;
-    logic snan;
-    logic qnan;
-    logic dbz;
-    logic infs;
-    logic zero;
-    logic diff;
+    logic sig;         // 最终结果符号位（0正1负）
+    logic [13:0] expo; // 最终结果阶码（规格化后）
+    logic [53:0] mant; // 最终结果尾数（规格化后，含隐藏位）
+    logic [1:0] rema;  // 余数（用于舍入判断）
+    logic [1:0] fmt;   // 浮点格式（如0:单精度，1:双精度）
+    logic [2:0] rm;    // 舍入模式（0:最近偶数，1:向零，2:向下，3:向上等）
+    logic [2:0] grs;   // GRS位（Guard, Round, Sticky，辅助舍入）
+    logic snan;        // signaling NaN 标志
+    logic qnan;        // quiet NaN 标志
+    logic dbz;         // 除零异常标志
+    logic infs;        // 无穷标志
+    logic zero;        // 零标志
+    logic diff;        // 加减法符号差异标志（如正负零）
   } fp_rnd_in_type;
 
   parameter fp_rnd_in_type init_fp_rnd_in = '{
@@ -306,9 +310,13 @@ package fp_wire;
     logic [55:0] b;
     logic [55:0] c;
     logic op;
+    logic valid;
   } fp_mac_in_type;
 
-  typedef struct packed {logic [109:0] d;} fp_mac_out_type;
+  typedef struct packed {
+    logic [109:0] d;
+    logic ready;
+  } fp_mac_out_type;
 
   typedef struct packed {
     logic [64:0] data1;
@@ -408,84 +416,6 @@ package fp_wire;
       e2 : 0,
       r0 : 0,
       r1 : 0,
-      sign_fdiv : 0,
-      exponent_fdiv : 0,
-      mantissa_fdiv : 0,
-      counter_fdiv : 0,
-      exponent_bias : 0,
-      sign_rnd : 0,
-      exponent_rnd : 0,
-      mantissa_rnd : 0,
-      remainder_rnd : 0,
-      counter_rnd : 0,
-      grs : 0,
-      odd : 0,
-      result : 0,
-      flags : 0,
-      ready : 0
-  };
-
-  typedef struct packed {
-    logic [2:0] state;
-    logic [5:0] istate;
-    logic [1:0] fmt;
-    logic [2:0] rm;
-    logic [64:0] a;
-    logic [64:0] b;
-    logic [9:0] class_a;
-    logic [9:0] class_b;
-    logic snan;
-    logic qnan;
-    logic infs;
-    logic dbz;
-    logic zero;
-    logic op;
-    logic [6:0] index;
-    logic [55:0] qa;
-    logic [55:0] qb;
-    logic [54:0] q;
-    logic [56:0] e;
-    logic [56:0] r;
-    logic [56:0] m;
-    logic sign_fdiv;
-    logic [13:0] exponent_fdiv;
-    logic [164:0] mantissa_fdiv;
-    logic [1:0] counter_fdiv;
-    logic [10:0] exponent_bias;
-    logic sign_rnd;
-    logic [13:0] exponent_rnd;
-    logic [53:0] mantissa_rnd;
-    logic [1:0] remainder_rnd;
-    logic [13:0] counter_rnd;
-    logic [2:0] grs;
-    logic odd;
-    logic [63:0] result;
-    logic [4:0] flags;
-    logic ready;
-  } fp_fdiv_reg_fixed_type;
-
-  parameter fp_fdiv_reg_fixed_type init_fp_fdiv_reg_fixed = '{
-      state : 0,
-      istate : 0,
-      fmt : 0,
-      rm : 0,
-      a : 0,
-      b : 0,
-      class_a : 0,
-      class_b : 0,
-      snan : 0,
-      qnan : 0,
-      infs : 0,
-      dbz : 0,
-      zero : 0,
-      op : 0,
-      index : 0,
-      qa : 0,
-      qb : 0,
-      q : 0,
-      e : 0,
-      r : 0,
-      m : 0,
       sign_fdiv : 0,
       exponent_fdiv : 0,
       mantissa_fdiv : 0,

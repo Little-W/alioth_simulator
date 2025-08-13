@@ -1,5 +1,5 @@
-import lzc_wire::*;
-import fp_wire::*;
+import lzc_types::*;
+import fp_types::*;
 
 module exu_fpu (
     input  logic                        clk,
@@ -46,8 +46,8 @@ module exu_fpu (
 );
 
     // 内部信号定义
-    fp_wire::fp_unit_in_type                         fp_unit_i;
-    fp_wire::fp_unit_out_type                        fp_unit_o;
+    fp_types::fp_unit_in_type                         fp_unit_i;
+    fp_types::fp_unit_out_type                        fp_unit_o;
 
     // 补全寄存器定义
     logic                                            reg_we_r;
@@ -58,7 +58,7 @@ module exu_fpu (
     logic                     [                 4:0] fcsr_fflags_r;
 
     // 输入信号转结构体
-    fp_wire::fp_exe_in_type                          fp_exe_in_s;
+    fp_types::fp_exe_in_type                          fp_exe_in_s;
 
     logic                                            fpu_req_valid;
     assign fpu_req_valid = req_fpu_i & ~fpu_busy;
@@ -69,7 +69,7 @@ module exu_fpu (
         fp_exe_in_s.data3       = fpu_op3_i;
         fp_exe_in_s.fmt         = fmt_i;
         fp_exe_in_s.enable      = fpu_req_valid;
-        fp_exe_in_s.op          = fp_wire::init_fp_operation;
+        fp_exe_in_s.op          = fp_types::init_fp_operation;
         fp_exe_in_s.op.fmadd    = fpu_op_fmadd_i;
         fp_exe_in_s.op.fmsub    = fpu_op_fmsub_i;
         fp_exe_in_s.op.fnmadd   = fpu_op_fnmadd_i;
@@ -97,7 +97,7 @@ module exu_fpu (
     // 直接实例化 fp_unit
     fp_unit u_fp_unit (
         .rst_n    (rst_n),
-        .clock    (clk),
+        .clk    (clk),
         .fp_unit_i(fp_unit_i),
         .fp_unit_o(fp_unit_o),
         .clear    (1'b0)

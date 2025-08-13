@@ -1,34 +1,34 @@
 module lzc_4 (
-    input [3:0] a,
-    output [1:0] c,
-    output v
+    input [3:0] data_in,
+    output [1:0] lzc,
+    output valid
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic a0;
-  logic a1;
-  logic a2;
-  logic a3;
+  logic bit3_input;               // Input bit 3
+  logic bit2_input;               // Input bit 2
+  logic bit1_input;               // Input bit 1
+  logic bit0_input;               // Input bit 0
 
-  logic s0;
-  logic s1;
-  logic s2;
-  logic s3;
-  logic s4;
+  logic upper_half_nonzero;       // Upper 2 bits have non-zero
+  logic lower_half_nonzero;       // Lower 2 bits have non-zero
+  logic overall_nonzero;          // Any bit is non-zero
+  logic bit0_selector;            // Selector for bit 0 of count
+  logic bit0_final;               // Final bit 0 of count
 
-  assign a0 = a[0];
-  assign a1 = a[1];
-  assign a2 = a[2];
-  assign a3 = a[3];
+  assign bit0_input = data_in[0];
+  assign bit1_input = data_in[1];
+  assign bit2_input = data_in[2];
+  assign bit3_input = data_in[3];
 
-  assign s0 = a3 | a2;
-  assign s1 = a1 | a0;
-  assign s2 = s1 | s0;
-  assign s3 = (~s0) & a1;
-  assign s4 = a3 | s3;
+  assign upper_half_nonzero = bit3_input | bit2_input;
+  assign lower_half_nonzero = bit1_input | bit0_input;
+  assign overall_nonzero = lower_half_nonzero | upper_half_nonzero;
+  assign bit0_selector = (~upper_half_nonzero) & bit1_input;
+  assign bit0_final = bit3_input | bit0_selector;
 
-  assign v = s2;
-  assign c[0] = s4;
-  assign c[1] = s0;
+  assign valid = overall_nonzero;
+  assign lzc[0] = bit0_final;
+  assign lzc[1] = upper_half_nonzero;
 
 endmodule

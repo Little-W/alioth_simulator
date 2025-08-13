@@ -1,6 +1,15 @@
-import fp_wire::*;
+// 浮点符号操作模块
+// 实现浮点数的符号赋值、取反、异或等操作
+//
+// 端口说明：
+//   fp_sgnj_i : 输入结构体，包含操作数和控制信号
+//   fp_sgnj_o : 输出结构体，包含结果
+
+import fp_types::*;
 
 module fp_sgnj (
+    input clk,
+    input rst_n,
     input  fp_sgnj_in_type  fp_sgnj_i,
     output fp_sgnj_out_type fp_sgnj_o
 );

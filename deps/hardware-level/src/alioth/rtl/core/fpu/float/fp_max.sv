@@ -1,6 +1,15 @@
-import fp_wire::*;
+// 浮点最大/最小值选择模块
+// 实现浮点数的max/min选择，支持异常（NaN等）处理
+//
+// 端口说明：
+//   fp_max_i : 输入结构体，包含两个操作数及控制信号
+//   fp_max_o : 输出结构体，包含结果和异常标志
+
+import fp_types::*;
 
 module fp_max (
+    input clk,
+    input rst_n,
     input  fp_max_in_type  fp_max_i,
     output fp_max_out_type fp_max_o
 );

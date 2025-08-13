@@ -1,6 +1,15 @@
-import fp_wire::*;
+// 浮点舍入与结果打包模块
+// 实现浮点数的舍入、异常标志生成和最终结果打包输出
+//
+// 端口说明：
+//   fp_rnd_i : 输入结构体，包含待舍入数据及控制信号
+//   fp_rnd_o : 输出结构体，包含最终结果和标志
+
+import fp_types::*;
 
 module fp_rnd (
+    input clk,
+    input rst_n,
     input  fp_rnd_in_type  fp_rnd_i,
     output fp_rnd_out_type fp_rnd_o
 );
