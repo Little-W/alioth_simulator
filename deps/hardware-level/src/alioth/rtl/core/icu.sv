@@ -217,7 +217,8 @@ module icu (
         
         // from hdu
         .issue_inst_i           (issue_inst),
-        
+        .jump_flag_i            (jump_flag_i),  // 跳转标志
+
         // 流水线寄存器相关输入
         .hdu_inst1_commit_id_i  (hdu_inst1_commit_id_o),
         .hdu_inst2_commit_id_i  (hdu_inst2_commit_id_o),

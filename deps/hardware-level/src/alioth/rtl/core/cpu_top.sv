@@ -287,7 +287,7 @@ module cpu_top (
 
     // inst_valid相关信号定义
     wire if_inst1_valid_o;  // IFU输出指令有效信号
-    wire if_inst2_valid_o
+    wire if_inst2_valid_o;
     wire pc_misaligned_o;  // IFU输出PC非对齐信号
     wire idu_inst1_valid_o;  // IDU输出指令有效信号
     wire idu_inst2_valid_o;  // 第二路IDU输出指令有效信号
