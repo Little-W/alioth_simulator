@@ -121,7 +121,20 @@ module icu (
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_o;
     wire inst1_already_issued;
     wire inst2_already_issued;
+    wire jump_inst1_valid_o;
+    wire jump_inst2_valid_o;
+    wire [`COMMIT_ID_WIDTH-1:0] jump_inst1_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] jump_inst2_commit_id_o;
 
+    wire hdu_commit_valid_i;
+    wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id_i;
+    wire hdu_commit_valid2_i;
+    wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id2_i;
+
+    assign hdu_commit_valid_i = commit_valid_i | jump_inst1_valid_o;
+    assign hdu_commit_id_i = commit_valid_i ? commit_id_i : jump_inst1_valid_o? jump_inst1_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
+    assign hdu_commit_valid2_i = commit_valid2_i | jump_inst2_valid_o;
+    assign hdu_commit_id2_i = commit_valid2_i ? commit_id2_i : jump_inst2_valid_o? jump_inst2_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
 
     // 实例化hdu模块
     hdu u_hdu (
@@ -145,10 +158,10 @@ module icu (
         .inst2_already_issued_i (inst2_already_issued),
 
         // 指令完成信号
-        .commit_valid_i         (commit_valid_i),
-        .commit_id_i            (commit_id_i),
-        .commit_valid2_i        (commit_valid2_i),
-        .commit_id2_i           (commit_id2_i),
+        .commit_valid_i         (hdu_commit_valid_i),
+        .commit_id_i            (hdu_commit_id_i),
+        .commit_valid2_i        (hdu_commit_valid2_i),
+        .commit_id2_i           (hdu_commit_id2_i),
 
         //跳转控制
         .jump_flag_i            (jump_flag_i),
@@ -242,7 +255,12 @@ module icu (
         .inst2_dec_info_bus_o   (inst2_dec_info_bus_o),
         .inst2_is_pred_branch_o (inst2_is_pred_branch_o),
         .inst2_o                (inst2_o),
-        
+
+        .jump_inst1_commit_id_o  (jump_inst1_commit_id_o),
+        .jump_inst2_commit_id_o  (jump_inst2_commit_id_o),
+        .jump_inst1_valid_o      (jump_inst1_valid_o),
+        .jump_inst2_valid_o      (jump_inst2_valid_o),
+
         // 流水线寄存器相关输出
         .inst1_commit_id_o      (inst1_commit_id_o),
         .inst2_commit_id_o      (inst2_commit_id_o),

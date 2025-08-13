@@ -69,6 +69,7 @@ module icu_issue (
 
     input wire                        inst1_illegal_inst_i,
     input wire                        inst2_illegal_inst_i,
+    input wire                        jump_flag_i,  // 跳转标志;
     
     // 发射指令的完整decode信息
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
@@ -104,6 +105,11 @@ module icu_issue (
     output wire        inst2_illegal_inst_o,
     output wire        inst1_valid_o,
     output wire        inst2_valid_o,
+    // 新增：跳转时给FIFO中的对应指令提交
+    output wire [`COMMIT_ID_WIDTH-1:0] jump_inst1_commit_id_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] jump_inst2_commit_id_o,
+    output wire                        jump_inst1_valid_o,
+    output wire                        jump_inst2_valid_o,
 
     // 新增：已发射且本拍指令未变化标志输出
     output wire        inst1_already_issued_o,
@@ -517,5 +523,11 @@ module icu_issue (
         inst2_valid_reg
     );
     assign inst2_valid_o = inst2_valid_reg;
+
+    assign jump_inst1_valid_o = jump_flag_i ? 1'b1 : 1'b0;
+    assign jump_inst2_valid_o = jump_flag_i ? 1'b1 : 1'b0;
+
+    assign jump_inst1_commit_id_o = jump_flag_i ? hdu_inst1_commit_id_i : {`COMMIT_ID_WIDTH{1'b0}};
+    assign jump_inst2_commit_id_o = jump_flag_i ? hdu_inst2_commit_id_i : {`COMMIT_ID_WIDTH{1'b0}};
 
 endmodule

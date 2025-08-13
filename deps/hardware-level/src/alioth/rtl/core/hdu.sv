@@ -249,12 +249,12 @@ module hdu (
             // 释放时忽略 commit_id == 0（理论上不会出现）
             if (commit_valid_i  && commit_id_i  != 3'd0) fifo_valid[commit_id_i]  <= 1'b0;
             if (commit_valid2_i && commit_id2_i != 3'd0) fifo_valid[commit_id2_i] <= 1'b0;
-            // 分配：永不写 index 0
-            if (inst1_valid && issue_inst_o[0] && next_id1 != 3'd0) begin
+            // 分配：永不写 index 0；新增条件：jump_flag_i 为 1 时不进入 FIFO
+            if (inst1_valid && issue_inst_o[0] && next_id1 != 3'd0 && !jump_flag_i) begin
                 fifo_valid[next_id1]   <= inst1_rd_check;
                 fifo_rd_addr[next_id1] <= inst1_rd_addr;
             end
-            if (inst2_valid && issue_inst_o[1] && next_id2 != 3'd0) begin
+            if (inst2_valid && issue_inst_o[1] && next_id2 != 3'd0 && !jump_flag_i) begin
                 fifo_valid[next_id2]   <= inst2_rd_check;
                 fifo_rd_addr[next_id2] <= inst2_rd_addr;
             end
