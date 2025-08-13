@@ -527,7 +527,7 @@ module icu_issue (
     assign jump_inst1_valid_o = jump_flag_i ? 1'b1 : 1'b0;
     assign jump_inst2_valid_o = jump_flag_i ? 1'b1 : 1'b0;
 
-    assign jump_inst1_commit_id_o = jump_flag_i ? hdu_inst1_commit_id_i : {`COMMIT_ID_WIDTH{1'b0}};
-    assign jump_inst2_commit_id_o = jump_flag_i ? hdu_inst2_commit_id_i : {`COMMIT_ID_WIDTH{1'b0}};
+    assign jump_inst1_commit_id_o = jump_flag_i ? inst1_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
+    assign jump_inst2_commit_id_o = jump_flag_i ? inst2_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
 
 endmodule
