@@ -70,7 +70,7 @@ module fp_fma (
 
     // 实例化53位乘法器
     mul_64 #(
-        .LATENCY_LEVEL(0),
+        .LATENCY_LEVEL(2),
         .SIGNED       (0),
         .WIDTH        (53)
     ) u_mul_64 (
@@ -348,6 +348,8 @@ module fp_fma (
     // 第二阶段计算函数 - 第一部分（计算mantissa_mac）
     function fp_fma_var_type_2 stage2_calc_part1(input fp_fma_var_type_1 stage1_reg_i);
         fp_fma_var_type_2 tmp;
+        logic [163:0] mantissa_sum;
+        logic [1:0] sign_sum;
 
         // 从第一阶段结果复制数据
         tmp.fmt          = stage1_reg_i.fmt;
@@ -379,7 +381,11 @@ module fp_fma (
             tmp.mantissa_mul = ~tmp.mantissa_mul;
         end
 
-        tmp.mantissa_mac = tmp.mantissa_add + tmp.mantissa_mul + {163'h0,tmp.sign_add} + {163'h0,tmp.sign_mul};
+        // 优化加法器结构：先加尾数，再加sign
+        mantissa_sum = tmp.mantissa_add + tmp.mantissa_mul;
+        sign_sum = {1'b0, tmp.sign_add} + {1'b0, tmp.sign_mul};
+        tmp.mantissa_mac = mantissa_sum + sign_sum;
+
         tmp.sign_mac = tmp.mantissa_mac[163];
 
         tmp.zero = ~|tmp.mantissa_mac;
