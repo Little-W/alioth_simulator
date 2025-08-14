@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 
-`define PLIC_AXI_DATA_WIDTH 32
+// 注释掉重复的宏定义，使用定义文件中的值
+//`define PLIC_AXI_DATA_WIDTH 32
 `define PLIC_AXI_ADDR_WIDTH 16
 `define PLIC_INT_EN_ADDR 16'h0000
 `define PLIC_INT_MVEC_ADDR 16'h0100

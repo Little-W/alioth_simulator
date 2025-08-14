@@ -70,6 +70,7 @@ module icu_issue (
     input wire                        inst1_illegal_inst_i,
     input wire                        inst2_illegal_inst_i,
     input wire                        jump_flag_i,  // 跳转标志;
+    input wire                        clint_req_valid_i,
     
     // 发射指令的完整decode信息
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
@@ -156,9 +157,8 @@ module icu_issue (
     // 1. 如果指令与上一周期相同且上一周期已经发射过，则不再发射（防止重复发射）
     // 2. 如果指令与上一周期不同，则可以正常发射（新指令）
     // 3. 如果当前不要求发射，则清零输出
-    wire flush_en_1 = other_flush_en || (~issue_inst_i[0]) || (inst1_same_as_prev && prev_inst1_issued);
-    wire flush_en_2 = other_flush_en || (~issue_inst_i[1]) || (inst2_same_as_prev && prev_inst2_issued);
-
+    wire flush_en_1 = other_flush_en || (~issue_inst_i[0]) || (inst1_same_as_prev && prev_inst1_issued) || clint_req_valid_i;
+    wire flush_en_2 = other_flush_en || (~issue_inst_i[1]) || (inst2_same_as_prev && prev_inst2_issued) || clint_req_valid_i;
     assign inst1_already_issued_o = (inst1_same_as_prev && prev_inst1_issued);
     assign inst2_already_issued_o = (inst2_same_as_prev && prev_inst2_issued);
 
@@ -525,11 +525,13 @@ module icu_issue (
     );
     assign inst2_valid_o = inst2_valid_reg;
 
-    assign jump_inst1_valid_o = jump_flag_i ? 1'b1 : 1'b0;
-    assign jump_inst2_valid_o = jump_flag_i ? 1'b1 : 1'b0;
+    // 中断有效时，提交中断指令同周期发射的指令
+    // jump_flag时，提交还在icu_issue里的跳转指令后一周期指令
+    assign jump_inst1_valid_o = (clint_req_valid_i | jump_flag_i) ?  1'b1 : 1'b0;
+    assign jump_inst2_valid_o = (clint_req_valid_i | jump_flag_i)  ?  1'b1 : 1'b0;
 
-    assign jump_inst1_commit_id_o = jump_flag_i ? inst1_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
-    assign jump_inst2_commit_id_o = jump_flag_i ? inst2_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
+    assign jump_inst1_commit_id_o = (clint_req_valid_i | jump_flag_i) ? inst1_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
+    assign jump_inst2_commit_id_o = (clint_req_valid_i | jump_flag_i) ? inst2_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
     assign pending_inst1_commit_id_o = inst1_commit_id_reg;
 
 endmodule

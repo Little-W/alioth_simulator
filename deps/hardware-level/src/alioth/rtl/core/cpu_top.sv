@@ -554,7 +554,10 @@ module cpu_top (
     // 双发射的寄存器访问有效信号 - 64位访存的正确处理
     wire inst1_rd_access_valid = icu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
     wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o && !pc_misaligned_o;
-    
+
+    wire clint_inst_valid_i = inst1_clint_valid || inst2_clint_valid;
+    wire [31:0] clint_inst_addr_i = inst1_clint_valid ? dispatch_inst1_addr_o : dispatch_inst2_addr_o;
+    wire [31:0] clint_inst_i = inst1_clint_valid ? dispatch_inst1_o : dispatch_inst2_o;
 
     // CLINT AXI-Lite接口信号
     wire OM1_AXI_ACLK;
@@ -652,7 +655,7 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
-        .flush_flag_clint_i(clint_flush_flag_o),     // 添加连接到clint的flush信号
+        .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
         .stall_flag_hdu_i  (new_issue_stall_flag_o),  // 修改为从icu获取数据冒险暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
@@ -1061,7 +1064,7 @@ module cpu_top (
         .flush_i(ctrl_jump_flag_o),
 
         // (保持兼容性的信号)
-        .inst_addr_i(dispatch_inst_addr_o),
+        .inst_addr_i(dispatch_inst2_addr_o),
         .int_assert_i(clint_int_assert_o),
         .int_jump_i(clint_int_jump_o),
         .int_addr_i(clint_int_addr_o),
@@ -1430,9 +1433,9 @@ module cpu_top (
     clint u_clint (
         .clk               (clk),
         .rst_n             (rst_n),
-        .inst_addr_i       (dispatch_inst_addr_o),
-        .inst_data_i       (dispatch_inst_o),
-        .inst_valid_i      (inst1_clint_valid),  // 使用双发射的inst1_clint_valid
+        .inst_addr_i       (clint_inst_addr_i),
+        .inst_data_i       (clint_inst_i),
+        .inst_valid_i      (clint_inst_valid_i),  // 使用双发射的inst1_clint_valid
         .jump_flag_i       (jump_addr_valid),
         .jump_addr_i       (exu_jump_addr_o),
         .stall_flag_i      (ctrl_stall_flag_o),

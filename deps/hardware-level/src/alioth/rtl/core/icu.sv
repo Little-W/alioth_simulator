@@ -129,16 +129,17 @@ module icu (
     wire [`COMMIT_ID_WIDTH-1:0] jump_inst1_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] jump_inst2_commit_id_o;
 
-    wire hdu_commit_valid_i;
-    wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id_i;
-    wire hdu_commit_valid2_i;
-    wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id2_i;
+    // wire hdu_commit_valid_i;
+    // wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id_i;
+    // wire hdu_commit_valid2_i;
+    // wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id2_i;
     wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_commit_id_o;
+    wire idu_flush = stall_flag_i[`CU_FLUSH];
 
-    assign hdu_commit_valid_i = commit_valid_i | jump_inst1_valid_o;
-    assign hdu_commit_id_i = commit_valid_i ? commit_id_i : jump_inst1_valid_o? jump_inst1_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
-    assign hdu_commit_valid2_i = commit_valid2_i | jump_inst2_valid_o;
-    assign hdu_commit_id2_i = commit_valid2_i ? commit_id2_i : jump_inst2_valid_o? jump_inst2_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
+    // assign hdu_commit_valid_i = commit_valid_i | jump_inst1_valid_o;
+    // assign hdu_commit_id_i = commit_valid_i ? commit_id_i : jump_inst1_valid_o? jump_inst1_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
+    // assign hdu_commit_valid2_i = commit_valid2_i | jump_inst2_valid_o;
+    // assign hdu_commit_id2_i = commit_valid2_i ? commit_id2_i : jump_inst2_valid_o? jump_inst2_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
 
     // 实例化hdu模块
     hdu u_hdu (
@@ -162,27 +163,32 @@ module icu (
         .inst2_already_issued_i (inst2_already_issued),
 
         // 指令完成信号
-        .commit_valid_i         (hdu_commit_valid_i),
-        .commit_id_i            (hdu_commit_id_i),
-        .commit_valid2_i        (hdu_commit_valid2_i),
-        .commit_id2_i           (hdu_commit_id2_i),
+        .commit_valid_i         (commit_valid_i),
+        .commit_id_i            (commit_id_i),
+        .commit_valid2_i        (commit_valid2_i),
+        .commit_id2_i           (commit_id2_i),
+        .jump_commit_valid_i    (jump_inst1_valid_o),
+        .jump_commit_id_i       (jump_inst1_commit_id_o),
+        .jump_commit_valid2_i   (jump_inst2_valid_o),
+        .jump_commit_id2_i      (jump_inst2_commit_id_o),
         .pending_inst1_id_i      (pending_inst1_commit_id_o),
 
         //跳转控制
         .jump_flag_i            (jump_flag_i),
+        .idu_flush_i            (idu_flush),
         .inst1_jump_i           (inst1_jump_i),
         .inst1_branch_i         (inst1_branch_i),
         .inst2_branch_i         (inst2_branch_i),
 
         .inst1_csr_type_i       (inst1_csr_type_i),
         .inst2_csr_type_i       (inst2_csr_type_i),
+        .clint_req_valid        (clint_req_valid_i),
 
         // 输出信号
         //to ctrl
         .new_issue_stall_o      (new_issue_stall_o),
         //to icu_issue
         .issue_inst_o           (issue_inst),
-        .clint_req_valid        (clint_req_valid_i),
 
         //to irf
         .inst1_commit_id_o      (hdu_inst1_commit_id_o),
@@ -236,6 +242,7 @@ module icu (
 
         .inst1_illegal_inst_i    (inst1_illegal_inst_i),
         .inst2_illegal_inst_i    (inst2_illegal_inst_i),
+        .clint_req_valid_i       (clint_req_valid_i),
 
         // outputs
         .inst1_addr_o           (inst1_addr_o),

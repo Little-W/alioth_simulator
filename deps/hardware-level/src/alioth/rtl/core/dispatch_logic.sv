@@ -189,7 +189,7 @@ module dispatch_logic (
     assign bjp_op_bltu_o  = bjp_info[`DECINFO_BJP_BLTU];  // BLTU指令
     assign bjp_op_bge_o   = bjp_info[`DECINFO_BJP_BGE];  // BGE指令
     assign bjp_op_bgeu_o  = bjp_info[`DECINFO_BJP_BGEU];  // BGEU指令
-    assign req_bjp_o      = op_bjp;
+    assign req_bjp_o      = op_bjp | sys_op_fence_o;
     assign bjp_op_jal_o   = bjp_info[`DECINFO_BJP_JUMP] && !bjp_op1_rs1;  // JAL指令标志
     assign bjp_op_jalr_o  = bjp_op1_rs1;  // JALR指令标志
 

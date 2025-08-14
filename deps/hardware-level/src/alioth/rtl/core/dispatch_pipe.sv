@@ -1051,7 +1051,7 @@ module dispatch_pipe (
         req_fake_commit_dnxt,
         req_fake_commit
     );
-    assign req_fake_commit_o = req_fake_commit;
+    assign req_fake_commit_o = 1'b0;
 
     assign fake_commit_id_o = flush_fakecommit_en ? commit_id_o : 3'b0;
 

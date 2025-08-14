@@ -30,9 +30,9 @@ module clint (
     input wire clk,
     input wire rst_n,
 
-    // from id
+    // from dispatch
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
-    input wire [ `REG_DATA_WIDTH-1:0] inst_data_i,  // 非法指令内容
+    input wire [ `REG_DATA_WIDTH-1:0] inst_data_i,  
     input wire                        inst_valid_i, // 指令有效标志
 
     // from ex

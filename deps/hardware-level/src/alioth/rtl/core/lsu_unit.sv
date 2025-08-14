@@ -122,7 +122,7 @@ module lsu_unit #(
     
     // 地址和数据处理
     wire [31:0] aligned_addr = {mem_addr_i[31:2], 2'b00};  // 4字节对齐地址
-    wire [1:0] addr_offset = mem_addr_i[1:0];  // 地址偏移
+    wire [2:0] addr_offset = mem_addr_i[2:0];  // 地址偏移，扩展为3位以支持64位访问
     
     // 写数据处理 - 扩展到64位AXI总线
     wire [63:0] expanded_wdata;
@@ -148,7 +148,7 @@ module lsu_unit #(
     reg [`COMMIT_ID_WIDTH-1:0] saved_commit_id;
     reg saved_mem_op_lb, saved_mem_op_lh, saved_mem_op_lw;
     reg saved_mem_op_lbu, saved_mem_op_lhu;
-    reg [1:0] saved_addr_offset;
+    reg [2:0] saved_addr_offset;  // 扩展为3位以支持64位访问
     
     // ===================================================================
     // 数据扩展逻辑 - 32位到64位AXI
@@ -288,7 +288,7 @@ module lsu_unit #(
             saved_mem_op_lw <= 1'b0;
             saved_mem_op_lbu <= 1'b0;
             saved_mem_op_lhu <= 1'b0;
-            saved_addr_offset <= 2'b0;
+            saved_addr_offset <= 3'b0;
         end else if (current_state == STATE_IDLE && req_mem_i && !int_assert_i) begin
             saved_rd_addr <= rd_addr_i;
             saved_commit_id <= commit_id_i;

@@ -51,10 +51,16 @@ module hdu (
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // 执行完成的指令ID（第一个）
     input wire                        commit_valid2_i, // 第二条指令完成有效信号
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id2_i,    // 执行完成的指令ID（第二个）
+    //icu_issue发来的写回信号
+    input wire                        jump_commit_valid_i,  // 指令执行完成有效信号
+    input wire [`COMMIT_ID_WIDTH-1:0] jump_commit_id_i,     // 执行完成的指令ID（第一个）
+    input wire                        jump_commit_valid2_i, // 第二条指令完成有效信号
+    input wire [`COMMIT_ID_WIDTH-1:0] jump_commit_id2_i,    // 执行完成的指令ID（第二个）
     input wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_id_i,
 
     // 跳转控制信号
     input wire                        jump_flag_i,     // 跳转标志 (保留，与新序列化策略无直接关系，可用于后续扩展)
+    input wire                        idu_flush_i,        //此时忽视来自idu的指令，防止它们进入FIFO
     input wire                        inst1_jump_i,    // 指令1跳转信号
     input wire                        clint_req_valid, //中断请求有效信号
     input wire                        inst1_branch_i,  // 指令1分支信号
@@ -83,27 +89,31 @@ module hdu (
     reg waw_hazard_inst2_fifo;  // inst2 写 与 FIFO 里未完成写回冲突
     reg waw_hazard_inst2_inst1; // inst2 写 与 inst1 写同一寄存器
     reg [2:0] pending_inst1_id;
-    // 立即序列化：jump_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
-    // 首拍通过 jump_edge 保证立即生效
-    reg jump_detect_d1; // 上一拍检测寄存器
-    wire jump_detect_now = inner_inst1_valid && inst1_branch_i;
-    wire jump_edge = jump_detect_now & ~jump_detect_d1; // 首次检测到的边沿
-    reg jump_serialize_pulse; // 改为保持寄存器
-    wire inst1_jump;
-    assign inst1_jump = inst1_jump_i && (~inst1_jump_cancel);
-    // 新增：inst1_jump保持逻辑相关寄存器
-    reg inst1_jump_cancel;               // 跳转保持：inst1_jump_i 置位，clint_req_valid 下降沿清零
-    reg clint_req_valid_d1;       // clint_req_valid 上一拍，用于下降沿检测
+    // 立即序列化：branch_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
+    // 首拍通过 branch_edge 保证立即生效
+    reg branch_detect_d1; // 上一拍检测寄存器
+    wire branch_detect_now = inner_inst1_valid & inst1_branch_i;
+    wire branch_edge = branch_detect_now & ~branch_detect_d1; // 首次检测到的边沿
+    reg branch_serialize_pulse; // 改为保持寄存器
+
+    wire sys_jump_detect_now = inner_inst1_valid & inst1_jump_i;
+    wire sys_jump_edge = sys_jump_detect_now & ~sys_jump_detect_d1; // 首次检测到的边沿
+    reg  sys_jump_detect_d1;
+    // wire inst1_jump;
+    // assign inst1_jump = inst1_jump_i && (~inst1_jump_cancel);
+    // // 新增：inst1_jump保持逻辑相关寄存器
+    // reg inst1_jump_cancel;               // 跳转保持：inst1_jump_i 置位，clint_req_valid 下降沿清零
+    // reg clint_req_valid_d1;       // clint_req_valid 上一拍，用于下降沿检测
 
     // 检测x0寄存器（x0忽略）
     wire inner_inst1_valid = inst1_valid && ~inst1_already_issued_i; // 已发射保持时不再参与冒险
     wire inner_inst2_valid = inst2_valid && ~inst2_already_issued_i;
-    wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inner_inst1_valid;
-    wire inst1_rs2_check = (inst1_rs2_addr != 5'h0) && inner_inst1_valid;
-    wire inst1_rd_check  = (inst1_rd_addr  != 5'h0) && inst1_rd_we && inner_inst1_valid;
-    wire inst2_rs1_check = (inst2_rs1_addr != 5'h0) && inner_inst2_valid;
-    wire inst2_rs2_check = (inst2_rs2_addr != 5'h0) && inner_inst2_valid;
-    wire inst2_rd_check  = (inst2_rd_addr  != 5'h0) && inst2_rd_we && inner_inst2_valid;
+    wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inst1_valid;
+    wire inst1_rs2_check = (inst1_rs2_addr != 5'h0) && inst1_valid;
+    wire inst1_rd_check  = (inst1_rd_addr  != 5'h0) && inst1_rd_we && inst1_valid;
+    wire inst2_rs1_check = (inst2_rs1_addr != 5'h0) && inst2_valid;
+    wire inst2_rs2_check = (inst2_rs2_addr != 5'h0) && inst2_valid;
+    wire inst2_rd_check  = (inst2_rd_addr  != 5'h0) && inst2_rd_we && inst2_valid;
 
     wire can_into_fifo_inst1;
     wire can_into_fifo_inst2;
@@ -164,18 +174,21 @@ module hdu (
     wire hazard_inst2_fifo  = raw_hazard_inst2_fifo  | waw_hazard_inst2_fifo;
     wire hazard_inst2_inst1 = raw_hazard_inst2_inst1 | waw_hazard_inst2_inst1;
 
-    // 发射控制逻辑：按优先级判断 hazard 与 jump_serialize_effect
+    // 发射控制逻辑：按优先级判断 hazard 与 branch_serialize_effect
     reg [1:0] issue_inst_reg;
-    wire jump_serialize_effect = jump_edge | jump_serialize_pulse; // 组合效果
+    wire branch_serialize_effect = branch_edge | branch_serialize_pulse; // 组合效果
     always @(*) begin
         // 默认设为 11 默认双发射
         issue_inst_reg = 2'b11;
-        if(inst1_jump) begin
-            issue_inst_reg = 2'b01;
+        if(clint_req_valid || idu_flush_i) begin
+            issue_inst_reg = 2'b00;
         end
         else if (hazard_inst1_fifo) begin
-            if (jump_serialize_effect) begin
+            if (branch_serialize_effect) begin
                 issue_inst_reg = 2'b00;         // inst1 有 FIFO 冒险且需要序列化 -> 全停
+            end else begin
+            if(sys_jump_edge) begin
+                issue_inst_reg = 2'b01;     //inst1为sys跳转-仅发射inst1
             end else begin
                 if (!hazard_inst2_fifo) begin
                     if (!hazard_inst2_inst1)    issue_inst_reg = 2'b10; // 只发射 B
@@ -184,8 +197,12 @@ module hdu (
                     issue_inst_reg = 2'b00;     // 两侧或 B 也有 FIFO 冒险 -> 全停
                 end
             end
+            end
         end else begin // inst1 无 FIFO 冒险
-            if (jump_serialize_effect) begin
+        if(sys_jump_edge) begin
+                issue_inst_reg = 2'b01;     //inst1为sys跳转-仅发射inst1
+            end else begin
+            if (branch_serialize_effect) begin
                 issue_inst_reg = 2'b01;         // 序列化：仅发射 A
             end else begin
                 if (!hazard_inst2_fifo) begin
@@ -196,10 +213,11 @@ module hdu (
                 end
             end
         end
+        end
     end
 
     // new_issue_stall: 不是双发射或 FIFO 满
-    assign new_issue_stall_o = ((issue_inst_reg != 2'b11) || fifo_full) ? 1'b1 : 1'b0;
+    assign new_issue_stall_o = (((issue_inst_reg != 2'b11 && !clint_req_valid) || fifo_full) ? 1'b1 : 1'b0);
     assign issue_inst_o = fifo_full ? 2'b00 : issue_inst_reg;
 
     // FIFO满 (忽略 index 0，因其保留)
@@ -261,14 +279,15 @@ module hdu (
                 fifo_valid[i]   <= 1'b0;
                 fifo_rd_addr[i] <= 5'h0;
             end
-            jump_detect_d1 <= 1'b0;
-            jump_serialize_pulse <= 1'b0;
-            // 新增复位s
-            clint_req_valid_d1 <= 1'b0;
+            branch_detect_d1 <= 1'b0;
+            sys_jump_detect_d1 <=1'b0;
+            branch_serialize_pulse <= 1'b0;
         end else begin
             // 释放时忽略 commit_id == 0（理论上不会出现）
             if (commit_valid_i  && commit_id_i  != 3'd0) fifo_valid[commit_id_i]  <= 1'b0;
             if (commit_valid2_i && commit_id2_i != 3'd0) fifo_valid[commit_id2_i] <= 1'b0;
+            if (jump_commit_valid_i  && jump_commit_id_i  != 3'd0) fifo_valid[jump_commit_id_i]  <= 1'b0;
+            if (jump_commit_valid2_i  && jump_commit_id2_i  != 3'd0) fifo_valid[jump_commit_id2_i]  <= 1'b0;
             // 分配：永不写 index 0；新增条件：jump_flag_i 为 1 时不进入 FIFO
             if (inner_inst1_valid && issue_inst_o[0] && next_id1 != 3'd0 && !jump_flag_i  && can_into_fifo_inst1) begin
                 fifo_valid[inst1_commit_id_o]   <= 1'b1;
@@ -278,24 +297,14 @@ module hdu (
                 fifo_valid[inst2_commit_id_o]   <= 1'b1;
                 fifo_rd_addr[inst2_commit_id_o] <= inst2_rd_addr;
             end
-            // jump_serialize_pulse 保持逻辑：检测到跳转置 1；若仍存在 inst1 与 FIFO 冒险则保持；冒险解除后清零
-            if (jump_edge) begin
-                jump_serialize_pulse <= 1'b1;
-            end else if (jump_serialize_pulse && !hazard_inst1_fifo) begin
-                jump_serialize_pulse <= 1'b0;
+            // branch_serialize_pulse 保持逻辑：检测到跳转置 1；若仍存在 inst1 与 FIFO 冒险则保持；冒险解除后清零
+            if (branch_edge) begin
+                branch_serialize_pulse <= 1'b1;
+            end else if ( !hazard_inst1_fifo) begin
+                branch_serialize_pulse <= 1'b0;
             end
-            jump_detect_d1 <= jump_detect_now; // 保存上一拍
-
-            // 新增：inst1_jump 保持与清除逻辑
-            // 置位条件：inst1_jump_i 为 1
-            if (inst1_jump_i) begin
-                inst1_jump_cancel <= 1'b0;
-            end else if (clint_req_valid_d1 && ~clint_req_valid) begin
-                // 解除条件：clint_req_valid 从 1 -> 0 的下降沿
-                inst1_jump_cancel <= 1'b1;
-            end
-            // 记录 clint_req_valid 上一拍用于下降沿检测
-            clint_req_valid_d1 <= clint_req_valid;
+            branch_detect_d1 <= branch_detect_now; // 保存上一拍
+            sys_jump_detect_d1 <= sys_jump_detect_now; // 保存上一拍
         end
         // pending_inst1_id 逻辑保持，但不会出现 0 分配导致的依赖问题
         if (hazard_inst2_inst1) begin
@@ -304,6 +313,9 @@ module hdu (
                 pending_inst1_id <= inst1_commit_id_o;
             end
             // 如果pending_inst1_id非0，则保持不变
+            else begin
+                pending_inst1_id <= pending_inst1_id;
+            end
         end else begin
             // hazard_inst2_inst1为0时清零
             pending_inst1_id <= 3'd0;
