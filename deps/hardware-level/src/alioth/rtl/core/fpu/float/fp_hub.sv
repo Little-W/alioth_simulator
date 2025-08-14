@@ -119,7 +119,6 @@ module fp_hub (
         fp_max_i.rm                 = rm;
         fp_max_i.class1             = class1;
         fp_max_i.class2             = class2;
-        fp_max_i.valid              = op.fmax & fp_hub_i.enable;
 
         fp_sgnj_i.data1             = data1;
         fp_sgnj_i.data2             = data2;
@@ -166,20 +165,20 @@ module fp_hub (
         fp_rnd_valid                = 0;
 
         if (fp_fma_o.ready) begin
-            fp_rnd       = fp_fma_o.fp_rnd;
+            fp_rnd = fp_fma_o.fp_rnd;
             fp_rnd_valid = 1;
         end else if (fp_fdiv_o.ready) begin
-            fp_rnd       = fp_fdiv_o.fp_rnd;
+            fp_rnd = fp_fdiv_o.fp_rnd;
             fp_rnd_valid = 1;
         end else if (fp_cvt_f2f_o.ready) begin
-            fp_rnd       = fp_cvt_f2f_o.fp_rnd;
+            fp_rnd = fp_cvt_f2f_o.fp_rnd;
             fp_rnd_valid = 1;
         end else if (fp_cvt_i2f_o.ready) begin
-            fp_rnd       = fp_cvt_i2f_o.fp_rnd;
+            fp_rnd = fp_cvt_i2f_o.fp_rnd;
             fp_rnd_valid = 1;
         end
 
-        fp_rnd_i       = fp_rnd;
+        fp_rnd_i = fp_rnd;
         fp_rnd_i.valid = fp_rnd_valid;
 
 
@@ -193,18 +192,15 @@ module fp_hub (
             ready = 0;
         end else if (op.fdiv | op.fsqrt) begin
             ready = 0;
-        end else if (op.fmax) begin
-            ready = 0;
         end else if (op.fcmp) begin
             result = fp_cmp_o.result;
             flags  = fp_cmp_o.flags;
         end else if (op.fsgnj) begin
             result = fp_sgnj_o.result;
             flags  = 0;
-        end else if (fp_max_o.ready) begin
+        end else if (op.fmax) begin
             result = fp_max_o.result;
             flags  = fp_max_o.flags;
-            ready  = 1;
         end else if (op.fcmp) begin
             result = fp_cmp_o.result;
             flags  = fp_cmp_o.flags;
