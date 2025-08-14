@@ -66,8 +66,9 @@ module fp_fma (
 
     // 实例化53位乘法器
     mul_64 #(
-        .SIGNED(0),
-        .WIDTH (53)
+        .LATENCY_LEVEL(0),
+        .SIGNED       (0),
+        .WIDTH        (53)
     ) u_mul_64 (
         .clk     (clk),
         .rst_n   (rst_n),

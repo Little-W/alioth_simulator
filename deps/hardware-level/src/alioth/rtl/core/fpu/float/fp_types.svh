@@ -87,11 +87,13 @@ package fp_types;
         logic [2:0]  rm;
         logic [9:0]  class1;
         logic [9:0]  class2;
+        logic valid;
     } fp_max_in_type;
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0]  flags;
+        logic        ready;
     } fp_max_out_type;
 
     typedef struct packed {
@@ -113,9 +115,9 @@ package fp_types;
         logic [9:0]  classification;
     } fp_ext_out_type;
 
-    typedef struct packed {fp_hub_in_type fp_hub_i;} fp_unit_in_type;
+    typedef struct packed {fp_hub_in_type fp_hub_i;} fpu_top_in_type;
 
-    typedef struct packed {fp_hub_out_type fp_hub_o;} fp_unit_out_type;
+    typedef struct packed {fp_hub_out_type fp_hub_o;} fpu_top_out_type;
 
     typedef struct packed {
         logic        sig;    // 最终结果符号位（0正1负）
@@ -314,12 +316,12 @@ package fp_types;
         logic [55:0] c;
         logic op;
         logic valid;
-    } fp_mac_in_type;
+    } mac_56_in_type;
 
     typedef struct packed {
         logic [109:0] d;
         logic ready;
-    } fp_mac_out_type;
+    } mac_56_out_type;
 
     typedef struct packed {
         logic [64:0] data1;

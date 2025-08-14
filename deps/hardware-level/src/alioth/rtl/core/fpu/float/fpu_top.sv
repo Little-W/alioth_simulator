@@ -4,16 +4,16 @@
 //
 // 端口说明：
 //   rst_n, clk      : 时钟与复位
-//   fp_unit_i/o     : 主输入输出结构体
+//   fpu_top_i/o     : 主输入输出结构体
 //   clear           : 清除/暂停信号
 
 import fp_types::*;
 
-module fp_unit (
+module fpu_top (
     input                   clk,
     input                   rst_n,
-    input  fp_unit_in_type  fp_unit_i,
-    output fp_unit_out_type fp_unit_o,
+    input  fpu_top_in_type  fpu_top_i,
+    output fpu_top_out_type fpu_top_o,
     input                   clear
 );
     timeunit 1ns; timeprecision 1ps;
@@ -113,8 +113,8 @@ module fp_unit (
     );
 
     fp_hub fp_hub (
-        .fp_hub_i    (fp_unit_i.fp_hub_i),
-        .fp_hub_o    (fp_unit_o.fp_hub_o),
+        .fp_hub_i    (fpu_top_i.fp_hub_i),
+        .fp_hub_o    (fpu_top_o.fp_hub_o),
         .fp_ext1_o   (fp_ext1_o),
         .fp_ext1_i   (fp_ext1_i),
         .fp_ext2_o   (fp_ext2_o),

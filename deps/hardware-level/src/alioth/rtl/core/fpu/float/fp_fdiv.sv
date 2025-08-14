@@ -12,7 +12,7 @@
 // 端口说明：
 //   rst_n, clk      : 时钟与复位
 //   fp_fdiv_i/o     : 输入输出结构体
-//   fp_mac_i/o      : MAC单元接口
+//   mac_56_i/o      : MAC单元接口
 //   clear           : 清除/暂停信号
 
 import fp_types::*;
@@ -26,11 +26,61 @@ module fp_fdiv (
 );
     timeunit 1ns; timeprecision 1ps;
 
-    fp_fdiv_reg_functional_type r;
-    fp_fdiv_reg_functional_type rin;
+    // 状态机状态定义
+    typedef enum logic [4:0] {
+        ST_IDLE       = 5'b00001,
+        ST_FDIV_ITER  = 5'b00010,
+        ST_FSQRT_ITER = 5'b00100,
+        ST_NORMALIZE  = 5'b01000,
+        ST_COMPLETE   = 5'b10000
+    } state_t;
 
-    fp_fdiv_reg_functional_type v;
+    // 除法迭代子状态定义
+    typedef enum logic [10:0] {
+        FDIV_CALC_E0     = 11'b00000000001,
+        FDIV_CALC_Y0     = 11'b00000000010,
+        FDIV_CALC_E1     = 11'b00000000100,
+        FDIV_CALC_Y1     = 11'b00000001000,
+        FDIV_CALC_E2     = 11'b00000010000,
+        FDIV_CALC_Y2     = 11'b00000100000,
+        FDIV_CALC_Q0     = 11'b00001000000,
+        FDIV_CALC_R0     = 11'b00010000000,
+        FDIV_REFINE_Q0   = 11'b00100000000,
+        FDIV_CALC_R1     = 11'b01000000000,
+        FDIV_FINAL_CHECK = 11'b10000000000
+    } fdiv_sub_state_t;
 
+    // 开方迭代子状态定义
+    typedef enum logic [13:0] {
+        FSQRT_CALC_Y0     = 14'b00000000000001,
+        FSQRT_CALC_H0     = 14'b00000000000010,
+        FSQRT_CALC_E0     = 14'b00000000000100,
+        FSQRT_CALC_Y1     = 14'b00000000001000,
+        FSQRT_CALC_H1     = 14'b00000000010000,
+        FSQRT_CALC_E1     = 14'b00000000100000,
+        FSQRT_CALC_Y2     = 14'b00000001000000,
+        FSQRT_CALC_H2     = 14'b00000010000000,
+        FSQRT_CALC_R0     = 14'b00000100000000,
+        FSQRT_CALC_Y3     = 14'b00001000000000,
+        FSQRT_REFINE_R0   = 14'b00010000000000,
+        FSQRT_CALC_Q0     = 14'b00100000000000,
+        FSQRT_CALC_R1     = 14'b01000000000000,
+        FSQRT_FINAL_CHECK = 14'b10000000000000
+    } fsqrt_sub_state_t;
+
+    // 寄存器结构体
+    fp_fdiv_reg_functional_type current_state_reg, next_state_reg;
+
+    // 状态机状态寄存器
+    state_t current_main_state, next_main_state;
+    fdiv_sub_state_t current_fdiv_sub_state, next_fdiv_sub_state;
+    fsqrt_sub_state_t current_fsqrt_sub_state, next_fsqrt_sub_state;
+
+    // MAC接口信号
+    mac_56_in_type  mac_input_signals;
+    mac_56_out_type mac_output_signals;
+
+    // 查找表定义
     localparam logic [7:0] reciprocal_lut[0:127] = '{
         8'b00000000,
         8'b11111110,
@@ -261,464 +311,548 @@ module fp_fdiv (
         8'b01011010
     };
 
-    // 声明内部MAC信号
-    fp_mac_in_type  fp_mac_i_int;
-    fp_mac_out_type fp_mac_o_int;
-
+    // 主状态机状态转换逻辑（）
     always_comb begin
+        next_main_state      = current_main_state;
+        next_fdiv_sub_state  = current_fdiv_sub_state;
+        next_fsqrt_sub_state = current_fsqrt_sub_state;
 
-        v = r;
+        case (current_main_state)
+            ST_IDLE: begin
+                if (fp_fdiv_i.op.fdiv) begin
+                    next_main_state     = ST_FDIV_ITER;
+                    next_fdiv_sub_state = FDIV_CALC_E0;
+                end else if (fp_fdiv_i.op.fsqrt) begin
+                    next_main_state      = ST_FSQRT_ITER;
+                    next_fsqrt_sub_state = FSQRT_CALC_Y0;
+                end
+            end
 
-        // 默认MAC valid为0
-        fp_mac_i_int.valid = 0;
+            ST_FDIV_ITER: begin
+                if (mac_output_signals.ready) begin
+                    case (current_fdiv_sub_state)
+                        FDIV_CALC_E0:   next_fdiv_sub_state = FDIV_CALC_Y0;
+                        FDIV_CALC_Y0:   next_fdiv_sub_state = FDIV_CALC_E1;
+                        FDIV_CALC_E1:   next_fdiv_sub_state = FDIV_CALC_Y1;
+                        FDIV_CALC_Y1:   next_fdiv_sub_state = FDIV_CALC_E2;
+                        FDIV_CALC_E2:   next_fdiv_sub_state = FDIV_CALC_Y2;
+                        FDIV_CALC_Y2:   next_fdiv_sub_state = FDIV_CALC_Q0;
+                        FDIV_CALC_Q0:   next_fdiv_sub_state = FDIV_CALC_R0;
+                        FDIV_CALC_R0:   next_fdiv_sub_state = FDIV_REFINE_Q0;
+                        FDIV_REFINE_Q0: next_fdiv_sub_state = FDIV_CALC_R1;
+                        FDIV_CALC_R1:   next_fdiv_sub_state = FDIV_FINAL_CHECK;
+                        FDIV_FINAL_CHECK: begin
+                            next_main_state     = ST_NORMALIZE;
+                            next_fdiv_sub_state = FDIV_CALC_E0;
+                        end
+                        default:        next_fdiv_sub_state = FDIV_CALC_E0;
+                    endcase
+                end
+            end
 
-        if (r.state == 0) begin
-            if (fp_fdiv_i.op.fdiv) begin
-                v.state = 1;
+            ST_FSQRT_ITER: begin
+                if (mac_output_signals.ready) begin
+                    case (current_fsqrt_sub_state)
+                        FSQRT_CALC_Y0:   next_fsqrt_sub_state = FSQRT_CALC_H0;
+                        FSQRT_CALC_H0:   next_fsqrt_sub_state = FSQRT_CALC_E0;
+                        FSQRT_CALC_E0:   next_fsqrt_sub_state = FSQRT_CALC_Y1;
+                        FSQRT_CALC_Y1:   next_fsqrt_sub_state = FSQRT_CALC_H1;
+                        FSQRT_CALC_H1:   next_fsqrt_sub_state = FSQRT_CALC_E1;
+                        FSQRT_CALC_E1:   next_fsqrt_sub_state = FSQRT_CALC_Y2;
+                        FSQRT_CALC_Y2:   next_fsqrt_sub_state = FSQRT_CALC_H2;
+                        FSQRT_CALC_H2:   next_fsqrt_sub_state = FSQRT_CALC_R0;
+                        FSQRT_CALC_R0:   next_fsqrt_sub_state = FSQRT_CALC_Y3;
+                        FSQRT_CALC_Y3:   next_fsqrt_sub_state = FSQRT_REFINE_R0;
+                        FSQRT_REFINE_R0: next_fsqrt_sub_state = FSQRT_CALC_Q0;
+                        FSQRT_CALC_Q0:   next_fsqrt_sub_state = FSQRT_CALC_R1;
+                        FSQRT_CALC_R1:   next_fsqrt_sub_state = FSQRT_FINAL_CHECK;
+                        FSQRT_FINAL_CHECK: begin
+                            next_main_state      = ST_NORMALIZE;
+                            next_fsqrt_sub_state = FSQRT_CALC_Y0;
+                        end
+                        default:         next_fsqrt_sub_state = FSQRT_CALC_Y0;
+                    endcase
+                end
             end
-            if (fp_fdiv_i.op.fsqrt) begin
-                v.state = 2;
+
+            ST_NORMALIZE: begin
+                next_main_state = ST_COMPLETE;
             end
-            v.istate = 0;
-            v.ready  = 0;
-        end else if (r.state == 1) begin
-            // 浮点除法状态，只有当MAC ready时才能进入下一个istate
-            if (v.istate == 10 && fp_mac_o_int.ready) begin
-                v.state = 3;
-            end else if (fp_mac_o_int.ready) begin
-                v.istate = v.istate + 6'd1;
+
+            ST_COMPLETE: begin
+                next_main_state = ST_IDLE;
             end
-            v.ready  = 0;
-        end else if (r.state == 2) begin
-            // 浮点开方状态，只有当MAC ready时才能进入下一个istate
-            if (v.istate == 13 && fp_mac_o_int.ready) begin
-                v.state = 3;
-            end else if (fp_mac_o_int.ready) begin
-                v.istate = v.istate + 6'd1;
+
+            default: begin
+                next_main_state = ST_IDLE;
             end
-            v.ready  = 0;
-        end else if (r.state == 3) begin
-            v.state = 4;
-            v.ready = 0;
-        end else begin
-            v.state = 0;
-            v.ready = 1;
+        endcase
+
+        // clear信号处理
+        if (clear) begin
+            next_main_state      = ST_IDLE;
+            next_fdiv_sub_state  = FDIV_CALC_E0;
+            next_fsqrt_sub_state = FSQRT_CALC_Y0;
         end
+    end
 
-        if (r.state == 0) begin
-            v.a       = fp_fdiv_i.data1;
-            v.b       = fp_fdiv_i.data2;
-            v.class_a = fp_fdiv_i.class1;
-            v.class_b = fp_fdiv_i.class2;
-            v.fmt     = fp_fdiv_i.fmt;
-            v.rm      = fp_fdiv_i.rm;
-            v.snan    = 0;
-            v.qnan    = 0;
-            v.dbz     = 0;
-            v.infs    = 0;
-            v.zero    = 0;
+    // 组合逻辑：数据处理和MAC控制
+    always_comb begin
+        next_state_reg          = current_state_reg;
 
-            if (fp_fdiv_i.op.fsqrt) begin
-                v.b       = 65'h07FF0000000000000;
-                v.class_b = 0;
-            end
+        // 默认MAC控制信号
+        mac_input_signals.valid = 1'b0;
+        mac_input_signals.a     = 56'h0;
+        mac_input_signals.b     = 56'h0;
+        mac_input_signals.c     = 56'h0;
+        mac_input_signals.op    = 1'b0;
 
-            if (v.class_a[8] | v.class_b[8]) begin
-                v.snan = 1;
-            end else if ((v.class_a[3] | v.class_a[4]) & (v.class_b[3] | v.class_b[4])) begin
-                v.snan = 1;
-            end else if ((v.class_a[0] | v.class_a[7]) & (v.class_b[0] | v.class_b[7])) begin
-                v.snan = 1;
-            end else if (v.class_a[9] | v.class_b[9]) begin
-                v.qnan = 1;
-            end
+        case (current_main_state)
+            ST_IDLE: begin
+                // 初始化输入数据
+                next_state_reg.a       = fp_fdiv_i.data1;
+                next_state_reg.b       = fp_fdiv_i.data2;
+                next_state_reg.class_a = fp_fdiv_i.class1;
+                next_state_reg.class_b = fp_fdiv_i.class2;
+                next_state_reg.fmt     = fp_fdiv_i.fmt;
+                next_state_reg.rm      = fp_fdiv_i.rm;
+                next_state_reg.ready   = 1'b0;
 
-            if ((v.class_a[0] | v.class_a[7]) & (v.class_b[1] | v.class_b[2] | v.class_b[3] | v.class_b[4] | v.class_b[5] | v.class_b[6])) begin
-                v.infs = 1;
-            end else if ((v.class_b[3] | v.class_b[4]) & (v.class_a[1] | v.class_a[2] | v.class_a[5] | v.class_a[6])) begin
-                v.dbz = 1;
-            end
+                // 清除异常标志
+                next_state_reg.snan    = 1'b0;
+                next_state_reg.qnan    = 1'b0;
+                next_state_reg.dbz     = 1'b0;
+                next_state_reg.infs    = 1'b0;
+                next_state_reg.zero    = 1'b0;
 
-            if ((v.class_a[3] | v.class_a[4]) | (v.class_b[0] | v.class_b[7])) begin
-                v.zero = 1;
-            end
-
-            if (fp_fdiv_i.op.fsqrt) begin
-                if (v.class_a[7]) begin
-                    v.infs = 1;
+                // 开方操作的特殊处理
+                if (fp_fdiv_i.op.fsqrt) begin
+                    next_state_reg.b       = 65'h07FF0000000000000;
+                    next_state_reg.class_b = 10'h0;
                 end
-                if (v.class_a[0] | v.class_a[1] | v.class_a[2]) begin
-                    v.snan = 1;
+
+                // 异常检测逻辑
+                if (next_state_reg.class_a[8] | next_state_reg.class_b[8]) begin
+                    next_state_reg.snan = 1'b1;
+                end else if ((next_state_reg.class_a[3] | next_state_reg.class_a[4]) & 
+                           (next_state_reg.class_b[3] | next_state_reg.class_b[4])) begin
+                    next_state_reg.snan = 1'b1;
+                end else if ((next_state_reg.class_a[0] | next_state_reg.class_a[7]) & 
+                           (next_state_reg.class_b[0] | next_state_reg.class_b[7])) begin
+                    next_state_reg.snan = 1'b1;
+                end else if (next_state_reg.class_a[9] | next_state_reg.class_b[9]) begin
+                    next_state_reg.qnan = 1'b1;
                 end
-            end
 
-            v.qa            = {2'h1, v.a[51:0], 2'h0};
-            v.qb            = {2'h1, v.b[51:0], 2'h0};
-
-            v.sign_fdiv     = v.a[64] ^ v.b[64];
-            v.exponent_fdiv = {2'h0, v.a[63:52]} - {2'h0, v.b[63:52]};
-            v.y             = {1'h0, ~|v.b[51:45], reciprocal_lut[$unsigned(v.b[51:45])], 46'h0};
-            v.op            = 0;
-
-            if (fp_fdiv_i.op.fsqrt) begin
-                v.qa = {2'h1, v.a[51:0], 2'h0};
-                if (!v.a[52]) begin
-                    v.qa = v.qa >> 1;
+                // 无穷大和除零检测
+                if ((next_state_reg.class_a[0] | next_state_reg.class_a[7]) & 
+                    (next_state_reg.class_b[1] | next_state_reg.class_b[2] | next_state_reg.class_b[3] | 
+                     next_state_reg.class_b[4] | next_state_reg.class_b[5] | next_state_reg.class_b[6])) begin
+                    next_state_reg.infs = 1'b1;
+                end else if ((next_state_reg.class_b[3] | next_state_reg.class_b[4]) & 
+                           (next_state_reg.class_a[1] | next_state_reg.class_a[2] | 
+                            next_state_reg.class_a[5] | next_state_reg.class_a[6])) begin
+                    next_state_reg.dbz = 1'b1;
                 end
-                v.index         = $unsigned(v.qa[54:48]) - 7'd32;
-                v.exponent_fdiv = ($signed({2'h0, v.a[63:52]}) + $signed(-14'd2045)) >>> 1;
-                v.y             = {1'h0, reciprocal_root_lut[v.index], 47'h0};
-                v.op            = 1;
-            end
 
-            fp_mac_i_int.a  = 0;
-            fp_mac_i_int.b  = 0;
-            fp_mac_i_int.c  = 0;
-            fp_mac_i_int.op = 0;
-        end else if (r.state == 1) begin
-            // 浮点除法迭代过程
-            if (r.istate == 0) begin
-                // 1. 计算初始误差 e0 = 1 - B * y
-                fp_mac_i_int.a  = 56'h40000000000000;
-                fp_mac_i_int.b  = v.qb;
-                fp_mac_i_int.c  = v.y;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1; // 启动MAC运算
-                v.e0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 1) begin
-                // 2. 计算 y0 = y + y * e0，牛顿法第一次修正倒数近似
-                fp_mac_i_int.a  = v.y;
-                fp_mac_i_int.b  = v.y;
-                fp_mac_i_int.c  = v.e0;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 2) begin
-                // 3. 计算 e1 = e0 * e0，误差平方
-                fp_mac_i_int.a  = 56'h0;
-                fp_mac_i_int.b  = v.e0;
-                fp_mac_i_int.c  = v.e0;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.e1        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 3) begin
-                // 4. 计算 y1 = y0 + y0 * e1，牛顿法第二次修正倒数近似
-                fp_mac_i_int.a  = v.y0;
-                fp_mac_i_int.b  = v.y0;
-                fp_mac_i_int.c  = v.e1;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y1        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 4) begin
-                // 5. 计算 e2 = e1 * e1，误差再平方
-                fp_mac_i_int.a  = 56'h0;
-                fp_mac_i_int.b  = v.e1;
-                fp_mac_i_int.c  = v.e1;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.e2        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 5) begin
-                // 6. 计算 y2 = y1 + y1 * e2，牛顿法第三次修正倒数近似
-                fp_mac_i_int.a  = v.y1;
-                fp_mac_i_int.b  = v.y1;
-                fp_mac_i_int.c  = v.e2;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y2        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 6) begin
-                // 7. 计算 q0 = A * y2，得到初步的商
-                fp_mac_i_int.a  = 56'h0;
-                fp_mac_i_int.b  = v.qa;
-                fp_mac_i_int.c  = v.y2;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.q0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 7) begin
-                // 8. 计算 r0 = A - q0 * B，计算余数
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.qb;
-                fp_mac_i_int.c  = v.q0;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r0        = fp_mac_o_int.d;
-            end else if (r.istate == 8) begin
-                // 9. 计算 q0 = q0 + r0 * y2，修正商
-                fp_mac_i_int.a  = v.q0;
-                fp_mac_i_int.b  = v.r0[109:54];
-                fp_mac_i_int.c  = v.y2;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.q0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 9) begin
-                // 10. 计算 r1 = A - q0 * B，计算最终余数
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.qb;
-                fp_mac_i_int.c  = v.q0;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r1        = fp_mac_o_int.d;
-                v.q1        = v.q0;
-                // 余数正则商加1
-                if ($signed(v.r1[109:54]) > 0) begin
-                    v.q1 = v.q1 + 1;
+                // 零结果检测
+                if ((next_state_reg.class_a[3] | next_state_reg.class_a[4]) | 
+                    (next_state_reg.class_b[0] | next_state_reg.class_b[7])) begin
+                    next_state_reg.zero = 1'b1;
                 end
-            end else if (r.istate == 10) begin
-                // 11. 再次计算 r0 = A - q1 * B，若余数为0则q0=q1
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.qb;
-                fp_mac_i_int.c  = v.q1;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r0        = fp_mac_o_int.d;
-                if (v.r0[109:54] == 0) begin
-                    v.q0 = v.q1;
-                    v.r1 = v.r0;
-                end
-            end else begin
-                fp_mac_i_int.a  = 0;
-                fp_mac_i_int.b  = 0;
-                fp_mac_i_int.c  = 0;
-                fp_mac_i_int.op = 0;
-            end
-        end else if (r.state == 2) begin
-            // 浮点开方迭代过程
-            if (r.istate == 0) begin
-                // 1. 计算 y0 = y * A，初始近似
-                fp_mac_i_int.a  = 56'h0;
-                fp_mac_i_int.b  = v.qa;
-                fp_mac_i_int.c  = v.y;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 1) begin
-                // 2. 计算 h0 = y * 0.5，y的一半
-                fp_mac_i_int.a  = 56'h0;
-                fp_mac_i_int.b  = 56'h20000000000000;
-                fp_mac_i_int.c  = v.y;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.h0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 2) begin
-                // 3. 计算 e0 = 0.5 * h0 + y0，牛顿法第一次修正
-                fp_mac_i_int.a  = 56'h20000000000000;
-                fp_mac_i_int.b  = v.h0;
-                fp_mac_i_int.c  = v.y0;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.e0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 3) begin
-                // 4. 计算 y1 = y0 + y0 * e0，牛顿法第二次修正
-                fp_mac_i_int.a  = v.y0;
-                fp_mac_i_int.b  = v.y0;
-                fp_mac_i_int.c  = v.e0;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y1        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 4) begin
-                // 5. 计算 h1 = h0 * h0 + e0，误差平方修正
-                fp_mac_i_int.a  = v.h0;
-                fp_mac_i_int.b  = v.h0;
-                fp_mac_i_int.c  = v.e0;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.h1        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 5) begin
-                // 6. 计算 e1 = 0.5 * h1 + y1，牛顿法第三次修正
-                fp_mac_i_int.a  = 56'h20000000000000;
-                fp_mac_i_int.b  = v.h1;
-                fp_mac_i_int.c  = v.y1;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.e1        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 6) begin
-                // 7. 计算 y2 = y1 + y1 * e1，牛顿法第四次修正
-                fp_mac_i_int.a  = v.y1;
-                fp_mac_i_int.b  = v.y1;
-                fp_mac_i_int.c  = v.e1;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y2        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 7) begin
-                // 8. 计算 h2 = h1 * h1 + e1，误差平方修正
-                fp_mac_i_int.a  = v.h1;
-                fp_mac_i_int.b  = v.h1;
-                fp_mac_i_int.c  = v.e1;
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.h2        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 8) begin
-                // 9. 计算 r0 = A * y2 + y2，初步根
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.y2;
-                fp_mac_i_int.c  = v.y2;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r0        = fp_mac_o_int.d;
-            end else if (r.istate == 9) begin
-                // 10. 计算 y3 = y2 * h2 + r0，高阶修正
-                fp_mac_i_int.a  = v.y2;
-                fp_mac_i_int.b  = v.h2;
-                fp_mac_i_int.c  = v.r0[109:54];
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.y3        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 10) begin
-                // 11. 计算 r0 = A * y3 + y3，进一步修正根
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.y3;
-                fp_mac_i_int.c  = v.y3;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r0        = fp_mac_o_int.d;
-            end else if (r.istate == 11) begin
-                // 12. 计算 q0 = y3 * h2 + r0，最终根近似
-                fp_mac_i_int.a  = v.y3;
-                fp_mac_i_int.b  = v.h2;
-                fp_mac_i_int.c  = v.r0[109:54];
-                fp_mac_i_int.op = 0;
-                fp_mac_i_int.valid = 1;
-                v.q0        = fp_mac_o_int.d[109:54];
-            end else if (r.istate == 12) begin
-                // 13. 计算 r1 = A * q0 + q0，最终余数
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.q0;
-                fp_mac_i_int.c  = v.q0;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r1        = fp_mac_o_int.d;
-                v.q1        = v.q0;
-                // 余数正则根加1
-                if ($signed(v.r1[109:54]) > 0) begin
-                    v.q1 = v.q1 + 1;
-                end
-            end else if (r.istate == 13) begin
-                // 14. 再次计算 r0 = A * q1 + q1，若余数为0则q0=q1
-                fp_mac_i_int.a  = v.qa;
-                fp_mac_i_int.b  = v.q1;
-                fp_mac_i_int.c  = v.q1;
-                fp_mac_i_int.op = 1;
-                fp_mac_i_int.valid = 1;
-                v.r0        = fp_mac_o_int.d;
-                if (v.r0[109:54] == 0) begin
-                    v.q0 = v.q1;
-                    v.r1 = v.r0;
-                end
-            end else begin
-                fp_mac_i_int.a  = 0;
-                fp_mac_i_int.b  = 0;
-                fp_mac_i_int.c  = 0;
-                fp_mac_i_int.op = 0;
-            end
-        end else if (r.state == 3) begin
-            fp_mac_i_int.a      = 0;
-            fp_mac_i_int.b      = 0;
-            fp_mac_i_int.c      = 0;
-            fp_mac_i_int.op     = 0;
 
-            // 规格化结果尾数
-            v.mantissa_fdiv = {v.q0[54:0], 59'h0};
+                // 开方特殊异常检测
+                if (fp_fdiv_i.op.fsqrt) begin
+                    if (next_state_reg.class_a[7]) begin
+                        next_state_reg.infs = 1'b1;
+                    end
+                    if (next_state_reg.class_a[0] | next_state_reg.class_a[1] | next_state_reg.class_a[2]) begin
+                        next_state_reg.snan = 1'b1;
+                    end
+                end
 
-            // 计算余数舍入信息
-            v.remainder_rnd = 2;
-            if ($signed(v.r1) > 0) begin
-                v.remainder_rnd = 1;
-            end else if (v.r1 == 0) begin
-                v.remainder_rnd = 0;
-            end
+                // 准备尾数计算
+                next_state_reg.qa = {2'h1, next_state_reg.a[51:0], 2'h0};
+                next_state_reg.qb = {2'h1, next_state_reg.b[51:0], 2'h0};
 
-            // 规格化尾数最高位，若未对齐则左移并调整计数
-            v.counter_fdiv = 0;
-            if (v.mantissa_fdiv[113] == 0) begin
-                v.mantissa_fdiv = {v.mantissa_fdiv[112:0], 1'h0};
-                v.counter_fdiv  = 1;
-            end
-            // 开方特殊规格化处理
-            if (v.op == 1) begin
-                v.counter_fdiv = 1;
-                if (v.mantissa_fdiv[113] == 0) begin
-                    v.mantissa_fdiv = {v.mantissa_fdiv[112:0], 1'h0};
-                    v.counter_fdiv  = 0;
+                // 符号和指数计算
+                next_state_reg.sign_fdiv = next_state_reg.a[64] ^ next_state_reg.b[64];
+                next_state_reg.exponent_fdiv = {2'h0, next_state_reg.a[63:52]} - {2'h0, next_state_reg.b[63:52]};
+
+                // 初始倒数近似
+                next_state_reg.y = {
+                    1'h0,
+                    ~|next_state_reg.b[51:45],
+                    reciprocal_lut[$unsigned(next_state_reg.b[51:45])],
+                    46'h0
+                };
+                next_state_reg.op = 1'b0;
+
+                // 开方的特殊初始化
+                if (fp_fdiv_i.op.fsqrt) begin
+                    next_state_reg.qa = {2'h1, next_state_reg.a[51:0], 2'h0};
+                    if (!next_state_reg.a[52]) begin
+                        next_state_reg.qa = next_state_reg.qa >> 1;
+                    end
+                    next_state_reg.index = $unsigned(next_state_reg.qa[54:48]) - 7'd32;
+                    next_state_reg.exponent_fdiv = ($signed({2'h0, next_state_reg.a[63:52]}) +
+                                                    $signed(-14'd2045)) >>> 1;
+                    next_state_reg.y = {1'h0, reciprocal_root_lut[next_state_reg.index], 47'h0};
+                    next_state_reg.op = 1'b1;
                 end
             end
 
-            // 设置偏置值（单精度127，双精度1023）
-            v.exponent_bias = 127;
-            if (v.fmt == 1) begin
-                v.exponent_bias = 1023;
+            ST_FDIV_ITER: begin
+                mac_input_signals.valid = 1'b1;
+                case (current_fdiv_sub_state)
+                    FDIV_CALC_E0: begin
+                        // 计算 e0 = 1 - B * y
+                        mac_input_signals.a  = 56'h40000000000000;
+                        mac_input_signals.b  = current_state_reg.qb;
+                        mac_input_signals.c  = current_state_reg.y;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.e0    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_Y0: begin
+                        // 计算 y0 = y + y * e0
+                        mac_input_signals.a  = current_state_reg.y;
+                        mac_input_signals.b  = current_state_reg.y;
+                        mac_input_signals.c  = current_state_reg.e0;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y0    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_E1: begin
+                        // 计算 e1 = e0 * e0
+                        mac_input_signals.a  = 56'h0;
+                        mac_input_signals.b  = current_state_reg.e0;
+                        mac_input_signals.c  = current_state_reg.e0;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.e1    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_Y1: begin
+                        // 计算 y1 = y0 + y0 * e1
+                        mac_input_signals.a  = current_state_reg.y0;
+                        mac_input_signals.b  = current_state_reg.y0;
+                        mac_input_signals.c  = current_state_reg.e1;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y1    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_E2: begin
+                        // 计算 e2 = e1 * e1
+                        mac_input_signals.a  = 56'h0;
+                        mac_input_signals.b  = current_state_reg.e1;
+                        mac_input_signals.c  = current_state_reg.e1;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.e2    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_Y2: begin
+                        // 计算 y2 = y1 + y1 * e2
+                        mac_input_signals.a  = current_state_reg.y1;
+                        mac_input_signals.b  = current_state_reg.y1;
+                        mac_input_signals.c  = current_state_reg.e2;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y2    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_Q0: begin
+                        // 计算 q0 = A * y2
+                        mac_input_signals.a  = 56'h0;
+                        mac_input_signals.b  = current_state_reg.qa;
+                        mac_input_signals.c  = current_state_reg.y2;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.q0    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_R0: begin
+                        // 计算 r0 = A - q0 * B
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.qb;
+                        mac_input_signals.c  = current_state_reg.q0;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r0    = mac_output_signals.d;
+                    end
+                    FDIV_REFINE_Q0: begin
+                        // 修正 q0 = q0 + r0 * y2
+                        mac_input_signals.a  = current_state_reg.q0;
+                        mac_input_signals.b  = current_state_reg.r0[109:54];
+                        mac_input_signals.c  = current_state_reg.y2;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.q0    = mac_output_signals.d[109:54];
+                    end
+                    FDIV_CALC_R1: begin
+                        // 计算 r1 = A - q0 * B
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.qb;
+                        mac_input_signals.c  = current_state_reg.q0;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r1    = mac_output_signals.d;
+                        next_state_reg.q1    = current_state_reg.q0;
+                        if ($signed(mac_output_signals.d[109:54]) > 0) begin
+                            next_state_reg.q1 = current_state_reg.q0 + 1;
+                        end
+                    end
+                    FDIV_FINAL_CHECK: begin
+                        // 最终检查 r0 = A - q1 * B
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.qb;
+                        mac_input_signals.c  = current_state_reg.q1;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r0    = mac_output_signals.d;
+                        if (mac_output_signals.d[109:54] == 0) begin
+                            next_state_reg.q0 = current_state_reg.q1;
+                            next_state_reg.r1 = mac_output_signals.d;
+                        end
+                    end
+
+                    default: begin
+                        mac_input_signals.valid = 1'b0;
+                    end
+                endcase
             end
 
-            // 计算最终符号和阶码
-            v.sign_rnd     = v.sign_fdiv;
-            v.exponent_rnd = v.exponent_fdiv + {3'h0, v.exponent_bias} - {12'h0, v.counter_fdiv};
+            ST_FSQRT_ITER: begin
+                mac_input_signals.valid = 1'b1;
+                case (current_fsqrt_sub_state)
+                    FSQRT_CALC_Y0: begin
+                        // 计算 y0 = y * A
+                        mac_input_signals.a  = 56'h0;
+                        mac_input_signals.b  = current_state_reg.qa;
+                        mac_input_signals.c  = current_state_reg.y;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y0    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_H0: begin
+                        // 计算 h0 = y * 0.5
+                        mac_input_signals.a  = 56'h0;
+                        mac_input_signals.b  = 56'h20000000000000;
+                        mac_input_signals.c  = current_state_reg.y;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.h0    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_E0: begin
+                        // 计算 e0 = 0.5 * h0 + y0
+                        mac_input_signals.a  = 56'h20000000000000;
+                        mac_input_signals.b  = current_state_reg.h0;
+                        mac_input_signals.c  = current_state_reg.y0;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.e0    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_Y1: begin
+                        // 计算 y1 = y0 + y0 * e0
+                        mac_input_signals.a  = current_state_reg.y0;
+                        mac_input_signals.b  = current_state_reg.y0;
+                        mac_input_signals.c  = current_state_reg.e0;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y1    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_H1: begin
+                        // 计算 h1 = h0 * h0 + e0
+                        mac_input_signals.a  = current_state_reg.h0;
+                        mac_input_signals.b  = current_state_reg.h0;
+                        mac_input_signals.c  = current_state_reg.e0;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.h1    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_E1: begin
+                        // 计算 e1 = 0.5 * h1 + y1
+                        mac_input_signals.a  = 56'h20000000000000;
+                        mac_input_signals.b  = current_state_reg.h1;
+                        mac_input_signals.c  = current_state_reg.y1;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.e1    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_Y2: begin
+                        // 计算 y2 = y1 + y1 * e1
+                        mac_input_signals.a  = current_state_reg.y1;
+                        mac_input_signals.b  = current_state_reg.y1;
+                        mac_input_signals.c  = current_state_reg.e1;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y2    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_H2: begin
+                        // 计算 h2 = h1 * h1 + e1
+                        mac_input_signals.a  = current_state_reg.h1;
+                        mac_input_signals.b  = current_state_reg.h1;
+                        mac_input_signals.c  = current_state_reg.e1;
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.h2    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_R0: begin
+                        // 计算 r0 = A * y2 + y2
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.y2;
+                        mac_input_signals.c  = current_state_reg.y2;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r0    = mac_output_signals.d;
+                    end
+                    FSQRT_CALC_Y3: begin
+                        // 计算 y3 = y2 * h2 + r0
+                        mac_input_signals.a  = current_state_reg.y2;
+                        mac_input_signals.b  = current_state_reg.h2;
+                        mac_input_signals.c  = current_state_reg.r0[109:54];
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.y3    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_REFINE_R0: begin
+                        // 修正 r0 = A * y3 + y3
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.y3;
+                        mac_input_signals.c  = current_state_reg.y3;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r0    = mac_output_signals.d;
+                    end
+                    FSQRT_CALC_Q0: begin
+                        // 计算 q0 = y3 * h2 + r0
+                        mac_input_signals.a  = current_state_reg.y3;
+                        mac_input_signals.b  = current_state_reg.h2;
+                        mac_input_signals.c  = current_state_reg.r0[109:54];
+                        mac_input_signals.op = 1'b0;
+                        next_state_reg.q0    = mac_output_signals.d[109:54];
+                    end
+                    FSQRT_CALC_R1: begin
+                        // 计算 r1 = A * q0 + q0
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.q0;
+                        mac_input_signals.c  = current_state_reg.q0;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r1    = mac_output_signals.d;
+                        next_state_reg.q1    = current_state_reg.q0;
+                        if ($signed(mac_output_signals.d[109:54]) > 0) begin
+                            next_state_reg.q1 = current_state_reg.q0 + 1;
+                        end
+                    end
+                    FSQRT_FINAL_CHECK: begin
+                        // 最终检查 r0 = A * q1 + q1
+                        mac_input_signals.a  = current_state_reg.qa;
+                        mac_input_signals.b  = current_state_reg.q1;
+                        mac_input_signals.c  = current_state_reg.q1;
+                        mac_input_signals.op = 1'b1;
+                        next_state_reg.r0    = mac_output_signals.d;
+                        if (mac_output_signals.d[109:54] == 0) begin
+                            next_state_reg.q0 = current_state_reg.q1;
+                            next_state_reg.r1 = mac_output_signals.d;
+                        end
+                    end
 
-            // 阶码下溢处理，尾数右移补零
-            v.counter_rnd  = 0;
-            if ($signed(v.exponent_rnd) <= 0) begin
-                v.counter_rnd = 54;
-                if ($signed(v.exponent_rnd) > -54) begin
-                    v.counter_rnd = 14'h1 - v.exponent_rnd;
+                    default: begin
+                        mac_input_signals.valid = 1'b0;
+                    end
+                endcase
+            end
+
+            ST_NORMALIZE: begin
+                // 规格化结果尾数
+                next_state_reg.mantissa_fdiv = {current_state_reg.q0[54:0], 59'h0};
+
+                // 计算余数舍入信息
+                next_state_reg.remainder_rnd = 2;
+                if ($signed(current_state_reg.r1) > 0) begin
+                    next_state_reg.remainder_rnd = 1;
+                end else if (current_state_reg.r1 == 0) begin
+                    next_state_reg.remainder_rnd = 0;
                 end
-                v.exponent_rnd = 0;
+
+                // 规格化尾数最高位
+                next_state_reg.counter_fdiv = 0;
+                if (next_state_reg.mantissa_fdiv[113] == 0) begin
+                    next_state_reg.mantissa_fdiv = {next_state_reg.mantissa_fdiv[112:0], 1'h0};
+                    next_state_reg.counter_fdiv  = 1;
+                end
+
+                // 开方特殊规格化处理
+                if (current_state_reg.op == 1) begin
+                    next_state_reg.counter_fdiv = 1;
+                    if (next_state_reg.mantissa_fdiv[113] == 0) begin
+                        next_state_reg.mantissa_fdiv = {next_state_reg.mantissa_fdiv[112:0], 1'h0};
+                        next_state_reg.counter_fdiv  = 0;
+                    end
+                end
+
+                // 设置指数偏置值
+                next_state_reg.exponent_bias = (current_state_reg.fmt == 1) ? 1023 : 127;
+
+                // 计算最终符号和指数
+                next_state_reg.sign_rnd = current_state_reg.sign_fdiv;
+                next_state_reg.exponent_rnd = current_state_reg.exponent_fdiv + {3'h0, next_state_reg.exponent_bias} - {12'h0, next_state_reg.counter_fdiv};
+
+                // 指数下溢处理
+                next_state_reg.counter_rnd = 0;
+                if ($signed(next_state_reg.exponent_rnd) <= 0) begin
+                    next_state_reg.counter_rnd = 54;
+                    if ($signed(next_state_reg.exponent_rnd) > -54) begin
+                        next_state_reg.counter_rnd = 14'h1 - next_state_reg.exponent_rnd;
+                    end
+                    next_state_reg.exponent_rnd = 0;
+                end
+
+                // 尾数右移准备舍入
+                next_state_reg.mantissa_fdiv = next_state_reg.mantissa_fdiv >> next_state_reg.counter_rnd[5:0];
+
+                // 提取尾数和GRS位
+                if (current_state_reg.fmt == 1) begin
+                    // 双精度
+                    next_state_reg.mantissa_rnd = {1'h0, next_state_reg.mantissa_fdiv[113:61]};
+                    next_state_reg.grs = {
+                        next_state_reg.mantissa_fdiv[60:59], |next_state_reg.mantissa_fdiv[58:0]
+                    };
+                end else begin
+                    // 单精度
+                    next_state_reg.mantissa_rnd = {30'h0, next_state_reg.mantissa_fdiv[113:90]};
+                    next_state_reg.grs = {
+                        next_state_reg.mantissa_fdiv[89:88], |next_state_reg.mantissa_fdiv[87:0]
+                    };
+                end
             end
 
-            // 尾数右移，准备舍入
-            v.mantissa_fdiv = v.mantissa_fdiv >> v.counter_rnd[5:0];
-
-            // 单精度/双精度尾数与GRS位提取
-            v.mantissa_rnd  = {30'h0, v.mantissa_fdiv[113:90]};
-            v.grs           = {v.mantissa_fdiv[89:88], |v.mantissa_fdiv[87:0]};
-            if (v.fmt == 1) begin
-                v.mantissa_rnd = {1'h0, v.mantissa_fdiv[113:61]};
-                v.grs          = {v.mantissa_fdiv[60:59], |v.mantissa_fdiv[58:0]};
+            ST_COMPLETE: begin
+                next_state_reg.ready = 1'b1;
             end
 
-        end else begin
-            // 其它状态，MAC输入清零
-            fp_mac_i_int.a  = 0;
-            fp_mac_i_int.b  = 0;
-            fp_mac_i_int.c  = 0;
-            fp_mac_i_int.op = 0;
-        end
+            default: begin
+                // 默认状态处理
+            end
+        endcase
+    end
 
-        // clear信号处理，输出ready清零
-        if (clear == 1) begin
-            v.ready = 0;
-        end
-
-        // 输出结构体赋值
-        fp_fdiv_o.fp_rnd.sig  = v.sign_rnd;
-        fp_fdiv_o.fp_rnd.expo = v.exponent_rnd;
-        fp_fdiv_o.fp_rnd.mant = v.mantissa_rnd;
-        fp_fdiv_o.fp_rnd.rema = v.remainder_rnd;
-        fp_fdiv_o.fp_rnd.fmt  = v.fmt;
-        fp_fdiv_o.fp_rnd.rm   = v.rm;
-        fp_fdiv_o.fp_rnd.grs  = v.grs;
-        fp_fdiv_o.fp_rnd.snan = v.snan;
-        fp_fdiv_o.fp_rnd.qnan = v.qnan;
-        fp_fdiv_o.fp_rnd.dbz  = v.dbz;
-        fp_fdiv_o.fp_rnd.infs = v.infs;
-        fp_fdiv_o.fp_rnd.zero = v.zero;
+    // 输出信号赋值
+    always_comb begin
+        fp_fdiv_o.fp_rnd.sig  = current_state_reg.sign_rnd;
+        fp_fdiv_o.fp_rnd.expo = current_state_reg.exponent_rnd;
+        fp_fdiv_o.fp_rnd.mant = current_state_reg.mantissa_rnd;
+        fp_fdiv_o.fp_rnd.rema = current_state_reg.remainder_rnd;
+        fp_fdiv_o.fp_rnd.fmt  = current_state_reg.fmt;
+        fp_fdiv_o.fp_rnd.rm   = current_state_reg.rm;
+        fp_fdiv_o.fp_rnd.grs  = current_state_reg.grs;
+        fp_fdiv_o.fp_rnd.snan = current_state_reg.snan;
+        fp_fdiv_o.fp_rnd.qnan = current_state_reg.qnan;
+        fp_fdiv_o.fp_rnd.dbz  = current_state_reg.dbz;
+        fp_fdiv_o.fp_rnd.infs = current_state_reg.infs;
+        fp_fdiv_o.fp_rnd.zero = current_state_reg.zero;
         fp_fdiv_o.fp_rnd.diff = 1'h0;
-        fp_fdiv_o.ready       = v.ready;
-
-        rin                   = v;
-
+        fp_fdiv_o.ready       = current_state_reg.ready;
     end
 
+    // 时序逻辑：寄存器更新
     always_ff @(posedge clk) begin
-        if (rst_n == 0) begin
-            r <= init_fp_fdiv_reg_functional;
+        if (~rst_n) begin
+            current_state_reg       <= init_fp_fdiv_reg_functional;
+            current_main_state      <= ST_IDLE;
+            current_fdiv_sub_state  <= FDIV_CALC_E0;
+            current_fsqrt_sub_state <= FSQRT_CALC_Y0;
         end else begin
-            r <= rin;
+            current_state_reg       <= next_state_reg;
+            current_main_state      <= next_main_state;
+            current_fdiv_sub_state  <= next_fdiv_sub_state;
+            current_fsqrt_sub_state <= next_fsqrt_sub_state;
         end
     end
 
-    // 实例化MAC模块
-    fp_mac u_fp_mac (
-        .clk   (clk),
-        .rst_n (rst_n),
-        .fp_mac_i (fp_mac_i_int),
-        .fp_mac_o (fp_mac_o_int)
+    // MAC模块实例化
+    mac_56 #(
+        .LATENCY_LEVEL(0)
+    ) u_mac_56 (
+        .clk     (clk),
+        .rst_n   (rst_n),
+        .mac_56_i(mac_input_signals),
+        .mac_56_o(mac_output_signals)
     );
 
 endmodule

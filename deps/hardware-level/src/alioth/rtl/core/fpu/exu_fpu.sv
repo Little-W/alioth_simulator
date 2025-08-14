@@ -45,8 +45,8 @@ module exu_fpu (
 );
 
     // 内部信号定义
-    fp_types::fp_unit_in_type                         fp_unit_i;
-    fp_types::fp_unit_out_type                        fp_unit_o;
+    fp_types::fpu_top_in_type                         fpu_top_i;
+    fp_types::fpu_top_out_type                        fpu_top_o;
 
     // 补全寄存器定义
     logic                                            reg_we_r;
@@ -91,20 +91,20 @@ module exu_fpu (
         // frm选择逻辑：frm_i为111时用csr_frm_i，否则用frm_i
         fp_hub_in_s.rm          = (frm_i == 3'b111) ? csr_frm_i : frm_i;
     end
-    assign fp_unit_i = '{fp_hub_i: fp_hub_in_s};
+    assign fpu_top_i = '{fp_hub_i: fp_hub_in_s};
 
-    // 直接实例化 fp_unit
-    fp_unit u_fp_unit (
+    // 实例化 fpu_top
+    fpu_top u_fpu_top (
         .rst_n    (rst_n),
         .clk    (clk),
-        .fp_unit_i(fp_unit_i),
-        .fp_unit_o(fp_unit_o),
+        .fpu_top_i(fpu_top_i),
+        .fpu_top_o(fpu_top_o),
         .clear    (1'b0)
     );
 
-    wire                        fp_ready = fp_unit_o.fp_hub_o.ready;
-    wire [`FREG_DATA_WIDTH-1:0] fp_result = fp_unit_o.fp_hub_o.result;
-    wire [                 4:0] fp_flags = fp_unit_o.fp_hub_o.flags;
+    wire                        fp_ready = fpu_top_o.fp_hub_o.ready;
+    wire [`FREG_DATA_WIDTH-1:0] fp_result = fpu_top_o.fp_hub_o.result;
+    wire [                 4:0] fp_flags = fpu_top_o.fp_hub_o.flags;
 
     wire                        wb_hsk = (reg_we_r & wb_ready_i);
     // 输出暂存一级寄存器改为握手式

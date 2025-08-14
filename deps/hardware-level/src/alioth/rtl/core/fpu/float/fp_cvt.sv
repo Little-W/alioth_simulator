@@ -137,7 +137,7 @@ module fp_cvt (
             end
             PROCESS: begin
                 i2f_state_next = COMPLETE;
-                v_i2f_next     = i2f_process_stage(v_i2f_r, lzc_result); // 直接传递lzc_result
+                v_i2f_next     = i2f_process_stage(v_i2f_r, lzc_result);  // 直接传递lzc_result
             end
             COMPLETE: begin
                 i2f_state_next    = IDLE;
@@ -173,10 +173,10 @@ module fp_cvt (
             f2f_var_out.exponent_bias = 1024;
         end
 
-        f2f_var_out.sign_rnd     = f2f_var_in.data[64];
+        f2f_var_out.sign_rnd = f2f_var_in.data[64];
         f2f_var_out.exponent_rnd = {2'h0, f2f_var_out.exponent_cvt} - {3'h0, f2f_var_out.exponent_bias};
 
-        f2f_var_out.counter_cvt  = 0;
+        f2f_var_out.counter_cvt = 0;
         if ($signed(f2f_var_out.exponent_rnd) <= 0) begin
             f2f_var_out.counter_cvt = 63;
             if ($signed(f2f_var_out.exponent_rnd) > -63) begin
@@ -188,10 +188,10 @@ module fp_cvt (
         f2f_var_out.mantissa_cvt = f2f_var_out.mantissa_cvt >> f2f_var_out.counter_cvt[5:0];
 
         f2f_var_out.mantissa_rnd = {29'h0, f2f_var_out.mantissa_cvt[79:55]};
-        f2f_var_out.grs          = {f2f_var_out.mantissa_cvt[54:53], |f2f_var_out.mantissa_cvt[52:0]};
+        f2f_var_out.grs = {f2f_var_out.mantissa_cvt[54:53], |f2f_var_out.mantissa_cvt[52:0]};
         if (f2f_var_in.fmt == 1) begin
             f2f_var_out.mantissa_rnd = f2f_var_out.mantissa_cvt[79:26];
-            f2f_var_out.grs          = {f2f_var_out.mantissa_cvt[25:24], |f2f_var_out.mantissa_cvt[23:0]};
+            f2f_var_out.grs = {f2f_var_out.mantissa_cvt[25:24], |f2f_var_out.mantissa_cvt[23:0]};
         end
         return f2f_var_out;
     endfunction
@@ -261,12 +261,12 @@ module fp_cvt (
         end
 
         f2i_var_out.mantissa_uint = f2i_var_out.mantissa_cvt[119:55];
-        f2i_var_out.grs           = {f2i_var_out.mantissa_cvt[54:53], |f2i_var_out.mantissa_cvt[52:0]};
-        f2i_var_out.odd           = f2i_var_out.mantissa_uint[0] | |f2i_var_out.grs[1:0];
-        f2i_var_out.flags[0]      = |f2i_var_out.grs;
+        f2i_var_out.grs = {f2i_var_out.mantissa_cvt[54:53], |f2i_var_out.mantissa_cvt[52:0]};
+        f2i_var_out.odd = f2i_var_out.mantissa_uint[0] | |f2i_var_out.grs[1:0];
+        f2i_var_out.flags[0] = |f2i_var_out.grs;
 
         // Rounding logic
-        f2i_var_out.rnded         = 0;
+        f2i_var_out.rnded = 0;
         if (f2i_var_in.rm == 0) begin  //rne
             if (f2i_var_out.grs[2] & f2i_var_out.odd) begin
                 f2i_var_out.rnded = 1;
@@ -292,14 +292,14 @@ module fp_cvt (
     function automatic fp_cvt_f2i_out_type f2i_output_stage(input fp_cvt_f2i_var_type f2i_var);
         fp_cvt_f2i_var_type f2i_var_temp;
         fp_cvt_f2i_out_type outp;
-        f2i_var_temp         = f2i_var;
+        f2i_var_temp = f2i_var;
 
         // Out of range detection and result calculation
-        f2i_var_temp.or_1    = f2i_var.mantissa_uint[64];
-        f2i_var_temp.or_2    = f2i_var.mantissa_uint[63];
-        f2i_var_temp.or_3    = |f2i_var.mantissa_uint[62:32];
-        f2i_var_temp.or_4    = f2i_var.mantissa_uint[31];
-        f2i_var_temp.or_5    = |f2i_var.mantissa_uint[30:0];
+        f2i_var_temp.or_1 = f2i_var.mantissa_uint[64];
+        f2i_var_temp.or_2 = f2i_var.mantissa_uint[63];
+        f2i_var_temp.or_3 = |f2i_var.mantissa_uint[62:32];
+        f2i_var_temp.or_4 = f2i_var.mantissa_uint[31];
+        f2i_var_temp.or_5 = |f2i_var.mantissa_uint[30:0];
 
         f2i_var_temp.zero    = f2i_var_temp.or_1 | f2i_var_temp.or_2 | f2i_var_temp.or_3 | f2i_var_temp.or_4 | f2i_var_temp.or_5;
 
@@ -429,10 +429,11 @@ module fp_cvt (
         return i2f_var;
     endfunction
 
-    function automatic fp_cvt_i2f_var_type i2f_process_stage(input fp_cvt_i2f_var_type i2f_var_in,
-                                                             input logic [5:0] lzc_result); // 修改类型为logic [5:0]
+    function automatic fp_cvt_i2f_var_type i2f_process_stage(
+        input fp_cvt_i2f_var_type i2f_var_in, input logic [5:0] lzc_result
+    );  // 修改类型为logic [5:0]
         fp_cvt_i2f_var_type i2f_var_out;
-        i2f_var_out               = i2f_var_in;
+        i2f_var_out = i2f_var_in;
 
         i2f_var_out.zero = ~|i2f_var_out.mantissa_uint;
         i2f_var_out.counter_uint = ~lzc_result;
@@ -445,7 +446,7 @@ module fp_cvt (
         i2f_var_out.grs = {i2f_var_out.mantissa_uint[39:38], |i2f_var_out.mantissa_uint[37:0]};
         if (i2f_var_in.fmt == 1) begin
             i2f_var_out.mantissa_rnd = {1'h0, i2f_var_out.mantissa_uint[63:11]};
-            i2f_var_out.grs          = {i2f_var_out.mantissa_uint[10:9], |i2f_var_out.mantissa_uint[8:0]};
+            i2f_var_out.grs = {i2f_var_out.mantissa_uint[10:9], |i2f_var_out.mantissa_uint[8:0]};
         end
         return i2f_var_out;
     endfunction
@@ -470,9 +471,9 @@ module fp_cvt (
     endfunction
 
     // 内部LZC信号
-    logic           [63:0] lzc_data_in;
-    logic           [ 5:0] lzc_result;
-    logic                  lzc_valid;
+    logic [63:0] lzc_data_in;
+    logic [ 5:0] lzc_result;
+    logic        lzc_valid;
 
     // LZC输入控制 - 在PROCESS状态时连接正确的数据
     always_comb begin

@@ -9,30 +9,30 @@
 //
 import fp_types::*;
 
-module fp_mac #(
+module mac_56 #(
     parameter LATENCY_LEVEL = 0  // 0-2: 通过mul_64参数, 3: 纯组合
 ) (
     input                  clk,
     input                  rst_n,
-    input  fp_mac_in_type  fp_mac_i,
-    output fp_mac_out_type fp_mac_o
+    input  mac_56_in_type  mac_56_i,
+    output mac_56_out_type mac_56_o
 );
     timeunit 1ns; timeprecision 1ps;
 
     generate
         if (LATENCY_LEVEL == 3) begin : gen_mac_comb
             // 纯组合逻辑
-            wire [ 55:0] a = fp_mac_i.a;
-            wire [ 55:0] b = fp_mac_i.b;
-            wire [ 55:0] c = fp_mac_i.c;
-            wire         op = fp_mac_i.op;
+            wire [ 55:0] a = mac_56_i.a;
+            wire [ 55:0] b = mac_56_i.b;
+            wire [ 55:0] c = mac_56_i.c;
+            wire         op = mac_56_i.op;
             wire [111:0] mul_result = $signed(b) * $signed(c);
             wire [109:0] add = {a, 54'h0};
             wire [109:0] mac = (op == 0) ? mul_result[109:0] : -mul_result[109:0];
             wire [109:0] res = (a == 0) ? mac : (add + mac);
 
-            assign fp_mac_o.d     = res;
-            assign fp_mac_o.ready = 1'b1;
+            assign mac_56_o.d     = res;
+            assign mac_56_o.ready = 1'b1;
         end else begin : gen_mac_seq
             // 状态机定义
             typedef enum logic [1:0] {
@@ -74,12 +74,12 @@ module fp_mac #(
                     c_reg     <= 0;
                     op_reg    <= 0;
                     valid_reg <= 0;
-                end else if (fp_mac_i.valid && state == IDLE) begin
-                    a_reg     <= fp_mac_i.a;
-                    b_reg     <= fp_mac_i.b;
-                    c_reg     <= fp_mac_i.c;
-                    op_reg    <= fp_mac_i.op;
-                    valid_reg <= fp_mac_i.valid;
+                end else if (mac_56_i.valid && state == IDLE) begin
+                    a_reg     <= mac_56_i.a;
+                    b_reg     <= mac_56_i.b;
+                    c_reg     <= mac_56_i.c;
+                    op_reg    <= mac_56_i.op;
+                    valid_reg <= mac_56_i.valid;
                 end
             end
 
@@ -92,7 +92,7 @@ module fp_mac #(
             always_comb begin
                 state_n = state;
                 case (state)
-                    IDLE: if (fp_mac_i.valid) state_n = MUL;
+                    IDLE: if (mac_56_i.valid) state_n = MUL;
                     MUL:
                     if (mul_valid) begin
                         if (a_reg == 0) state_n = OUT;
@@ -147,8 +147,8 @@ module fp_mac #(
                 end
             end
 
-            assign fp_mac_o.d     = res_reg;
-            assign fp_mac_o.ready = ready_reg;
+            assign mac_56_o.d     = res_reg;
+            assign mac_56_o.ready = ready_reg;
         end
     endgenerate
 
