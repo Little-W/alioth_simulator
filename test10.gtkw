@@ -1,25 +1,26 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Aug 13 17:14:00 2025
+[*] Wed Aug 13 23:35:35 2025
 [*]
-[dumpfile] "/home/sym/main/alioth_simulator/build/test_out/tb_top.vcd"
-[dumpfile_mtime] "Wed Aug 13 16:58:56 2025"
-[dumpfile_size] 1216934
-[savefile] "/home/sym/main/alioth_simulator/test10.gtkw"
-[timestart] 779
-[size] 2287 1459
-[pos] 991 -954
-*-4.224949 857 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/sym/chaobiaoliang/alioth_simulator/build/test_out/tb_top.vcd"
+[dumpfile_mtime] "Wed Aug 13 23:21:50 2025"
+[dumpfile_size] 1206224
+[savefile] "/home/sym/chaobiaoliang/alioth_simulator/test10.gtkw"
+[timestart] 799
+[size] 2331 1622
+[pos] 794 -763
+*-4.224949 849 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb_top.
 [treeopen] tb_top.alioth_soc_top_0.
 [treeopen] tb_top.alioth_soc_top_0.u_cpu_top.
 [treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.
 [treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_exu.
 [treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_icu.
+[treeopen] tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.
 [sst_width] 293
 [signals_width] 356
 [sst_expanded] 1
-[sst_vpaned_height] 954
+[sst_vpaned_height] 1187
 @28
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.clk
 tb_top.alioth_soc_top_0.u_cpu_top.u_ifu.rst_n
@@ -84,14 +85,12 @@ tb_top.alioth_soc_top_0.u_cpu_top.u_icu.u_icu_issue.inst2_commit_id_o[2:0]
 @200
 -
 @22
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.inst2_alu_op1_o[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.inst2_alu_op2_o[31:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.inst1_rs1_raddr_i[4:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.inst1_rs1_rdata_o[31:0]
-tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.regs[7][31:0]
-@23
-tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.regs[11][31:0]
-@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.regs[10][31:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.regs[12][31:0]
-tb_top.alioth_soc_top_0.u_cpu_top.u_gpr.regs[14][31:0]
 @200
 -
 @22
@@ -103,10 +102,17 @@ tb_top.alioth_soc_top_0.u_cpu_top.u_dispatch.bjp_op2_o[31:0]
 -
 @28
 tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.jump_flag_o
+@22
+tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.bjp_op1_i[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.bjp_op2_i[31:0]
+@28
 tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.bjp_op_bne_i
+tb_top.alioth_soc_top_0.u_cpu_top.u_exu.bjp_op_blt_i
 tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.op1_eq_op2
 @22
 tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.bjp_op1_i[31:0]
 tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_bru.bjp_op2_i[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_alu0.alu_op1_i[31:0]
+tb_top.alioth_soc_top_0.u_cpu_top.u_exu.u_alu0.alu_op2_i[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

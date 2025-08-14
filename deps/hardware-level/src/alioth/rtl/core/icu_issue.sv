@@ -110,6 +110,7 @@ module icu_issue (
     output wire [`COMMIT_ID_WIDTH-1:0] jump_inst2_commit_id_o,
     output wire                        jump_inst1_valid_o,
     output wire                        jump_inst2_valid_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_commit_id_o,
 
     // 新增：已发射且本拍指令未变化标志输出
     output wire        inst1_already_issued_o,
@@ -529,5 +530,6 @@ module icu_issue (
 
     assign jump_inst1_commit_id_o = jump_flag_i ? inst1_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
     assign jump_inst2_commit_id_o = jump_flag_i ? inst2_commit_id_reg : {`COMMIT_ID_WIDTH{1'b0}};
+    assign pending_inst1_commit_id_o = inst1_commit_id_reg;
 
 endmodule

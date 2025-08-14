@@ -51,12 +51,14 @@ module hdu (
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // 执行完成的指令ID（第一个）
     input wire                        commit_valid2_i, // 第二条指令完成有效信号
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id2_i,    // 执行完成的指令ID（第二个）
+    input wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_id_i,
 
     // 跳转控制信号
     input wire                        jump_flag_i,     // 跳转标志 (保留，与新序列化策略无直接关系，可用于后续扩展)
     input wire                        inst1_jump_i,    // 指令1跳转信号
     input wire                        clint_req_valid, //中断请求有效信号
     input wire                        inst1_branch_i,  // 指令1分支信号
+    input wire                        inst2_branch_i,  // 指令2分支信号
 
     input wire                        inst1_csr_type_i,    // 指令1 CSR类型信号
     input wire                        inst2_csr_type_i,    // 指令2 CSR类型信号
@@ -102,6 +104,9 @@ module hdu (
     wire inst2_rs1_check = (inst2_rs1_addr != 5'h0) && inner_inst2_valid;
     wire inst2_rs2_check = (inst2_rs2_addr != 5'h0) && inner_inst2_valid;
     wire inst2_rd_check  = (inst2_rd_addr  != 5'h0) && inst2_rd_we && inner_inst2_valid;
+
+    wire can_into_fifo_inst1;
+    wire can_into_fifo_inst2;
     // wire jump_true = jump_flag_i; // 不再需要
 
     // 冒险检测逻辑（RAW + 新增 WAW）
@@ -140,8 +145,9 @@ module hdu (
         end
         // inst2 依赖 inst1 的 RAW (读 inst1 写)
         if (!(commit_valid_i && commit_id_i == pending_inst1_id)) begin
-            if ((inst2_rs1_check && inst1_rd_check && inst2_rs1_addr == inst1_rd_addr) ||
-                (inst1_csr_type_i && inst2_csr_type_i)) begin
+            if ((inst2_rs1_check && inst1_rd_check && (inst2_rs1_addr == inst1_rd_addr)) 
+            || (inst2_rs2_check && inst1_rd_check && (inst2_rs2_addr == inst1_rd_addr))
+            || (inst1_csr_type_i && inst2_csr_type_i)) begin
                 raw_hazard_inst2_inst1 = 1'b1;
             end
 
@@ -244,6 +250,9 @@ module hdu (
     // 输出时若未发射或无效则为 0；有效永不输出 0
     assign inst1_commit_id_o = (inner_inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
     assign inst2_commit_id_o = (inner_inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
+    
+    assign can_into_fifo_inst1 =  (inst1_rd_addr != 5'h0) | inst1_csr_type_i;
+    assign can_into_fifo_inst2 =  (inst2_rd_addr != 5'h0) | inst2_csr_type_i;
 
     // FIFO 与 序列化状态 更新（仅记录上一拍跳转检测用于形成单拍脉冲）
     always @(posedge clk or negedge rst_n) begin
@@ -261,13 +270,13 @@ module hdu (
             if (commit_valid_i  && commit_id_i  != 3'd0) fifo_valid[commit_id_i]  <= 1'b0;
             if (commit_valid2_i && commit_id2_i != 3'd0) fifo_valid[commit_id2_i] <= 1'b0;
             // 分配：永不写 index 0；新增条件：jump_flag_i 为 1 时不进入 FIFO
-            if (inst1_valid && issue_inst_o[0] && next_id1 != 3'd0 && !jump_flag_i) begin
-                fifo_valid[next_id1]   <= inst1_rd_check;
-                fifo_rd_addr[next_id1] <= inst1_rd_addr;
+            if (inner_inst1_valid && issue_inst_o[0] && next_id1 != 3'd0 && !jump_flag_i  && can_into_fifo_inst1) begin
+                fifo_valid[inst1_commit_id_o]   <= 1'b1;
+                fifo_rd_addr[inst1_commit_id_o] <= inst1_rd_addr;
             end
-            if (inst2_valid && issue_inst_o[1] && next_id2 != 3'd0 && !jump_flag_i) begin
-                fifo_valid[next_id2]   <= inst2_rd_check;
-                fifo_rd_addr[next_id2] <= inst2_rd_addr;
+            if (inner_inst2_valid && issue_inst_o[1] && next_id2 != 3'd0 && !jump_flag_i  && can_into_fifo_inst2) begin
+                fifo_valid[inst2_commit_id_o]   <= 1'b1;
+                fifo_rd_addr[inst2_commit_id_o] <= inst2_rd_addr;
             end
             // jump_serialize_pulse 保持逻辑：检测到跳转置 1；若仍存在 inst1 与 FIFO 冒险则保持；冒险解除后清零
             if (jump_edge) begin
@@ -289,7 +298,16 @@ module hdu (
             clint_req_valid_d1 <= clint_req_valid;
         end
         // pending_inst1_id 逻辑保持，但不会出现 0 分配导致的依赖问题
-        pending_inst1_id <= (inst1_valid && hazard_inst2_inst1) ? next_id1 : 3'd0;
+        if (hazard_inst2_inst1) begin
+            // 如果当前pending_inst1_id为0，则更新为pending_inst1_id_i，否则保持当前值
+            if (pending_inst1_id == 3'd0) begin
+                pending_inst1_id <= inst1_commit_id_o;
+            end
+            // 如果pending_inst1_id非0，则保持不变
+        end else begin
+            // hazard_inst2_inst1为0时清零
+            pending_inst1_id <= 3'd0;
+        end
     end
 
     // 原子锁：FIFO 中尚有未完成指令

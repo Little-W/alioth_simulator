@@ -123,7 +123,7 @@ module ifu (
         .is_pred_branch0_o(is_pred_branch0), // 第一条指令预测分支信号
         .is_pred_branch1_o(is_pred_branch1), // 第二条指令预测分支信号
         .branch_inst_slot_o(branch_inst_slot), // 分支指令所在槽位
-        .inst1_disable_o       (inst1_disable_o)
+        .inst1_disable_o       (sbpu_inst1_disable_o)
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
