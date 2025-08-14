@@ -67,6 +67,8 @@ module fp_unit (
     );
 
     fp_max fp_max (
+        .clk     (clk),
+        .rst_n   (rst_n),
         .fp_max_i(fp_max_i),
         .fp_max_o(fp_max_o)
     );
