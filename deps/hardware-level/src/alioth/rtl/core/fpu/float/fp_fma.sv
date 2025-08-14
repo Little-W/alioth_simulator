@@ -25,8 +25,9 @@ module fp_fma (
         MUL_START = 3'b001,
         MUL_WAIT  = 3'b010,
         ADD       = 3'b011,
-        LZC       = 3'b100,
-        OUTPUT    = 3'b101
+        LZC_READ  = 3'b100,
+        LZC_CALC  = 3'b101,
+        OUTPUT    = 3'b110
     } state_t;
 
     state_t current_state, next_state;
@@ -49,11 +50,14 @@ module fp_fma (
     logic [255:0] lzc_data_in;
     logic [  7:0] lzc_count;
     logic         lzc_valid;
+    logic [  7:0] lzc_count_reg;
 
     // 操作有效信号
     logic         op_valid;
+    logic         is_add_sub_only, is_add_sub_only_reg;
     assign op_valid = fp_fma_i.op.fmadd | fp_fma_i.op.fmsub | fp_fma_i.op.fnmsub |
                       fp_fma_i.op.fnmadd | fp_fma_i.op.fadd | fp_fma_i.op.fsub | fp_fma_i.op.fmul;
+    assign is_add_sub_only = fp_fma_i.op.fadd | fp_fma_i.op.fsub;
 
     assign mul_result = mul_result_full[105:0];  // 取乘法器结果的低106位
     assign lzc_data_in = {stage2_reg.mantissa_mac[162:0], {93{1'b1}}};
@@ -87,12 +91,16 @@ module fp_fma (
             stage1_reg    <= '0;
             stage2_reg    <= '0;
             mul_start     <= 1'b0;
+            lzc_count_reg <= '0;
+            is_add_sub_only_reg <= 1'b0;
         end else if (clear) begin
             current_state <= IDLE;
             input_reg     <= '0;
             stage1_reg    <= '0;
             stage2_reg    <= '0;
             mul_start     <= 1'b0;
+            lzc_count_reg <= '0;
+            is_add_sub_only_reg <= 1'b0;
         end else begin
             current_state <= next_state;
 
@@ -101,28 +109,36 @@ module fp_fma (
                     mul_start <= 1'b0;
                     if (op_valid) begin
                         input_reg <= fp_fma_i;
+                        is_add_sub_only_reg <= is_add_sub_only;
                     end
                 end
 
                 MUL_START: begin
-                    stage1_reg <= stage1_prep();
-                    mul_start  <= 1'b1;
+                    stage1_reg <= stage1_prep(input_reg);
+                    // 只有非纯加减法操作才启动乘法器
+                    if (!is_add_sub_only_reg) begin
+                        mul_start <= 1'b1;
+                    end
                 end
 
                 MUL_WAIT: begin
                     mul_start <= 1'b0;
                     if (mul_valid) begin
-                        stage1_reg <= stage1_calc();
+                        stage1_reg <= stage1_calc(stage1_reg, mul_result);
                     end
                 end
 
                 ADD: begin
                     mul_start  <= 1'b0;
-                    stage2_reg <= stage2_calc_part1();
+                    stage2_reg <= stage2_calc_part1(stage1_reg);
                 end
 
-                LZC: begin
-                    stage2_reg <= stage2_calc_part2();
+                LZC_READ: begin
+                    lzc_count_reg <= lzc_count;
+                end
+
+                LZC_CALC: begin
+                    stage2_reg <= stage2_calc_part2(stage2_reg, lzc_count_reg, clear);
                 end
 
                 OUTPUT: begin
@@ -145,7 +161,12 @@ module fp_fma (
             end
 
             MUL_START: begin
-                next_state = MUL_WAIT;
+                // 纯加减法直接跳转到ADD状态
+                if (is_add_sub_only_reg) begin
+                    next_state = ADD;
+                end else begin
+                    next_state = MUL_WAIT;
+                end
             end
 
             MUL_WAIT: begin
@@ -155,10 +176,14 @@ module fp_fma (
             end
 
             ADD: begin
-                next_state = LZC;
+                next_state = LZC_READ;
             end
 
-            LZC: begin
+            LZC_READ: begin
+                next_state = LZC_CALC;
+            end
+
+            LZC_CALC: begin
                 next_state = OUTPUT;
             end
 
@@ -181,18 +206,19 @@ module fp_fma (
     assign mul_b = stage1_reg.mantissa_b;
 
     // 第一阶段预处理函数 - 准备乘法器输入
-    function fp_fma_var_type_1 stage1_prep();
-        fp_fma_var_type_1 tmp;
+    function fp_fma_var_type_1 stage1_prep(input fp_fma_in_type input_reg_i);
+        fp_fma_var_type_1         tmp;
+        logic             [105:0] simulated_mul_result;
 
         // 输入解包
-        tmp.a       = input_reg.data1;
-        tmp.b       = input_reg.data2;
-        tmp.c       = input_reg.data3;
-        tmp.class_a = input_reg.class1;
-        tmp.class_b = input_reg.class2;
-        tmp.class_c = input_reg.class3;
-        tmp.fmt     = input_reg.fmt;
-        tmp.rm      = input_reg.rm;
+        tmp.a       = input_reg_i.data1;
+        tmp.b       = input_reg_i.data2;
+        tmp.c       = input_reg_i.data3;
+        tmp.class_a = input_reg_i.class1;
+        tmp.class_b = input_reg_i.class2;
+        tmp.class_c = input_reg_i.class3;
+        tmp.fmt     = input_reg_i.fmt;
+        tmp.rm      = input_reg_i.rm;
         tmp.snan    = 0;
         tmp.qnan    = 0;
         tmp.dbz     = 0;
@@ -201,7 +227,7 @@ module fp_fma (
         tmp.ready   = 1;
 
         // 加法/减法特殊处理
-        if (input_reg.op.fadd | input_reg.op.fsub) begin
+        if (input_reg_i.op.fadd | input_reg_i.op.fsub) begin
             tmp.c       = tmp.b;
             tmp.class_c = tmp.class_b;
             tmp.b       = 65'h07FF0000000000000;
@@ -209,7 +235,7 @@ module fp_fma (
         end
 
         // 乘法特殊处理
-        if (input_reg.op.fmul) begin
+        if (input_reg_i.op.fmul) begin
             tmp.c       = {tmp.a[64] ^ tmp.b[64], 64'h0000000000000000};
             tmp.class_c = 0;
         end
@@ -228,8 +254,8 @@ module fp_fma (
         tmp.mantissa_c = {|tmp.exponent_c, tmp.c[51:0]};
 
         // 计算符号
-        tmp.sign_add = tmp.sign_c ^ (input_reg.op.fmsub | input_reg.op.fnmadd | input_reg.op.fsub);
-        tmp.sign_mul = (tmp.sign_a ^ tmp.sign_b) ^ (input_reg.op.fnmsub | input_reg.op.fnmadd);
+        tmp.sign_add = tmp.sign_c ^ (input_reg_i.op.fmsub | input_reg_i.op.fnmadd | input_reg_i.op.fsub);
+        tmp.sign_mul = (tmp.sign_a ^ tmp.sign_b) ^ (input_reg_i.op.fnmsub | input_reg_i.op.fnmadd);
 
         // 异常判断
         if (tmp.class_a[8] | tmp.class_b[8] | tmp.class_c[8]) begin
@@ -260,19 +286,27 @@ module fp_fma (
         tmp.mantissa_add[160:108] = tmp.mantissa_c;
         tmp.mantissa_add[107:0]   = 0;
 
+        // 对于纯加减法，直接模拟乘法结果并调用stage1_calc
+        if (input_reg_i.op.fadd | input_reg_i.op.fsub) begin
+            // 设置模拟的乘法结果为扩展后的a的尾数
+            simulated_mul_result = {tmp.mantissa_a, 52'h0};
+            tmp                  = stage1_calc(tmp, simulated_mul_result);
+        end
+
         return tmp;
     endfunction
 
     // 第一阶段计算函数 - 使用乘法器结果
-    function fp_fma_var_type_1 stage1_calc();
+    function fp_fma_var_type_1 stage1_calc(input fp_fma_var_type_1 stage1_reg_i,
+                                           input logic [105:0] mul_result_i);
         fp_fma_var_type_1 tmp;
 
         // 复制预处理结果
-        tmp                       = stage1_reg;
+        tmp                       = stage1_reg_i;
 
         // 使用乘法器结果计算mantissa_mul
         tmp.mantissa_mul[163:162] = 0;
-        tmp.mantissa_mul[161:56]  = mul_result;
+        tmp.mantissa_mul[161:56]  = mul_result_i;
         tmp.mantissa_mul[55:0]    = 0;
 
         // 对齐计算
@@ -312,25 +346,25 @@ module fp_fma (
     endfunction
 
     // 第二阶段计算函数 - 第一部分（计算mantissa_mac）
-    function fp_fma_var_type_2 stage2_calc_part1();
+    function fp_fma_var_type_2 stage2_calc_part1(input fp_fma_var_type_1 stage1_reg_i);
         fp_fma_var_type_2 tmp;
 
         // 从第一阶段结果复制数据
-        tmp.fmt          = stage1_reg.fmt;
-        tmp.rm           = stage1_reg.rm;
-        tmp.snan         = stage1_reg.snan;
-        tmp.qnan         = stage1_reg.qnan;
-        tmp.dbz          = stage1_reg.dbz;
-        tmp.infs         = stage1_reg.infs;
-        tmp.zero         = stage1_reg.zero;
-        tmp.sign_mul     = stage1_reg.sign_mul;
-        tmp.exponent_mul = stage1_reg.exponent_mul;
-        tmp.mantissa_mul = stage1_reg.mantissa_mul;
-        tmp.sign_add     = stage1_reg.sign_add;
-        tmp.exponent_add = stage1_reg.exponent_add;
-        tmp.mantissa_add = stage1_reg.mantissa_add;
-        tmp.exponent_neg = stage1_reg.exponent_neg;
-        tmp.ready        = stage1_reg.ready;
+        tmp.fmt          = stage1_reg_i.fmt;
+        tmp.rm           = stage1_reg_i.rm;
+        tmp.snan         = stage1_reg_i.snan;
+        tmp.qnan         = stage1_reg_i.qnan;
+        tmp.dbz          = stage1_reg_i.dbz;
+        tmp.infs         = stage1_reg_i.infs;
+        tmp.zero         = stage1_reg_i.zero;
+        tmp.sign_mul     = stage1_reg_i.sign_mul;
+        tmp.exponent_mul = stage1_reg_i.exponent_mul;
+        tmp.mantissa_mul = stage1_reg_i.mantissa_mul;
+        tmp.sign_add     = stage1_reg_i.sign_add;
+        tmp.exponent_add = stage1_reg_i.exponent_add;
+        tmp.mantissa_add = stage1_reg_i.mantissa_add;
+        tmp.exponent_neg = stage1_reg_i.exponent_neg;
+        tmp.ready        = stage1_reg_i.ready;
 
         if (tmp.exponent_neg) begin
             tmp.exponent_mac = tmp.exponent_add;
@@ -362,18 +396,19 @@ module fp_fma (
     endfunction
 
     // 第二阶段计算函数 - 第二部分（使用LZC结果）
-    function fp_fma_var_type_2 stage2_calc_part2();
+    function fp_fma_var_type_2 stage2_calc_part2(
+        input fp_fma_var_type_2 stage2_reg_i, input logic [7:0] lzc_count_i, input logic clear_i);
         fp_fma_var_type_2 tmp;
 
         // 复制第一部分结果
-        tmp      = stage2_reg;
+        tmp      = stage2_reg_i;
 
         tmp.bias = 1918;
         if (tmp.fmt == 1) begin
             tmp.bias = 1022;
         end
 
-        tmp.counter_mac  = ~lzc_count;  // 计算前导零个数
+        tmp.counter_mac  = ~lzc_count_i;  // 计算前导零个数
         tmp.mantissa_mac = tmp.mantissa_mac << tmp.counter_mac;
 
         tmp.sign_rnd     = tmp.sign_mac;
@@ -397,7 +432,7 @@ module fp_fma (
             tmp.grs          = {tmp.mantissa_mac[109:108], |tmp.mantissa_mac[107:0]};
         end
 
-        if (clear == 1) begin
+        if (clear_i == 1) begin
             tmp.ready = 0;
         end
 
