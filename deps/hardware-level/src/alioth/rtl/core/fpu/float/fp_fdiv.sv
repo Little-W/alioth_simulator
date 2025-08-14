@@ -847,7 +847,7 @@ module fp_fdiv (
 
     // MAC模块实例化
     mac_56 #(
-        .LATENCY_LEVEL(2)
+        .LATENCY_LEVEL(3)
     ) u_mac_56 (
         .clk     (clk),
         .rst_n   (rst_n),

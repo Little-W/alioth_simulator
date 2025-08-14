@@ -5,12 +5,13 @@
 //   0：多周期结构，乘法器为4个mul_32并行，输出延迟为4个周期（乘法3周期+加法1周期）
 //   1：32位乘法器用乘号，输入寄存一级，输出延迟为3个周期（乘法2周期+加法1周期）
 //   2：直接用64位乘法器，输出延迟为2个周期(乘法1个周期，累加1个周期)
-//   3：纯组合逻辑，输出无时序延迟，ready恒为1
+//   3：纯组合逻辑+一级输出寄存器，输出延迟为1个周期
+//   4：纯组合逻辑，输出无时序延迟，ready恒为1
 //
 import fp_types::*;
 
 module mac_56 #(
-    parameter LATENCY_LEVEL = 0  // 0-2: 通过mul_64参数, 3: 纯组合
+    parameter LATENCY_LEVEL = 0  // 0-3: 通过mul_64参数, 4: 纯组合
 ) (
     input                  clk,
     input                  rst_n,
@@ -20,7 +21,7 @@ module mac_56 #(
     timeunit 1ns; timeprecision 1ps;
 
     generate
-        if (LATENCY_LEVEL == 3) begin : gen_mac_comb
+        if (LATENCY_LEVEL == 4) begin : gen_mac_comb
             // 纯组合逻辑
             wire [ 55:0] a = mac_56_i.a;
             wire [ 55:0] b = mac_56_i.b;
@@ -33,6 +34,45 @@ module mac_56 #(
 
             assign mac_56_o.d     = res;
             assign mac_56_o.ready = 1'b1;
+        end else if (LATENCY_LEVEL == 3) begin : gen_mac_comb_reg
+            // 乘法后寄存，加法为组合逻辑
+            wire [ 55:0] a = mac_56_i.a;
+            wire [ 55:0] b = mac_56_i.b;
+            wire [ 55:0] c = mac_56_i.c;
+            wire         op = mac_56_i.op;
+            wire         valid = mac_56_i.valid;
+
+            wire [111:0] mul_result_wire = $signed(b) * $signed(c);
+
+            logic [111:0] mul_result_reg;
+            logic [55:0]  a_reg;
+            logic         op_reg;
+            logic         valid_reg;
+
+            // 乘法结果寄存
+            always_ff @(posedge clk or negedge rst_n) begin
+                if (!rst_n) begin
+                    mul_result_reg <= 0;
+                    a_reg          <= 0;
+                    op_reg         <= 0;
+                    valid_reg      <= 0;
+                end else if (valid & !valid_reg) begin
+                    mul_result_reg <= mul_result_wire;
+                    a_reg          <= a;
+                    op_reg         <= op;
+                    valid_reg      <= 1'b1;
+                end else begin
+                    valid_reg      <= 1'b0;
+                end
+            end
+
+            // 加法为组合逻辑
+            wire [109:0] add = {a_reg, 54'h0};
+            wire [109:0] mac = (op_reg == 0) ? mul_result_reg[109:0] : -mul_result_reg[109:0];
+            wire [109:0] res = (a_reg == 0) ? mac : (add + mac);
+
+            assign mac_56_o.d     = res;
+            assign mac_56_o.ready = valid_reg;
         end else begin : gen_mac_seq
             // 状态机定义
             typedef enum logic [1:0] {
@@ -44,7 +84,7 @@ module mac_56 #(
             state_t state, state_n;
 
             // 输入寄存器
-            logic [55:0] a_reg, b_reg, c_reg;
+            logic [55:0] a_reg;
             logic op_reg;
             logic valid_reg;
 
@@ -70,14 +110,10 @@ module mac_56 #(
             always_ff @(posedge clk or negedge rst_n) begin
                 if (!rst_n) begin
                     a_reg     <= 0;
-                    b_reg     <= 0;
-                    c_reg     <= 0;
                     op_reg    <= 0;
                     valid_reg <= 0;
                 end else if (mac_56_i.valid && state == IDLE) begin
                     a_reg     <= mac_56_i.a;
-                    b_reg     <= mac_56_i.b;
-                    c_reg     <= mac_56_i.c;
                     op_reg    <= mac_56_i.op;
                     valid_reg <= mac_56_i.valid;
                 end
@@ -104,9 +140,9 @@ module mac_56 #(
             end
 
             // mul_64输入控制
-            assign mul_a     = b_reg;
-            assign mul_b     = c_reg;
-            assign mul_start = (state == MUL);
+            assign mul_a     = mac_56_i.b;
+            assign mul_b     = mac_56_i.c;
+            assign mul_start = (state == IDLE && mac_56_i.valid);
 
             // mul_64实例化
             mul_64 #(
