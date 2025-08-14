@@ -16,7 +16,6 @@ module fpu_top (
     output fpu_top_out_type fpu_top_o,
     input                   clear
 );
-    timeunit 1ns; timeprecision 1ps;
 
     fp_ext_in_type      fp_ext1_i;
     fp_ext_out_type     fp_ext1_o;

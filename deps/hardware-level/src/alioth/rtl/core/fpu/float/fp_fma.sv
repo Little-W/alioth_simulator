@@ -17,7 +17,6 @@ module fp_fma (
     output fp_fma_out_type fp_fma_o,
     input                  clear
 );
-    timeunit 1ns; timeprecision 1ps;
 
     // 状态机状态定义
     typedef enum logic [2:0] {

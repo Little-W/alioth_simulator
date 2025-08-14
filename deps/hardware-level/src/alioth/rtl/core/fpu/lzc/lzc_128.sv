@@ -3,7 +3,6 @@ module lzc_128 (
     output [  6:0] lzc,
     output         valid
 );
-    timeunit 1ns; timeprecision 1ps;
 
     // 低64位计数
     logic [5:0] lower_half_count;

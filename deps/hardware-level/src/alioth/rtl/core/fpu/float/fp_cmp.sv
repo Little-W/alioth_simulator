@@ -13,7 +13,6 @@ module fp_cmp (
     input  fp_cmp_in_type  fp_cmp_i,  // 输入：包含两个浮点操作数及控制信号
     output fp_cmp_out_type fp_cmp_o   // 输出：比较结果和异常标志
 );
-    timeunit 1ns; timeprecision 1ps;
 
     // 定义内部变量
     logic [64:0] data1;  // 扩展的第一个操作数（含符号位）

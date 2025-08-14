@@ -3,7 +3,6 @@ module lzc_32 (
     output [ 4:0] lzc,
     output        valid
 );
-    timeunit 1ns; timeprecision 1ps;
 
     // 低16位计数
     logic [3:0] lower_half_count;

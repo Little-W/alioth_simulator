@@ -3,7 +3,6 @@ module lzc_4 (
     output [1:0] lzc,
     output       valid
 );
-    timeunit 1ns; timeprecision 1ps;
 
     /*
      * LZC编码格式说明：

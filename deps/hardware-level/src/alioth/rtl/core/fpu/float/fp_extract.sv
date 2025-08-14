@@ -12,7 +12,6 @@ module fp_extract (
     input  fp_ext_in_type  fp_ext_i,
     output fp_ext_out_type fp_ext_o
 );
-    timeunit 1ns; timeprecision 1ps;
 
     logic [63:0] data;
     logic [ 1:0] fmt;

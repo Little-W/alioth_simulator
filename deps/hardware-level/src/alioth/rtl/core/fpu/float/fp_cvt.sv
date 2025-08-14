@@ -19,7 +19,6 @@ module fp_cvt (
     input  fp_cvt_i2f_in_type  fp_cvt_i2f_i,
     output fp_cvt_i2f_out_type fp_cvt_i2f_o
 );
-    timeunit 1ns; timeprecision 1ps;
 
     // State definitions
     typedef enum logic [1:0] {

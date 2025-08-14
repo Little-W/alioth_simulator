@@ -18,7 +18,6 @@ module mac_56 #(
     input  mac_56_in_type  mac_56_i,
     output mac_56_out_type mac_56_o
 );
-    timeunit 1ns; timeprecision 1ps;
 
     generate
         if (LATENCY_LEVEL == 4) begin : gen_mac_comb

@@ -3,7 +3,6 @@
 // 用于各浮点子模块间的统一接口和类型复用
 
 package fp_types;
-    timeunit 1ns; timeprecision 1ps;
 
     typedef struct packed {
         logic fmadd;

@@ -37,7 +37,6 @@ module fp_hub (
     output fp_rnd_in_type      fp_rnd_i,
     input                      clear
 );
-    timeunit 1ns; timeprecision 1ps;
 
     logic             [63:0] data1;
     logic             [63:0] data2;

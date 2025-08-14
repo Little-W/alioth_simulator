@@ -24,7 +24,6 @@ module fp_fdiv (
     output fp_fdiv_out_type fp_fdiv_o,
     input                   clear
 );
-    timeunit 1ns; timeprecision 1ps;
 
     // 状态机状态定义
     typedef enum logic [4:0] {
