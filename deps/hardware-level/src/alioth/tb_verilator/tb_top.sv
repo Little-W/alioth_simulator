@@ -46,7 +46,10 @@ module tb_top (
     // 通用寄存器访问 - 仅用于错误信息显示
     wire [31:0] x3 = alioth_soc_top_0.u_cpu_top.u_gpr.regs[3];
     // 添加通用寄存器监控 - 用于结果判断
-    wire [31:0] pc = alioth_soc_top_0.u_cpu_top.u_dispatch.inst2_addr_o;
+    // 双发射结构下，监控两个发射槽的PC
+    wire [31:0] pc_slot0 = alioth_soc_top_0.u_cpu_top.u_dispatch.inst1_addr_o; // 第一个发射槽PC
+    wire [31:0] pc_slot1 = alioth_soc_top_0.u_cpu_top.u_dispatch.inst2_addr_o; // 第二个发射槽PC
+    wire [31:0] pc = pc_slot0; // 默认使用第一个发射槽的PC作为主要监控对象
     wire [31:0] csr_cyclel = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
     wire [31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
     wire [31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
@@ -92,30 +95,42 @@ module tb_top (
 `endif
 
 `ifdef ENABLE_PC_WRITE_TOHOST
-    // 添加PC监控变量
+    // 添加PC监控变量 - 双发射结构
     reg  [31:0] pc_write_to_host_cnt;
     reg  [31:0] pc_write_to_host_cycle;
     reg         pc_write_to_host_flag;
-    reg  [31:0] last_pc;  // 保留用于监测PC变化
+    reg  [31:0] last_pc_slot0;  // 用于监测第一个发射槽PC变化
+    reg  [31:0] last_pc_slot1;  // 用于监测第二个发射槽PC变化
 
     // 不再自己维护周期和指令计数，直接从CSR获取
     wire [31:0] current_instructions = csr_instret[31:0];
 
-    // 周期计数器 - 简化为只更新last_pc
+    // 周期计数器 - 更新两个发射槽的last_pc
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            last_pc <= 32'b0;
+            last_pc_slot0 <= 32'b0;
+            last_pc_slot1 <= 32'b0;
         end else begin
-            last_pc <= pc;  // 仍然保留PC变化监测，用于触发to_host判断
+            last_pc_slot0 <= pc_slot0;  // 更新第一个发射槽的last_pc
+            last_pc_slot1 <= pc_slot1;  // 更新第二个发射槽的last_pc
         end
     end
 
-    // PC监控逻辑 - 保留用于测试结束判断
-    always @(pc) begin
-        if (pc == `PC_WRITE_TOHOST && pc != last_pc) begin
+    // PC监控逻辑 - 双发射结构下检查两个发射槽
+    always @(pc_slot0 or pc_slot1) begin
+        // 检查第一个发射槽
+        if (pc_slot0 == `PC_WRITE_TOHOST && pc_slot0 != last_pc_slot0) begin
             pc_write_to_host_cnt = pc_write_to_host_cnt + 1'b1;
             if (pc_write_to_host_flag == 1'b0) begin
-                pc_write_to_host_cycle = current_cycle;  // 使用CSR获取的cycle值
+                pc_write_to_host_cycle = current_cycle;
+                pc_write_to_host_flag  = 1'b1;
+            end
+        end
+        // 检查第二个发射槽
+        else if (pc_slot1 == `PC_WRITE_TOHOST && pc_slot1 != last_pc_slot1) begin
+            pc_write_to_host_cnt = pc_write_to_host_cnt + 1'b1;
+            if (pc_write_to_host_flag == 1'b0) begin
+                pc_write_to_host_cycle = current_cycle;
                 pc_write_to_host_flag  = 1'b1;
             end
         end
@@ -147,26 +162,29 @@ module tb_top (
         end
     end
 
-    // PC卡死检测相关变量
-    reg [31:0] pc_last;
+    // PC卡死检测相关变量 - 双发射结构
+    reg [31:0] pc_slot0_last;
+    reg [31:0] pc_slot1_last;
     reg [ 7:0] pc_stuck_cnt;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            pc_last      <= 32'b0;
-            pc_stuck_cnt <= 8'b0;
+            pc_slot0_last <= 32'b0;
+            pc_slot1_last <= 32'b0;
+            pc_stuck_cnt  <= 8'b0;
         end else begin
-            // PC stuck detection: if PC does not change for 100 cycles, terminate simulation
-            if (pc == pc_last) begin
+            // PC stuck detection: if both PC slots do not change for 100 cycles, terminate simulation
+            if (pc_slot0 == pc_slot0_last && pc_slot1 == pc_slot1_last) begin
                 pc_stuck_cnt <= pc_stuck_cnt + 1'b1;
             end else begin
-                pc_stuck_cnt <= 8'b0;
-                pc_last      <= pc;
+                pc_stuck_cnt  <= 8'b0;
+                pc_slot0_last <= pc_slot0;
+                pc_slot1_last <= pc_slot1;
             end
             if (pc_stuck_cnt >= 8'd100) begin
                 $display(
                     "PC stuck detection: PC has not changed for 100 cycles, simulation terminated!");
-                $display("PC value when stuck: 0x%08x", pc_last);
+                $display("PC values when stuck: slot0=0x%08x, slot1=0x%08x", pc_slot0_last, pc_slot1_last);
                 $finish;
             end
         end
@@ -393,7 +411,7 @@ module tb_top (
 `endif
 
 `ifdef ENABLE_IRQ_MONITOR
-    // 监控swi变化并打印pc和cycle
+    // 监控swi变化并打印pc和cycle - 双发射结构
     reg swi_last;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -401,14 +419,15 @@ module tb_top (
         end else begin
             if (swi != swi_last) begin
                 $display("------------------------------------------------------------");
-                $display("swi changed to %b at pc=0x%08x, cycle=%0d", swi, pc, cycle);
+                $display("swi changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                         swi, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 swi_last <= swi;
             end
         end
     end
 
-    // 监控timer_irq变化并打印pc和cycle
+    // 监控timer_irq变化并打印pc和cycle - 双发射结构
     reg timer_irq_last;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -416,7 +435,8 @@ module tb_top (
         end else begin
             if (timer_irq != timer_irq_last) begin
                 $display("------------------------------------------------------------");
-                $display("timer_irq changed to %b at pc=0x%08x, cycle=%0d", timer_irq, pc, cycle);
+                $display("timer_irq changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                         timer_irq, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 timer_irq_last <= timer_irq;
             end
@@ -425,7 +445,7 @@ module tb_top (
 `endif
 
 `ifdef ENABLE_EXT_IRQ_MONITOR
-    // 新增：监控irq_sources和irq_valid变化
+    // 新增：监控irq_sources和irq_valid变化 - 双发射结构
     reg [10:0] irq_sources_last;  // 修改为11位
     reg        irq_valid_last;
     always @(posedge clk or negedge rst_n) begin
@@ -435,14 +455,15 @@ module tb_top (
         end else begin
             if (irq_sources != irq_sources_last) begin
                 $display("------------------------------------------------------------");
-                $display("irq_sources changed to %b at pc=0x%08x, cycle=%0d", irq_sources, pc,
-                         cycle);
+                $display("irq_sources changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                         irq_sources, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 irq_sources_last <= irq_sources;
             end
             if (irq_valid != irq_valid_last) begin
                 $display("------------------------------------------------------------");
-                $display("irq_valid changed to %b at pc=0x%08x, cycle=%0d", irq_valid, pc, cycle);
+                $display("irq_valid changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                         irq_valid, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 irq_valid_last <= irq_valid;
             end
