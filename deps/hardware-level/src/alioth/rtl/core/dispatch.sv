@@ -223,8 +223,8 @@ module dispatch (
     output wire [               31:0] inst1_rs2_rdata_o,
     output wire [               31:0] inst2_rs1_rdata_o,
     output wire [               31:0] inst2_rs2_rdata_o,
-    output wire [31:0] inst1_commit_id_o,
-    output wire [31:0] inst2_commit_id_o
+    output wire [3:0] inst1_commit_id_o,
+    output wire [3:0] inst2_commit_id_o
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe

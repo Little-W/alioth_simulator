@@ -133,7 +133,6 @@ module wbu (
     localparam EU_FAKECOMMIT = 4'd9;
     // 聚合各执行单元写回意图 (总数 10)
     wire [9:0] eu_reg_we;
-    wire [9:0] eu_csr_we; // 仅CSR位有效
     wire [`REG_DATA_WIDTH-1:0] eu_reg_wdata [0:9];
     wire [4:0]                 eu_reg_waddr [0:9];
     wire [`COMMIT_ID_WIDTH-1:0] eu_commit_id [0:9];
@@ -141,7 +140,6 @@ module wbu (
     assign eu_reg_we = {fakecommit_reg_we_i, lsu2_reg_we_i, lsu1_reg_we_i, csr_reg_we_i,
                         div2_reg_we_i, div1_reg_we_i, mul2_reg_we_i, mul1_reg_we_i,
                         alu2_reg_we_i, alu1_reg_we_i};
-    assign eu_csr_we = {3'b0, csr_we_i, 6'b0};
 
     assign eu_reg_wdata[EU_ALU1] = alu1_reg_wdata_i;
     assign eu_reg_wdata[EU_ALU2] = alu2_reg_wdata_i;
@@ -177,7 +175,7 @@ module wbu (
     assign eu_commit_id[EU_FAKECOMMIT] = fakecommit_commit_id_i;
 
     // 可写回集合
-    wire [9:0] eu_can_writeback = (eu_reg_we | eu_csr_we);
+    wire [9:0] eu_can_writeback = eu_reg_we;
 
     // 简单双通道优先级仲裁（保持原先大类优先顺序）
     reg [3:0] wb_ch1_eu, wb_ch2_eu; reg wb_ch1_valid, wb_ch2_valid;
@@ -222,10 +220,10 @@ module wbu (
     assign csr_wdata_o =  csr_wdata_i;
 
     // 提交信号与ID
-    assign commit_valid1_o = wb_ch1_valid;
-    assign commit_valid2_o = wb_ch2_valid;
-    assign commit_id1_o    = wb_ch1_valid ? eu_commit_id[wb_ch1_eu] : {`COMMIT_ID_WIDTH{1'b0}};
-    assign commit_id2_o    = wb_ch2_valid ? eu_commit_id[wb_ch2_eu] : {`COMMIT_ID_WIDTH{1'b0}};
+    assign commit_valid1_o = wb_ch1_valid || csr_we_o;
+    assign commit_valid2_o = wb_ch2_valid || csr_we_o;
+    assign commit_id1_o    = wb_ch1_valid ? eu_commit_id[wb_ch1_eu] : csr_we_o ? csr_commit_id_i :{`COMMIT_ID_WIDTH{1'b0}};
+    assign commit_id2_o    = wb_ch2_valid ? eu_commit_id[wb_ch2_eu] : csr_we_o ? csr_commit_id_i :{`COMMIT_ID_WIDTH{1'b0}};
 
     // Ready 信号
     wire eu_selected [0:9];
@@ -240,15 +238,15 @@ module wbu (
     assign eu_selected[EU_LSU2] = (wb_ch1_valid && wb_ch1_eu==EU_LSU2) || (wb_ch2_valid && wb_ch2_eu==EU_LSU2);
     assign eu_selected[EU_FAKECOMMIT] = (wb_ch1_valid && wb_ch1_eu==EU_FAKECOMMIT) || (wb_ch2_valid && wb_ch2_eu==EU_FAKECOMMIT);
 
-    assign fakecommit_ready_o = ~eu_can_writeback[EU_FAKECOMMIT] || eu_selected[EU_FAKECOMMIT];
-    assign alu1_ready_o = ~eu_can_writeback[EU_ALU1] || eu_selected[EU_ALU1];
-    assign alu2_ready_o = ~eu_can_writeback[EU_ALU2] || eu_selected[EU_ALU2];
-    assign mul1_ready_o = ~eu_can_writeback[EU_MUL1] || eu_selected[EU_MUL1];
-    assign mul2_ready_o = ~eu_can_writeback[EU_MUL2] || eu_selected[EU_MUL2];
-    assign div1_ready_o = ~eu_can_writeback[EU_DIV1] || eu_selected[EU_DIV1];
-    assign div2_ready_o = ~eu_can_writeback[EU_DIV2] || eu_selected[EU_DIV2];
-    assign csr_ready_o  = ~eu_can_writeback[EU_CSR ] || eu_selected[EU_CSR ];
-    assign lsu1_ready_o = ~eu_can_writeback[EU_LSU1] || eu_selected[EU_LSU1];
-    assign lsu2_ready_o = ~eu_can_writeback[EU_LSU2] || eu_selected[EU_LSU2];
+    assign fakecommit_ready_o = eu_selected[EU_FAKECOMMIT];
+    assign alu1_ready_o =  eu_selected[EU_ALU1];
+    assign alu2_ready_o =  eu_selected[EU_ALU2];
+    assign mul1_ready_o =  eu_selected[EU_MUL1];
+    assign mul2_ready_o =  eu_selected[EU_MUL2];
+    assign div1_ready_o =  eu_selected[EU_DIV1];
+    assign div2_ready_o =  eu_selected[EU_DIV2];
+    assign csr_ready_o  =  eu_selected[EU_CSR ] || csr_we_o;
+    assign lsu1_ready_o =  eu_selected[EU_LSU1];
+    assign lsu2_ready_o =  eu_selected[EU_LSU2];
 
 endmodule

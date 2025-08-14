@@ -63,6 +63,7 @@ module icu (
     input wire [`INST_DATA_WIDTH-1:0] inst2_i,
     input wire                        inst2_illegal_inst_i,
     input wire                        inst2_valid_i,
+    input wire                        inst2_branch_i,
     input wire                        inst2_csr_type_i,
 
     // 指令完成信号
@@ -132,6 +133,7 @@ module icu (
     wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id_i;
     wire hdu_commit_valid2_i;
     wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id2_i;
+    wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_commit_id_o;
 
     assign hdu_commit_valid_i = commit_valid_i | jump_inst1_valid_o;
     assign hdu_commit_id_i = commit_valid_i ? commit_id_i : jump_inst1_valid_o? jump_inst1_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
@@ -164,11 +166,13 @@ module icu (
         .commit_id_i            (hdu_commit_id_i),
         .commit_valid2_i        (hdu_commit_valid2_i),
         .commit_id2_i           (hdu_commit_id2_i),
+        .pending_inst1_id_i      (pending_inst1_commit_id_o),
 
         //跳转控制
         .jump_flag_i            (jump_flag_i),
         .inst1_jump_i           (inst1_jump_i),
         .inst1_branch_i         (inst1_branch_i),
+        .inst2_branch_i         (inst2_branch_i),
 
         .inst1_csr_type_i       (inst1_csr_type_i),
         .inst2_csr_type_i       (inst2_csr_type_i),
@@ -265,6 +269,7 @@ module icu (
         .jump_inst2_commit_id_o  (jump_inst2_commit_id_o),
         .jump_inst1_valid_o      (jump_inst1_valid_o),
         .jump_inst2_valid_o      (jump_inst2_valid_o),
+        .pending_inst1_commit_id_o (pending_inst1_commit_id_o),
 
         // 流水线寄存器相关输出
         .inst1_commit_id_o      (inst1_commit_id_o),

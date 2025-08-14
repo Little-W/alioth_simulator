@@ -296,6 +296,7 @@ module cpu_top (
     wire idu_illegal_inst2_o;  // 第二路IDU输出非法指令信号
     wire [`INST_DATA_WIDTH-1:0] idu_inst1_o;  // IDU输出非法指令内容
     wire [`INST_DATA_WIDTH-1:0] idu_inst2_o;  // 第二路IDU输出非法指令内容
+    wire idu_inst2_branch_o;  // 第二路IDU输出分支指令信号
     wire dispatch_misaligned_load_o;  // dispatch输出misaligned load信号
     wire dispatch_misaligned_store_o;  // dispatch输出misaligned store信号
     wire dispatch_illegal_inst_o;  // dispatch输出非法指令信号
@@ -756,6 +757,7 @@ module cpu_top (
         .inst2_valid_o   (idu_inst2_valid_o),
         .inst2_illegal_inst_o(idu_illegal_inst2_o),
         .inst2_o         (idu_inst2_o),
+        .inst2_branch_o  (idu_inst2_branch_o),
         .inst2_csr_type_o(idu_inst2_csr_type_o)
     );
 
@@ -798,6 +800,7 @@ module cpu_top (
         .inst2_i                (idu_inst2_o),
         .inst2_illegal_inst_i   (idu_illegal_inst2_o),
         .inst2_valid_i          (idu_inst2_valid_o),
+        .inst2_branch_i        (idu_inst2_branch_o),
         .inst2_csr_type_i       (idu_inst2_csr_type_o),
 
         // 指令完成信号
