@@ -29,7 +29,6 @@ module plic (
 
     // 优先级寄存器，每个中断源8位优先级
     reg     [                  7:0] int_pri [`PLIC_NUM_SOURCES-1:0];
-    reg     [                  7:0] int_pri_r [`PLIC_NUM_SOURCES-1:0]; // 新增打一拍寄存器
 
     // 中断向量表，每个中断源32位入口地址
     reg     [                 31:0] vectable[`PLIC_NUM_SOURCES-1:0];
@@ -49,7 +48,6 @@ module plic (
 
     reg [        `PLIC_NUM_SOURCES-1:0] valid_mask;
     reg [        `PLIC_NUM_SOURCES-1:0] valid_mask_r;
-    reg [        `PLIC_NUM_SOURCES-1:0] int_en_r;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id_next;
     reg                                 irq_valid_next;
     reg [$clog2(`PLIC_NUM_SOURCES)-1:0] irq_id;  // 最高优先级中断号
@@ -62,30 +60,15 @@ module plic (
     ) u_plic_priority_arbiter (
         .clk(clk),
         .rst_n(rst_n),
-        .pri_in(int_pri_r),
-        .valid_in(valid_mask_r),
+        .pri_in(int_pri),         // 直接用int_pri
+        .valid_in(valid_mask),    // 直接用valid_mask
         .find_max_id_out(arbiter_max_id),
         .find_max_valid_out(arbiter_max_valid)
     );
 
-    // int_en打一拍
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) int_en_r <= {`PLIC_NUM_SOURCES{1'b0}};
-        else int_en_r <= int_en;
-    end
-
-    // int_pri打一拍
-    integer j;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            for (j = 0; j < `PLIC_NUM_SOURCES; j = j + 1) int_pri_r[j] <= 8'd0;
-        else
-            for (j = 0; j < `PLIC_NUM_SOURCES; j = j + 1) int_pri_r[j] <= int_pri[j];
-    end
-
-    // valid_mask使用打一拍以后的int_en
+    // valid_mask直接用int_en
     always @(*) begin
-        valid_mask = irq_sources & int_en_r;
+        valid_mask = irq_sources & int_en;
     end
 
     // valid_mask打一拍
@@ -94,10 +77,10 @@ module plic (
         else valid_mask_r <= valid_mask;
     end
 
-    // 优先级选择和中断有效判断使用valid_mask_r
+    // 优先级选择和中断有效判断使用arbiter输出
     always @(*) begin
         irq_valid_next = arbiter_max_valid;
-        irq_id_next    = arbiter_max_id; // 用流水模块输出替换原函数
+        irq_id_next    = arbiter_max_id;
     end
 
     always @(posedge clk or negedge rst_n) begin
