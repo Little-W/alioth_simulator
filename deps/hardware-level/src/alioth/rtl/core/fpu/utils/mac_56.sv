@@ -8,7 +8,7 @@
 //   3：纯组合逻辑+一级输出寄存器，输出延迟为1个周期
 //   4：纯组合逻辑，输出无时序延迟，ready恒为1
 //
-import fp_types::*;
+import fpu_types::*;
 
 module mac_56 #(
     parameter LATENCY_LEVEL = 0  // 0-3: 通过mul_64参数, 4: 纯组合

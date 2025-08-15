@@ -2,16 +2,16 @@
 // 实现浮点数的舍入、异常标志生成和最终结果打包输出
 //
 // 端口说明：
-//   fp_rnd_i : 输入结构体，包含待舍入数据及控制信号
-//   fp_rnd_o : 输出结构体，包含最终结果和标志
+//   fpu_rnd_i : 输入结构体，包含待舍入数据及控制信号
+//   fpu_rnd_o : 输出结构体，包含最终结果和标志
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_rnd (
+module fpu_rnd (
     input                  clk,           // 时钟信号
     input                  rst_n,         // 复位信号，低有效
-    input  fp_rnd_in_type  fp_rnd_i,      // 输入结构体
-    output fp_rnd_out_type fp_rnd_o       // 输出结构体
+    input  fpu_rnd_in_type  fpu_rnd_i,      // 输入结构体
+    output fpu_rnd_out_type fpu_rnd_o       // 输出结构体
 );
 
     // 输入信号寄存器，用于时序同步
@@ -56,20 +56,20 @@ module fp_rnd (
             valid_r <= 1'b0;
         end else begin
             // 正常工作时采样输入信号
-            sig_r   <= fp_rnd_i.sig;
-            expo_r  <= fp_rnd_i.expo;
-            mant_r  <= fp_rnd_i.mant;
-            rema_r  <= fp_rnd_i.rema;
-            fmt_r   <= fp_rnd_i.fmt;
-            rm_r    <= fp_rnd_i.rm;
-            grs_r   <= fp_rnd_i.grs;
-            snan_r  <= fp_rnd_i.snan;
-            qnan_r  <= fp_rnd_i.qnan;
-            dbz_r   <= fp_rnd_i.dbz;
-            infs_r  <= fp_rnd_i.infs;
-            zero_r  <= fp_rnd_i.zero;
-            diff_r  <= fp_rnd_i.diff;
-            valid_r <= fp_rnd_i.valid;
+            sig_r   <= fpu_rnd_i.sig;
+            expo_r  <= fpu_rnd_i.expo;
+            mant_r  <= fpu_rnd_i.mant;
+            rema_r  <= fpu_rnd_i.rema;
+            fmt_r   <= fpu_rnd_i.fmt;
+            rm_r    <= fpu_rnd_i.rm;
+            grs_r   <= fpu_rnd_i.grs;
+            snan_r  <= fpu_rnd_i.snan;
+            qnan_r  <= fpu_rnd_i.qnan;
+            dbz_r   <= fpu_rnd_i.dbz;
+            infs_r  <= fpu_rnd_i.infs;
+            zero_r  <= fpu_rnd_i.zero;
+            diff_r  <= fpu_rnd_i.diff;
+            valid_r <= fpu_rnd_i.valid;
         end
     end
 
@@ -271,8 +271,8 @@ module fp_rnd (
     end
 
     // 输出赋值
-    assign fp_rnd_o.result = result;
-    assign fp_rnd_o.flags  = flags;
-    assign fp_rnd_o.ready  = ready;
+    assign fpu_rnd_o.result = result;
+    assign fpu_rnd_o.flags  = flags;
+    assign fpu_rnd_o.ready  = ready;
 
 endmodule

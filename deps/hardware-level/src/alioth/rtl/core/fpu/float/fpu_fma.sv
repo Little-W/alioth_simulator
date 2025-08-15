@@ -4,17 +4,17 @@
 //
 // 端口说明：
 //   rst_n, clk      : 时钟与复位
-//   fp_fma_i        : 输入操作数及控制信号
-//   fp_fma_o        : 输出结果及标志
+//   fpu_fma_i        : 输入操作数及控制信号
+//   fpu_fma_o        : 输出结果及标志
 //   clear           : 清除/暂停信号
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_fma (
+module fpu_fma (
     input                  clk,
     input                  rst_n,
-    input  fp_fma_in_type  fp_fma_i,
-    output fp_fma_out_type fp_fma_o,
+    input  fpu_fma_in_type  fpu_fma_i,
+    output fpu_fma_out_type fpu_fma_o,
     input                  clear
 );
 
@@ -32,11 +32,11 @@ module fp_fma (
     state_t current_state, next_state;
 
     // 输入参数寄存器
-    fp_fma_in_type    input_reg;
+    fpu_fma_in_type    input_reg;
 
     // 中间计算结果寄存器
-    fp_fma_var_type_1 stage1_reg;
-    fp_fma_var_type_2 stage2_reg;
+    fpu_fma_var_type_1 stage1_reg;
+    fpu_fma_var_type_2 stage2_reg;
 
     // 乘法器相关信号
     logic             mul_start;
@@ -54,9 +54,9 @@ module fp_fma (
     // 操作有效信号
     logic         op_valid;
     logic         is_add_sub_only, is_add_sub_only_reg;
-    assign op_valid = fp_fma_i.op.fmadd | fp_fma_i.op.fmsub | fp_fma_i.op.fnmsub |
-                      fp_fma_i.op.fnmadd | fp_fma_i.op.fadd | fp_fma_i.op.fsub | fp_fma_i.op.fmul;
-    assign is_add_sub_only = fp_fma_i.op.fadd | fp_fma_i.op.fsub;
+    assign op_valid = fpu_fma_i.op.fmadd | fpu_fma_i.op.fmsub | fpu_fma_i.op.fnmsub |
+                      fpu_fma_i.op.fnmadd | fpu_fma_i.op.fadd | fpu_fma_i.op.fsub | fpu_fma_i.op.fmul;
+    assign is_add_sub_only = fpu_fma_i.op.fadd | fpu_fma_i.op.fsub;
 
     assign mul_result = mul_result_full[105:0];  // 取乘法器结果的低106位
     assign lzc_data_in = {stage2_reg.mantissa_mac[162:0], {93{1'b1}}};
@@ -107,7 +107,7 @@ module fp_fma (
                 IDLE: begin
                     mul_start <= 1'b0;
                     if (op_valid) begin
-                        input_reg <= fp_fma_i;
+                        input_reg <= fpu_fma_i;
                         is_add_sub_only_reg <= is_add_sub_only;
                     end
                 end
@@ -205,8 +205,8 @@ module fp_fma (
     assign mul_b = stage1_reg.mantissa_b;
 
     // 第一阶段预处理函数 - 准备乘法器输入
-    function fp_fma_var_type_1 stage1_prep(input fp_fma_in_type input_reg_i);
-        fp_fma_var_type_1         tmp;
+    function fpu_fma_var_type_1 stage1_prep(input fpu_fma_in_type input_reg_i);
+        fpu_fma_var_type_1         tmp;
         logic             [105:0] simulated_mul_result;
 
         // 输入解包
@@ -296,9 +296,9 @@ module fp_fma (
     endfunction
 
     // 第一阶段计算函数 - 使用乘法器结果
-    function fp_fma_var_type_1 stage1_calc(input fp_fma_var_type_1 stage1_reg_i,
+    function fpu_fma_var_type_1 stage1_calc(input fpu_fma_var_type_1 stage1_reg_i,
                                            input logic [105:0] mul_result_i);
-        fp_fma_var_type_1 tmp;
+        fpu_fma_var_type_1 tmp;
 
         // 复制预处理结果
         tmp                       = stage1_reg_i;
@@ -345,8 +345,8 @@ module fp_fma (
     endfunction
 
     // 第二阶段计算函数 - 第一部分（计算mantissa_mac）
-    function fp_fma_var_type_2 stage2_calc_part1(input fp_fma_var_type_1 stage1_reg_i);
-        fp_fma_var_type_2 tmp;
+    function fpu_fma_var_type_2 stage2_calc_part1(input fpu_fma_var_type_1 stage1_reg_i);
+        fpu_fma_var_type_2 tmp;
         logic [163:0] mantissa_sum;
         logic [1:0] sign_sum;
 
@@ -401,9 +401,9 @@ module fp_fma (
     endfunction
 
     // 第二阶段计算函数 - 第二部分（使用LZC结果）
-    function fp_fma_var_type_2 stage2_calc_part2(
-        input fp_fma_var_type_2 stage2_reg_i, input logic [7:0] lzc_count_i, input logic clear_i);
-        fp_fma_var_type_2 tmp;
+    function fpu_fma_var_type_2 stage2_calc_part2(
+        input fpu_fma_var_type_2 stage2_reg_i, input logic [7:0] lzc_count_i, input logic clear_i);
+        fpu_fma_var_type_2 tmp;
 
         // 复制第一部分结果
         tmp      = stage2_reg_i;
@@ -446,23 +446,23 @@ module fp_fma (
 
     // 输出逻辑
     always_comb begin
-        fp_fma_o = '0;
+        fpu_fma_o = '0;
 
         if (current_state == OUTPUT) begin
-            fp_fma_o.fp_rnd.sig  = stage2_reg.sign_rnd;
-            fp_fma_o.fp_rnd.expo = stage2_reg.exponent_rnd;
-            fp_fma_o.fp_rnd.mant = stage2_reg.mantissa_rnd;
-            fp_fma_o.fp_rnd.rema = 2'h0;
-            fp_fma_o.fp_rnd.fmt  = stage2_reg.fmt;
-            fp_fma_o.fp_rnd.rm   = stage2_reg.rm;
-            fp_fma_o.fp_rnd.grs  = stage2_reg.grs;
-            fp_fma_o.fp_rnd.snan = stage2_reg.snan;
-            fp_fma_o.fp_rnd.qnan = stage2_reg.qnan;
-            fp_fma_o.fp_rnd.dbz  = stage2_reg.dbz;
-            fp_fma_o.fp_rnd.infs = stage2_reg.infs;
-            fp_fma_o.fp_rnd.zero = stage2_reg.zero;
-            fp_fma_o.fp_rnd.diff = stage2_reg.diff;
-            fp_fma_o.ready       = stage2_reg.ready;
+            fpu_fma_o.fpu_rnd.sig  = stage2_reg.sign_rnd;
+            fpu_fma_o.fpu_rnd.expo = stage2_reg.exponent_rnd;
+            fpu_fma_o.fpu_rnd.mant = stage2_reg.mantissa_rnd;
+            fpu_fma_o.fpu_rnd.rema = 2'h0;
+            fpu_fma_o.fpu_rnd.fmt  = stage2_reg.fmt;
+            fpu_fma_o.fpu_rnd.rm   = stage2_reg.rm;
+            fpu_fma_o.fpu_rnd.grs  = stage2_reg.grs;
+            fpu_fma_o.fpu_rnd.snan = stage2_reg.snan;
+            fpu_fma_o.fpu_rnd.qnan = stage2_reg.qnan;
+            fpu_fma_o.fpu_rnd.dbz  = stage2_reg.dbz;
+            fpu_fma_o.fpu_rnd.infs = stage2_reg.infs;
+            fpu_fma_o.fpu_rnd.zero = stage2_reg.zero;
+            fpu_fma_o.fpu_rnd.diff = stage2_reg.diff;
+            fpu_fma_o.ready       = stage2_reg.ready;
         end
     end
 

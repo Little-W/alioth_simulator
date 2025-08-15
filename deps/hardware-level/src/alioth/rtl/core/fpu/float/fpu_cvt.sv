@@ -2,22 +2,22 @@
 // 支持浮点数不同格式间的转换、浮点转整型、整型转浮点等，支持异常处理
 //
 // 端口说明：
-//   fp_cvt_f2f_i/o : 浮点到浮点格式转换
-//   fp_cvt_f2i_i/o : 浮点到整型转换
-//   fp_cvt_i2f_i/o : 整型到浮点转换
+//   fpu_cvt_f2f_i/o : 浮点到浮点格式转换
+//   fpu_cvt_f2i_i/o : 浮点到整型转换
+//   fpu_cvt_i2f_i/o : 整型到浮点转换
 //   lzc_o/lzc_i    : 前导零计数器接口（保留兼容性）
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_cvt (
+module fpu_cvt (
     input                      clk,
     input                      rst_n,
-    input  fp_cvt_f2f_in_type  fp_cvt_f2f_i,
-    output fp_cvt_f2f_out_type fp_cvt_f2f_o,
-    input  fp_cvt_f2i_in_type  fp_cvt_f2i_i,
-    output fp_cvt_f2i_out_type fp_cvt_f2i_o,
-    input  fp_cvt_i2f_in_type  fp_cvt_i2f_i,
-    output fp_cvt_i2f_out_type fp_cvt_i2f_o
+    input  fpu_cvt_f2f_in_type  fpu_cvt_f2f_i,
+    output fpu_cvt_f2f_out_type fpu_cvt_f2f_o,
+    input  fpu_cvt_f2i_in_type  fpu_cvt_f2i_i,
+    output fpu_cvt_f2i_out_type fpu_cvt_f2i_o,
+    input  fpu_cvt_i2f_in_type  fpu_cvt_i2f_i,
+    output fpu_cvt_i2f_out_type fpu_cvt_i2f_o
 );
 
     // State definitions
@@ -32,19 +32,19 @@ module fp_cvt (
     state_t f2f_state_next, f2i_state_next, i2f_state_next;
 
     // Pipeline registers
-    fp_cvt_f2f_var_type v_f2f_r, v_f2f_next;
-    fp_cvt_f2i_var_type v_f2i_r, v_f2i_next;
-    fp_cvt_i2f_var_type v_i2f_r, v_i2f_next;
+    fpu_cvt_f2f_var_type v_f2f_r, v_f2f_next;
+    fpu_cvt_f2i_var_type v_f2i_r, v_f2i_next;
+    fpu_cvt_i2f_var_type v_i2f_r, v_i2f_next;
 
     // Output registers
-    fp_cvt_f2f_out_type fp_cvt_f2f_o_r, fp_cvt_f2f_o_next;
-    fp_cvt_f2i_out_type fp_cvt_f2i_o_r, fp_cvt_f2i_o_next;
-    fp_cvt_i2f_out_type fp_cvt_i2f_o_r, fp_cvt_i2f_o_next;
+    fpu_cvt_f2f_out_type fpu_cvt_f2f_o_r, fpu_cvt_f2f_o_next;
+    fpu_cvt_f2i_out_type fpu_cvt_f2i_o_r, fpu_cvt_f2i_o_next;
+    fpu_cvt_i2f_out_type fpu_cvt_i2f_o_r, fpu_cvt_i2f_o_next;
 
     // Assign outputs
-    assign fp_cvt_f2f_o = fp_cvt_f2f_o_r;
-    assign fp_cvt_f2i_o = fp_cvt_f2i_o_r;
-    assign fp_cvt_i2f_o = fp_cvt_i2f_o_r;
+    assign fpu_cvt_f2f_o = fpu_cvt_f2f_o_r;
+    assign fpu_cvt_f2i_o = fpu_cvt_f2i_o_r;
+    assign fpu_cvt_i2f_o = fpu_cvt_i2f_o_r;
 
     // Sequential logic
     always_ff @(posedge clk or negedge rst_n) begin
@@ -55,9 +55,9 @@ module fp_cvt (
             v_f2f_r        <= '0;
             v_f2i_r        <= '0;
             v_i2f_r        <= '0;
-            fp_cvt_f2f_o_r <= '0;
-            fp_cvt_f2i_o_r <= '0;
-            fp_cvt_i2f_o_r <= '0;
+            fpu_cvt_f2f_o_r <= '0;
+            fpu_cvt_f2i_o_r <= '0;
+            fpu_cvt_i2f_o_r <= '0;
         end else begin
             f2f_state      <= f2f_state_next;
             f2i_state      <= f2i_state_next;
@@ -65,9 +65,9 @@ module fp_cvt (
             v_f2f_r        <= v_f2f_next;
             v_f2i_r        <= v_f2i_next;
             v_i2f_r        <= v_i2f_next;
-            fp_cvt_f2f_o_r <= fp_cvt_f2f_o_next;
-            fp_cvt_f2i_o_r <= fp_cvt_f2i_o_next;
-            fp_cvt_i2f_o_r <= fp_cvt_i2f_o_next;
+            fpu_cvt_f2f_o_r <= fpu_cvt_f2f_o_next;
+            fpu_cvt_f2i_o_r <= fpu_cvt_f2i_o_next;
+            fpu_cvt_i2f_o_r <= fpu_cvt_i2f_o_next;
         end
     end
 
@@ -75,13 +75,13 @@ module fp_cvt (
     always_comb begin
         f2f_state_next    = f2f_state;
         v_f2f_next        = v_f2f_r;
-        fp_cvt_f2f_o_next = '0;  // 默认清零
+        fpu_cvt_f2f_o_next = '0;  // 默认清零
 
         case (f2f_state)
             IDLE: begin
-                if (fp_cvt_f2f_i.valid) begin
+                if (fpu_cvt_f2f_i.valid) begin
                     f2f_state_next = PROCESS;
-                    v_f2f_next     = f2f_input_stage(fp_cvt_f2f_i);
+                    v_f2f_next     = f2f_input_stage(fpu_cvt_f2f_i);
                 end
             end
             PROCESS: begin
@@ -90,7 +90,7 @@ module fp_cvt (
             end
             COMPLETE: begin
                 f2f_state_next    = IDLE;
-                fp_cvt_f2f_o_next = f2f_output_stage(v_f2f_r);
+                fpu_cvt_f2f_o_next = f2f_output_stage(v_f2f_r);
             end
             default: f2f_state_next = IDLE;
         endcase
@@ -100,13 +100,13 @@ module fp_cvt (
     always_comb begin
         f2i_state_next    = f2i_state;
         v_f2i_next        = v_f2i_r;
-        fp_cvt_f2i_o_next = '0;  // 默认清零
+        fpu_cvt_f2i_o_next = '0;  // 默认清零
 
         case (f2i_state)
             IDLE: begin
-                if (fp_cvt_f2i_i.valid) begin
+                if (fpu_cvt_f2i_i.valid) begin
                     f2i_state_next = PROCESS;
-                    v_f2i_next     = f2i_input_stage(fp_cvt_f2i_i);
+                    v_f2i_next     = f2i_input_stage(fpu_cvt_f2i_i);
                 end
             end
             PROCESS: begin
@@ -115,7 +115,7 @@ module fp_cvt (
             end
             COMPLETE: begin
                 f2i_state_next    = IDLE;
-                fp_cvt_f2i_o_next = f2i_output_stage(v_f2i_r);
+                fpu_cvt_f2i_o_next = f2i_output_stage(v_f2i_r);
             end
             default: f2i_state_next = IDLE;
         endcase
@@ -125,13 +125,13 @@ module fp_cvt (
     always_comb begin
         i2f_state_next    = i2f_state;
         v_i2f_next        = v_i2f_r;
-        fp_cvt_i2f_o_next = '0;  // 默认清零
+        fpu_cvt_i2f_o_next = '0;  // 默认清零
 
         case (i2f_state)
             IDLE: begin
-                if (fp_cvt_i2f_i.valid) begin
+                if (fpu_cvt_i2f_i.valid) begin
                     i2f_state_next = PROCESS;
-                    v_i2f_next     = i2f_input_stage(fp_cvt_i2f_i);
+                    v_i2f_next     = i2f_input_stage(fpu_cvt_i2f_i);
                 end
             end
             PROCESS: begin
@@ -140,15 +140,15 @@ module fp_cvt (
             end
             COMPLETE: begin
                 i2f_state_next    = IDLE;
-                fp_cvt_i2f_o_next = i2f_output_stage(v_i2f_r);
+                fpu_cvt_i2f_o_next = i2f_output_stage(v_i2f_r);
             end
             default: i2f_state_next = IDLE;
         endcase
     end
 
     // F2F Functions
-    function automatic fp_cvt_f2f_var_type f2f_input_stage(input fp_cvt_f2f_in_type inp);
-        fp_cvt_f2f_var_type f2f_var;
+    function automatic fpu_cvt_f2f_var_type f2f_input_stage(input fpu_cvt_f2f_in_type inp);
+        fpu_cvt_f2f_var_type f2f_var;
         f2f_var.data           = inp.data;
         f2f_var.fmt            = inp.fmt;
         f2f_var.rm             = inp.rm;
@@ -161,8 +161,8 @@ module fp_cvt (
         return f2f_var;
     endfunction
 
-    function automatic fp_cvt_f2f_var_type f2f_process_stage(input fp_cvt_f2f_var_type f2f_var_in);
-        fp_cvt_f2f_var_type f2f_var_out;
+    function automatic fpu_cvt_f2f_var_type f2f_process_stage(input fpu_cvt_f2f_var_type f2f_var_in);
+        fpu_cvt_f2f_var_type f2f_var_out;
         f2f_var_out               = f2f_var_in;
         f2f_var_out.exponent_cvt  = f2f_var_in.data[63:52];
         f2f_var_out.mantissa_cvt  = {2'h1, f2f_var_in.data[51:0], 26'h0};
@@ -195,28 +195,28 @@ module fp_cvt (
         return f2f_var_out;
     endfunction
 
-    function automatic fp_cvt_f2f_out_type f2f_output_stage(input fp_cvt_f2f_var_type f2f_var);
-        fp_cvt_f2f_out_type outp;
-        outp.fp_rnd.sig  = f2f_var.sign_rnd;
-        outp.fp_rnd.expo = f2f_var.exponent_rnd;
-        outp.fp_rnd.mant = f2f_var.mantissa_rnd;
-        outp.fp_rnd.rema = 2'h0;
-        outp.fp_rnd.fmt  = f2f_var.fmt;
-        outp.fp_rnd.rm   = f2f_var.rm;
-        outp.fp_rnd.grs  = f2f_var.grs;
-        outp.fp_rnd.snan = f2f_var.snan;
-        outp.fp_rnd.qnan = f2f_var.qnan;
-        outp.fp_rnd.dbz  = f2f_var.dbz;
-        outp.fp_rnd.infs = f2f_var.infs;
-        outp.fp_rnd.zero = f2f_var.zero;
-        outp.fp_rnd.diff = 1'h0;
+    function automatic fpu_cvt_f2f_out_type f2f_output_stage(input fpu_cvt_f2f_var_type f2f_var);
+        fpu_cvt_f2f_out_type outp;
+        outp.fpu_rnd.sig  = f2f_var.sign_rnd;
+        outp.fpu_rnd.expo = f2f_var.exponent_rnd;
+        outp.fpu_rnd.mant = f2f_var.mantissa_rnd;
+        outp.fpu_rnd.rema = 2'h0;
+        outp.fpu_rnd.fmt  = f2f_var.fmt;
+        outp.fpu_rnd.rm   = f2f_var.rm;
+        outp.fpu_rnd.grs  = f2f_var.grs;
+        outp.fpu_rnd.snan = f2f_var.snan;
+        outp.fpu_rnd.qnan = f2f_var.qnan;
+        outp.fpu_rnd.dbz  = f2f_var.dbz;
+        outp.fpu_rnd.infs = f2f_var.infs;
+        outp.fpu_rnd.zero = f2f_var.zero;
+        outp.fpu_rnd.diff = 1'h0;
         outp.ready       = 1'b1;
         return outp;
     endfunction
 
     // F2I Functions
-    function automatic fp_cvt_f2i_var_type f2i_input_stage(input fp_cvt_f2i_in_type inp);
-        fp_cvt_f2i_var_type f2i_var;
+    function automatic fpu_cvt_f2i_var_type f2i_input_stage(input fpu_cvt_f2i_in_type inp);
+        fpu_cvt_f2i_var_type f2i_var;
         f2i_var.data           = inp.data;
         f2i_var.op             = inp.op.fcvt_op;
         f2i_var.rm             = inp.rm;
@@ -240,8 +240,8 @@ module fp_cvt (
         return f2i_var;
     endfunction
 
-    function automatic fp_cvt_f2i_var_type f2i_process_stage(input fp_cvt_f2i_var_type f2i_var_in);
-        fp_cvt_f2i_var_type f2i_var_out;
+    function automatic fpu_cvt_f2i_var_type f2i_process_stage(input fpu_cvt_f2i_var_type f2i_var_in);
+        fpu_cvt_f2i_var_type f2i_var_out;
         f2i_var_out              = f2i_var_in;
 
         f2i_var_out.sign_cvt     = f2i_var_in.data[64];
@@ -288,9 +288,9 @@ module fp_cvt (
         return f2i_var_out;
     endfunction
 
-    function automatic fp_cvt_f2i_out_type f2i_output_stage(input fp_cvt_f2i_var_type f2i_var);
-        fp_cvt_f2i_var_type f2i_var_temp;
-        fp_cvt_f2i_out_type outp;
+    function automatic fpu_cvt_f2i_out_type f2i_output_stage(input fpu_cvt_f2i_var_type f2i_var);
+        fpu_cvt_f2i_var_type f2i_var_temp;
+        fpu_cvt_f2i_out_type outp;
         f2i_var_temp = f2i_var;
 
         // Out of range detection and result calculation
@@ -386,8 +386,8 @@ module fp_cvt (
     endfunction
 
     // I2F Functions
-    function automatic fp_cvt_i2f_var_type i2f_input_stage(input fp_cvt_i2f_in_type inp);
-        fp_cvt_i2f_var_type i2f_var;
+    function automatic fpu_cvt_i2f_var_type i2f_input_stage(input fpu_cvt_i2f_in_type inp);
+        fpu_cvt_i2f_var_type i2f_var;
         i2f_var.data          = inp.data;
         i2f_var.op            = inp.op.fcvt_op;
         i2f_var.fmt           = inp.fmt;
@@ -428,10 +428,10 @@ module fp_cvt (
         return i2f_var;
     endfunction
 
-    function automatic fp_cvt_i2f_var_type i2f_process_stage(
-        input fp_cvt_i2f_var_type i2f_var_in, input logic [5:0] lzc_result
+    function automatic fpu_cvt_i2f_var_type i2f_process_stage(
+        input fpu_cvt_i2f_var_type i2f_var_in, input logic [5:0] lzc_result
     );  // 修改类型为logic [5:0]
-        fp_cvt_i2f_var_type i2f_var_out;
+        fpu_cvt_i2f_var_type i2f_var_out;
         i2f_var_out = i2f_var_in;
 
         i2f_var_out.zero = ~|i2f_var_out.mantissa_uint;
@@ -450,21 +450,21 @@ module fp_cvt (
         return i2f_var_out;
     endfunction
 
-    function automatic fp_cvt_i2f_out_type i2f_output_stage(input fp_cvt_i2f_var_type i2f_var);
-        fp_cvt_i2f_out_type outp;
-        outp.fp_rnd.sig  = i2f_var.sign_rnd;
-        outp.fp_rnd.expo = i2f_var.exponent_rnd;
-        outp.fp_rnd.mant = i2f_var.mantissa_rnd;
-        outp.fp_rnd.rema = 2'h0;
-        outp.fp_rnd.fmt  = i2f_var.fmt;
-        outp.fp_rnd.rm   = i2f_var.rm;
-        outp.fp_rnd.grs  = i2f_var.grs;
-        outp.fp_rnd.snan = i2f_var.snan;
-        outp.fp_rnd.qnan = i2f_var.qnan;
-        outp.fp_rnd.dbz  = i2f_var.dbz;
-        outp.fp_rnd.infs = i2f_var.infs;
-        outp.fp_rnd.zero = i2f_var.zero;
-        outp.fp_rnd.diff = 1'h0;
+    function automatic fpu_cvt_i2f_out_type i2f_output_stage(input fpu_cvt_i2f_var_type i2f_var);
+        fpu_cvt_i2f_out_type outp;
+        outp.fpu_rnd.sig  = i2f_var.sign_rnd;
+        outp.fpu_rnd.expo = i2f_var.exponent_rnd;
+        outp.fpu_rnd.mant = i2f_var.mantissa_rnd;
+        outp.fpu_rnd.rema = 2'h0;
+        outp.fpu_rnd.fmt  = i2f_var.fmt;
+        outp.fpu_rnd.rm   = i2f_var.rm;
+        outp.fpu_rnd.grs  = i2f_var.grs;
+        outp.fpu_rnd.snan = i2f_var.snan;
+        outp.fpu_rnd.qnan = i2f_var.qnan;
+        outp.fpu_rnd.dbz  = i2f_var.dbz;
+        outp.fpu_rnd.infs = i2f_var.infs;
+        outp.fpu_rnd.zero = i2f_var.zero;
+        outp.fpu_rnd.diff = 1'h0;
         outp.ready       = 1'b1;
         return outp;
     endfunction

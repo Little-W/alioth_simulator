@@ -2,16 +2,16 @@
 // 实现浮点数的符号赋值、取反、异或等操作
 //
 // 端口说明：
-//   fp_sgnj_i : 输入结构体，包含操作数和控制信号
-//   fp_sgnj_o : 输出结构体，包含结果
+//   fpu_sgnj_i : 输入结构体，包含操作数和控制信号
+//   fpu_sgnj_o : 输出结构体，包含结果
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_sgnj (
+module fpu_sgnj (
     input                   clk,
     input                   rst_n,
-    input  fp_sgnj_in_type  fp_sgnj_i,
-    output fp_sgnj_out_type fp_sgnj_o
+    input  fpu_sgnj_in_type  fpu_sgnj_i,
+    output fpu_sgnj_out_type fpu_sgnj_o
 );
 
     logic [63:0] data1;
@@ -22,10 +22,10 @@ module fp_sgnj (
 
     always_comb begin
 
-        data1  = fp_sgnj_i.data1;
-        data2  = fp_sgnj_i.data2;
-        fmt    = fp_sgnj_i.fmt;
-        rm     = fp_sgnj_i.rm;
+        data1  = fpu_sgnj_i.data1;
+        data2  = fpu_sgnj_i.data2;
+        fmt    = fpu_sgnj_i.fmt;
+        rm     = fpu_sgnj_i.rm;
 
         result = 0;
 
@@ -49,7 +49,7 @@ module fp_sgnj (
             end
         end
 
-        fp_sgnj_o.result = result;
+        fpu_sgnj_o.result = result;
 
     end
 

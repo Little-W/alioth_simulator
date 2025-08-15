@@ -2,16 +2,16 @@
 // 实现浮点数的大小、等于等关系比较，支持异常（NaN等）处理
 //
 // 端口说明：
-//   fp_cmp_i : 输入结构体，包含两个操作数及控制信号
-//   fp_cmp_o : 输出结构体，包含比较结果和异常标志
+//   fpu_cmp_i : 输入结构体，包含两个操作数及控制信号
+//   fpu_cmp_o : 输出结构体，包含比较结果和异常标志
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_cmp (
+module fpu_cmp (
     input                  clk,
     input                  rst_n,
-    input  fp_cmp_in_type  fp_cmp_i,  // 输入：包含两个浮点操作数及控制信号
-    output fp_cmp_out_type fp_cmp_o   // 输出：比较结果和异常标志
+    input  fpu_cmp_in_type  fpu_cmp_i,  // 输入：包含两个浮点操作数及控制信号
+    output fpu_cmp_out_type fpu_cmp_o   // 输出：比较结果和异常标志
 );
 
     // 定义内部变量
@@ -29,11 +29,11 @@ module fp_cmp (
     always_comb begin
 
         // 输入信号赋值到内部变量
-        data1   = fp_cmp_i.data1;
-        data2   = fp_cmp_i.data2;
-        rm      = fp_cmp_i.rm;
-        class1  = fp_cmp_i.class1;
-        class2  = fp_cmp_i.class2;
+        data1   = fpu_cmp_i.data1;
+        data2   = fpu_cmp_i.data2;
+        rm      = fpu_cmp_i.rm;
+        class1  = fpu_cmp_i.class1;
+        class2  = fpu_cmp_i.class2;
 
         // 初始化比较结果和异常标志
         comp_lt = 0;
@@ -104,8 +104,8 @@ module fp_cmp (
         end
 
         // 输出赋值
-        fp_cmp_o.result = result;
-        fp_cmp_o.flags  = flags;
+        fpu_cmp_o.result = result;
+        fpu_cmp_o.flags  = flags;
 
     end
 

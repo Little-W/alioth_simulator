@@ -2,7 +2,7 @@
 // 包含所有浮点相关操作类型、输入输出结构体、参数定义等
 // 用于各浮点子模块间的统一接口和类型复用
 
-package fp_types;
+package fpu_types;
 
     typedef struct packed {
         logic fmadd;
@@ -24,9 +24,9 @@ package fp_types;
         logic fcvt_i2f;
         logic fcvt_f2i;
         logic [1:0] fcvt_op;
-    } fp_operation_type;
+    } fpu_operation_type;
 
-    parameter fp_operation_type init_fp_operation = '{
+    parameter fpu_operation_type init_fpu_operation = '{
         fmadd : 0,
         fmsub : 0,
         fnmadd : 0,
@@ -52,17 +52,17 @@ package fp_types;
         logic [63:0] data1;
         logic [63:0] data2;
         logic [63:0] data3;
-        fp_operation_type op;
+        fpu_operation_type op;
         logic [1:0] fmt;
         logic [2:0] rm;
         logic enable;
-    } fp_hub_in_type;
+    } fpu_hub_in_type;
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0] flags;
         logic ready;
-    } fp_hub_out_type;
+    } fpu_hub_out_type;
 
     typedef struct packed {
         logic [64:0] data1;
@@ -70,12 +70,12 @@ package fp_types;
         logic [2:0]  rm;
         logic [9:0]  class1;
         logic [9:0]  class2;
-    } fp_cmp_in_type;
+    } fpu_cmp_in_type;
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0]  flags;
-    } fp_cmp_out_type;
+    } fpu_cmp_out_type;
 
     typedef struct packed {
         logic [63:0] data1;
@@ -87,36 +87,36 @@ package fp_types;
         logic [9:0]  class1;
         logic [9:0]  class2;
         logic valid;
-    } fp_max_in_type;
+    } fpu_max_in_type;
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0]  flags;
         logic        ready;
-    } fp_max_out_type;
+    } fpu_max_out_type;
 
     typedef struct packed {
         logic [63:0] data1;
         logic [63:0] data2;
         logic [1:0]  fmt;
         logic [2:0]  rm;
-    } fp_sgnj_in_type;
+    } fpu_sgnj_in_type;
 
-    typedef struct packed {logic [63:0] result;} fp_sgnj_out_type;
+    typedef struct packed {logic [63:0] result;} fpu_sgnj_out_type;
 
     typedef struct packed {
         logic [63:0] data;
         logic [1:0]  fmt;
-    } fp_ext_in_type;
+    } fpu_ext_in_type;
 
     typedef struct packed {
         logic [64:0] result;
         logic [9:0]  classification;
-    } fp_ext_out_type;
+    } fpu_ext_out_type;
 
-    typedef struct packed {fp_hub_in_type fp_hub_i;} fpu_top_in_type;
+    typedef struct packed {fpu_hub_in_type fpu_hub_i;} fpu_top_in_type;
 
-    typedef struct packed {fp_hub_out_type fp_hub_o;} fpu_top_out_type;
+    typedef struct packed {fpu_hub_out_type fpu_hub_o;} fpu_top_out_type;
 
     typedef struct packed {
         logic        sig;    // 最终结果符号位（0正1负）
@@ -133,9 +133,9 @@ package fp_types;
         logic        zero;   // 零标志
         logic        diff;   // 加减法符号差异标志（如正负零）
         logic        valid;  // 输入数据有效标志
-    } fp_rnd_in_type;
+    } fpu_rnd_in_type;
 
-    parameter fp_rnd_in_type init_fp_rnd_in = '{
+    parameter fpu_rnd_in_type init_fpu_rnd_in = '{
         sig : 0,
         expo : 0,
         mant : 0,
@@ -156,7 +156,7 @@ package fp_types;
         logic [63:0] result;
         logic [4:0]  flags;
         logic        ready;   // 输出就绪标志
-    } fp_rnd_out_type;
+    } fpu_rnd_out_type;
 
     typedef struct packed {
         logic [64:0] data1;
@@ -165,15 +165,15 @@ package fp_types;
         logic [9:0] class1;
         logic [9:0] class2;
         logic [9:0] class3;
-        fp_operation_type op;
+        fpu_operation_type op;
         logic [1:0] fmt;
         logic [2:0] rm;
-    } fp_fma_in_type;
+    } fpu_fma_in_type;
 
     typedef struct packed {
-        fp_rnd_in_type fp_rnd;
+        fpu_rnd_in_type fpu_rnd;
         logic ready;
-    } fp_fma_out_type;
+    } fpu_fma_out_type;
 
     typedef struct packed {
         logic [1:0] fmt;
@@ -191,9 +191,9 @@ package fp_types;
         logic [163:0] mantissa_add;
         logic exponent_neg;
         logic ready;
-    } fp_fma_reg_type_1;
+    } fpu_fma_reg_type_1;
 
-    parameter fp_fma_reg_type_1 init_fp_fma_reg_1 = '{
+    parameter fpu_fma_reg_type_1 init_fpu_fma_reg_1 = '{
         fmt : 0,
         rm : 0,
         snan : 0,
@@ -246,7 +246,7 @@ package fp_types;
         logic [6:0] counter_dif;
         logic exponent_neg;
         logic ready;
-    } fp_fma_var_type_1;
+    } fpu_fma_var_type_1;
 
     typedef struct packed {
         logic sign_rnd;
@@ -262,9 +262,9 @@ package fp_types;
         logic zero;
         logic diff;
         logic ready;
-    } fp_fma_reg_type_2;
+    } fpu_fma_reg_type_2;
 
-    parameter fp_fma_reg_type_2 init_fp_fma_reg_2 = '{
+    parameter fpu_fma_reg_type_2 init_fpu_fma_reg_2 = '{
         sign_rnd : 0,
         exponent_rnd : 0,
         mantissa_rnd : 0,
@@ -307,7 +307,7 @@ package fp_types;
         logic [53:0] mantissa_rnd;
         logic [2:0] grs;
         logic ready;
-    } fp_fma_var_type_2;
+    } fpu_fma_var_type_2;
 
     typedef struct packed {
         logic [55:0] a;
@@ -327,15 +327,15 @@ package fp_types;
         logic [64:0] data2;
         logic [9:0] class1;
         logic [9:0] class2;
-        fp_operation_type op;
+        fpu_operation_type op;
         logic [1:0] fmt;
         logic [2:0] rm;
-    } fp_fdiv_in_type;
+    } fpu_fdiv_in_type;
 
     typedef struct packed {
-        fp_rnd_in_type fp_rnd;
+        fpu_rnd_in_type fpu_rnd;
         logic ready;
-    } fp_fdiv_out_type;
+    } fpu_fdiv_out_type;
 
     typedef struct packed {
         logic [2:0] state;
@@ -385,9 +385,9 @@ package fp_types;
         logic [63:0] result;
         logic [4:0] flags;
         logic ready;
-    } fp_fdiv_reg_functional_type;
+    } fpu_fdiv_reg_functional_type;
 
-    parameter fp_fdiv_reg_functional_type init_fp_fdiv_reg_functional = '{
+    parameter fpu_fdiv_reg_functional_type init_fpu_fdiv_reg_functional = '{
         state : 0,
         istate : 0,
         fmt : 0,
@@ -443,12 +443,12 @@ package fp_types;
         logic [2:0] rm;
         logic [9:0] classification;
         logic valid;
-    } fp_cvt_f2f_in_type;
+    } fpu_cvt_f2f_in_type;
 
     typedef struct packed {
-        fp_rnd_in_type fp_rnd;
+        fpu_rnd_in_type fpu_rnd;
         logic ready;
-    } fp_cvt_f2f_out_type;
+    } fpu_cvt_f2f_out_type;
 
     typedef struct packed {
         logic [64:0] data;
@@ -468,21 +468,21 @@ package fp_types;
         logic [13:0] exponent_rnd;
         logic [53:0] mantissa_rnd;
         logic [2:0] grs;
-    } fp_cvt_f2f_var_type;
+    } fpu_cvt_f2f_var_type;
 
     typedef struct packed {
         logic [64:0] data;
-        fp_operation_type op;
+        fpu_operation_type op;
         logic [2:0] rm;
         logic [9:0] classification;
         logic valid;
-    } fp_cvt_f2i_in_type;
+    } fpu_cvt_f2i_in_type;
 
     typedef struct packed {
         logic [63:0] result;
         logic [4:0] flags;
         logic ready;
-    } fp_cvt_f2i_out_type;
+    } fpu_cvt_f2i_out_type;
 
     typedef struct packed {
         logic [64:0] data;
@@ -513,20 +513,20 @@ package fp_types;
         logic oor_64s;
         logic oor_32u;
         logic oor_32s;
-    } fp_cvt_f2i_var_type;
+    } fpu_cvt_f2i_var_type;
 
     typedef struct packed {
         logic [63:0] data;
-        fp_operation_type op;
+        fpu_operation_type op;
         logic [1:0] fmt;
         logic [2:0] rm;
         logic valid;
-    } fp_cvt_i2f_in_type;
+    } fpu_cvt_i2f_in_type;
 
     typedef struct packed {
-        fp_rnd_in_type fp_rnd;
+        fpu_rnd_in_type fpu_rnd;
         logic ready;
-    } fp_cvt_i2f_out_type;
+    } fpu_cvt_i2f_out_type;
 
     typedef struct packed {
         logic [63:0] data;
@@ -547,6 +547,6 @@ package fp_types;
         logic [13:0] exponent_rnd;
         logic [53:0] mantissa_rnd;
         logic [2:0] grs;
-    } fp_cvt_i2f_var_type;
+    } fpu_cvt_i2f_var_type;
 
 endpackage

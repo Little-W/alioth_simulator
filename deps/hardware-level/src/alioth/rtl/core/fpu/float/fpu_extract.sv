@@ -2,15 +2,15 @@
 // 负责浮点数的规格化、分类（如零、无穷、NaN等），并与前导零计数器协作
 //
 // 端口说明：
-//   fp_ext_i/o : 输入输出结构体
+//   fpu_ext_i/o : 输入输出结构体
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_extract (
+module fpu_extract (
     input                  clk,
     input                  rst_n,
-    input  fp_ext_in_type  fp_ext_i,
-    output fp_ext_out_type fp_ext_o
+    input  fpu_ext_in_type  fpu_ext_i,
+    output fpu_ext_out_type fpu_ext_o
 );
 
     logic [63:0] data;
@@ -37,8 +37,8 @@ module fp_extract (
 
     always_comb begin
 
-        data           = fp_ext_i.data;
-        fmt            = fp_ext_i.fmt;
+        data           = fpu_ext_i.data;
+        fmt            = fpu_ext_i.fmt;
 
         mantissa       = 64'hFFFFFFFFFFFFFFFF;
         counter        = 0;
@@ -130,8 +130,8 @@ module fp_extract (
             end
         end
 
-        fp_ext_o.result         = result;
-        fp_ext_o.classification = classification;
+        fpu_ext_o.result         = result;
+        fpu_ext_o.classification = classification;
 
     end
 

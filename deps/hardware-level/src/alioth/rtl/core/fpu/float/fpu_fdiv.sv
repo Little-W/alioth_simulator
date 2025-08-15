@@ -11,17 +11,17 @@
 //
 // 端口说明：
 //   rst_n, clk      : 时钟与复位
-//   fp_fdiv_i/o     : 输入输出结构体
+//   fpu_fdiv_i/o     : 输入输出结构体
 //   mac_56_i/o      : MAC单元接口
 //   clear           : 清除/暂停信号
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_fdiv (
+module fpu_fdiv (
     input                   rst_n,
     input                   clk,
-    input  fp_fdiv_in_type  fp_fdiv_i,
-    output fp_fdiv_out_type fp_fdiv_o,
+    input  fpu_fdiv_in_type  fpu_fdiv_i,
+    output fpu_fdiv_out_type fpu_fdiv_o,
     input                   clear
 );
 
@@ -68,7 +68,7 @@ module fp_fdiv (
     } fsqrt_sub_state_t;
 
     // 寄存器结构体
-    fp_fdiv_reg_functional_type current_state_reg, next_state_reg;
+    fpu_fdiv_reg_functional_type current_state_reg, next_state_reg;
 
     // 状态机状态寄存器
     state_t current_main_state, next_main_state;
@@ -318,10 +318,10 @@ module fp_fdiv (
 
         case (current_main_state)
             ST_IDLE: begin
-                if (fp_fdiv_i.op.fdiv) begin
+                if (fpu_fdiv_i.op.fdiv) begin
                     next_main_state     = ST_FDIV_ITER;
                     next_fdiv_sub_state = FDIV_CALC_E0;
-                end else if (fp_fdiv_i.op.fsqrt) begin
+                end else if (fpu_fdiv_i.op.fsqrt) begin
                     next_main_state      = ST_FSQRT_ITER;
                     next_fsqrt_sub_state = FSQRT_CALC_Y0;
                 end
@@ -409,12 +409,12 @@ module fp_fdiv (
         case (current_main_state)
             ST_IDLE: begin
                 // 初始化输入数据
-                next_state_reg.a       = fp_fdiv_i.data1;
-                next_state_reg.b       = fp_fdiv_i.data2;
-                next_state_reg.class_a = fp_fdiv_i.class1;
-                next_state_reg.class_b = fp_fdiv_i.class2;
-                next_state_reg.fmt     = fp_fdiv_i.fmt;
-                next_state_reg.rm      = fp_fdiv_i.rm;
+                next_state_reg.a       = fpu_fdiv_i.data1;
+                next_state_reg.b       = fpu_fdiv_i.data2;
+                next_state_reg.class_a = fpu_fdiv_i.class1;
+                next_state_reg.class_b = fpu_fdiv_i.class2;
+                next_state_reg.fmt     = fpu_fdiv_i.fmt;
+                next_state_reg.rm      = fpu_fdiv_i.rm;
                 next_state_reg.ready   = 1'b0;
 
                 // 清除异常标志
@@ -425,7 +425,7 @@ module fp_fdiv (
                 next_state_reg.zero    = 1'b0;
 
                 // 开方操作的特殊处理
-                if (fp_fdiv_i.op.fsqrt) begin
+                if (fpu_fdiv_i.op.fsqrt) begin
                     next_state_reg.b       = 65'h07FF0000000000000;
                     next_state_reg.class_b = 10'h0;
                 end
@@ -461,7 +461,7 @@ module fp_fdiv (
                 end
 
                 // 开方特殊异常检测
-                if (fp_fdiv_i.op.fsqrt) begin
+                if (fpu_fdiv_i.op.fsqrt) begin
                     if (next_state_reg.class_a[7]) begin
                         next_state_reg.infs = 1'b1;
                     end
@@ -488,7 +488,7 @@ module fp_fdiv (
                 next_state_reg.op = 1'b0;
 
                 // 开方的特殊初始化
-                if (fp_fdiv_i.op.fsqrt) begin
+                if (fpu_fdiv_i.op.fsqrt) begin
                     next_state_reg.qa = {2'h1, next_state_reg.a[51:0], 2'h0};
                     if (!next_state_reg.a[52]) begin
                         next_state_reg.qa = next_state_reg.qa >> 1;
@@ -813,26 +813,26 @@ module fp_fdiv (
 
     // 输出信号赋值
     always_comb begin
-        fp_fdiv_o.fp_rnd.sig  = current_state_reg.sign_rnd;
-        fp_fdiv_o.fp_rnd.expo = current_state_reg.exponent_rnd;
-        fp_fdiv_o.fp_rnd.mant = current_state_reg.mantissa_rnd;
-        fp_fdiv_o.fp_rnd.rema = current_state_reg.remainder_rnd;
-        fp_fdiv_o.fp_rnd.fmt  = current_state_reg.fmt;
-        fp_fdiv_o.fp_rnd.rm   = current_state_reg.rm;
-        fp_fdiv_o.fp_rnd.grs  = current_state_reg.grs;
-        fp_fdiv_o.fp_rnd.snan = current_state_reg.snan;
-        fp_fdiv_o.fp_rnd.qnan = current_state_reg.qnan;
-        fp_fdiv_o.fp_rnd.dbz  = current_state_reg.dbz;
-        fp_fdiv_o.fp_rnd.infs = current_state_reg.infs;
-        fp_fdiv_o.fp_rnd.zero = current_state_reg.zero;
-        fp_fdiv_o.fp_rnd.diff = 1'h0;
-        fp_fdiv_o.ready       = current_state_reg.ready;
+        fpu_fdiv_o.fpu_rnd.sig  = current_state_reg.sign_rnd;
+        fpu_fdiv_o.fpu_rnd.expo = current_state_reg.exponent_rnd;
+        fpu_fdiv_o.fpu_rnd.mant = current_state_reg.mantissa_rnd;
+        fpu_fdiv_o.fpu_rnd.rema = current_state_reg.remainder_rnd;
+        fpu_fdiv_o.fpu_rnd.fmt  = current_state_reg.fmt;
+        fpu_fdiv_o.fpu_rnd.rm   = current_state_reg.rm;
+        fpu_fdiv_o.fpu_rnd.grs  = current_state_reg.grs;
+        fpu_fdiv_o.fpu_rnd.snan = current_state_reg.snan;
+        fpu_fdiv_o.fpu_rnd.qnan = current_state_reg.qnan;
+        fpu_fdiv_o.fpu_rnd.dbz  = current_state_reg.dbz;
+        fpu_fdiv_o.fpu_rnd.infs = current_state_reg.infs;
+        fpu_fdiv_o.fpu_rnd.zero = current_state_reg.zero;
+        fpu_fdiv_o.fpu_rnd.diff = 1'h0;
+        fpu_fdiv_o.ready       = current_state_reg.ready;
     end
 
     // 时序逻辑：寄存器更新
     always_ff @(posedge clk) begin
         if (~rst_n) begin
-            current_state_reg       <= init_fp_fdiv_reg_functional;
+            current_state_reg       <= init_fpu_fdiv_reg_functional;
             current_main_state      <= ST_IDLE;
             current_fdiv_sub_state  <= FDIV_CALC_E0;
             current_fsqrt_sub_state <= FSQRT_CALC_Y0;

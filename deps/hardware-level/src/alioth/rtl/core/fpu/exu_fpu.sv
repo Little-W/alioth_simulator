@@ -1,4 +1,4 @@
-import fp_types::*;
+import fpu_types::*;
 
 module exu_fpu (
     input  logic                        clk,
@@ -45,8 +45,8 @@ module exu_fpu (
 );
 
     // 内部信号定义
-    fp_types::fpu_top_in_type                         fpu_top_i;
-    fp_types::fpu_top_out_type                        fpu_top_o;
+    fpu_types::fpu_top_in_type                         fpu_top_i;
+    fpu_types::fpu_top_out_type                        fpu_top_o;
 
     // 补全寄存器定义
     logic                                            reg_we_r;
@@ -57,41 +57,41 @@ module exu_fpu (
     logic                     [                 4:0] fcsr_fflags_r;
 
     // 输入信号转结构体
-    fp_types::fp_hub_in_type                          fp_hub_in_s;
+    fpu_types::fpu_hub_in_type                          fpu_hub_in_s;
 
     logic                                            fpu_req_valid;
     assign fpu_req_valid = req_fpu_i & ~fpu_busy;
 
     always_comb begin
-        fp_hub_in_s.data1       = fpu_op1_i;
-        fp_hub_in_s.data2       = fpu_op2_i;
-        fp_hub_in_s.data3       = fpu_op3_i;
-        fp_hub_in_s.fmt         = fmt_i;
-        fp_hub_in_s.enable      = fpu_req_valid;
-        fp_hub_in_s.op          = fp_types::init_fp_operation;
-        fp_hub_in_s.op.fmadd    = fpu_op_fmadd_i;
-        fp_hub_in_s.op.fmsub    = fpu_op_fmsub_i;
-        fp_hub_in_s.op.fnmadd   = fpu_op_fnmadd_i;
-        fp_hub_in_s.op.fnmsub   = fpu_op_fnmsub_i;
-        fp_hub_in_s.op.fadd     = fpu_op_fadd_i;
-        fp_hub_in_s.op.fsub     = fpu_op_fsub_i;
-        fp_hub_in_s.op.fmul     = fpu_op_fmul_i;
-        fp_hub_in_s.op.fdiv     = fpu_op_fdiv_i;
-        fp_hub_in_s.op.fsqrt    = fpu_op_fsqrt_i;
-        fp_hub_in_s.op.fsgnj    = fpu_op_fsgnj_i;
-        fp_hub_in_s.op.fcmp     = fpu_op_fcmp_i;
-        fp_hub_in_s.op.fmax     = fpu_op_fmax_i;
-        fp_hub_in_s.op.fmv_i2f  = fpu_op_fmv_i2f_i;
-        fp_hub_in_s.op.fmv_f2i  = fpu_op_fmv_f2i_i;
-        fp_hub_in_s.op.fcvt_i2f = fpu_op_fcvt_i2f_i;
-        fp_hub_in_s.op.fcvt_f2i = fpu_op_fcvt_f2i_i;
-        fp_hub_in_s.op.fcvt_f2f = fpu_op_fcvt_f2f_i; // 新增fcvt_f2f赋值
-        fp_hub_in_s.op.fclass   = fpu_op_fclass_i;
-        fp_hub_in_s.op.fcvt_op  = fcvt_op_i;
+        fpu_hub_in_s.data1       = fpu_op1_i;
+        fpu_hub_in_s.data2       = fpu_op2_i;
+        fpu_hub_in_s.data3       = fpu_op3_i;
+        fpu_hub_in_s.fmt         = fmt_i;
+        fpu_hub_in_s.enable      = fpu_req_valid;
+        fpu_hub_in_s.op          = fpu_types::init_fpu_operation;
+        fpu_hub_in_s.op.fmadd    = fpu_op_fmadd_i;
+        fpu_hub_in_s.op.fmsub    = fpu_op_fmsub_i;
+        fpu_hub_in_s.op.fnmadd   = fpu_op_fnmadd_i;
+        fpu_hub_in_s.op.fnmsub   = fpu_op_fnmsub_i;
+        fpu_hub_in_s.op.fadd     = fpu_op_fadd_i;
+        fpu_hub_in_s.op.fsub     = fpu_op_fsub_i;
+        fpu_hub_in_s.op.fmul     = fpu_op_fmul_i;
+        fpu_hub_in_s.op.fdiv     = fpu_op_fdiv_i;
+        fpu_hub_in_s.op.fsqrt    = fpu_op_fsqrt_i;
+        fpu_hub_in_s.op.fsgnj    = fpu_op_fsgnj_i;
+        fpu_hub_in_s.op.fcmp     = fpu_op_fcmp_i;
+        fpu_hub_in_s.op.fmax     = fpu_op_fmax_i;
+        fpu_hub_in_s.op.fmv_i2f  = fpu_op_fmv_i2f_i;
+        fpu_hub_in_s.op.fmv_f2i  = fpu_op_fmv_f2i_i;
+        fpu_hub_in_s.op.fcvt_i2f = fpu_op_fcvt_i2f_i;
+        fpu_hub_in_s.op.fcvt_f2i = fpu_op_fcvt_f2i_i;
+        fpu_hub_in_s.op.fcvt_f2f = fpu_op_fcvt_f2f_i; // 新增fcvt_f2f赋值
+        fpu_hub_in_s.op.fclass   = fpu_op_fclass_i;
+        fpu_hub_in_s.op.fcvt_op  = fcvt_op_i;
         // frm选择逻辑：frm_i为111时用csr_frm_i，否则用frm_i
-        fp_hub_in_s.rm          = (frm_i == 3'b111) ? csr_frm_i : frm_i;
+        fpu_hub_in_s.rm          = (frm_i == 3'b111) ? csr_frm_i : frm_i;
     end
-    assign fpu_top_i = '{fp_hub_i: fp_hub_in_s};
+    assign fpu_top_i = '{fpu_hub_i: fpu_hub_in_s};
 
     // 实例化 fpu_top
     fpu_top u_fpu_top (
@@ -102,13 +102,13 @@ module exu_fpu (
         .clear    (1'b0)
     );
 
-    wire                        fp_ready = fpu_top_o.fp_hub_o.ready;
-    wire [`FREG_DATA_WIDTH-1:0] fp_result = fpu_top_o.fp_hub_o.result;
-    wire [                 4:0] fp_flags = fpu_top_o.fp_hub_o.flags;
+    wire                        fpu_ready = fpu_top_o.fpu_hub_o.ready;
+    wire [`FREG_DATA_WIDTH-1:0] fpu_result = fpu_top_o.fpu_hub_o.result;
+    wire [                 4:0] fpu_flags = fpu_top_o.fpu_hub_o.flags;
 
     wire                        wb_hsk = (reg_we_r & wb_ready_i);
     // 输出暂存一级寄存器改为握手式
-    wire                        update_output = fp_ready | wb_hsk;
+    wire                        update_output = fpu_ready | wb_hsk;
 
     // 结果寄存器
     gnrl_dfflr #(
@@ -117,7 +117,7 @@ module exu_fpu (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (fp_result),
+        .dnxt (fpu_result),
         .qout (reg_wdata_r)
     );
 
@@ -128,7 +128,7 @@ module exu_fpu (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (fp_ready),
+        .dnxt (fpu_ready),
         .qout (reg_we_r)
     );
 
@@ -161,7 +161,7 @@ module exu_fpu (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (fp_ready & (fp_flags != 5'b0)),
+        .dnxt (fpu_ready & (fpu_flags != 5'b0)),
         .qout (fcsr_we_r)
     );
 
@@ -172,7 +172,7 @@ module exu_fpu (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (update_output),
-        .dnxt (fp_flags),
+        .dnxt (fpu_flags),
         .qout (fcsr_fflags_r)
     );
 

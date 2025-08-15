@@ -2,16 +2,16 @@
 // 实现浮点数的max/min选择，支持异常（NaN等）处理
 //
 // 端口说明：
-//   fp_max_i : 输入结构体，包含两个操作数及控制信号
-//   fp_max_o : 输出结构体，包含结果和异常标志
+//   fpu_max_i : 输入结构体，包含两个操作数及控制信号
+//   fpu_max_o : 输出结构体，包含结果和异常标志
 
-import fp_types::*;
+import fpu_types::*;
 
-module fp_max (
+module fpu_max (
     input clk,
     input rst_n,
-    input  fp_max_in_type  fp_max_i,
-    output fp_max_out_type fp_max_o
+    input  fpu_max_in_type  fpu_max_i,
+    output fpu_max_out_type fpu_max_o
 );
 
   logic [63:0] data1;
@@ -31,14 +31,14 @@ module fp_max (
 
   always_comb begin
 
-    data1 = fp_max_i.data1;
-    data2 = fp_max_i.data2;
-    extend1 = fp_max_i.ext1;
-    extend2 = fp_max_i.ext2;
-    fmt = fp_max_i.fmt;
-    rm = fp_max_i.rm;
-    class1 = fp_max_i.class1;
-    class2 = fp_max_i.class2;
+    data1 = fpu_max_i.data1;
+    data2 = fpu_max_i.data2;
+    extend1 = fpu_max_i.ext1;
+    extend2 = fpu_max_i.ext2;
+    fmt = fpu_max_i.fmt;
+    rm = fpu_max_i.rm;
+    class1 = fpu_max_i.class1;
+    class2 = fpu_max_i.class2;
 
     nan = 64'h7ff8000000000000;
     comp = 0;
@@ -130,8 +130,8 @@ module fp_max (
       end
     end
 
-    fp_max_o.result = result;
-    fp_max_o.flags  = flags;
+    fpu_max_o.result = result;
+    fpu_max_o.flags  = flags;
 
   end
 
