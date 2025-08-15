@@ -22,7 +22,7 @@
  SOFTWARE.
  */
 
-`include "../core/defines.svh"
+`include "defines.svh"
 
 // alioth soc顶层模块
 module alioth_soc_top (
@@ -43,11 +43,7 @@ module alioth_soc_top (
     output wire [31:0] gpio1_dir_o,
 
     // Timer
-    input  wire       low_speed_clk_i,
-    output wire [3:0] ch_0_o,
-    output wire [3:0] ch_1_o,
-    output wire [3:0] ch_2_o,
-    output wire [3:0] ch_3_o
+    input  wire       low_speed_clk_i
 );
 
     // AXI2APB桥模块信号
