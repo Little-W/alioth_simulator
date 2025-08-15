@@ -168,49 +168,52 @@ module hdu (
     wire branch_serialize_effect = branch_edge | branch_serialize_pulse; // 组合效果
     always @(*) begin
         // 默认设为 11 默认双发射
-        issue_inst_reg = 2'b11;
-        if(clint_req_valid || idu_flush_i) begin
+        if(!can_alloc_two) begin
+            issue_inst_reg = 2'b00; // 如果fifo不能容纳新的2个指令，则不允许当前发射
+        end else begin
+            issue_inst_reg = 2'b11;
+            if(clint_req_valid) begin
             issue_inst_reg = 2'b00;
-        end
+            end
         else if (hazard_inst1_fifo) begin
-            if (branch_serialize_effect) begin
+            if (inst1_jump_i) begin
                 issue_inst_reg = 2'b00;         // inst1 有 FIFO 冒险且需要序列化 -> 全停
             end else begin
-            if(sys_jump_edge) begin
-                issue_inst_reg = 2'b01;     //inst1为sys跳转-仅发射inst1
+            if(inst1_branch_i) begin
+                issue_inst_reg = 2'b00;     //inst1为sys跳转-仅发射inst1
             end else begin
                 if (!hazard_inst2_fifo) begin
                     if (!hazard_inst2_inst1)    issue_inst_reg = 2'b10; // 只发射 B
                     else                        issue_inst_reg = 2'b00; // 相关 -> 全停
                 end else begin
                     issue_inst_reg = 2'b00;     // 两侧或 B 也有 FIFO 冒险 -> 全停
+                    end
                 end
             end
-            end
         end else begin // inst1 无 FIFO 冒险
-        if(sys_jump_edge) begin
+        if(inst1_jump_i) begin
                 issue_inst_reg = 2'b01;     //inst1为sys跳转-仅发射inst1
             end else begin
-            if (branch_serialize_effect) begin
+            if (inst1_branch_i) begin
                 issue_inst_reg = 2'b01;         // 序列化：仅发射 A
             end else begin
                 if (!hazard_inst2_fifo) begin
                     if (!hazard_inst2_inst1)    issue_inst_reg = 2'b11; // 双发射
                     else                        issue_inst_reg = 2'b01; // B 依赖 A -> 只发射 A
-                end else begin
+                    end 
+                else begin
                     issue_inst_reg = 2'b01;     // B 有 FIFO 冒险 -> 只发 A
+                    end
                 end
             end
         end
-        end
+    end
     end
 
     // issue_inst_o: 发射指令选择
-    assign issue_inst_o = fifo_full ? 2'b00 : issue_inst_reg;
+    assign issue_inst_o = issue_inst_reg;
 
     // FIFO满 (忽略 index 0，因其保留)
-    // assign fifo_full = &fifo_valid; // 旧逻辑
-    wire fifo_full; // 前置声明位置保持不变
     // ID 分配
     wire [2:0] next_id1, next_id2;
     wire can_alloc_two;
@@ -218,7 +221,7 @@ module hdu (
     wire [3:0] fifo_used_count = fifo_valid[1] + fifo_valid[2] + fifo_valid[3] + fifo_valid[4] +
                                  fifo_valid[5] + fifo_valid[6] + fifo_valid[7];
     // 当已使用 <=5 时，说明剩余至少 2 个空槽位，可双分配
-    assign can_alloc_two = (fifo_used_count <= 4'd5);
+    assign can_alloc_two = (fifo_used_count <= 3'd5);
 
     // 选择最先空闲的 1..7 槽位；若全部占用则给 0（后续因 fifo_full=1 会阻止发射）
     assign next_id1 = inst1_valid ? ((~fifo_valid[1]) ? 3'd1 :
@@ -251,14 +254,14 @@ module hdu (
                           (~fifo_valid[3] ? 3'd3 : (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : 3'd0)))))) :
                           (~fifo_valid[1] ? 3'd1 : (~fifo_valid[2] ? 3'd2 : (~fifo_valid[3] ? 3'd3 :
                           (~fifo_valid[4] ? 3'd4 : (~fifo_valid[5] ? 3'd5 : (~fifo_valid[6] ? 3'd6 : 3'd0))))))) :
-                      next_id1;
+                      3'd0;
 
     // 输出时若未发射或无效则为 0；有效永不输出 0
     assign inst1_commit_id_o = (inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
     assign inst2_commit_id_o = (inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
     //仅当指令有效、发射且写寄存器（或不写寄存器但是是csr）时写入
-    assign can_into_fifo_inst1 =  (inst1_rd_check | inst1_csr_type_i) && issue_inst_o[0];
-    assign can_into_fifo_inst2 =  (inst2_rd_check | inst2_csr_type_i) && issue_inst_o[1];
+    assign can_into_fifo_inst1 =  (inst1_rd_check | inst1_csr_type_i) && issue_inst_o[0];// && inst1_commit_id_o != 3'd0
+    assign can_into_fifo_inst2 =  (inst2_rd_check | inst2_csr_type_i) && issue_inst_o[1] ;//&& inst2_commit_id_o != 3'd0
 
     // FIFO 与 序列化状态 更新（仅记录上一拍跳转检测用于形成单拍脉冲）
     always @(posedge clk or negedge rst_n) begin

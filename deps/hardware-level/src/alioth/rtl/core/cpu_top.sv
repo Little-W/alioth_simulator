@@ -223,6 +223,7 @@ module cpu_top (
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_o;
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag1_o;
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag2_o;
+    wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_icu_o;
     wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -544,8 +545,8 @@ module cpu_top (
     //                       (icu_inst2_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     
     // 双发射的CLINT有效信号 - 考虑PC非对齐
-    wire inst1_clint_valid = !dispatch_inst1_is_pred_branch_o && (dispatch_inst1_valid_o);
-    wire inst2_clint_valid = !dispatch_inst2_is_pred_branch_o && (dispatch_inst2_valid_o);
+    wire inst1_clint_valid = !dispatch_inst_is_pred_branch_o && (dispatch_inst1_valid_o);
+    wire inst2_clint_valid = !dispatch_inst_is_pred_branch_o && (dispatch_inst2_valid_o);
 
     // // 双发射的寄存器访问有效信号 - 64位访存的正确处理
     // wire inst1_rd_access_valid = icu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
@@ -652,10 +653,11 @@ module cpu_top (
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
-        .stall_flag_hdu_i  (issue_inst_o),  // 修改为从icu获取数据冒险暂停信号
+        .issue_inst_hdu_i  (issue_inst_o),  // 修改为从icu获取数据冒险暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .stall_flag1_o     (ctrl_stall_flag1_o),
         .stall_flag2_o     (ctrl_stall_flag2_o),
+        .stall_flag_icu_o  (ctrl_stall_flag_icu_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)
     );
@@ -810,7 +812,7 @@ module cpu_top (
         .commit_id2_i           (wbu_commit_id2_o),
         
         // from control 控制信号
-        .stall_flag_i           (ctrl_stall_flag_o),
+        .stall_flag_i           (ctrl_stall_flag_icu_o),
         .jump_flag_i            (ctrl_jump_flag_o),  // 跳转标志
 
         .clint_req_valid_i      (clint_req_valid_o),

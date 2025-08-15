@@ -46,6 +46,7 @@ module ctrl (
     output wire [`CU_BUS_WIDTH-1:0] stall_flag_o,
     output wire [`CU_BUS_WIDTH-1:0] stall_flag1_o,
     output wire [`CU_BUS_WIDTH-1:0] stall_flag2_o,
+    output wire [`CU_BUS_WIDTH-1:0] stall_flag_icu_o,
 
     // to ifu
     output wire                        jump_flag_o,
@@ -53,14 +54,14 @@ module ctrl (
 
 );
 
-    wire stall_flag_hdu_if ;
-    wire stall_flag_hdu_id1 ;
-    wire stall_flag_hdu_id2 ;
-    wire flush_flag_hdu_id1 ;
-    wire flush_flag_hdu_id2 ;
+    reg stall_flag_hdu_if ;
+    reg stall_flag_hdu_id1 ;
+    reg stall_flag_hdu_id2 ;
+    reg flush_flag_hdu_id1 ;
+    reg flush_flag_hdu_id2 ;
 
     // 根据issue_inst_hdu_i处理HDU相关的暂停和刷新信号
-    always_comb begin
+    always @(*)begin
         case (issue_inst_hdu_i)
             2'b00: begin
                 stall_flag_hdu_if = 1'b1;
@@ -115,5 +116,9 @@ module ctrl (
     assign stall_flag2_o[`CU_STALL] = stall_flag_ex_i | (stall_flag_hdu_id2 & ~jump_flag_i);
     assign stall_flag2_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i | flush_flag_hdu_id2;
     assign stall_flag2_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
+
+    assign stall_flag_icu_o[`CU_STALL] = 1'b0;
+    assign stall_flag_icu_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i;
+    assign stall_flag_icu_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
 
 endmodule
