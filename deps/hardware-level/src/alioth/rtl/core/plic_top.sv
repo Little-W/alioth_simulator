@@ -158,17 +158,36 @@ module plic_top #(
 
     // === 伪双端口PLIC接口信号 ===
     wire [`PLIC_AXI_DATA_WIDTH-1:0] plic_rdata;
-    wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_waddr;
+    wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_waddr_wire;
     wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_raddr;
-    wire [`PLIC_AXI_DATA_WIDTH-1:0] plic_wdata;
-    wire [                     3:0] plic_wstrb;
-    wire                            plic_wen;
+    wire [`PLIC_AXI_DATA_WIDTH-1:0] plic_wdata_wire;
+    wire [                     3:0] plic_wstrb_wire;
+    wire                            plic_wen_wire;
 
-    // 写端口
-    assign plic_waddr = (S_AXI_AWVALID) ? S_AXI_AWADDR[`PLIC_AXI_ADDR_WIDTH-1:0] : axi_awaddr[`PLIC_AXI_ADDR_WIDTH-1:0];
-    assign plic_wdata = S_AXI_WDATA;
-    assign plic_wstrb = S_AXI_WSTRB;
-    assign plic_wen = S_AXI_WVALID && axi_wready;
+    // 写端口（先组合出 wire，再寄存一拍）
+    assign plic_waddr_wire = (S_AXI_AWVALID) ? S_AXI_AWADDR[`PLIC_AXI_ADDR_WIDTH-1:0] : axi_awaddr[`PLIC_AXI_ADDR_WIDTH-1:0];
+    assign plic_wdata_wire = S_AXI_WDATA;
+    assign plic_wstrb_wire = S_AXI_WSTRB;
+    assign plic_wen_wire   = S_AXI_WVALID && axi_wready;
+
+    reg [`PLIC_AXI_ADDR_WIDTH-1:0] plic_waddr;
+    reg [`PLIC_AXI_DATA_WIDTH-1:0] plic_wdata;
+    reg [3:0]                      plic_wstrb;
+    reg                            plic_wen;
+
+    always @(posedge S_AXI_ACLK) begin
+        if (!S_AXI_ARESETN) begin
+            plic_waddr <= {`PLIC_AXI_ADDR_WIDTH{1'b0}};
+            plic_wdata <= {`PLIC_AXI_DATA_WIDTH{1'b0}};
+            plic_wstrb <= 4'b0;
+            plic_wen   <= 1'b0;
+        end else begin
+            plic_waddr <= plic_waddr_wire;
+            plic_wdata <= plic_wdata_wire;
+            plic_wstrb <= plic_wstrb_wire;
+            plic_wen   <= plic_wen_wire;
+        end
+    end
 
     // 读端口
     assign plic_raddr = (S_AXI_ARVALID) ? S_AXI_ARADDR[`PLIC_AXI_ADDR_WIDTH-1:0] : axi_araddr[`PLIC_AXI_ADDR_WIDTH-1:0];
