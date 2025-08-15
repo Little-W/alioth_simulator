@@ -287,8 +287,6 @@ module exu (
         .mem_op_lw_i   (mem_op_lw_i),
         .mem_op_lbu_i  (mem_op_lbu_i),
         .mem_op_lhu_i  (mem_op_lhu_i),
-        .mem_op_ldl_i  (1'b0), // 未实现
-        .mem_op_ldh_i  (1'b0), // 未实现
         .mem_op_load_i (mem_op_load_i),
         .mem_op_store_i(mem_op_store_i),
         .rd_addr_i     (reg_waddr_i),
