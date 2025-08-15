@@ -43,7 +43,8 @@ module idu (
     input wire                        inst2_valid_i,     // 第二条指令有效输入
 
     // from ctrl
-    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag1_i,  // 流水线暂停标志
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag2_i,  // 流水线暂停标志
 
     // to csr reg
     output wire [31:0] inst1_csr_raddr_o,   // 读CSR寄存器地址
@@ -114,7 +115,6 @@ module idu (
     wire [  `DECINFO_WIDTH-1:0] id2_dec_info_bus;
     wire                        id2_illegal_inst;  // 第二路非法指令信号
     wire                        id2_inst_csr_type; // 第二路CSR类型指令信号
-    wire                        id2_branch;        // 第二路分支指令信号
     // 第二路的跳转和分支信号不连接，直接悬空
 
     // 实例化第一路id模块
@@ -173,7 +173,7 @@ module idu (
         .csr_waddr_o   (id2_csr_waddr),
         .illegal_inst_o(id2_illegal_inst),   // 输出第二路非法指令信号
         .inst_jump_o   (),                   // 第二路跳转信号悬空
-        .inst_branch_o (id2_branch),                   // 第二路分支信号悬空
+        .inst_branch_o (),                   // 第二路分支信号悬空
         .inst_csr_type_o(id2_inst_csr_type)  // 第二路CSR类型指令信号
     );
 
@@ -202,7 +202,7 @@ module idu (
         .inst_csr_type_i (id_inst_csr_type),  // 新增：CSR类型指令信号输入
 
         // from ctrl
-        .stall_flag_i(stall_flag_i),
+        .stall_flag_i(stall_flag1_i),
 
         // to ex
         .inst_addr_o     (inst1_addr_o),
@@ -245,11 +245,11 @@ module idu (
         .inst_valid_i    (inst2_valid_i),      // 第二路指令有效输入
         .illegal_inst_i  (id2_illegal_inst),   // 第二路非法指令输入
         .inst_jump_i     (1'b0),               // 第二路跳转信号接地
-        .inst_branch_i   (id2_branch),               // 第二路分支信号接地
+        .inst_branch_i   (),               // 第二路分支信号接地
         .inst_csr_type_i (id2_inst_csr_type),  // 第二路CSR类型指令信号输入
 
         // from ctrl
-        .stall_flag_i(stall_flag_i),
+        .stall_flag_i(stall_flag2_i),
 
         // to ex
         .inst_addr_o     (inst2_addr_o),
@@ -267,7 +267,7 @@ module idu (
         .illegal_inst_o  (inst2_illegal_inst_o),    // 第二路非法指令输出
         .inst_o          (inst2_o),            // 第二路指令内容输出
         .inst_jump_o     (),                   // 第二路跳转信号输出悬空
-        .inst_branch_o   (inst2_branch_o),        
+        .inst_branch_o   (),        
         .inst_csr_type_o (inst2_csr_type_o)    // 第二路CSR类型指令信号输出
     );
 

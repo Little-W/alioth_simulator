@@ -36,7 +36,6 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] inst1_rs2_addr,  // 指令1读寄存器2地址
     input wire                       inst1_rd_we,     // 指令1是否写寄存器
     // 新增：已发射保持标志（来自issue stage），若已发射则不再参与FIFO冒险判断
-    input wire                       inst1_already_issued_i,
 
     // 指令2信息（标签2）
     input wire                       inst2_valid,      // 指令2有效
@@ -44,7 +43,6 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] inst2_rs1_addr,  // 指令2读寄存器1地址
     input wire [`REG_ADDR_WIDTH-1:0] inst2_rs2_addr,  // 指令2读寄存器2地址
     input wire                       inst2_rd_we,     // 指令2是否写寄存器
-    input wire                       inst2_already_issued_i,
 
     // 指令完成信号
     input wire                        commit_valid_i,  // 指令执行完成有效信号
@@ -64,13 +62,11 @@ module hdu (
     input wire                        inst1_jump_i,    // 指令1跳转信号
     input wire                        clint_req_valid, //中断请求有效信号
     input wire                        inst1_branch_i,  // 指令1分支信号
-    input wire                        inst2_branch_i,  // 指令2分支信号
 
     input wire                        inst1_csr_type_i,    // 指令1 CSR类型信号
     input wire                        inst2_csr_type_i,    // 指令2 CSR类型信号
 
     // 控制信号
-    output wire new_issue_stall_o,  // 新发射暂停信号，控制发射级之前的流水线暂停
     output wire [1:0] issue_inst_o,  // 发射指令标志[1:0]，bit0控制指令A，bit1控制指令B
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,  // 为指令1分配的ID
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,  // 为指令2分配的ID
@@ -92,22 +88,15 @@ module hdu (
     // 立即序列化：branch_serialize_pulse 为检测到 jump/branch 后保持的高电平（若与 FIFO 冒险则保持，直到冒险解除）
     // 首拍通过 branch_edge 保证立即生效
     reg branch_detect_d1; // 上一拍检测寄存器
-    wire branch_detect_now = inner_inst1_valid & inst1_branch_i;
+    wire branch_detect_now = inst1_valid & inst1_branch_i;
     wire branch_edge = branch_detect_now & ~branch_detect_d1; // 首次检测到的边沿
     reg branch_serialize_pulse; // 改为保持寄存器
 
-    wire sys_jump_detect_now = inner_inst1_valid & inst1_jump_i;
+    wire sys_jump_detect_now = inst1_valid & inst1_jump_i;
     wire sys_jump_edge = sys_jump_detect_now & ~sys_jump_detect_d1; // 首次检测到的边沿
     reg  sys_jump_detect_d1;
-    // wire inst1_jump;
-    // assign inst1_jump = inst1_jump_i && (~inst1_jump_cancel);
-    // // 新增：inst1_jump保持逻辑相关寄存器
-    // reg inst1_jump_cancel;               // 跳转保持：inst1_jump_i 置位，clint_req_valid 下降沿清零
-    // reg clint_req_valid_d1;       // clint_req_valid 上一拍，用于下降沿检测
 
     // 检测x0寄存器（x0忽略）
-    wire inner_inst1_valid = inst1_valid && ~inst1_already_issued_i; // 已发射保持时不再参与冒险
-    wire inner_inst2_valid = inst2_valid && ~inst2_already_issued_i;
     wire inst1_rs1_check = (inst1_rs1_addr != 5'h0) && inst1_valid;
     wire inst1_rs2_check = (inst1_rs2_addr != 5'h0) && inst1_valid;
     wire inst1_rd_check  = (inst1_rd_addr  != 5'h0) && inst1_rd_we && inst1_valid;
@@ -216,8 +205,7 @@ module hdu (
         end
     end
 
-    // new_issue_stall: 不是双发射或 FIFO 满
-    assign new_issue_stall_o = (((issue_inst_reg != 2'b11 && !clint_req_valid) || fifo_full) ? 1'b1 : 1'b0);
+    // issue_inst_o: 发射指令选择
     assign issue_inst_o = fifo_full ? 2'b00 : issue_inst_reg;
 
     // FIFO满 (忽略 index 0，因其保留)
@@ -266,11 +254,11 @@ module hdu (
                       next_id1;
 
     // 输出时若未发射或无效则为 0；有效永不输出 0
-    assign inst1_commit_id_o = (inner_inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
-    assign inst2_commit_id_o = (inner_inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
-    
-    assign can_into_fifo_inst1 =  (inst1_rd_addr != 5'h0) | inst1_csr_type_i;
-    assign can_into_fifo_inst2 =  (inst2_rd_addr != 5'h0) | inst2_csr_type_i;
+    assign inst1_commit_id_o = (inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
+    assign inst2_commit_id_o = (inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
+    //仅当指令有效、发射且写寄存器（或不写寄存器但是是csr）时写入
+    assign can_into_fifo_inst1 =  (inst1_rd_check | inst1_csr_type_i) && issue_inst_o[0];
+    assign can_into_fifo_inst2 =  (inst2_rd_check | inst2_csr_type_i) && issue_inst_o[1];
 
     // FIFO 与 序列化状态 更新（仅记录上一拍跳转检测用于形成单拍脉冲）
     always @(posedge clk or negedge rst_n) begin
@@ -288,12 +276,12 @@ module hdu (
             if (commit_valid2_i && commit_id2_i != 3'd0) fifo_valid[commit_id2_i] <= 1'b0;
             if (jump_commit_valid_i  && jump_commit_id_i  != 3'd0) fifo_valid[jump_commit_id_i]  <= 1'b0;
             if (jump_commit_valid2_i  && jump_commit_id2_i  != 3'd0) fifo_valid[jump_commit_id2_i]  <= 1'b0;
-            // 分配：永不写 index 0；新增条件：jump_flag_i 为 1 时不进入 FIFO
-            if (inner_inst1_valid && issue_inst_o[0] && next_id1 != 3'd0 && !jump_flag_i  && can_into_fifo_inst1) begin
+            //进入FIFO
+            if (can_into_fifo_inst1) begin
                 fifo_valid[inst1_commit_id_o]   <= 1'b1;
                 fifo_rd_addr[inst1_commit_id_o] <= inst1_rd_addr;
             end
-            if (inner_inst2_valid && issue_inst_o[1] && next_id2 != 3'd0 && !jump_flag_i  && can_into_fifo_inst2) begin
+            if (can_into_fifo_inst2) begin
                 fifo_valid[inst2_commit_id_o]   <= 1'b1;
                 fifo_rd_addr[inst2_commit_id_o] <= inst2_rd_addr;
             end

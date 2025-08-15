@@ -221,6 +221,8 @@ module cpu_top (
 
     // ctrl模块输出信号
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_o;
+    wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag1_o;
+    wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag2_o;
     wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -248,7 +250,7 @@ module cpu_top (
     // 显式声明原子操作忙信号和其他缺失信号
     wire atom_opt_busy;
     wire ifu_read_resp_error_o;
-    wire new_issue_stall_flag_o;
+    wire [1:0] issue_inst_o;
 
     // ICU信号定义
     wire [`INST_ADDR_WIDTH-1:0] icu_inst1_addr_o;
@@ -291,12 +293,10 @@ module cpu_top (
     wire pc_misaligned_o;  // IFU输出PC非对齐信号
     wire idu_inst1_valid_o;  // IDU输出指令有效信号
     wire idu_inst2_valid_o;  // 第二路IDU输出指令有效信号
-    wire dispatch_inst_valid_o;  // dispatch输出流水线指令有效信号
     wire idu_illegal_inst1_o;  // IDU输出非法指令信号
     wire idu_illegal_inst2_o;  // 第二路IDU输出非法指令信号
     wire [`INST_DATA_WIDTH-1:0] idu_inst1_o;  // IDU输出非法指令内容
     wire [`INST_DATA_WIDTH-1:0] idu_inst2_o;  // 第二路IDU输出非法指令内容
-    wire idu_inst2_branch_o;  // 第二路IDU输出分支指令信号
     wire dispatch_misaligned_load_o;  // dispatch输出misaligned load信号
     wire dispatch_misaligned_store_o;  // dispatch输出misaligned store信号
     wire dispatch_illegal_inst_o;  // dispatch输出非法指令信号
@@ -304,11 +304,8 @@ module cpu_top (
 
     // 给dispatch和HDU的译码信息
     wire ext_int_req;
-    wire inst_valid = (ctrl_stall_flag_o == 0);
     wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
                         (idu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
-    wire inst_clint_valid = !dis_is_pred_branch_o && (dispatch_inst_valid_o);
-    wire rd_access_inst_valid = idu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
     // AXI接口信号 - IFU
     wire [`BUS_ID_WIDTH-1:0] ifu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
@@ -531,29 +528,28 @@ module cpu_top (
     wire exu_axi_rvalid;
     wire exu_axi_rready;
 
-    // 给dispatch和HDU的译码信息 - 修改为双发射
-    wire dis_is_pred_branch_o;
-    // 双发射的指令有效信号
-    // 双发射的指令有效信号 - 64位访存的正确处理
-    // 当PC[2]=0时：可以双发射（inst1和inst2都可能有效）
-    // 当PC[2]=1时：只能单发射（只有inst1有效，inst2无效）
-    wire inst1_valid = (ctrl_stall_flag_o == 0);  // inst1总是可能有效
-    wire inst2_valid = (ctrl_stall_flag_o == 0) && !pc_misaligned_o;  // inst2只在PC对齐时有效
+    // // 给dispatch和HDU的译码信息 - 修改为双发射
+    // // 双发射的指令有效信号
+    // // 双发射的指令有效信号 - 64位访存的正确处理
+    // // 当PC[2]=0时：可以双发射（inst1和inst2都可能有效）
+    // // 当PC[2]=1时：只能单发射（只有inst1有效，inst2无效）
+    // wire inst1_valid = (ctrl_stall_flag_o == 0);  // inst1总是可能有效
+    // wire inst2_valid = (ctrl_stall_flag_o == 0) && !pc_misaligned_o;  // inst2只在PC对齐时有效
     
-    // 双发射的EXU有效信号 - 64位访存的正确处理
-    wire inst1_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
-                          (icu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
-    wire inst2_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
-                          !pc_misaligned_o &&
-                          (icu_inst2_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    // // 双发射的EXU有效信号 - 64位访存的正确处理
+    // wire inst1_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+    //                       (icu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
+    // wire inst2_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+    //                       !pc_misaligned_o &&
+    //                       (icu_inst2_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     
     // 双发射的CLINT有效信号 - 考虑PC非对齐
-    wire inst1_clint_valid = !icu_inst1_is_pred_branch_o && (inst1_valid);
-    wire inst2_clint_valid = !icu_inst2_is_pred_branch_o && (inst2_valid);
+    wire inst1_clint_valid = !dispatch_inst1_is_pred_branch_o && (dispatch_inst1_valid_o);
+    wire inst2_clint_valid = !dispatch_inst2_is_pred_branch_o && (dispatch_inst2_valid_o);
 
-    // 双发射的寄存器访问有效信号 - 64位访存的正确处理
-    wire inst1_rd_access_valid = icu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
-    wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o && !pc_misaligned_o;
+    // // 双发射的寄存器访问有效信号 - 64位访存的正确处理
+    // wire inst1_rd_access_valid = icu_inst1_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
+    // wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o && !pc_misaligned_o;
 
     wire clint_inst_valid_i = inst1_clint_valid || inst2_clint_valid;
     wire [31:0] clint_inst_addr_i = inst1_clint_valid ? dispatch_inst1_addr_o : dispatch_inst2_addr_o;
@@ -656,8 +652,10 @@ module cpu_top (
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
-        .stall_flag_hdu_i  (new_issue_stall_flag_o),  // 修改为从icu获取数据冒险暂停信号
+        .stall_flag_hdu_i  (issue_inst_o),  // 修改为从icu获取数据冒险暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
+        .stall_flag1_o     (ctrl_stall_flag1_o),
+        .stall_flag2_o     (ctrl_stall_flag2_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)
     );
@@ -711,8 +709,9 @@ module cpu_top (
         .rst_n           (rst_n),
         
         // 控制信号
-        .stall_flag_i    (ctrl_stall_flag_o),
-        
+        .stall_flag1_i    (ctrl_stall_flag1_o),
+        .stall_flag2_i    (ctrl_stall_flag2_o),
+
         // 第一路指令输入
         .inst_i          (if_inst1_o),
         .inst_addr_i     (if_inst1_addr_o),
@@ -760,7 +759,6 @@ module cpu_top (
         .inst2_valid_o   (idu_inst2_valid_o),
         .inst2_illegal_inst_o(idu_illegal_inst2_o),
         .inst2_o         (idu_inst2_o),
-        .inst2_branch_o  (idu_inst2_branch_o),
         .inst2_csr_type_o(idu_inst2_csr_type_o)
     );
 
@@ -803,7 +801,6 @@ module cpu_top (
         .inst2_i                (idu_inst2_o),
         .inst2_illegal_inst_i   (idu_illegal_inst2_o),
         .inst2_valid_i          (idu_inst2_valid_o),
-        .inst2_branch_i        (idu_inst2_branch_o),
         .inst2_csr_type_i       (idu_inst2_csr_type_o),
 
         // 指令完成信号
@@ -851,7 +848,7 @@ module cpu_top (
         .inst2_valid_o          (icu_inst2_valid_o),
 
         // HDU输出信号
-        .new_issue_stall_o      (new_issue_stall_flag_o), // to ctrl
+        .issue_inst_o      (issue_inst_o), // to ctrl
         .inst1_commit_id_o      (icu_inst1_commit_id_o), //to dispatch
         .inst2_commit_id_o      (icu_inst2_commit_id_o), 
         .long_inst_atom_lock_o  (icu_long_inst_atom_lock_o) //used in top
@@ -863,7 +860,6 @@ module cpu_top (
         .rst_n         (rst_n),
         .stall_flag_i  (ctrl_stall_flag_o),
 
-        
         // 第一路指令信息输入 - 从ICU获取
         .inst1_addr_i(icu_inst1_addr_o),
         .inst1_reg_we_i(icu_inst1_reg_we_o),

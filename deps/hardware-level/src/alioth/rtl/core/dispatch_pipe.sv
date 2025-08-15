@@ -230,9 +230,8 @@ module dispatch_pipe (
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
-    wire                        flush_fakecommit_en = stall_flag_i[`CU_FLUSH];
+    // wire                        flush_fakecommit_en = stall_flag_i[`CU_FLUSH];
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
-    wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;
 
     // 指令地址寄存器
@@ -1042,17 +1041,17 @@ module dispatch_pipe (
     );
     assign illegal_inst_o = illegal_inst;
 
-    wire   req_fake_commit_dnxt = flush_fakecommit_en ? 1 : 0;
-    wire   req_fake_commit;
-    gnrl_dfflr #(1) req_fake_commit_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        req_fake_commit_dnxt,
-        req_fake_commit
-    );
+    // wire   req_fake_commit_dnxt = flush_fakecommit_en ? 1 : 0;
+    // wire   req_fake_commit;
+    // gnrl_dfflr #(1) req_fake_commit_ff (
+    //     clk,
+    //     rst_n,
+    //     reg_update_en,
+    //     req_fake_commit_dnxt,
+    //     req_fake_commit
+    // );
     assign req_fake_commit_o = 1'b0;
 
-    assign fake_commit_id_o = flush_fakecommit_en ? commit_id_o : 3'b0;
+    assign fake_commit_id_o =  3'b0;
 
 endmodule

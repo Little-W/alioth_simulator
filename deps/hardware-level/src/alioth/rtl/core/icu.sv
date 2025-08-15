@@ -63,7 +63,6 @@ module icu (
     input wire [`INST_DATA_WIDTH-1:0] inst2_i,
     input wire                        inst2_illegal_inst_i,
     input wire                        inst2_valid_i,
-    input wire                        inst2_branch_i,
     input wire                        inst2_csr_type_i,
 
     // 指令完成信号
@@ -110,7 +109,8 @@ module icu (
     output wire                        inst2_valid_o,
     
     // HDU输出信号 - to control
-    output wire                        new_issue_stall_o,
+    output wire [1:0]                  issue_inst_o,
+,
     // HDU输出信号 - to dispatch
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,
@@ -122,24 +122,15 @@ module icu (
     wire [1:0] issue_inst;
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst1_commit_id_o; 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id_o;
-    wire inst1_already_issued;
-    wire inst2_already_issued;
     wire jump_inst1_valid_o;
     wire jump_inst2_valid_o;
     wire [`COMMIT_ID_WIDTH-1:0] jump_inst1_commit_id_o;
     wire [`COMMIT_ID_WIDTH-1:0] jump_inst2_commit_id_o;
-
-    // wire hdu_commit_valid_i;
-    // wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id_i;
-    // wire hdu_commit_valid2_i;
-    // wire [`COMMIT_ID_WIDTH-1:0] hdu_commit_id2_i;
     wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_commit_id_o;
-    wire idu_flush = stall_flag_i[`CU_FLUSH];
-
-    // assign hdu_commit_valid_i = commit_valid_i | jump_inst1_valid_o;
-    // assign hdu_commit_id_i = commit_valid_i ? commit_id_i : jump_inst1_valid_o? jump_inst1_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
-    // assign hdu_commit_valid2_i = commit_valid2_i | jump_inst2_valid_o;
-    // assign hdu_commit_id2_i = commit_valid2_i ? commit_id2_i : jump_inst2_valid_o? jump_inst2_commit_id_o : {`COMMIT_ID_WIDTH{1'b0}};
+    wire idu_flush = |stall_flag_i;
+    wire hdu_inst1_valid = inst1_valid_i && !stall_flag_i && !clint_req_valid_i;
+    wire hdu_inst2_valid = inst2_valid_i && !stall_flag_i && !clint_req_valid_i;
+    assign issue_inst_o  = issue_inst;
 
     // 实例化hdu模块
     hdu u_hdu (
@@ -147,20 +138,18 @@ module icu (
         .rst_n                  (rst_n),
         
         // 指令1输入信号
-        .inst1_valid            (inst1_valid_i),
+        .inst1_valid            (hdu_inst1_valid),
         .inst1_rd_addr          (inst1_reg_waddr_i),
         .inst1_rs1_addr         (inst1_reg1_raddr_i),
         .inst1_rs2_addr         (inst1_reg2_raddr_i),
         .inst1_rd_we            (inst1_reg_we_i),
-        .inst1_already_issued_i (inst1_already_issued),
 
         // 指令2输入信号
-        .inst2_valid            (inst2_valid_i),
+        .inst2_valid            (hdu_inst2_valid),
         .inst2_rd_addr          (inst2_reg_waddr_i),
         .inst2_rs1_addr         (inst2_reg1_raddr_i),
         .inst2_rs2_addr         (inst2_reg2_raddr_i),
         .inst2_rd_we            (inst2_reg_we_i),
-        .inst2_already_issued_i (inst2_already_issued),
 
         // 指令完成信号
         .commit_valid_i         (commit_valid_i),
@@ -178,16 +167,13 @@ module icu (
         .idu_flush_i            (idu_flush),
         .inst1_jump_i           (inst1_jump_i),
         .inst1_branch_i         (inst1_branch_i),
-        .inst2_branch_i         (inst2_branch_i),
 
         .inst1_csr_type_i       (inst1_csr_type_i),
         .inst2_csr_type_i       (inst2_csr_type_i),
         .clint_req_valid        (clint_req_valid_i),
 
         // 输出信号
-        //to ctrl
-        .new_issue_stall_o      (new_issue_stall_o),
-        //to icu_issue
+        //to ctrl & icu_issue
         .issue_inst_o           (issue_inst),
 
         //to irf
@@ -284,9 +270,7 @@ module icu (
         .inst1_illegal_inst_o   (inst1_illegal_inst_o),
         .inst2_illegal_inst_o   (inst2_illegal_inst_o),
         .inst1_valid_o          (inst1_valid_o),
-        .inst2_valid_o          (inst2_valid_o),
-        .inst1_already_issued_o (inst1_already_issued),
-        .inst2_already_issued_o (inst2_already_issued)
+        .inst2_valid_o          (inst2_valid_o)
     );
 
 endmodule
