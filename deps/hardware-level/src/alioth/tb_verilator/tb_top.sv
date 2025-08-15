@@ -351,8 +351,8 @@ module tb_top (
         .rst_n          (rst_n),
         .low_speed_clk_i(lfextclk),
         // UART端口连接
-        .tx_o           (uart_tx),
-        .rx_i           (uart_rx)
+        .uart0_txd_o    (uart_tx),
+        .uart0_rxd_i    (uart_rx)
     );
 
     // 添加可选的寄存器调试输出功能

@@ -30,68 +30,24 @@ module alioth_soc_top (
     input wire rst_n,
 
     // UART0
-    input  wire rx_i,
-    output wire tx_o,
-    // UART1
-    input  wire rx1_i,
-    output wire tx1_o,
-
-    // SPI
-    output wire spi_clk,
-    output wire spi_csn0,
-    output wire spi_csn1,
-    output wire spi_csn2,
-    output wire spi_csn3,
-    output wire spi_sdo0,
-    output wire spi_sdo1,
-    output wire spi_sdo2,
-    output wire spi_sdo3,
-    output wire spi_oe0,
-    output wire spi_oe1,
-    output wire spi_oe2,
-    output wire spi_oe3,
-    input  wire spi_sdi0,
-    input  wire spi_sdi1,
-    input  wire spi_sdi2,
-    input  wire spi_sdi3,
-
-    // I2C0
-    input  wire scl0_pad_i,
-    output wire scl0_pad_o,
-    output wire scl0_padoen_o,
-    input  wire sda0_pad_i,
-    output wire sda0_pad_o,
-    output wire sda0_padoen_o,
-    // I2C1
-    input  wire scl1_pad_i,
-    output wire scl1_pad_o,
-    output wire scl1_padoen_o,
-    input  wire sda1_pad_i,
-    output wire sda1_pad_o,
-    output wire sda1_padoen_o,
+    input  wire uart0_rxd_i,
+    output wire uart0_txd_o,
 
     // GPIO0
-    input  wire [ 31:0] gpio0_in,
-    output wire [ 31:0] gpio0_in_sync,
-    output wire [ 31:0] gpio0_out,
-    output wire [ 31:0] gpio0_dir,
-    output wire [191:0] gpio0_padcfg,
-    output wire [ 31:0] gpio0_iof,
+    input  wire [31:0] gpio0_in_i,
+    output wire [31:0] gpio0_out_o,
+    output wire [31:0] gpio0_dir_o,
     // GPIO1
-    input  wire [ 31:0] gpio1_in,
-    output wire [ 31:0] gpio1_in_sync,
-    output wire [ 31:0] gpio1_out,
-    output wire [ 31:0] gpio1_dir,
-    output wire [191:0] gpio1_padcfg,
-    output wire [ 31:0] gpio1_iof,
+    input  wire [31:0] gpio1_in_i,
+    output wire [31:0] gpio1_out_o,
+    output wire [31:0] gpio1_dir_o,
 
     // Timer
-    input  wire        low_speed_clk_i,
-    input  wire [31:0] ext_sig_i,
-    output wire [ 3:0] ch_0_o,
-    output wire [ 3:0] ch_1_o,
-    output wire [ 3:0] ch_2_o,
-    output wire [ 3:0] ch_3_o
+    input  wire       low_speed_clk_i,
+    output wire [3:0] ch_0_o,
+    output wire [3:0] ch_1_o,
+    output wire [3:0] ch_2_o,
+    output wire [3:0] ch_3_o
 );
 
     // AXI2APB桥模块信号
@@ -131,24 +87,24 @@ module alioth_soc_top (
     wire                           PCLK;
     wire                           PRESETn;
 
-    // === 新增：中断信号内部连线 ===
-    wire uart0_event, uart1_event;
-    wire spi_event;
-    wire i2c0_interrupt, i2c1_interrupt;
-    wire gpio0_int, gpio1_int;
-    wire [ 3:0] timer_events;
+    // === 中断信号内部连线 ===
+    wire        uart0_event, uart1_event;
+    wire        spi_events;
+    wire        i2c0_interrupt, i2c1_interrupt;
+    wire        gpio0_interrupt, gpio1_interrupt;
+    wire [3:0]  timer_events;
 
-    // 拓展宽度为12位，优先级顺序：Timer[3:0], SPI, I2C0, I2C1, UART0, UART1, GPIO0, GPIO1
+    // 中断向量，优先级顺序：GPIO1, GPIO0, UART1, UART0, I2C1, I2C0, SPI, Timer[3:0]
     wire [10:0] irq_vec;
     assign irq_vec = {
-        gpio1_int,  // [11]
-        gpio0_int,  // [10]
-        uart1_event,  // [9]
-        uart0_event,  // [8]
-        i2c1_interrupt,  // [7]
-        i2c0_interrupt,  // [6]
-        spi_event,  // [5]
-        timer_events  // [4:1]
+        gpio1_interrupt,   // [10]
+        gpio0_interrupt,   // [9]
+        uart1_event,       // [8]
+        uart0_event,       // [7]
+        i2c1_interrupt,    // [6]
+        i2c0_interrupt,    // [5]
+        spi_events,        // [4]
+        timer_events       // [3:0]
     };
 
     // alioth处理器核模块例化
@@ -224,83 +180,49 @@ module alioth_soc_top (
         .APB_SLAVE_ADDR_WIDTH(`APB_SLAVE_ADDR_WIDTH),
         .BUS_DATA_WIDTH      (`BUS_DATA_WIDTH)
     ) u_perip_top (
-        .HCLK            (PCLK),
-        .HRESETn         (PRESETn),
-        .PADDR           (PADDR),
-        .PWDATA          (PWDATA),
-        .PWRITE          (PWRITE),
-        .PSEL            (PSEL),
-        .PENABLE         (PENABLE),
-        .PRDATA          (PRDATA),
-        .PREADY          (PREADY),
-        .PSLVERR         (PSLVERR),
+        .HCLK             (PCLK),
+        .HRESETn          (PRESETn),
+        .PADDR            (PADDR),
+        .PWDATA           (PWDATA),
+        .PWRITE           (PWRITE),
+        .PSEL             (PSEL),
+        .PENABLE          (PENABLE),
+        .PRDATA           (PRDATA),
+        .PREADY           (PREADY),
+        .PSLVERR          (PSLVERR),
         // UART0
-        .rx0_i           (rx_i),
-        .tx0_o           (tx_o),
-        .uart0_event_o   (uart0_event),
-        // UART1
-        .rx1_i           (rx1_i),
-        .tx1_o           (tx1_o),
-        .uart1_event_o   (uart1_event),
-        // SPI
-        .spi_clk         (spi_clk),
-        .spi_csn0        (spi_csn0),
-        .spi_csn1        (spi_csn1),
-        .spi_csn2        (spi_csn2),
-        .spi_csn3        (spi_csn3),
-        .spi_sdo0        (spi_sdo0),
-        .spi_sdo1        (spi_sdo1),
-        .spi_sdo2        (spi_sdo2),
-        .spi_sdo3        (spi_sdo3),
-        .spi_oe0         (spi_oe0),
-        .spi_oe1         (spi_oe1),
-        .spi_oe2         (spi_oe2),
-        .spi_oe3         (spi_oe3),
-        .spi_sdi0        (spi_sdi0),
-        .spi_sdi1        (spi_sdi1),
-        .spi_sdi2        (spi_sdi2),
-        .spi_sdi3        (spi_sdi3),
-        .spi_events_o    (spi_event),
-        // I2C0
-        .scl0_pad_i      (scl0_pad_i),
-        .scl0_pad_o      (scl0_pad_o),
-        .scl0_padoen_o   (scl0_padoen_o),
-        .sda0_pad_i      (sda0_pad_i),
-        .sda0_pad_o      (sda0_pad_o),
-        .sda0_padoen_o   (sda0_padoen_o),
-        .i2c0_interrupt_o(i2c0_interrupt),
-        // I2C1
-        .scl1_pad_i      (scl1_pad_i),
-        .scl1_pad_o      (scl1_pad_o),
-        .scl1_padoen_o   (scl1_padoen_o),
-        .sda1_pad_i      (sda1_pad_i),
-        .sda1_pad_o      (sda1_pad_o),
-        .sda1_padoen_o   (sda1_padoen_o),
-        .i2c1_interrupt_o(i2c1_interrupt),
+        .uart0_rxd_i      (uart0_rxd_i),
+        .uart0_txd_o      (uart0_txd_o),
+        .uart0_event_o    (uart0_event),
+        // 保留事件信号到外部端口
+        .uart1_event_o    (uart1_event),
+        .spi_events_o     (spi_events),
+        .i2c0_interrupt_o (i2c0_interrupt),
+        .i2c1_interrupt_o (i2c1_interrupt),
         // GPIO0
-        .gpio0_in        (gpio0_in),
-        .gpio0_in_sync   (gpio0_in_sync),
-        .gpio0_out       (gpio0_out),
-        .gpio0_dir       (gpio0_dir),
-        .gpio0_padcfg    (gpio0_padcfg),
-        .gpio0_iof       (gpio0_iof),
-        .gpio0_interrupt (gpio0_int),
+        .gpio0_in_i       (gpio0_in_i),
+        .gpio0_out_o      (gpio0_out_o),
+        .gpio0_dir_o      (gpio0_dir),
+        .gpio0_interrupt_o(gpio0_interrupt),
         // GPIO1
-        .gpio1_in        (gpio1_in),
-        .gpio1_in_sync   (gpio1_in_sync),
-        .gpio1_out       (gpio1_out),
-        .gpio1_dir       (gpio1_dir),
-        .gpio1_padcfg    (gpio1_padcfg),
-        .gpio1_iof       (gpio1_iof),
-        .gpio1_interrupt (gpio1_int),
+        .gpio1_in_i       (gpio1_in_i),
+        .gpio1_out_o      (gpio1_out_o),
+        .gpio1_dir_o      (gpio1_dir),
+        .gpio1_interrupt_o(gpio1_interrupt),
         // Timer
-        .dft_cg_enable_i (0),                // 忽略DFT时钟使能信号
-        .low_speed_clk_i (low_speed_clk_i),
-        .ext_sig_i       (ext_sig_i),
-        .timer_events_o  (timer_events),
-        .ch_0_o          (ch_0_o),
-        .ch_1_o          (ch_1_o),
-        .ch_2_o          (ch_2_o),
-        .ch_3_o          (ch_3_o)
+        .dft_cg_enable_i  (0),
+        .low_speed_clk_i  (low_speed_clk_i),
+        .timer_events_o   (timer_events)
     );
+
+// === GPIO方向信号处理 ===
+    wire [31:0] gpio0_dir;
+    wire [31:0] gpio1_dir;
+`ifdef FPGA_SOURCE
+    assign gpio0_dir_o = ~gpio0_dir;
+    assign gpio1_dir_o = ~gpio1_dir;
+`else
+    assign gpio0_dir_o = gpio0_dir;
+    assign gpio1_dir_o = gpio1_dir;
+`endif
 endmodule
