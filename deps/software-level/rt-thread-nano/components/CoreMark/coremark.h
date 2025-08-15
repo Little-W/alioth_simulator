@@ -37,6 +37,8 @@ Original Author: Shay Gal-on
 
 #include "core_portme.h"
 #include <rtthread.h>
+#include <board.h>
+#include "platform.h"
 
 #if HAS_STDIO
 #include <stdio.h>
