@@ -18,8 +18,6 @@
 
 #ifdef RT_USING_CONSOLE
 #include "uart.h"
-#define UART0 ((UART_TypeDef *)UART0_BASE)
-#define UART1 ((UART_TypeDef *)UART1_BASE)
 
 int nano_uart_init(void);
 char rt_hw_console_getchar(void);
@@ -73,6 +71,9 @@ void rt_hw_board_init(void)
     plic_init();
     __enable_ext_irq();
     rt_hw_interrupt_install(MachineExternal_IRQn, plic_dispatch_wrapper, RT_NULL, "plic");
+
+    gpio_enable_output(GPIO0, 0xFFFFFFFF); // Enable all GPIO0 pins as output
+    gpio_write(GPIO0, 0xFFFFFFFF, 0); // Set all GPIO0 pins low
 
 #ifdef RT_USING_CONSOLE
     nano_uart_init();

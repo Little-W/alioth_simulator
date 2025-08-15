@@ -16,6 +16,10 @@
 
 void rt_hw_board_init(void);
 
+#define UART0 ((UART_TypeDef *)UART0_BASE)
+#define UART1 ((UART_TypeDef *)UART1_BASE)
+#define GPIO0 ((GPIO_TypeDef *)GPIO0_BASE)
+
 #endif /* __BOARD__ */
 
 /******************** end of file *******************/

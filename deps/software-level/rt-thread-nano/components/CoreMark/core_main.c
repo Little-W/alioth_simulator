@@ -232,6 +232,7 @@ for (i = 0; i < MULTITHREAD; i++)
 		results[0].iterations *= 1 + 10 / divisor;
 	}
 	/* perform actual benchmark */
+	gpio_write(GPIO0, 0x00000001,1); // Set GPIO0 pin 0 high to indicate start of benchmark
 	start_time();
 #if (MULTITHREAD > 1)
 	if (default_num_contexts > MULTITHREAD)
@@ -252,6 +253,7 @@ for (i = 0; i < MULTITHREAD; i++)
 	iterate(&results[0]);
 #endif
 	stop_time();
+	gpio_write(GPIO0, 0x00000001,0); // Set GPIO0 pin 0 low to indicate end of benchmark
 	total_time = get_time();
 	/* get a function of the input to report */
 	seedcrc = crc16(results[0].seed1, seedcrc);
