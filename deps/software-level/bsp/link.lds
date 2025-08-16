@@ -4,7 +4,7 @@ ENTRY(_start)
 
 MEMORY
 {
-  itcm (rwx) : ORIGIN = 0x80000000, LENGTH = 64K
+  itcm (rwx) : ORIGIN = 0x80000000, LENGTH = 128K
   dtcm (rwx) : ORIGIN = 0x80100000, LENGTH = 64K
 }
 

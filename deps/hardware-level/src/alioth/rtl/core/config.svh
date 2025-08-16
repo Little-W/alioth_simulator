@@ -1,5 +1,5 @@
 // 内存和地址配置
-`define ITCM_ADDR_WIDTH 16  // ITCM地址宽度，16位对应64KB
+`define ITCM_ADDR_WIDTH 17  // ITCM地址宽度，16位对应64KB
 `define DTCM_ADDR_WIDTH 16  // DTCM地址宽度，16位对应64KB
 
 `define PC_RESET_ADDR 32'h8000_0000
@@ -46,7 +46,7 @@
 `define REG_DATA_WIDTH 32
 `define DOUBLE_REG_WIDTH 64
 `define REG_NUM 32
-`define COMMIT_ID_WIDTH 2
+`define COMMIT_ID_WIDTH 3
 
 // APB外设地址空间定义（顺序：Timer, SPI, I2C0, I2C1, UART0, UART1, GPIO0, GPIO1）
 `define APB_DEV7_ADDR_LOW  20'h00000 // Timer

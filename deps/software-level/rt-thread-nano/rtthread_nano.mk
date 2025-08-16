@@ -45,9 +45,14 @@ CFLAGS += -march=$(DEFAULT_RISCV_ARCH)
 CFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
 CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL)
 CFLAGS += -ffunction-sections -fdata-sections -fno-builtin-printf -fno-builtin-malloc
-CFLAGS += -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4
+CFLAGS += -fno-common -funroll-loops -finline-functions -finline-small-functions -findirect-inlining -finline-functions-called-once
+CFLAGS += --param max-inline-insns-auto=1000 --param large-function-insns=2000 --param large-function-growth=2000 --param inline-unit-growth=1000
 CFLAGS += -fno-strict-aliasing -frename-registers
 CFLAGS += -O3 -mtune=alioth
+CFLAGS += -falign-functions=4 -falign-jumps=4 -falign-loops=4
+CFLAGS += -fno-tree-loop-distribute-patterns -fno-tree-loop-vectorize -fno-tree-slp-vectorize
+CFLAGS += -fomit-frame-pointer -finline-limit=2000
+# CFLAGS += -flto
 
 COREMARK_CFLAGS := "\"-O3 -mtune=alioth -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4 -fno-strict-aliasing -frename-registers\""
 
