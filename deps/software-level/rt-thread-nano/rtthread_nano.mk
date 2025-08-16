@@ -44,14 +44,34 @@ CFLAGS += --sysroot=$(RISCV_GCC_ROOT)/riscv64-unknown-elf
 CFLAGS += -march=$(DEFAULT_RISCV_ARCH)
 CFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
 CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL)
-CFLAGS += -ffunction-sections -fdata-sections -fno-builtin-printf -fno-builtin-malloc
-CFLAGS += -fno-common -funroll-loops -finline-functions -finline-small-functions -findirect-inlining -finline-functions-called-once
-CFLAGS += --param max-inline-insns-auto=1000 --param large-function-insns=2000 --param large-function-growth=2000 --param inline-unit-growth=1000
-CFLAGS += -fno-strict-aliasing -frename-registers
+CFLAGS += -ffunction-sections -fdata-sections
+CFLAGS += -fno-builtin-printf -fno-builtin-malloc
+CFLAGS += -fno-common
+CFLAGS += -funroll-loops -funroll-all-loops  #显著提升
+CFLAGS += -finline-functions -finline-small-functions
+CFLAGS += -findirect-inlining -finline-functions-called-once
+CFLAGS += --param max-inline-insns-auto=4000 --param large-function-insns=4000
+CFLAGS += --param large-function-growth=4000 --param inline-unit-growth=4000
+CFLAGS += -finline-limit=4000
+CFLAGS += -frename-registers -fomit-frame-pointer
 CFLAGS += -O3 -mtune=alioth
 CFLAGS += -falign-functions=4 -falign-jumps=4 -falign-loops=4
 CFLAGS += -fno-tree-loop-distribute-patterns -fno-tree-loop-vectorize -fno-tree-slp-vectorize
-CFLAGS += -fomit-frame-pointer -finline-limit=2000
+# CFLAGS += -fno-section-anchors
+CFLAGS += -fno-caller-saves
+CFLAGS += -fno-branch-count-reg
+CFLAGS += -fno-crossjumping   # 显著提升
+CFLAGS += -fno-if-conversion
+CFLAGS += -fno-if-conversion2
+CFLAGS += -fno-peel-loops
+CFLAGS += -fno-split-loops
+CFLAGS += -fno-code-hoisting
+CFLAGS += -fno-tree-dse
+CFLAGS += -fweb
+
+
+# 移除以下针对coremark的激进优化参数
+# CFLAGS += -fno-tree-pre -fno-tree-forwprop -fno-tree-partial-pre -fno-tree-dominator-opts
 # CFLAGS += -flto
 
 COREMARK_CFLAGS := "\"-O3 -mtune=alioth -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4 -fno-strict-aliasing -frename-registers\""
@@ -61,6 +81,7 @@ CFLAGS += -DFLAGS_STR=$(COREMARK_CFLAGS)
 
 
 # CFLAGS += -DSIMULATION_XLSPIKE
+
 
 LDFLAGS += -nostartfiles -nostdlib -T $(LINKER_SCRIPT)
 LDFLAGS += -Wl,--gc-sections
@@ -93,3 +114,6 @@ ${BUILD_DIR}/%.o: $(RT_THREAD_ROOT)/%.s
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
 	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $<
+
