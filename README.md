@@ -11,7 +11,12 @@
 - RISC-V Alioth处理器的Verilator仿真
 - RISC-V汇编和C代码的编译与执行
 - 标准RISC-V指令集测试套件的运行与验证
+- 支持RT-Thread/RT-Thread Nano实时操作系统仿真
+- 支持CoreMark跑分测试
+- 支持C语言裸机程序仿真
 - 波形查看和调试支持
+- 自动化测试与批量回归
+- 支持多种调试方式（波形/日志）
 
 ## 目录结构
 
@@ -22,17 +27,18 @@
 ├── Makefile                # 项目主Makefile
 ├── README.md               # 项目说明文档
 ├── build/                  # 构建输出目录
-│   ├── alioth_exec_verilator/ # Verilator执行环境
-│   ├── alioth_tb/          # 测试平台文件
-│   ├── test_compiled/      # 编译后的测试文件
-│   ├── test_out/           # 测试输出结果
-│   └── verilator_build/    # Verilator构建文件
-├── c_src/                  # C源代码及汇编代码目录
+├── c_src/                  # C源代码及汇编代码目录（裸机程序/测试用例）
 ├── deps/                   # 依赖项目目录
-    ├── hardware-level/     # 硬件级模拟器相关
-    │   └── src/alioth/     # CPU源代码存储位置
-    ├── software-level/     # 软件级工具链和测试
-    └── tools/              # 辅助脚本和工具
+│   ├── hardware-level/     # 硬件级模拟器相关
+│   │   └── src/alioth/     # CPU源代码存储位置
+│   ├── software-level/     # 软件级工具链和测试
+│   │   ├── bsp/                # C语言裸机BSP支持包
+│   │   ├── test/               # 测试相关源代码
+│   │   │   ├── coremark/       # CoreMark源代码
+│   │   │   └── isa/            # RISC-V指令集测试源代码
+│   │   ├── rt-thread/          # RT-Thread操作系统源代码
+│   │   └── rt-thread-nano/     # RT-Thread Nano操作系统源代码
+│   └── tools/              # 辅助脚本和工具
 ```
 
 ## 系统要求
@@ -43,6 +49,7 @@
 - 推荐使用Ubuntu 22.04等较新的Linux发行版
 - 不支持Windows或macOS系统
 - 系统需具备基础C++编译套件（如GCC、G++）
+- 依赖`libelf`开发库（如`libelf-dev`，可通过`sudo apt install libelf-dev`安装）
 
 ## 命令指南
 
@@ -60,6 +67,10 @@
 |------|------|
 | `make asm` | 编译汇编源代码 |
 | `make compile_test_src` | 编译RISC-V指令集测试源代码 |
+| `make c_src` | 编译C语言裸机程序 |
+| `make coremark` | 编译并仿真CoreMark跑分程序 |
+| `make build_rt_thread` | 编译RT-Thread实时操作系统 |
+| `make rt_thread_nano` | 编译并仿真RT-Thread Nano |
 
 ### 执行与测试指令
 
@@ -67,6 +78,10 @@
 |------|------|
 | `make run PROGRAM_NAME=xxx` | 运行指定程序(需先用`make asm`编译) |
 | `make test TESTCASE=xxx` | 编译并运行测试用例，可选参数TESTCASE指定特定的RISC-V指令测试程序 |
+| `make run_csrc` | 仿真C语言裸机程序 |
+| `make sim_rt_thread` | 仿真RT-Thread操作系统 |
+| `make sim_rt_thread` | 仿真RT-Thread |
+| `make sim_rt_thread_nano` | 仿真RT-Thread Nano |
 
 ## 使用教程
 
@@ -106,26 +121,44 @@ make test TESTCASE=rv32um-p-div
 - `um`: 整数乘除法指令测试 (如mul, div, rem等)
 - `mi`: 机器模式指令测试 (如csr访问等)
 
+### C语言/RT-Thread/CoreMark仿真
+
+```bash
+# 编译并仿真C语言裸机程序
+make run_csrc
+
+# 编译并仿真CoreMark
+make coremark
+
+# 编译并仿真RT-Thread
+make sim_rt_thread
+
+# 编译并仿真RT-Thread Nano
+make rt_thread_nano
+```
+
 ## 环境兼容性
 
-项目会自动下载所需的工具链和依赖项。**仅在Linux系统**上测试通过:
+项目会自动下载所需的工具链和依赖项。**仅在以下Linux发行版**上进行了测试:
 
 - Ubuntu 22.04 LTS
 - openSUSE Tumbleweed 20250531
 
-本项目依赖于多个Linux特有的工具和库，无法在Windows或macOS上运行。
+本项目依赖于多个Linux特有的工具和库，**需要安装libelf开发库**（如`libelf-dev`），无法在Windows或macOS上运行。
 
 ## 调试功能
 
 本项目支持多种调试方式:
 
-- 通过`make run`命令会自动打开波形查看器(如果安装了gtkwave)
-- 支持汇编代码查看(通过vim/gvim)
-- 提供gdb和openocd调试接口
+- 通过`make run`、`make run_csrc`、`make coremark`等命令会自动打开波形查看器(如果安装了gtkwave)
+- 支持汇编/反汇编/内存dump文件查看(通过vim/gvim)
+- 支持RT-Thread/RT-Thread Nano仿真调试
+- 支持批量自动化测试与回归分析
 
 ## 注意事项
 
 - 本项目**只能在Linux系统上运行**，不支持Windows或macOS
 - 首次运行需要下载工具链，请确保网络连接正常
 - 波形查看需要安装gtkwave工具
+- 需要安装libelf开发库（如`sudo apt install libelf-dev`）
 - 项目使用了Linux特有的工具和系统调用，无法移植至其他操作系统
