@@ -46,10 +46,10 @@ CFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
 CFLAGS += -mcmodel=$(DEFAULT_RISCV_MCMODEL)
 CFLAGS += -ffunction-sections -fdata-sections -fno-builtin-printf -fno-builtin-malloc
 CFLAGS += -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4
-CFLAGS += -fno-strict-aliasing
+CFLAGS += -fno-strict-aliasing -frename-registers
 CFLAGS += -O3 -mtune=alioth
 
-COREMARK_CFLAGS := "\"-O3 -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions -ffast-math -fno-strict-aliasing\""
+COREMARK_CFLAGS := "\"-O3 -mtune=alioth -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4 -fno-strict-aliasing -frename-registers\""
 
 CFLAGS += -DRTOS_RTTHREAD=1
 CFLAGS += -DFLAGS_STR=$(COREMARK_CFLAGS)
@@ -62,7 +62,6 @@ LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -march=$(DEFAULT_RISCV_ARCH)
 LDFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
 LDFLAGS += -L$(RISCV_GCC_ROOT)/riscv64-unknown-elf/lib/rv32im/ilp32
-LDFLAGS += -L$(RISCV_GCC_ROOT)/lib/gcc/riscv64-unknown-elf/12.2.0/rv32im/ilp32
 
 .PHONY: all
 all: $(TARGET)
