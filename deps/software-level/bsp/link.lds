@@ -4,8 +4,8 @@ ENTRY(_start)
 
 MEMORY
 {
-  itcm (wxa!ri) : ORIGIN = 0x80000000, LENGTH = 64K
-  dtcm (wxa!ri) : ORIGIN = 0x80100000, LENGTH = 64K
+  itcm (rwx) : ORIGIN = 0x80000000, LENGTH = 64K
+  dtcm (rwx) : ORIGIN = 0x80100000, LENGTH = 64K
 }
 
 
@@ -155,10 +155,13 @@ SECTIONS
   PROVIDE( _end = . );
   PROVIDE( end = . );
 
-  .stack ORIGIN(dtcm) + LENGTH(dtcm) - __stack_size :
+  /* Reserve space for heap before stack */
+  . = . + 16K;  /* Reserve 16KB for heap */
+  PROVIDE( _heap_end = . );
+
+  .stack :
   {
-    PROVIDE( _heap_end = . );
-    . = __stack_size;
+    . = . + __stack_size;
     PROVIDE( _sp = . );
     __stack_top = .;
     PROVIDE( __rt_rvstack = . );
