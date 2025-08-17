@@ -80,20 +80,7 @@ module dispatch_logic (
     output wire        csr_csrrs_o,
     output wire        csr_csrrc_o,
 
-    // dispatch to MEM
-    output wire req_mem_o,
-    output wire mem_op_lb_o,
-    output wire mem_op_lh_o,
-    output wire mem_op_lw_o,
-    output wire mem_op_lbu_o,
-    output wire mem_op_lhu_o,
-    output wire mem_op_load_o,
-    output wire mem_op_store_o,
-
-    // 直接计算的内存地址和掩码/数据
-    output wire [31:0] mem_addr_o,
-    output wire [ 7:0] mem_wmask_o,
-    output wire [63:0] mem_wdata_o,
+    // mem_op_* 信号迁移至 AGU，不再从 dispatch_logic 输出
 
     // dispatch to SYS
     output wire sys_op_nop_o,
@@ -101,11 +88,9 @@ module dispatch_logic (
     output wire sys_op_ecall_o,
     output wire sys_op_ebreak_o,
     output wire sys_op_fence_o,
-    output wire sys_op_dret_o,
+    output wire sys_op_dret_o
 
-    // 新增：未对齐访存异常输出
-    output wire misaligned_load_o,
-    output wire misaligned_store_o
+    // （已移除AGU相关输出：地址/掩码/数据/未对齐标志由外部AGU提供）
 );
 
     wire [`DECINFO_GRP_WIDTH-1:0] disp_info_grp = dec_info_bus_i[`DECINFO_GRP_BUS];
@@ -207,121 +192,7 @@ module dispatch_logic (
     assign csr_csrrc_o = csr_info[`DECINFO_CSR_CSRRC];  // CSRRC/CSRRCI指令
     assign req_csr_o   = op_csr;
 
-    // MEM info
-
-    wire op_mem = (disp_info_grp == `DECINFO_GRP_MEM);
-    wire [`DECINFO_WIDTH-1:0] mem_info = {`DECINFO_WIDTH{op_mem}} & dec_info_bus_i;
-
-    // 这些信号不再是输出，但内部仍然需要使用
-    wire mem_op_lb = mem_info[`DECINFO_MEM_LB];  // LB指令：符号位扩展的字节加载
-    wire mem_op_lh = mem_info[`DECINFO_MEM_LH];  // LH指令：符号位扩展的半字加载
-    wire mem_op_lw = mem_info[`DECINFO_MEM_LW];  // LW指令：加载一个字
-    wire mem_op_lbu = mem_info[`DECINFO_MEM_LBU];  // LBU指令：无符号字节加载
-    wire mem_op_lhu = mem_info[`DECINFO_MEM_LHU];  // LHU指令：无符号半字加载
-    wire mem_op_sb = mem_info[`DECINFO_MEM_SB];  // SB指令：存储一个字节
-    wire mem_op_sh = mem_info[`DECINFO_MEM_SH];  // SH指令：存储一个半字
-    wire mem_op_sw = mem_info[`DECINFO_MEM_SW];  // SW指令：存储一个字
-
-    // 这些信号仍然作为输出
-    assign mem_op_lb_o    = mem_op_lb;
-    assign mem_op_lh_o    = mem_op_lh;
-    assign mem_op_lw_o    = mem_op_lw;
-    assign mem_op_lbu_o   = mem_op_lbu;
-    assign mem_op_lhu_o   = mem_op_lhu;
-    assign mem_op_load_o  = mem_info[`DECINFO_MEM_OP_LOAD];  // 所有加载指令
-    assign mem_op_store_o = mem_info[`DECINFO_MEM_OP_STORE];  // 所有存储指令
-
-    // 内部信号，不再作为输出
-    wire [31:0] mem_op1 = op_mem ? rs1_rdata_i : 32'h0;  // 基地址 (rs1)
-    wire [31:0] mem_op2 = op_mem ? dec_imm_i : 32'h0;  // 偏移量 (立即数)
-    wire [31:0] mem_rs2_data = op_mem ? rs2_rdata_i : 32'h0;  // 存储指令的数据 (rs2)
-
-    assign req_mem_o = op_mem;
-
-    // 直接计算内存地址
-    wire [31:0] mem_addr = rs1_rdata_i + dec_imm_i;
-    wire [ 2:0] mem_addr_index = mem_addr[2:0];  // 地址低三位用于字节选择（64位总线）
-    wire        valid_op = op_mem;  // 仅在内存操作有效时计算
-
-    // 存储操作的掩码和数据计算
-    // 字节存储掩码和数据
-    wire [ 7:0] sb_mask;
-    wire [63:0] sb_data;
-
-    assign sb_mask = ({8{mem_addr_index == 3'b000}} & 8'b00000001) |
-                     ({8{mem_addr_index == 3'b001}} & 8'b00000010) |
-                     ({8{mem_addr_index == 3'b010}} & 8'b00000100) |
-                     ({8{mem_addr_index == 3'b011}} & 8'b00001000) |
-                     ({8{mem_addr_index == 3'b100}} & 8'b00010000) |
-                     ({8{mem_addr_index == 3'b101}} & 8'b00100000) |
-                     ({8{mem_addr_index == 3'b110}} & 8'b01000000) |
-                     ({8{mem_addr_index == 3'b111}} & 8'b10000000);
-
-    assign sb_data = ({64{mem_addr_index == 3'b000}} & {56'b0, rs2_rdata_i[7:0]}) |
-                     ({64{mem_addr_index == 3'b001}} & {48'b0, rs2_rdata_i[7:0], 8'b0}) |
-                     ({64{mem_addr_index == 3'b010}} & {40'b0, rs2_rdata_i[7:0], 16'b0}) |
-                     ({64{mem_addr_index == 3'b011}} & {32'b0, rs2_rdata_i[7:0], 24'b0}) |
-                     ({64{mem_addr_index == 3'b100}} & {24'b0, rs2_rdata_i[7:0], 32'b0}) |
-                     ({64{mem_addr_index == 3'b101}} & {16'b0, rs2_rdata_i[7:0], 40'b0}) |
-                     ({64{mem_addr_index == 3'b110}} & {8'b0, rs2_rdata_i[7:0], 48'b0}) |
-                     ({64{mem_addr_index == 3'b111}} & {rs2_rdata_i[7:0], 56'b0});
-
-    // 半字存储掩码和数据
-    wire [ 7:0] sh_mask;
-    wire [63:0] sh_data;
-
-    assign sh_mask = ({8{mem_addr_index[2:1] == 2'b00}} & 8'b00000011) | 
-                     ({8{mem_addr_index[2:1] == 2'b01}} & 8'b00001100) |
-                     ({8{mem_addr_index[2:1] == 2'b10}} & 8'b00110000) |
-                     ({8{mem_addr_index[2:1] == 2'b11}} & 8'b11000000);
-
-    assign sh_data = ({64{mem_addr_index[2:1] == 2'b00}} & {48'b0, rs2_rdata_i[15:0]}) |
-                     ({64{mem_addr_index[2:1] == 2'b01}} & {32'b0, rs2_rdata_i[15:0], 16'b0}) |
-                     ({64{mem_addr_index[2:1] == 2'b10}} & {16'b0, rs2_rdata_i[15:0], 32'b0}) |
-                     ({64{mem_addr_index[2:1] == 2'b11}} & {rs2_rdata_i[15:0], 48'b0});
-
-    // 字存储掩码和数据
-    wire [ 7:0] sw_mask;
-    wire [63:0] sw_data;
-
-    assign sw_mask = ({8{mem_addr_index[2] == 1'b0}} & 8'b00001111) |
-                     ({8{mem_addr_index[2] == 1'b1}} & 8'b11110000);
-    assign sw_data = ({64{mem_addr_index[2] == 1'b0}} & {32'b0, rs2_rdata_i}) |
-                     ({64{mem_addr_index[2] == 1'b1}} & {rs2_rdata_i, 32'b0});
-
-    // 并行选择最终的存储掩码和数据
-    wire [ 7:0] mem_wmask;
-    wire [63:0] mem_wdata;
-
-    assign mem_wmask = ({8{valid_op & mem_op_sb}} & sb_mask) |
-                       ({8{valid_op & mem_op_sh}} & sh_mask) |
-                       ({8{valid_op & mem_op_sw}} & sw_mask);
-
-    assign mem_wdata = ({64{valid_op & mem_op_sb}} & sb_data) |
-                       ({64{valid_op & mem_op_sh}} & sh_data) |
-                       ({64{valid_op & mem_op_sw}} & sw_data);
-
-    // 输出计算结果
-    assign mem_addr_o = mem_addr;
-    assign mem_wmask_o = mem_wmask;
-    assign mem_wdata_o = mem_wdata;
-
-    // 地址对齐检测逻辑
-    wire is_word_access = mem_op_lw | mem_op_sw;  // lw/sw
-    wire is_half_access = mem_op_lh | mem_op_lhu | mem_op_sh;  // lh/lhu/sh
-    wire is_byte_access = mem_op_lb | mem_op_lbu | mem_op_sb;  // lb/lbu/sb
-
-    // load对齐检测
-    assign misaligned_load_o  = mem_op_load_o  & (
-        (mem_op_lw  && (mem_addr[1:0] != 2'b00)) ||
-        ((mem_op_lh | mem_op_lhu) && (mem_addr[0] != 1'b0))
-    );
-
-    // store对齐检测
-    assign misaligned_store_o = mem_op_store_o & (
-        (mem_op_sw && (mem_addr[1:0] != 2'b00)) ||
-        (mem_op_sh && (mem_addr[0] != 1'b0))
-    );
+    // 地址/掩码/数据与未对齐检测改由外部AGU负责
 
     // SYS info
 

@@ -116,10 +116,14 @@ module dispatch_pipe (
     // 访存数据输入 - 适配双发射64位数据总线
     input wire [ 7:0] mem_wmask_i,  // 升级到8位掩码
     input wire [63:0] mem_wdata_i,  // 升级到64位数据
+    input wire [2:0] mem_commit_id_i,
+    input wire [4:0] mem_reg_waddr_i,
 
     // 新增：未对齐访存异常输入
     input wire misaligned_load_i,
     input wire misaligned_store_i,
+    input wire mem_atom_lock_i,
+    input wire mem_stall_req_i,
 
     // SYS输入端口
     input wire sys_op_nop_i,
@@ -203,6 +207,8 @@ module dispatch_pipe (
     output wire mem_op_lhu_o,
     output wire mem_op_load_o,
     output wire mem_op_store_o,
+    output wire [2:0] mem_commit_id_o,
+    output wire [4:0] mem_reg_waddr_o,
 
     // 保留这些计算好的内存地址和掩码/数据输出 - 适配双发射
     output wire [31:0] mem_addr_o,
@@ -212,6 +218,8 @@ module dispatch_pipe (
     // 新增：未对齐访存异常输出
     output wire misaligned_load_o,
     output wire misaligned_store_o,
+    output wire mem_atom_lock_o,
+    output wire mem_stall_req_o,
 
     // SYS输出端口
     output wire sys_op_nop_o,
@@ -229,7 +237,7 @@ module dispatch_pipe (
     output wire [`COMMIT_ID_WIDTH-1:0] fake_commit_id_o
 );
 
-    wire                        flush_en = stall_flag_i[`CU_FLUSH];
+    wire                        flush_en = stall_flag_i[`CU_FLUSH] | stall_flag_i[`CU_STALL_AGU];
     // wire                        flush_fakecommit_en = stall_flag_i[`CU_FLUSH];
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        reg_update_en = ~stall_en;
@@ -843,6 +851,26 @@ module dispatch_pipe (
     );
     assign mem_op_store_o = mem_op_store;
 
+    wire [2:0] mem_commit_id;
+    gnrl_dfflr #(3) mem_commit_id_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_commit_id_i,
+        mem_commit_id
+    );
+    assign mem_commit_id_o = mem_commit_id;
+
+    wire [4:0] mem_reg_waddr;
+    gnrl_dfflr #(5) mem_reg_waddr_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_reg_waddr_i,
+        mem_reg_waddr
+    );
+    assign mem_reg_waddr_o = mem_reg_waddr;
+
     // SYS信号 (仅列出的几个保持flush)
     wire sys_op_nop_dnxt = sys_op_nop_i; // 去除flush清零
     wire sys_op_nop;
@@ -1016,6 +1044,28 @@ module dispatch_pipe (
         misaligned_store
     );
     assign misaligned_store_o = misaligned_store;
+
+    wire mem_atom_lock_dnxt = flush_en ? 1'b0 : mem_atom_lock_i;
+    wire mem_atom_lock;
+    gnrl_dfflr #(1) mem_atom_lock_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_atom_lock_dnxt,
+        mem_atom_lock
+    );
+    assign mem_atom_lock_o = mem_atom_lock;
+
+    wire mem_stall_req_dnxt = flush_en ? 1'b0 : mem_stall_req_i;
+    wire mem_stall_req;
+    gnrl_dfflr #(1) mem_stall_req_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mem_stall_req_dnxt,
+        mem_stall_req
+    );
+    assign mem_stall_req_o = mem_stall_req;
 
     // 新增：指令内容流水线寄存器
     wire [31:0] inst_dnxt = inst_i; // 去除flush清零

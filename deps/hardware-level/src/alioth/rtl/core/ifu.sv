@@ -104,7 +104,7 @@ module ifu (
     wire axi_pc_stall;
     wire stall_axi = (stall_flag_i != 0);  // AXI暂停信号，移除pc_misaligned
     wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
-    wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
+    wire stall_if = stall_flag_i[`CU_STALL] | stall_flag_i[`CU_STALL_AGU];  // IF阶段暂停信号
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
     wire sbpu_inst1_disable_o;
     // 实例化静态分支预测单元（双发射版本）

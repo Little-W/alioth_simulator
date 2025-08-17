@@ -156,31 +156,24 @@ module dispatch (
     output wire [31:0] csr_reg_waddr_o,
     output wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_o,
 
-    // dispatch to MEM (第一路)
-    output wire                        inst1_req_mem_o,
-    output wire                        inst1_mem_op_lb_o,
-    output wire                        inst1_mem_op_lh_o,
-    output wire                        inst1_mem_op_lw_o,
-    output wire                        inst1_mem_op_lbu_o,
-    output wire                        inst1_mem_op_lhu_o,
-    output wire                        inst1_mem_op_load_o,
-    output wire                        inst1_mem_op_store_o,
-    output wire [                31:0] inst1_mem_addr_o,
-    output wire [                 7:0] inst1_mem_wmask_o,
-    output wire [                64:0] inst1_mem_wdata_o,
-
-    // dispatch to MEM (第二路)
-    output wire                        inst2_req_mem_o,
-    output wire                        inst2_mem_op_lb_o,
-    output wire                        inst2_mem_op_lh_o,
-    output wire                        inst2_mem_op_lw_o,
-    output wire                        inst2_mem_op_lbu_o,
-    output wire                        inst2_mem_op_lhu_o,
-    output wire                        inst2_mem_op_load_o,
-    output wire                        inst2_mem_op_store_o,
-    output wire [                31:0] inst2_mem_addr_o,
-    output wire [                 7:0] inst2_mem_wmask_o,
-    output wire [                64:0] inst2_mem_wdata_o,
+    // dispatch to MEM 
+    output wire                        req_mem_o,
+    output wire                        mem_op_lb_o,
+    output wire                        mem_op_lh_o,
+    output wire                        mem_op_lw_o,
+    output wire                        mem_op_lbu_o,
+    output wire                        mem_op_lhu_o,
+    output wire                        mem_op_load_o,
+    output wire                        mem_op_store_o,
+    output wire [                31:0] mem_addr_o,
+    output wire [                 7:0] mem_wmask_o,
+    output wire [                63:0] mem_wdata_o,
+    output wire [2:0]              mem_commit_id_o,
+    output wire [4:0]              mem_reg_waddr_o,
+    output wire misaligned_load_o,
+    output wire misaligned_store_o,
+    output wire mem_atom_lock_o,
+    output wire mem_stall_req_o,
 
     // dispatch to SYS (合并单路输出)
     output wire sys_op_nop_o,
@@ -191,13 +184,9 @@ module dispatch (
     output wire sys_op_dret_o,
 
     //指令其他信号（第一路）
-    output wire inst1_misaligned_load_o,
-    output wire inst1_misaligned_store_o,
     output wire inst1_illegal_inst_o,
     
     //指令其他信号（第二路）
-    output wire inst2_misaligned_load_o,
-    output wire inst2_misaligned_store_o,
     output wire inst2_illegal_inst_o,
 
     //fake_commit信号，inst1的输出空置
@@ -223,11 +212,32 @@ module dispatch (
     output wire [               31:0] inst1_rs2_rdata_o,
     output wire [               31:0] inst2_rs1_rdata_o,
     output wire [               31:0] inst2_rs2_rdata_o,
-    output wire [3:0] inst1_commit_id_o,
-    output wire [3:0] inst2_commit_id_o
+    output wire [2:0] inst1_commit_id_o,
+    output wire [2:0] inst2_commit_id_o
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
+
+    // === 新增：AGU单路输出连线 ===
+    wire [31:0] agu_addr;
+    wire [7:0]  agu_wmask;
+    wire [63:0] agu_wdata;
+    wire        agu_mis_ld;
+    wire        agu_mis_st;
+    // 新增：AGU导出的MEM操作类型
+    wire        agu_req_mem;
+    wire        agu_mem_lb;
+    wire        agu_mem_lh;
+    wire        agu_mem_lw;
+    wire        agu_mem_lbu;
+    wire        agu_mem_lhu;
+    wire        agu_mem_load;
+    wire        agu_mem_store;
+    wire [2:0]  agu_commit_id;
+    wire [4:0]  agu_mem_reg_waddr;
+    wire        agu_atom_lock;
+    wire        agu_stall_req;
+
 
     // 第一路和第二路CSR内部信号
     wire        pipe_inst1_req_csr_o;
@@ -341,16 +351,6 @@ module dispatch (
     wire                        inst1_logic_csr_csrrc;
 
     wire                        inst1_logic_req_mem;
-    wire                        inst1_logic_mem_op_lb;
-    wire                        inst1_logic_mem_op_lh;
-    wire                        inst1_logic_mem_op_lw;
-    wire                        inst1_logic_mem_op_lbu;
-    wire                        inst1_logic_mem_op_lhu;
-    wire                        inst1_logic_mem_op_load;
-    wire                        inst1_logic_mem_op_store;
-    wire [                31:0] inst1_logic_mem_addr;
-    wire [                 7:0] inst1_logic_mem_wmask;
-    wire [                63:0] inst1_logic_mem_wdata;
 
     wire                        inst1_logic_sys_op_nop;
     wire                        inst1_logic_sys_op_mret;
@@ -359,8 +359,7 @@ module dispatch (
     wire                        inst1_logic_sys_op_fence;
     wire                        inst1_logic_sys_op_dret;
 
-    wire                        inst1_logic_misaligned_load;
-    wire                        inst1_logic_misaligned_store;
+    // AGU已经接管地址/掩码/数据与未对齐标志
 
     // 第二路dispatch_logic输出信号
     wire                        inst2_logic_req_alu;
@@ -404,19 +403,6 @@ module dispatch (
     wire                        inst2_logic_csr_csrrw;
     wire                        inst2_logic_csr_csrrs;
     wire                        inst2_logic_csr_csrrc;
-
-    wire                        inst2_logic_req_mem;
-    wire                        inst2_logic_mem_op_lb;
-    wire                        inst2_logic_mem_op_lh;
-    wire                        inst2_logic_mem_op_lw;
-    wire                        inst2_logic_mem_op_lbu;
-    wire                        inst2_logic_mem_op_lhu;
-    wire                        inst2_logic_mem_op_load;
-    wire                        inst2_logic_mem_op_store;
-    wire [                31:0] inst2_logic_mem_addr;
-    wire [                 7:0] inst2_logic_mem_wmask;
-    wire [                63:0] inst2_logic_mem_wdata;
-
     wire                        inst2_logic_sys_op_nop;
     wire                        inst2_logic_sys_op_mret;
     wire                        inst2_logic_sys_op_ecall;
@@ -424,8 +410,54 @@ module dispatch (
     wire                        inst2_logic_sys_op_fence;
     wire                        inst2_logic_sys_op_dret;
 
-    wire                        inst2_logic_misaligned_load;
-    wire                        inst2_logic_misaligned_store;
+    // AGU已经接管地址/掩码/数据与未对齐标志
+      // 实例化双发射AGU：计算两路地址/掩码/写数据与未对齐
+    agu_dual u_agu_dual (
+        .clk(clk),
+        .rst_n(rst_n),
+        .exu_lsu_stall(stall_flag_i[`CU_STALL_EXU]),
+        
+        // 第一路输入
+        .inst1_valid_i(inst1_valid_i),
+        .rs1_1_i(inst1_rs1_rdata_i),
+        .rs2_1_i(inst1_rs2_rdata_i),
+        .imm_1_i(inst1_dec_imm_i),
+        .dec_1_i(inst1_dec_info_bus_i),
+        .commit_id_1_i(inst1_commit_id_i),
+        .mem_reg_waddr_1_i(inst1_reg_waddr_i),
+        
+        // 第二路输入
+        .inst2_valid_i(inst2_valid_i),
+        .rs1_2_i(inst2_rs1_rdata_i),
+        .rs2_2_i(inst2_rs2_rdata_i),
+        .imm_2_i(inst2_dec_imm_i),
+        .dec_2_i(inst2_dec_info_bus_i),
+        .commit_id_2_i(inst2_commit_id_i),
+        .mem_reg_waddr_2_i(inst2_reg_waddr_i),
+
+        // 单路输出（64位总线编码）
+        .addr_o(agu_addr),
+        .wmask_o(agu_wmask),
+        .wdata_o(agu_wdata),
+        .mem_req_o(agu_req_mem),
+        .commit_id_o(agu_commit_id),
+        .mem_reg_waddr_o(agu_mem_reg_waddr),
+
+        // MEM操作类型导出
+        .mem_op_lb_o(agu_mem_lb),
+        .mem_op_lh_o(agu_mem_lh),
+        .mem_op_lw_o(agu_mem_lw),
+        .mem_op_lbu_o(agu_mem_lbu),
+        .mem_op_lhu_o(agu_mem_lhu),
+        .mem_op_load_o(agu_mem_load),
+        .mem_op_store_o(agu_mem_store),
+        .misaligned_load_o(agu_mis_ld),
+        .misaligned_store_o(agu_mis_st),
+
+        // 控制类信号输出
+        .agu_atom_lock(agu_atom_lock),
+        .agu_stall_req(agu_stall_req)
+    );
 
     // 实例化dispatch_logic模块 (第一路)
     dispatch_logic u_inst1_dispatch_logic (
@@ -482,19 +514,7 @@ module dispatch (
         .csr_csrrs_o(inst1_logic_csr_csrrs),
         .csr_csrrc_o(inst1_logic_csr_csrrc),
 
-        // MEM信号
-        .req_mem_o     (inst1_logic_req_mem),
-        .mem_op_lb_o   (inst1_logic_mem_op_lb),
-        .mem_op_lh_o   (inst1_logic_mem_op_lh),
-        .mem_op_lw_o   (inst1_logic_mem_op_lw),
-        .mem_op_lbu_o  (inst1_logic_mem_op_lbu),
-        .mem_op_lhu_o  (inst1_logic_mem_op_lhu),
-        .mem_op_load_o (inst1_logic_mem_op_load),
-        .mem_op_store_o(inst1_logic_mem_op_store),
-        // 直接计算的内存地址和掩码/数据
-        .mem_addr_o    (inst1_logic_mem_addr),
-        .mem_wmask_o   (inst1_logic_mem_wmask),
-        .mem_wdata_o   (inst1_logic_mem_wdata),
+        // MEM信号（操作类型由AGU提供，仅保留请求）
 
         // SYS信号
         .sys_op_nop_o   (inst1_logic_sys_op_nop),
@@ -502,11 +522,9 @@ module dispatch (
         .sys_op_ecall_o (inst1_logic_sys_op_ecall),
         .sys_op_ebreak_o(inst1_logic_sys_op_ebreak),
         .sys_op_fence_o (inst1_logic_sys_op_fence),
-        .sys_op_dret_o  (inst1_logic_sys_op_dret),
+        .sys_op_dret_o  (inst1_logic_sys_op_dret)
 
-        // 未对齐访存异常信号
-        .misaligned_load_o (inst1_logic_misaligned_load),
-        .misaligned_store_o(inst1_logic_misaligned_store)
+    // 未对齐访存异常信号已由AGU提供
     );
 
 
@@ -523,7 +541,7 @@ module dispatch (
         .reg_we_i             (inst1_reg_we_i),
         .reg_waddr_i          (inst1_reg_waddr_i),
         .rs1_rdata_i         (inst1_rs1_rdata_i),
-        .rs2_rdata_i         (inst1_rs1_rdata_i),
+        .rs2_rdata_i         (inst1_rs2_rdata_i),
         .csr_we_i             (inst1_csr_we_i),
         .csr_waddr_i          (inst1_csr_waddr_i),
         .csr_raddr_i          (inst1_csr_raddr_i),
@@ -576,18 +594,22 @@ module dispatch (
         .csr_csrrs_i       (inst1_logic_csr_csrrs),
         .csr_csrrc_i       (inst1_logic_csr_csrrc),
         // MEM信号
-        .req_mem_i          (inst1_logic_req_mem),
-        .mem_op_lb_i        (inst1_logic_mem_op_lb),
-        .mem_op_lh_i        (inst1_logic_mem_op_lh),
-        .mem_op_lw_i        (inst1_logic_mem_op_lw),    
-        .mem_op_lbu_i       (inst1_logic_mem_op_lbu),
-        .mem_op_lhu_i       (inst1_logic_mem_op_lhu),
-        .mem_op_load_i      (inst1_logic_mem_op_load),
-        .mem_op_store_i     (inst1_logic_mem_op_store),
+        .req_mem_i          (agu_req_mem),
+        .mem_op_lb_i        (agu_mem_lb),
+        .mem_op_lh_i        (agu_mem_lh),
+        .mem_op_lw_i        (agu_mem_lw),
+        .mem_op_lbu_i       (agu_mem_lbu),
+        .mem_op_lhu_i       (agu_mem_lhu),
+        .mem_op_load_i      (agu_mem_load),
+        .mem_op_store_i     (agu_mem_store),
         // 直接计算的内存地址和掩码/数据
-        .mem_addr_i         (inst1_logic_mem_addr),
-        .mem_wmask_i        (inst1_logic_mem_wmask),
-        .mem_wdata_i        (inst1_logic_mem_wdata),
+        .mem_addr_i         (agu_addr),
+        .mem_wmask_i        (agu_wmask),
+        .mem_wdata_i        (agu_wdata),
+        .mem_commit_id_i    (agu_commit_id),
+        .mem_reg_waddr_i    (agu_mem_reg_waddr),
+        .mem_atom_lock_i    (agu_atom_lock),
+        .mem_stall_req_i    (agu_stall_req),
         // SYS信号
         .sys_op_nop_i       (inst1_logic_sys_op_nop),
         .sys_op_mret_i      (inst1_logic_sys_op_mret),
@@ -596,8 +618,8 @@ module dispatch (
         .sys_op_fence_i     (inst1_logic_sys_op_fence),
         .sys_op_dret_i      (inst1_logic_sys_op_dret),
         // 新增：未对齐访存异常
-        .misaligned_load_i  (inst1_logic_misaligned_load),
-        .misaligned_store_i (inst1_logic_misaligned_store),
+        .misaligned_load_i  (agu_mis_ld),
+        .misaligned_store_i (agu_mis_st),
 
         //输出
         .inst_addr_o          (inst1_addr_o),
@@ -658,21 +680,25 @@ module dispatch (
         .csr_csrrs_o        (pipe_inst1_csr_csrrs_o),
         .csr_csrrc_o        (pipe_inst1_csr_csrrc_o),
         // MEM输出端口
-        .req_mem_o           (inst1_req_mem_o),
-        .mem_op_lb_o        (inst1_mem_op_lb_o),
-        .mem_op_lh_o        (inst1_mem_op_lh_o),
-        .mem_op_lw_o        (inst1_mem_op_lw_o),
-        .mem_op_lbu_o       (inst1_mem_op_lbu_o),
-        .mem_op_lhu_o       (inst1_mem_op_lhu_o),
-        .mem_op_load_o      (inst1_mem_op_load_o),
-        .mem_op_store_o     (inst1_mem_op_store_o),
+        .req_mem_o           (req_mem_o),
+        .mem_op_lb_o        (mem_op_lb_o),
+        .mem_op_lh_o        (mem_op_lh_o),
+        .mem_op_lw_o        (mem_op_lw_o),
+        .mem_op_lbu_o       (mem_op_lbu_o),
+        .mem_op_lhu_o       (mem_op_lhu_o),
+        .mem_op_load_o      (mem_op_load_o),
+        .mem_op_store_o     (mem_op_store_o),
         // 直接计算的内存地址和掩码/数据
-        .mem_addr_o         (inst1_mem_addr_o),
-        .mem_wmask_o       (inst1_mem_wmask_o),
-        .mem_wdata_o       (inst1_mem_wdata_o),
+        .mem_addr_o         (mem_addr_o),
+        .mem_wmask_o       (mem_wmask_o),
+        .mem_wdata_o       (mem_wdata_o),
+        .mem_commit_id_o   (mem_commit_id_o),
+        .mem_reg_waddr_o   (mem_reg_waddr_o),
         // 新增：未对齐访存异常输出
-        .misaligned_load_o  (inst1_misaligned_load_o),
-        .misaligned_store_o  (inst1_misaligned_store_o),
+        .misaligned_load_o  (misaligned_load_o),
+        .misaligned_store_o  (misaligned_store_o),
+        .mem_atom_lock_o     (mem_atom_lock_o),
+        .mem_stall_req_o     (mem_stall_req_o),
         // SYS输出端口
         .sys_op_nop_o       (pipe_inst1_sys_op_nop_o),
         .sys_op_mret_o      (pipe_inst1_sys_op_mret_o),
@@ -736,18 +762,7 @@ module dispatch (
         .csr_csrrw_o(inst2_logic_csr_csrrw),
         .csr_csrrs_o(inst2_logic_csr_csrrs),
         .csr_csrrc_o(inst2_logic_csr_csrrc),
-        // MEM信号
-        .req_mem_o     (inst2_logic_req_mem),
-        .mem_op_lb_o   (inst2_logic_mem_op_lb),
-        .mem_op_lh_o   (inst2_logic_mem_op_lh),
-        .mem_op_lw_o   (inst2_logic_mem_op_lw),
-        .mem_op_lbu_o  (inst2_logic_mem_op_lbu),
-        .mem_op_lhu_o  (inst2_logic_mem_op_lhu),
-        .mem_op_load_o (inst2_logic_mem_op_load),
-        .mem_op_store_o(inst2_logic_mem_op_store),
-        .mem_addr_o    (inst2_logic_mem_addr),
-        .mem_wmask_o   (inst2_logic_mem_wmask),
-        .mem_wdata_o   (inst2_logic_mem_wdata),
+
 
         // SYS信号
         .sys_op_nop_o   (inst2_logic_sys_op_nop),
@@ -755,11 +770,9 @@ module dispatch (
         .sys_op_ecall_o (inst2_logic_sys_op_ecall),
         .sys_op_ebreak_o(inst2_logic_sys_op_ebreak),
         .sys_op_fence_o (inst2_logic_sys_op_fence),
-        .sys_op_dret_o  (inst2_logic_sys_op_dret),
+        .sys_op_dret_o  (inst2_logic_sys_op_dret)
 
-        // 未对齐访存异常信号
-        .misaligned_load_o (inst2_logic_misaligned_load),
-        .misaligned_store_o(inst2_logic_misaligned_store)
+    // 未对齐访存异常信号已由AGU提供
     );
 
 
@@ -829,17 +842,21 @@ module dispatch (
         .csr_csrrc_i       (inst2_logic_csr_csrrc),
         // MEM信号
         .req_mem_i          (inst2_logic_req_mem),
-        .mem_op_lb_i        (inst2_logic_mem_op_lb),
-        .mem_op_lh_i        (inst2_logic_mem_op_lh),
-        .mem_op_lw_i        (inst2_logic_mem_op_lw),
-        .mem_op_lbu_i       (inst2_logic_mem_op_lbu),
-        .mem_op_lhu_i       (inst2_logic_mem_op_lhu),
-        .mem_op_load_i      (inst2_logic_mem_op_load),
-        .mem_op_store_i     (inst2_logic_mem_op_store),
+        .mem_op_lb_i        (1'b0), // 第二路不使用AGU，保持为0
+        .mem_op_lh_i        (1'b0),
+        .mem_op_lw_i        (1'b0),
+        .mem_op_lbu_i       (1'b0),
+        .mem_op_lhu_i       (1'b0),
+        .mem_op_load_i      (1'b0),
+        .mem_op_store_i     (1'b0),
         // 直接计算的内存地址和掩码/数据
-        .mem_addr_i         (inst2_logic_mem_addr),
-        .mem_wmask_i        (inst2_logic_mem_wmask),
-        .mem_wdata_i        (inst2_logic_mem_wdata),
+        .mem_addr_i         (32'b0),
+        .mem_wmask_i        (8'b0),
+        .mem_wdata_i        (64'b0),
+        .mem_commit_id_i    (3'b0),
+        .mem_reg_waddr_i    (5'b0),
+        .mem_atom_lock_i     (1'b0),
+        .mem_stall_req_i     (1'b0),
         // SYS信号
         .sys_op_nop_i       (inst2_logic_sys_op_nop),
         .sys_op_mret_i      (inst2_logic_sys_op_mret),
@@ -848,8 +865,8 @@ module dispatch (
         .sys_op_fence_i     (inst2_logic_sys_op_fence),
         .sys_op_dret_i      (inst2_logic_sys_op_dret),
         // 新增：未对齐访存异常
-        .misaligned_load_i  (inst2_logic_misaligned_load),
-        .misaligned_store_i (inst2_logic_misaligned_store),
+        .misaligned_load_i  (1'b0), // 第二路不使用AGU，保持为0
+        .misaligned_store_i (1'b0),
 
         //输出
         .inst_addr_o          (inst2_addr_o),
@@ -909,22 +926,26 @@ module dispatch (
         .csr_csrrw_o        (pipe_inst2_csr_csrrw_o),
         .csr_csrrs_o        (pipe_inst2_csr_csrrs_o),
         .csr_csrrc_o        (pipe_inst2_csr_csrrc_o),
-        // MEM输出端口
-        .req_mem_o           (inst2_req_mem_o),
-        .mem_op_lb_o        (inst2_mem_op_lb_o),
-        .mem_op_lh_o        (inst2_mem_op_lh_o),
-        .mem_op_lw_o        (inst2_mem_op_lw_o),
-        .mem_op_lbu_o       (inst2_mem_op_lbu_o),
-        .mem_op_lhu_o       (inst2_mem_op_lhu_o),
-        .mem_op_load_o      (inst2_mem_op_load_o),
-        .mem_op_store_o     (inst2_mem_op_store_o),
+        // MEM输出端口 - 第二路不输出MEM信号
+        .req_mem_o           (),
+        .mem_op_lb_o        (),
+        .mem_op_lh_o        (),
+        .mem_op_lw_o        (),
+        .mem_op_lbu_o       (),
+        .mem_op_lhu_o       (),
+        .mem_op_load_o      (),
+        .mem_op_store_o     (),
         // 直接计算的内存地址和掩码/数据
-        .mem_addr_o         (inst2_mem_addr_o),
-        .mem_wmask_o       (inst2_mem_wmask_o),
-        .mem_wdata_o       (inst2_mem_wdata_o),
+        .mem_addr_o         (),
+        .mem_wmask_o       (),
+        .mem_wdata_o       (),
+        .mem_commit_id_o   (),
+        .mem_reg_waddr_o   (),
         // 新增：未对齐访存异常输出
-        .misaligned_load_o  (inst2_misaligned_load_o),
-        .misaligned_store_o  (inst2_misaligned_store_o),
+        .misaligned_load_o  (),
+        .misaligned_store_o  (),
+        .mem_atom_lock_o     (),
+        .mem_stall_req_o     (),
         // SYS输出端口
         .sys_op_nop_o       (pipe_inst2_sys_op_nop_o),
         .sys_op_mret_o      (pipe_inst2_sys_op_mret_o),

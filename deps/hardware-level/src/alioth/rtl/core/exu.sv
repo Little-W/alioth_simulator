@@ -122,38 +122,21 @@ module exu (
     input wire        is_pred_branch_i,
 
     // LSU0接口 - 适配双发射64位数据总线
-    input wire                        req_mem0_i,
-    input wire                        mem0_op_lb_i,
-    input wire                        mem0_op_lh_i,
-    input wire                        mem0_op_lw_i,
-    input wire                        mem0_op_lbu_i,
-    input wire                        mem0_op_lhu_i,
-    input wire                        mem0_op_load_i,
-    input wire                        mem0_op_store_i,
-    input wire [              4:0]    mem0_rd_i,
-    input wire [             31:0]    mem0_addr_i,
-    input wire [             63:0]    mem0_wdata_i,  // 升级到64位数据
-    input wire [              7:0]    mem0_wmask_i,  // 升级到8位掩码
-    input wire [`COMMIT_ID_WIDTH-1:0] mem0_commit_id_i,
-    input wire                        mem0_reg_we_i,
-    input wire                        mem0_wb_ready_i,
-
-    // LSU1接口 - 适配双发射64位数据总线
-    input wire                        req_mem1_i,
-    input wire                        mem1_op_lb_i,
-    input wire                        mem1_op_lh_i,
-    input wire                        mem1_op_lw_i,
-    input wire                        mem1_op_lbu_i,
-    input wire                        mem1_op_lhu_i,
-    input wire                        mem1_op_load_i,
-    input wire                        mem1_op_store_i,
-    input wire [              4:0]    mem1_rd_i,
-    input wire [             31:0]    mem1_addr_i,
-    input wire [             63:0]    mem1_wdata_i,  // 升级到64位数据
-    input wire [              7:0]    mem1_wmask_i,  // 升级到8位掩码
-    input wire [`COMMIT_ID_WIDTH-1:0] mem1_commit_id_i,
-    input wire                        mem1_reg_we_i,
-    input wire                        mem1_wb_ready_i,
+    input wire                        req_mem_i,
+    input wire                        mem_op_lb_i,
+    input wire                        mem_op_lh_i,
+    input wire                        mem_op_lw_i,
+    input wire                        mem_op_lbu_i,
+    input wire                        mem_op_lhu_i,
+    input wire                        mem_op_load_i,
+    input wire                        mem_op_store_i,
+    input wire [              4:0]    mem_rd_i,
+    input wire [             31:0]    mem_addr_i,
+    input wire [             63:0]    mem_wdata_i,  // 升级到64位数据
+    input wire [              7:0]    mem_wmask_i,  // 升级到8位掩码
+    input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
+    input wire                        mem_reg_we_i,
+    input wire                        mem_wb_ready_i,
 
     // CSR接口 (仅保留一路)
     input wire        req_csr_i,
@@ -219,15 +202,10 @@ module exu (
     output wire [`COMMIT_ID_WIDTH-1:0] div1_commit_id_o,
 
     // LSU写回
-    output wire [ `REG_DATA_WIDTH-1:0] lsu0_reg_wdata_o,
-    output wire                        lsu0_reg_we_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] lsu0_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] lsu0_commit_id_o,
-
-    output wire [ `REG_DATA_WIDTH-1:0] lsu1_reg_wdata_o,
-    output wire                        lsu1_reg_we_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] lsu1_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] lsu1_commit_id_o,
+    output wire [ `REG_DATA_WIDTH-1:0] lsu_reg_wdata_o,
+    output wire                        lsu_reg_we_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] lsu_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] lsu_commit_id_o,
 
     // CSR写回 (单一路)
     output wire [ `REG_DATA_WIDTH-1:0] csr_reg_wdata_o,
@@ -246,8 +224,7 @@ module exu (
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
     // 访存繁忙信号
-    output wire mem0_store_busy_o,
-    output wire mem1_store_busy_o,
+    output wire mem_store_busy_o,
 
     // 系统操作信号输出
     output wire exu_op_ecall_o,
@@ -475,58 +452,34 @@ module exu (
         .misaligned_fetch_o(misaligned_fetch_bru)
     );
 
-    // 统一双发射LSU实例
+    // 单个LSU实例
     exu_lsu u_lsu (
         .clk(clk),
         .rst_n(rst_n),
         .int_assert_i(int_assert_i),
         
-        // LSU0接口（第一条指令）
-        .req_mem0_i(req_mem0_i),
-        .mem0_op_lb_i(mem0_op_lb_i),
-        .mem0_op_lh_i(mem0_op_lh_i),
-        .mem0_op_lw_i(mem0_op_lw_i),
-        .mem0_op_lbu_i(mem0_op_lbu_i),
-        .mem0_op_lhu_i(mem0_op_lhu_i),
-        .mem0_op_load_i(mem0_op_load_i),
-        .mem0_op_store_i(mem0_op_store_i),
-        .mem0_rd_i(mem0_rd_i),
-        .mem0_addr_i(mem0_addr_i),
-        .mem0_wdata_i(mem0_wdata_i),
-        .mem0_wmask_i(mem0_wmask_i),
-        .mem0_commit_id_i(mem0_commit_id_i),
-        .mem0_reg_we_i(mem0_reg_we_i),
-        .mem0_wb_ready_i(mem0_wb_ready_i),
+        // 单个LSU接口
+        .req_mem_i(req_mem_i),
+        .mem_op_lb_i(mem_op_lb_i),
+        .mem_op_lh_i(mem_op_lh_i),
+        .mem_op_lw_i(mem_op_lw_i),
+        .mem_op_lbu_i(mem_op_lbu_i),
+        .mem_op_lhu_i(mem_op_lhu_i),
+        .mem_op_load_i(mem_op_load_i),
+        .mem_op_store_i(mem_op_store_i),
+        .rd_addr_i(mem_rd_i),
+        .mem_addr_i(mem_addr_i),
+        .mem_wdata_i(mem_wdata_i),
+        .mem_wmask_i(mem_wmask_i),
+        .commit_id_i(mem_commit_id_i),
         
-        // LSU1接口（第二条指令）
-        .req_mem1_i(req_mem1_i),
-        .mem1_op_lb_i(mem1_op_lb_i),
-        .mem1_op_lh_i(mem1_op_lh_i),
-        .mem1_op_lw_i(mem1_op_lw_i),
-        .mem1_op_lbu_i(mem1_op_lbu_i),
-        .mem1_op_lhu_i(mem1_op_lhu_i),
-        .mem1_op_load_i(mem1_op_load_i),
-        .mem1_op_store_i(mem1_op_store_i),
-        .mem1_rd_i(mem1_rd_i),
-        .mem1_addr_i(mem1_addr_i),
-        .mem1_wdata_i(mem1_wdata_i),
-        .mem1_wmask_i(mem1_wmask_i),
-        .mem1_commit_id_i(mem1_commit_id_i),
-        .mem1_reg_we_i(mem1_reg_we_i),
-        .mem1_wb_ready_i(mem1_wb_ready_i),
-        
-        // 统一输出
+        // 输出信号
         .mem_stall_o(lsu_stall),
-        .mem0_store_busy_o(mem0_store_busy_o),
-        .mem1_store_busy_o(mem1_store_busy_o),
-        .lsu0_reg_wdata_o(lsu0_reg_wdata_o),
-        .lsu0_reg_we_o(lsu0_reg_we_o),
-        .lsu0_reg_waddr_o(lsu0_reg_waddr_o),
-        .lsu0_commit_id_o(lsu0_commit_id_o),
-        .lsu1_reg_wdata_o(lsu1_reg_wdata_o),
-        .lsu1_reg_we_o(lsu1_reg_we_o),
-        .lsu1_reg_waddr_o(lsu1_reg_waddr_o),
-        .lsu1_commit_id_o(lsu1_commit_id_o),
+        .mem_busy_o(mem_store_busy_o),  // 暂时悬空，如果需要可以连接到输出端口
+        .reg_wdata_o(lsu_reg_wdata_o),
+        .reg_we_o(lsu_reg_we_o),
+        .reg_waddr_o(lsu_reg_waddr_o),
+        .commit_id_o(lsu_commit_id_o),
         
         // 统一AXI接口连接
         .M_AXI_AWID(M_AXI_AWID),
