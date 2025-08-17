@@ -240,6 +240,8 @@ module cpu_top (
     wire [31:0] dispatch_alu_op2;
     wire dispatch_req_alu;
     wire [`ALU_OP_WIDTH-1:0] dispatch_alu_op_info;
+    wire dispatch_alu_pass_op1;  // 新增：ALU旁路信号
+    wire dispatch_alu_pass_op2;  // 新增：ALU旁路信
 
     // dispatch to Bru
     wire dispatch_req_bjp;
@@ -663,10 +665,12 @@ module cpu_top (
         .pipe_rs2_rdata_o   (dispatch_rs2_rdata),
 
         // 分发到各功能单元的信号
-        .req_alu_o    (dispatch_req_alu),
-        .alu_op1_o    (dispatch_alu_op1),
-        .alu_op2_o    (dispatch_alu_op2),
-        .alu_op_info_o(dispatch_alu_op_info),
+        .req_alu_o     (dispatch_req_alu),
+        .alu_op1_o     (dispatch_alu_op1),
+        .alu_op2_o     (dispatch_alu_op2),
+        .alu_op_info_o (dispatch_alu_op_info),
+        .alu_pass_op1_o(dispatch_alu_pass_op1),  // 新增：ALU旁路信号
+        .alu_pass_op2_o(dispatch_alu_pass_op2),  // 新增：ALU旁路信号
 
         .req_bjp_o            (dispatch_req_bjp),
         .bjp_op_jal_o         (dispatch_bjp_op_jal),
@@ -801,10 +805,12 @@ module cpu_top (
         .hazard_stall_i(dispatch_stall_flag_o),
 
         // 从dispatch获取的信号
-        .req_alu_i    (dispatch_req_alu),
-        .alu_op1_i    (dispatch_alu_op1),
-        .alu_op2_i    (dispatch_alu_op2),
-        .alu_op_info_i(dispatch_alu_op_info),
+        .req_alu_i     (dispatch_req_alu),
+        .alu_op1_i     (dispatch_alu_op1),
+        .alu_op2_i     (dispatch_alu_op2),
+        .alu_op_info_i (dispatch_alu_op_info),
+        .alu_pass_op1_i(dispatch_alu_pass_op1),  // 新增：ALU旁路信号
+        .alu_pass_op2_i(dispatch_alu_pass_op2),  // 新增：ALU旁路信号
 
         // 新增FPU格式信号
         .fmt_i(dispatch_fpu_fmt_o),

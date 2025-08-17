@@ -62,6 +62,8 @@ module exu (
     input wire [             31:0] alu_op1_i,
     input wire [             31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
+    input wire                     alu_pass_op1_i,  // 新增：ALU旁路信号
+    input wire                     alu_pass_op2_i,  // 新增：ALU旁路信号
 
     // dispatch to FPU
     input wire                         req_fpu_i,
@@ -408,6 +410,8 @@ module exu (
         .alu_op_info_i     (alu_op_info_i),
         .alu_rd_i          (reg_waddr_i),
         .commit_id_i       (commit_id_i),
+        .alu_pass_op1_i    (alu_pass_op1_i),        // 新增：ALU旁路信号
+        .alu_pass_op2_i    (alu_pass_op2_i),        // 新增：ALU旁路信号
         .wb_ready_i        (alu_wb_ready_i),
         .reg_we_i          (reg_we_i),
         .alu_stall_o       (alu_stall),

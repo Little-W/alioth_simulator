@@ -37,6 +37,9 @@ module exu_alu (
     input  wire [   `ALU_OP_WIDTH-1:0] alu_op_info_i,   // 统一的ALU操作信息信号
     input  wire [                 4:0] alu_rd_i,
     input  wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // ALU指令ID
+    // 新增：前递控制信号
+    input  wire                        alu_pass_op1_i,
+    input  wire                        alu_pass_op2_i,
     // 握手信号和控制
     input  wire                        wb_ready_i,      // 写回单元准备好接收ALU结果
     input  wire                        reg_we_i,        // ALU结果写回寄存器使能
@@ -55,9 +58,9 @@ module exu_alu (
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o   // 输出指令ID
 );
 
-    // ALU操作数选择 - 统一的运算器输入
-    wire [31:0] mux_op1 = alu_op1_i;
-    wire [31:0] mux_op2 = alu_op2_i;
+    // ALU操作数选择 - 支持前递
+    wire [31:0] mux_op1 = alu_pass_op1_i ? last_result_reg : alu_op1_i;
+    wire [31:0] mux_op2 = alu_pass_op2_i ? last_result_reg : alu_op2_i;
 
     // ALU运算类型选择(包括R与I类型)
     wire        op_add = alu_op_info_i[`ALU_OP_ADD];
@@ -233,6 +236,17 @@ module exu_alu (
 
     // 目标寄存器地址逻辑
     wire [4:0] alu_r_waddr = (int_assert_i == `INT_ASSERT || misaligned_fetch_i) ? 5'b0 : alu_rd_i;
+
+    // 增加写回数据寄存器
+    reg [`REG_DATA_WIDTH-1:0] last_result_reg;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_result_reg <= '0;
+        end else if (reg_we_o & wb_ready_i) begin
+            last_result_reg <= alu_res;
+        end
+    end
 
     // 握手失败时输出stall信号
     assign alu_stall_o = reg_we_o & ~wb_ready_i;
