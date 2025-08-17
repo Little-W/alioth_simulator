@@ -279,7 +279,7 @@ module cpu_top (
     wire dispatch_mem_op_lhu;
     wire dispatch_mem_op_load;
     wire dispatch_mem_op_store;
-    wire [1:0] dispatch_mem_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_mem_commit_id;
     wire [31:0] dispatch_mem_addr;
     wire [31:0] dispatch_mem_wdata;
     wire [3:0] dispatch_mem_wmask;
