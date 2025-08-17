@@ -58,6 +58,8 @@ module dispatch_pipe (
     input wire [             31:0] alu_op1_i,
     input wire [             31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
+    input wire                     alu_pass_op1_i,
+    input wire                     alu_pass_op2_i,
 
     // BJP输入端口
     input wire        req_bjp_i,
@@ -154,6 +156,9 @@ module dispatch_pipe (
     output wire [             31:0] alu_op1_o,
     output wire [             31:0] alu_op2_o,
     output wire [`ALU_OP_WIDTH-1:0] alu_op_info_o,
+    // 新增旁路信号输出
+    output wire                     alu_pass_op1_o,
+    output wire                     alu_pass_op2_o,
 
     // BJP输出端口
     output wire        req_bjp_o,
@@ -1056,5 +1061,28 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
+
+    // 新增：ALU RAW冒险旁路前递信号寄存器
+    wire alu_pass_op1_dnxt = alu_pass_op1_i;
+    wire alu_pass_op1;
+    gnrl_dfflr #(1) alu_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_pass_op1_dnxt,
+        alu_pass_op1
+    );
+    assign alu_pass_op1_o = alu_pass_op1;
+
+    wire alu_pass_op2_dnxt = alu_pass_op2_i;
+    wire alu_pass_op2;
+    gnrl_dfflr #(1) alu_pass_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_pass_op2_dnxt,
+        alu_pass_op2
+    );
+    assign alu_pass_op2_o = alu_pass_op2;
 
 endmodule

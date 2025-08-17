@@ -310,6 +310,7 @@
 `define EX_INFO_DIV 3
 `define EX_INFO_CSR 4
 `define EX_INFO_LOAD 5
+`define EX_INFO_OTHER 6
 
 // CPU字长和指令集扩展定义
 // CPU字长定义

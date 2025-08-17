@@ -161,12 +161,19 @@ module dispatch (
     output wire misaligned_load_o,   // 未对齐加载异常信号输出
     output wire misaligned_store_o,  // 未对齐存储异常信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o
+    output wire illegal_inst_o,
+    // 新增：ALU RAW冒险旁路前递信号输出
+    output wire alu_pass_op1_o,
+    output wire alu_pass_op2_o
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
 
     wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id;
+
+    // 新增：hdu旁路信号连线
+    wire alu_pass_op1;
+    wire alu_pass_op2;
 
     // 用于连接dispatch_logic输出到dispatch_pipe输入的内部地址、掩码和数据信号
     wire [                31:0] logic_mem_addr;
@@ -268,7 +275,10 @@ module dispatch (
         .commit_id_i          (commit_id_i),
         .hazard_stall_o       (hazard_stall_o),
         .commit_id_o          (hdu_long_inst_id),
-        .long_inst_atom_lock_o(long_inst_atom_lock_o)
+        .long_inst_atom_lock_o(long_inst_atom_lock_o),
+        // 新增旁路信号输出
+        .alu_pass_op1_o(alu_pass_op1),
+        .alu_pass_op2_o(alu_pass_op2)
     );
 
     // 实例化dispatch_logic模块
@@ -385,6 +395,8 @@ module dispatch (
         .alu_op1_i    (logic_alu_op1),
         .alu_op2_i    (logic_alu_op2),
         .alu_op_info_i(logic_alu_op_info),
+        .alu_pass_op1_i(alu_pass_op1), // 连接旁路信号输入
+        .alu_pass_op2_i(alu_pass_op2), // 连接旁路信号输入
 
         // BJP信号输入
         .req_bjp_i            (logic_req_bjp),
@@ -475,6 +487,8 @@ module dispatch (
         .alu_op1_o    (alu_op1_o),
         .alu_op2_o    (alu_op2_o),
         .alu_op_info_o(alu_op_info_o),
+        .alu_pass_op1_o(alu_pass_op1_o), // 连接旁路信号输出
+        .alu_pass_op2_o(alu_pass_op2_o), // 连接旁路
 
         // BJP信号输出
         .req_bjp_o            (req_bjp_o),

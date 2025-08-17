@@ -61,6 +61,8 @@ module exu (
     input wire [             31:0] alu_op1_i,
     input wire [             31:0] alu_op2_i,
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
+    input wire                     alu_pass_op1_i,  // 新增：ALU旁路信号
+    input wire                     alu_pass_op2_i,  // 新增：ALU旁路信号
 
     // dispatch to BJP
     input wire        req_bjp_i,
@@ -358,6 +360,8 @@ module exu (
         .alu_op_info_i     (alu_op_info_i),
         .alu_rd_i          (reg_waddr_i),
         .commit_id_i       (commit_id_i),
+        .alu_pass_op1_i    (alu_pass_op1_i),        // 新增：ALU旁路信号
+        .alu_pass_op2_i    (alu_pass_op2_i),        // 新增：ALU旁路信号
         .wb_ready_i        (alu_wb_ready_i),
         .reg_we_i          (reg_we_i),
         .alu_stall_o       (alu_stall),
@@ -372,30 +376,30 @@ module exu (
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
-        .rst_n             (rst_n),
-        .req_bjp_i         (req_bjp_i),
-        .bjp_op_jal_i      (bjp_op_jal_i),
-        .bjp_op_beq_i      (bjp_op_beq_i),
-        .bjp_op_bne_i      (bjp_op_bne_i),
-        .bjp_op_blt_i      (bjp_op_blt_i),
-        .bjp_op_bltu_i     (bjp_op_bltu_i),
-        .bjp_op_bge_i      (bjp_op_bge_i),
-        .bjp_op_bgeu_i     (bjp_op_bgeu_i),
-        .bjp_op_jalr_i     (bjp_op_jalr_i),
-        .is_pred_branch_i  (is_pred_branch_i),     // 新增：预测分支指令标志输入
+        .rst_n                (rst_n),
+        .req_bjp_i            (req_bjp_i),
+        .bjp_op_jal_i         (bjp_op_jal_i),
+        .bjp_op_beq_i         (bjp_op_beq_i),
+        .bjp_op_bne_i         (bjp_op_bne_i),
+        .bjp_op_blt_i         (bjp_op_blt_i),
+        .bjp_op_bltu_i        (bjp_op_bltu_i),
+        .bjp_op_bge_i         (bjp_op_bge_i),
+        .bjp_op_bgeu_i        (bjp_op_bgeu_i),
+        .bjp_op_jalr_i        (bjp_op_jalr_i),
+        .is_pred_branch_i     (is_pred_branch_i),       // 新增：预测分支指令标志输入
         // 新增信号
-        .bjp_adder_result_i    (bjp_adder_result_i),
-        .bjp_next_pc_i         (bjp_next_pc_i),
-        .op1_eq_op2_i          (op1_eq_op2_i),
-        .op1_ge_op2_signed_i   (op1_ge_op2_signed_i),
-        .op1_ge_op2_unsigned_i (op1_ge_op2_unsigned_i),
-        .sys_op_fence_i    (sys_op_fence_i),
-        .int_assert_i      (int_assert_i),
-        .int_addr_i        (int_addr_i),
-        .jump_flag_o       (bru_jump_flag),
-        .jump_addr_o       (bru_jump_addr),
+        .bjp_adder_result_i   (bjp_adder_result_i),
+        .bjp_next_pc_i        (bjp_next_pc_i),
+        .op1_eq_op2_i         (op1_eq_op2_i),
+        .op1_ge_op2_signed_i  (op1_ge_op2_signed_i),
+        .op1_ge_op2_unsigned_i(op1_ge_op2_unsigned_i),
+        .sys_op_fence_i       (sys_op_fence_i),
+        .int_assert_i         (int_assert_i),
+        .int_addr_i           (int_addr_i),
+        .jump_flag_o          (bru_jump_flag),
+        .jump_addr_o          (bru_jump_addr),
         // 新增：连接misaligned_fetch信号
-        .misaligned_fetch_o(misaligned_fetch_bru)
+        .misaligned_fetch_o   (misaligned_fetch_bru)
     );
 
     // CSR处理单元模块例化
