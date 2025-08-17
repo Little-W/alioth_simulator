@@ -82,7 +82,6 @@ module idu (
     output wire                        inst2_valid_o,        // 第二路指令有效输出
     output wire                        inst2_illegal_inst_o, // 第二路非法指令输出
     output wire [`INST_DATA_WIDTH-1:0] inst2_o,             // 第二路指令内容输出
-    output wire                        inst2_branch_o,       // 第二路分支指令输出
     output wire                        inst2_csr_type_o     // 第二路CSR类型指令输出
 );
 

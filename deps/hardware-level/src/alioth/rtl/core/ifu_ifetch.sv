@@ -60,9 +60,9 @@ module ifu_ifetch (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             pc_misaligned_last <= 1'b0;
-        end else begin
-            pc_misaligned_last <= pc_misaligned; // 采样当前周期
-        end
+        end else if (!stall_pc_i) begin
+            pc_misaligned_last <= pc_misaligned; // 暂停保持
+        end 
     end
     assign pc_misaligned_o = pc_misaligned | pc_misaligned_last;  // 输出延长一个周期
 

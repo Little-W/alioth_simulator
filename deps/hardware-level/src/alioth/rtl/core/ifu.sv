@@ -118,6 +118,7 @@ module ifu (
         .pc0_i           (inst0_addr),       // 第一条指令地址
         .pc1_i           (inst1_addr),       // 第二条指令地址
         .any_stall_i     (stall_axi),        // 流水线暂停信号
+        .pc_misaligned_i(pc_misaligned), // PC非对齐信号
         .branch_taken_o  (branch_taken),     // 预测是否为分支
         .branch_addr_o   (branch_addr),      // 预测的分支地址
         .is_pred_branch0_o(is_pred_branch0), // 第一条指令预测分支信号

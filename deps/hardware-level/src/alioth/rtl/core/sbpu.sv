@@ -37,6 +37,7 @@ module sbpu (
     input wire [`INST_ADDR_WIDTH-1:0] pc0_i,           // 第一条指令PC
     input wire [`INST_ADDR_WIDTH-1:0] pc1_i,           // 第二条指令PC
     input wire                        any_stall_i,     // 流水线暂停信号
+    input wire                        pc_misaligned_i,     // PC非对齐信号
 
     // 双指令输出
     output wire                        branch_taken_o,     // 预测是否为分支
@@ -46,8 +47,13 @@ module sbpu (
     output wire                        branch_inst_slot_o, // 分支指令所在槽位 (0=第一条, 1=第二条)
     output wire                        inst1_disable_o     // 指令1为JAL时，禁用指令2通道
 );
+    wire [`INST_DATA_WIDTH-1:0] inst0 = pc_misaligned_i ? inst1_i : inst0_i;
+    wire [`INST_DATA_WIDTH-1:0] inst1 = pc_misaligned_i ? `INST_NOP: inst1_i;
+    wire [`INST_ADDR_WIDTH-1:0] pc0 = pc_misaligned_i ? pc1_i : pc0_i;
+    wire [`INST_ADDR_WIDTH-1:0] pc1 = pc_misaligned_i ? `ZeroWord : pc1_i;
+
     // 第一条指令解析
-    wire [6:0] opcode0 = inst0_i[6:0];
+    wire [6:0] opcode0 = inst0[6:0];
     wire       opcode0_1100011 = (opcode0 == 7'b1100011);
     wire       opcode0_1101111 = (opcode0 == 7'b1101111);
     wire       opcode0_1100111 = (opcode0 == 7'b1100111);
@@ -56,7 +62,7 @@ module sbpu (
 
 
     // 第二条指令解析
-    wire [6:0] opcode1 = inst1_i[6:0];
+    wire [6:0] opcode1 = inst1[6:0];
     wire       opcode1_1100011 = (opcode1 == 7'b1100011);
     wire       opcode1_1101111 = (opcode1 == 7'b1101111);
     wire       opcode1_1100111 = (opcode1 == 7'b1100111);
@@ -64,15 +70,15 @@ module sbpu (
     wire       inst1_jal = opcode1_1101111;
 
     // 第一条指令立即数提取
-    wire [31:0] inst0_b_type_imm = {{20{inst0_i[31]}}, inst0_i[7], inst0_i[30:25], inst0_i[11:8], 1'b0};
+    wire [31:0] inst0_b_type_imm = {{20{inst0[31]}}, inst0[7], inst0[30:25], inst0[11:8], 1'b0};
     wire [31:0] inst0_j_type_imm = {
-        {12{inst0_i[31]}}, inst0_i[19:12], inst0_i[20], inst0_i[30:21], 1'b0
+        {12{inst0[31]}}, inst0[19:12], inst0[20], inst0[30:21], 1'b0
     };
 
     // 第二条指令立即数提取
-    wire [31:0] inst1_b_type_imm = {{20{inst1_i[31]}}, inst1_i[7], inst1_i[30:25], inst1_i[11:8], 1'b0};
+    wire [31:0] inst1_b_type_imm = {{20{inst1[31]}}, inst1[7], inst1[30:25], inst1[11:8], 1'b0};
     wire [31:0] inst1_j_type_imm = {
-        {12{inst1_i[31]}}, inst1_i[19:12], inst1_i[20], inst1_i[30:21], 1'b0
+        {12{inst1[31]}}, inst1[19:12], inst1[20], inst1[30:21], 1'b0
     };
 
     // 第一条指令预测信号
@@ -108,18 +114,18 @@ module sbpu (
         // 默认值，避免锁存器
         if (branch_from_inst1) begin
             // 如果分支来自第二条指令
-            branch_addr = pc1_i + 4;  // 默认：第二条指令的下一条
+            branch_addr = pc1 + 4;  // 默认：第二条指令的下一条
             case (1'b1)
-                inst1_type_branch: branch_addr = pc1_i + inst1_b_type_imm;
-                inst1_jal:         branch_addr = pc1_i + inst1_j_type_imm;
+                inst1_type_branch: branch_addr = pc1 + inst1_b_type_imm;
+                inst1_jal:         branch_addr = pc1 + inst1_j_type_imm;
                 default:           ;
             endcase
         end else begin
             // 如果分支来自第一条指令或无分支
-            branch_addr = pc0_i + 4;  // 默认：第一条指令的下一条
+            branch_addr = pc0 + 4;  // 默认：第一条指令的下一条
             case (1'b1)
-                inst0_type_branch: branch_addr = pc0_i + inst0_b_type_imm;
-                inst0_jal:         branch_addr = pc0_i + inst0_j_type_imm;
+                inst0_type_branch: branch_addr = pc0 + inst0_b_type_imm;
+                inst0_jal:         branch_addr = pc0 + inst0_j_type_imm;
                 default:           ;
             endcase
         end

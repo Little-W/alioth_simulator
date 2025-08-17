@@ -59,9 +59,9 @@ module ifu_pipe (
     // 根据PC对齐状态选择指令 - 64位访存指令分配逻辑
     // 当PC[2]=0时: inst1=低32位指令, inst2=高32位指令 (双发射)
     // 当PC[2]=1时: inst1=高32位指令, inst2=NOP (单发射)
-    wire [31:0] selected_inst1 = pc_misaligned_i ? inst2_i : inst1_i;
-    wire [31:0] selected_inst2 = pc_misaligned_i ? `INST_NOP : inst2_i;
-    
+    wire [31:0] selected_inst1 = stall_i ? `INST_NOP : (pc_misaligned_i ? inst2_i : inst1_i);
+    wire [31:0] selected_inst2 = stall_i ? `INST_NOP : (pc_misaligned_i ? `INST_NOP : inst2_i);
+
     // 在指令无效或冲刷信号有效时，选择填充NOP作为寄存器输入
     wire [31:0] inst1_selected = (flush_en || !inst_valid_i) ? `INST_NOP : selected_inst1;
     wire [31:0] inst2_selected = (flush_en || !inst_valid_i || inst2_disable_i) ? `INST_NOP : selected_inst2;
@@ -94,9 +94,9 @@ module ifu_pipe (
     wire [`INST_ADDR_WIDTH-1:0] inst2_addr;
     
     // 根据PC对齐状态选择地址 - 与指令选择逻辑保持一致
-    wire [`INST_ADDR_WIDTH-1:0] selected_addr1 = pc_misaligned_i ? inst2_addr_i : inst1_addr_i;
-    wire [`INST_ADDR_WIDTH-1:0] selected_addr2 = pc_misaligned_i ? `ZeroWord : inst2_addr_i;
-    
+    wire [`INST_ADDR_WIDTH-1:0] selected_addr1 = stall_i ? `ZeroWord : (pc_misaligned_i ? inst2_addr_i : inst1_addr_i);
+    wire [`INST_ADDR_WIDTH-1:0] selected_addr2 = stall_i ? `ZeroWord : (pc_misaligned_i ? `ZeroWord : inst2_addr_i);
+
     // 选择指令地址：如果需要冲刷水线则选择ZeroWord，否则选择处理后的地址
     wire [`INST_ADDR_WIDTH-1:0] addr1_selected = flush_en ? `ZeroWord : selected_addr1;
     wire [`INST_ADDR_WIDTH-1:0] addr2_selected = flush_en ? `ZeroWord : selected_addr2;
