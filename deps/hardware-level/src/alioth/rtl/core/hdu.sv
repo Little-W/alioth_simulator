@@ -200,34 +200,27 @@ module hdu (
         div_raw_rs2 = 1'b0;
         csr_raw_rs1 = 1'b0;
         if (is_alu_inst) begin
-            for (int i = 0; i < 8; i = i + 1) begin
-                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
-                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) alu_raw_rs1 = 1'b1;
-                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr) alu_raw_rs2 = 1'b1;
-                end
+            // 只需检查alu_raw_mask_id对应的FIFO表项
+            if (fifo_valid[alu_raw_mask_id] && !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
+                if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) alu_raw_rs1 = 1'b1;
+                if (rs2_re && rs2_addr == fifo_entry[alu_raw_mask_id].rd_addr) alu_raw_rs2 = 1'b1;
             end
         end
         if (is_mul_inst) begin
-            for (int i = 0; i < 8; i = i + 1) begin
-                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
-                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) mul_raw_rs1 = 1'b1;
-                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr) mul_raw_rs2 = 1'b1;
-                end
+            if (fifo_valid[alu_raw_mask_id] && !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
+                if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) mul_raw_rs1 = 1'b1;
+                if (rs2_re && rs2_addr == fifo_entry[alu_raw_mask_id].rd_addr) mul_raw_rs2 = 1'b1;
             end
         end
         if (is_div_inst) begin
-            for (int i = 0; i < 8; i = i + 1) begin
-                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
-                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) div_raw_rs1 = 1'b1;
-                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr) div_raw_rs2 = 1'b1;
-                end
+            if (fifo_valid[alu_raw_mask_id] && !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
+                if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) div_raw_rs1 = 1'b1;
+                if (rs2_re && rs2_addr == fifo_entry[alu_raw_mask_id].rd_addr) div_raw_rs2 = 1'b1;
             end
         end
         if (is_csr_inst) begin
-            for (int i = 0; i < 8; i = i + 1) begin
-                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
-                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) csr_raw_rs1 = 1'b1;
-                end
+            if (fifo_valid[alu_raw_mask_id] && !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
+                if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) csr_raw_rs1 = 1'b1;
             end
         end
     end
