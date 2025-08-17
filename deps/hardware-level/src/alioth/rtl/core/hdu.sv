@@ -55,8 +55,8 @@ module hdu (
         logic [`EX_INFO_BUS_WIDTH-1:0] exu_type;
     } fifo_entry_t;
 
-    reg          [3:0] fifo_valid;  // 有效位
-    fifo_entry_t       fifo_entry                     [0:3];  // 存储表项结构体
+    reg          [7:0] fifo_valid;  // 有效位，深度8
+    fifo_entry_t       fifo_entry                         [0:7];  // 存储表项结构体，深度8
 
     // 冒险检测信号
     reg                raw_hazard;  // 读后写冒险
@@ -64,12 +64,12 @@ module hdu (
     wire               hazard;  // 总冒险信号
 
     // 并行冒险检测信号
-    wire         [3:0] raw_hazard_vec;
-    wire         [3:0] waw_hazard_vec;
+    wire         [7:0] raw_hazard_vec;
+    wire         [7:0] waw_hazard_vec;
 
     genvar i;
     generate
-        for (i = 0; i < 4; i = i + 1) begin : hazard_vec_gen
+        for (i = 0; i < 8; i = i + 1) begin : hazard_vec_gen
             assign raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
                 ((rs1_re && rs1_addr == fifo_entry[i].rd_addr) || (rs2_re && rs2_addr == fifo_entry[i].rd_addr));
             // waw检测：只有exu_type不同才算冲突
@@ -83,20 +83,24 @@ module hdu (
 
     // 只有在有新指令且存在冒险时才暂停流水线
     assign hazard = (raw_hazard || waw_hazard);
-    assign hazard_stall_o = hazard || (fifo_valid == 4'b1111); // 如果FIFO已满也暂停流水线
+    assign hazard_stall_o = hazard || (&fifo_valid);  // 如果FIFO已满也暂停流水线
 
     // 为新的长指令分配ID - 使用assign语句
-    assign commit_id_o = (inst_valid && ~hazard) ? 
+    assign commit_id_o = (inst_valid && ~hazard) ?
         ( ~fifo_valid[0] ? 0 :
           ~fifo_valid[1] ? 1 :
           ~fifo_valid[2] ? 2 :
-          ~fifo_valid[3] ? 3 : 0 ) : 0;
+          ~fifo_valid[3] ? 3 :
+          ~fifo_valid[4] ? 4 :
+          ~fifo_valid[5] ? 5 :
+          ~fifo_valid[6] ? 6 :
+          ~fifo_valid[7] ? 7 : 0 ) : 0;
 
     // 更新FIFO
     always @(posedge clk or negedge rst_n) begin
         if (~rst_n) begin
             // 复位时清空FIFO
-            for (int i = 0; i < (1 << `COMMIT_ID_WIDTH); i = i + 1) begin
+            for (int i = 0; i < 8; i = i + 1) begin
                 fifo_valid[i]          <= 1'b0;
                 fifo_entry[i].rd_addr  <= 5'h0;
                 fifo_entry[i].exu_type <= {`EX_INFO_BUS_WIDTH{1'b0}};
