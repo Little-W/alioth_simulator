@@ -45,17 +45,17 @@ module dispatch (
     input wire                        is_pred_branch_i,
 
     // 寄存器写入信息 - 用于HDU检测冒险
-    input wire [    `REG_ADDR_WIDTH-1:0] reg_waddr_i,
-    input wire [    `REG_ADDR_WIDTH-1:0] reg1_raddr_i,
-    input wire [    `REG_ADDR_WIDTH-1:0] reg2_raddr_i,
-    input wire                           reg_we_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] reg_waddr_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] reg1_raddr_i,
+    input wire [   `REG_ADDR_WIDTH-1:0] reg2_raddr_i,
+    input wire                          reg_we_i,
     // 新增：rs1和rs2寄存器是否需要访问
-    input wire                           rs1_re_i,
-    input wire                           rs2_re_i,
+    input wire                          rs1_re_i,
+    input wire                          rs2_re_i,
     // 从IDU接收额外的CSR信号
-    input wire                           csr_we_i,
-    input wire [    `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
-    input wire [    `BUS_ADDR_WIDTH-1:0] csr_raddr_i,
+    input wire                          csr_we_i,
+    input wire [   `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
+    input wire [   `BUS_ADDR_WIDTH-1:0] csr_raddr_i,
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
 
     // 长指令有效信号 - 用于HDU
@@ -116,6 +116,8 @@ module dispatch (
     output wire [                31:0] mul_op1_o,
     output wire [                31:0] mul_op2_o,
     output wire [`COMMIT_ID_WIDTH-1:0] mul_commit_id_o,
+    output wire                        mul_pass_op1_o,
+    output wire                        mul_pass_op2_o,
 
     // dispatch to DIV
     output wire                        req_div_o,
@@ -126,6 +128,8 @@ module dispatch (
     output wire [                31:0] div_op1_o,
     output wire [                31:0] div_op2_o,
     output wire [`COMMIT_ID_WIDTH-1:0] div_commit_id_o,
+    output wire                        div_pass_op1_o,
+    output wire                        div_pass_op2_o,
 
     // dispatch to CSR
     output wire        req_csr_o,
@@ -134,6 +138,7 @@ module dispatch (
     output wire        csr_csrrw_o,
     output wire        csr_csrrs_o,
     output wire        csr_csrrc_o,
+    output wire        csr_pass_op1_o, // 新增：CSR旁路信号
 
     // dispatch to MEM
     output wire                        req_mem_o,
@@ -172,8 +177,14 @@ module dispatch (
     wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id;
 
     // 新增：hdu旁路信号连线
-    wire alu_pass_op1;
-    wire alu_pass_op2;
+    wire                        alu_pass_op1;
+    wire                        alu_pass_op2;
+    // 新增：MUL/DIV/CSR旁路信号连线
+    wire                        mul_pass_op1;
+    wire                        mul_pass_op2;
+    wire                        div_pass_op1;
+    wire                        div_pass_op2;
+    wire                        csr_pass_op1;
 
     // 用于连接dispatch_logic输出到dispatch_pipe输入的内部地址、掩码和数据信号
     wire [                31:0] logic_mem_addr;
@@ -277,8 +288,14 @@ module dispatch (
         .commit_id_o          (hdu_long_inst_id),
         .long_inst_atom_lock_o(long_inst_atom_lock_o),
         // 新增旁路信号输出
-        .alu_pass_op1_o(alu_pass_op1),
-        .alu_pass_op2_o(alu_pass_op2)
+        .alu_pass_op1_o       (alu_pass_op1),
+        .alu_pass_op2_o       (alu_pass_op2),
+        // 新增MUL/DIV/CSR旁路信号输出
+        .mul_pass_op1_o       (mul_pass_op1),
+        .mul_pass_op2_o       (mul_pass_op2),
+        .div_pass_op1_o       (div_pass_op1),
+        .div_pass_op2_o       (div_pass_op2),
+        .csr_pass_op1_o       (csr_pass_op1)
     );
 
     // 实例化dispatch_logic模块
@@ -391,12 +408,18 @@ module dispatch (
         .illegal_inst_i  (illegal_inst_i),
 
         // ALU信号输入
-        .req_alu_i    (logic_req_alu),
-        .alu_op1_i    (logic_alu_op1),
-        .alu_op2_i    (logic_alu_op2),
-        .alu_op_info_i(logic_alu_op_info),
-        .alu_pass_op1_i(alu_pass_op1), // 连接旁路信号输入
-        .alu_pass_op2_i(alu_pass_op2), // 连接旁路信号输入
+        .req_alu_i     (logic_req_alu),
+        .alu_op1_i     (logic_alu_op1),
+        .alu_op2_i     (logic_alu_op2),
+        .alu_op_info_i (logic_alu_op_info),
+        .alu_pass_op1_i(alu_pass_op1),       // 连接旁路信号输入
+        .alu_pass_op2_i(alu_pass_op2),       // 连接旁路信号输入
+        // 新增MUL/DIV/CSR旁路信号输入
+        .mul_pass_op1_i(mul_pass_op1),
+        .mul_pass_op2_i(mul_pass_op2),
+        .div_pass_op1_i(div_pass_op1),
+        .div_pass_op2_i(div_pass_op2),
+        .csr_pass_op1_i(csr_pass_op1),
 
         // BJP信号输入
         .req_bjp_i            (logic_req_bjp),
@@ -483,12 +506,18 @@ module dispatch (
         .rs2_rdata_o   (pipe_rs2_rdata_o),
 
         // ALU信号输出
-        .req_alu_o    (req_alu_o),
-        .alu_op1_o    (alu_op1_o),
-        .alu_op2_o    (alu_op2_o),
-        .alu_op_info_o(alu_op_info_o),
-        .alu_pass_op1_o(alu_pass_op1_o), // 连接旁路信号输出
-        .alu_pass_op2_o(alu_pass_op2_o), // 连接旁路
+        .req_alu_o     (req_alu_o),
+        .alu_op1_o     (alu_op1_o),
+        .alu_op2_o     (alu_op2_o),
+        .alu_op_info_o (alu_op_info_o),
+        .alu_pass_op1_o(alu_pass_op1_o),  // 连接旁路信号输出
+        .alu_pass_op2_o(alu_pass_op2_o),  // 连接旁路
+        // 新增MUL/DIV/CSR旁路信号输出
+        .mul_pass_op1_o(mul_pass_op1_o),
+        .mul_pass_op2_o(mul_pass_op2_o),
+        .div_pass_op1_o(div_pass_op1_o),
+        .div_pass_op2_o(div_pass_op2_o),
+        .csr_pass_op1_o(csr_pass_op1_o),
 
         // BJP信号输出
         .req_bjp_o            (req_bjp_o),

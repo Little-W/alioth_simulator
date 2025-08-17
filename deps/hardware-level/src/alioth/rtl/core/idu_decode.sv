@@ -328,20 +328,13 @@ module idu_decode (
     );
 
     // ex_info_bus_o类型编码
-    // `define EX_INFO_ALU 0
-    // `define EX_INFO_BJP 1
-    // `define EX_INFO_MUL 2
-    // `define EX_INFO_DIV 3
-    // `define EX_INFO_CSR 4
-    // `define EX_INFO_LOAD 5
-    // `define EX_INFO_OTHER 6
     assign ex_info_bus_o =
-        op_alu    ? 3'd0 :
-        op_bjp    ? 3'd1 :
-        (inst_type_mul) ? 3'd2 :
-        (inst_type_div) ? 3'd3 :
-        op_csr    ? 3'd4 :
-        inst_type_load ? 3'd5 :
-        3'd6; // 默认设置为其他类型
+        op_alu        ? `EX_INFO_ALU   :
+        inst_type_mul ? `EX_INFO_MUL   :
+        inst_type_div ? `EX_INFO_DIV   :
+        op_csr        ? `EX_INFO_CSR   :
+        op_bjp        ? `EX_INFO_BJP   :
+        inst_type_load ? `EX_INFO_LOAD :
+        `EX_INFO_OTHER; // 默认设置为其他类型
 
 endmodule

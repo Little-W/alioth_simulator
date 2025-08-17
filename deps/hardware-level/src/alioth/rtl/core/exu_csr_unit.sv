@@ -32,6 +32,9 @@ module exu_csr_unit (
     // 指令和操作数输入
     input wire                        req_csr_i,
     input wire [                31:0] csr_op1_i,
+    // 新增端口
+    input wire [`REG_DATA_WIDTH-1:0] alu_result_bypass_i,
+    input wire                       csr_pass_op_i,
     input wire [                31:0] csr_addr_i,
     input wire                        csr_csrrw_i,
     input wire                        csr_csrrs_i,
@@ -69,10 +72,14 @@ module exu_csr_unit (
     wire [`REG_DATA_WIDTH-1:0] csr_wdata_nxt;
     wire [`REG_DATA_WIDTH-1:0] reg_wdata_nxt;
 
+    // 新增mux选择
+    wire [`REG_DATA_WIDTH-1:0] csr_op1_muxed;
+    assign csr_op1_muxed = csr_pass_op_i ? alu_result_bypass_i : csr_op1_i;
+
     assign csr_wdata_nxt = int_assert_i ? `ZeroWord :
-        ({`REG_DATA_WIDTH{csr_csrrw_i}} & csr_op1_i) |
-        ({`REG_DATA_WIDTH{csr_csrrs_i}} & (csr_op1_i | csr_rdata_i)) |
-        ({`REG_DATA_WIDTH{csr_csrrc_i}} & (csr_rdata_i & (~csr_op1_i)));
+        ({`REG_DATA_WIDTH{csr_csrrw_i}} & csr_op1_muxed) |
+        ({`REG_DATA_WIDTH{csr_csrrs_i}} & (csr_op1_muxed | csr_rdata_i)) |
+        ({`REG_DATA_WIDTH{csr_csrrc_i}} & (csr_rdata_i & (~csr_op1_muxed)));
 
     assign reg_wdata_nxt = int_assert_i ? `ZeroWord : (req_csr_i ? csr_rdata_i : `ZeroWord);
 

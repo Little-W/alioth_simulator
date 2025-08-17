@@ -34,6 +34,10 @@ module exu_div (
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,
+    // 新增旁路输入和选择信号
+    input wire [ `REG_DATA_WIDTH-1:0] alu_result_bypass_i,
+    input wire                        div_pass_op1_i,
+    input wire                        div_pass_op2_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 译码输入
@@ -100,9 +104,12 @@ module exu_div (
 
     // Buffer数据选择
     wire use_buffer = buffer_req_valid;
+    // 新增旁路mux
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_pre_mux = use_buffer ? dividend_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_pre_mux = use_buffer ? divisor_buffer : reg2_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = div_pass_op1_i ? alu_result_bypass_i : reg1_rdata_pre_mux;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = div_pass_op2_i ? alu_result_bypass_i : reg2_rdata_pre_mux;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
-    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? dividend_buffer : reg1_rdata_i;
-    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? divisor_buffer : reg2_rdata_i;
     wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
     wire [3:0] div_op_mux = use_buffer ? div_op_buffer : {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
 
@@ -215,8 +222,9 @@ module exu_div (
         end else if (buffer_write_en && !buffer_req_valid) begin
             buffer_req_valid <= 1'b1;
             waddr_buffer     <= reg_waddr_i;
-            dividend_buffer  <= reg1_rdata_i;
-            divisor_buffer   <= reg2_rdata_i;
+            // buffer写入时使用mux数据
+            dividend_buffer  <= reg1_rdata_mux;
+            divisor_buffer   <= reg2_rdata_mux;
             commit_id_buffer <= commit_id_i;
             div_op_buffer    <= {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
         end else if (div0_start || div1_start) begin

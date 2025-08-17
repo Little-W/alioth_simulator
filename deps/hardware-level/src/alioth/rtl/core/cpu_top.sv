@@ -242,6 +242,8 @@ module cpu_top (
     wire dispatch_mul_op_mulhsu;
     wire dispatch_mul_op_mulhu;
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_mul_commit_id;
+    wire dispatch_mul_pass_op1;  // 新增：MUL旁路信号
+    wire dispatch_mul_pass_op2;  // 新增：MUL旁路信号
 
     // dispatch to DIV
     wire dispatch_req_div;
@@ -252,6 +254,8 @@ module cpu_top (
     wire dispatch_div_op_rem;
     wire dispatch_div_op_remu;
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_div_commit_id;
+    wire dispatch_div_pass_op1;  // 新增：DIV旁路信号
+    wire dispatch_div_pass_op2;  // 新增：DIV旁路信号
 
     // dispatch to CSR
     wire dispatch_req_csr;
@@ -260,6 +264,7 @@ module cpu_top (
     wire dispatch_csr_csrrw;
     wire dispatch_csr_csrrs;
     wire dispatch_csr_csrrc;
+    wire dispatch_csr_pass_op;  // 新增：CSR旁路信号
 
     wire [`BUS_ADDR_WIDTH-1:0] idu_csr_raddr_o;
     wire dispatch_reg_we_o;
@@ -606,6 +611,8 @@ module cpu_top (
         .mul_op_mulh_o  (dispatch_mul_op_mulh),
         .mul_op_mulhsu_o(dispatch_mul_op_mulhsu),
         .mul_op_mulhu_o (dispatch_mul_op_mulhu),
+        .mul_pass_op1_o (dispatch_mul_pass_op1),   // 新增：MUL旁路信号
+        .mul_pass_op2_o (dispatch_mul_pass_op2),   // 新增：MUL旁路信号
         .req_div_o      (dispatch_req_div),
         .div_op1_o      (dispatch_div_op1),
         .div_op2_o      (dispatch_div_op2),
@@ -613,15 +620,18 @@ module cpu_top (
         .div_op_divu_o  (dispatch_div_op_divu),
         .div_op_rem_o   (dispatch_div_op_rem),
         .div_op_remu_o  (dispatch_div_op_remu),
+        .div_pass_op1_o (dispatch_div_pass_op1),   // 新增：DIV旁路信号
+        .div_pass_op2_o (dispatch_div_pass_op2),   // 新增：DIV旁路信号
         .mul_commit_id_o(dispatch_mul_commit_id),
         .div_commit_id_o(dispatch_div_commit_id),
 
-        .req_csr_o  (dispatch_req_csr),
-        .csr_op1_o  (dispatch_csr_op1),
-        .csr_addr_o (dispatch_csr_addr),
-        .csr_csrrw_o(dispatch_csr_csrrw),
-        .csr_csrrs_o(dispatch_csr_csrrs),
-        .csr_csrrc_o(dispatch_csr_csrrc),
+        .req_csr_o    (dispatch_req_csr),
+        .csr_op1_o    (dispatch_csr_op1),
+        .csr_addr_o   (dispatch_csr_addr),
+        .csr_csrrw_o  (dispatch_csr_csrrw),
+        .csr_csrrs_o  (dispatch_csr_csrrs),
+        .csr_csrrc_o  (dispatch_csr_csrrc),
+        .csr_pass_op1_o(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_o         (dispatch_req_mem),
         .mem_op_lb_o       (dispatch_mem_op_lb),
@@ -716,15 +726,20 @@ module cpu_top (
         .div_op_divu_i  (dispatch_div_op_divu),
         .div_op_rem_i   (dispatch_div_op_rem),
         .div_op_remu_i  (dispatch_div_op_remu),
+        .mul_pass_op1_i (dispatch_mul_pass_op1),   // 新增：MUL旁路信号
+        .mul_pass_op2_i (dispatch_mul_pass_op2),   // 新增：MUL旁路信号
+        .div_pass_op1_i (dispatch_div_pass_op1),   // 新增：DIV旁路信号
+        .div_pass_op2_i (dispatch_div_pass_op2),   // 新增：DIV旁路信号
         .mul_commit_id_i(dispatch_mul_commit_id),
         .div_commit_id_i(dispatch_div_commit_id),
 
-        .req_csr_i  (dispatch_req_csr),
-        .csr_op1_i  (dispatch_csr_op1),
-        .csr_addr_i (dispatch_csr_addr),
-        .csr_csrrw_i(dispatch_csr_csrrw),
-        .csr_csrrs_i(dispatch_csr_csrrs),
-        .csr_csrrc_i(dispatch_csr_csrrc),
+        .req_csr_i    (dispatch_req_csr),
+        .csr_op1_i    (dispatch_csr_op1),
+        .csr_addr_i   (dispatch_csr_addr),
+        .csr_csrrw_i  (dispatch_csr_csrrw),
+        .csr_csrrs_i  (dispatch_csr_csrrs),
+        .csr_csrrc_i  (dispatch_csr_csrrc),
+        .csr_pass_op1_i(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_i      (dispatch_req_mem),
         .mem_op_lb_i    (dispatch_mem_op_lb),

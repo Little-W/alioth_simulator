@@ -89,6 +89,8 @@ module exu (
     input wire                        mul_op_mulhu_i,
     input wire                        req_mul_i,
     input wire [`COMMIT_ID_WIDTH-1:0] mul_commit_id_i,
+    input wire                        mul_pass_op1_i,   // 新
+    input wire                        mul_pass_op2_i,   // 新
 
     // dispatch to DIV
     input wire [                31:0] div_op1_i,
@@ -99,6 +101,8 @@ module exu (
     input wire                        div_op_remu_i,
     input wire                        req_div_i,
     input wire [`COMMIT_ID_WIDTH-1:0] div_commit_id_i,
+    input wire                        div_pass_op1_i,   // 新
+    input wire                        div_pass_op2_i,   // 新
 
     // dispatch to CSR
     input wire        req_csr_i,
@@ -107,6 +111,7 @@ module exu (
     input wire        csr_csrrw_i,
     input wire        csr_csrrs_i,
     input wire        csr_csrrc_i,
+    input wire        csr_pass_op1_i, // 新增：CSR旁路信号
 
     // dispatch to MEM
     input wire                        req_mem_i,
@@ -270,6 +275,7 @@ module exu (
     wire [                31:0] bjp_res;
     wire                        bjp_cmp_res;
 
+    wire [ `REG_DATA_WIDTH-1:0] alu_result_bypass;
 
     // 新增：misaligned_fetch信号连线
     wire                        misaligned_fetch_bru;
@@ -351,27 +357,28 @@ module exu (
 
     // 算术逻辑单元模块例化
     exu_alu u_alu (
-        .clk               (clk),
-        .rst_n             (rst_n),
-        .req_alu_i         (req_alu_i),
-        .hazard_stall_i    (hazard_stall_i),        // 来自HDU的冒险暂停信号
-        .alu_op1_i         (alu_op1_i),
-        .alu_op2_i         (alu_op2_i),
-        .alu_op_info_i     (alu_op_info_i),
-        .alu_rd_i          (reg_waddr_i),
-        .commit_id_i       (commit_id_i),
-        .alu_pass_op1_i    (alu_pass_op1_i),        // 新增：ALU旁路信号
-        .alu_pass_op2_i    (alu_pass_op2_i),        // 新增：ALU旁路信号
-        .wb_ready_i        (alu_wb_ready_i),
-        .reg_we_i          (reg_we_i),
-        .alu_stall_o       (alu_stall),
-        .int_assert_i      (int_assert_i),
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .req_alu_i          (req_alu_i),
+        .hazard_stall_i     (hazard_stall_i),        // 来自HDU的冒险暂停信号
+        .alu_op1_i          (alu_op1_i),
+        .alu_op2_i          (alu_op2_i),
+        .alu_op_info_i      (alu_op_info_i),
+        .alu_rd_i           (reg_waddr_i),
+        .commit_id_i        (commit_id_i),
+        .alu_pass_op1_i     (alu_pass_op1_i),        // 新增：ALU旁路信号
+        .alu_pass_op2_i     (alu_pass_op2_i),        // 新增：ALU旁路信号
+        .wb_ready_i         (alu_wb_ready_i),
+        .reg_we_i           (reg_we_i),
+        .alu_stall_o        (alu_stall),
+        .int_assert_i       (int_assert_i),
         // 新增：连接misaligned_fetch信号
-        .misaligned_fetch_i(misaligned_fetch_bru),
-        .result_o          (alu_reg_wdata_o),
-        .reg_we_o          (alu_reg_we_o),
-        .reg_waddr_o       (alu_reg_waddr_o),
-        .commit_id_o       (alu_commit_id_o)
+        .misaligned_fetch_i (misaligned_fetch_bru),
+        .result_o           (alu_reg_wdata_o),
+        .reg_we_o           (alu_reg_we_o),
+        .reg_waddr_o        (alu_reg_waddr_o),
+        .commit_id_o        (alu_commit_id_o),
+        .alu_result_bypass_o(alu_result_bypass)
     );
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
@@ -404,74 +411,82 @@ module exu (
 
     // CSR处理单元模块例化
     exu_csr_unit u_csr_unit (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .req_csr_i   (req_csr_i),
-        .csr_op1_i   (csr_op1_i),
-        .csr_addr_i  (csr_addr_i),
-        .csr_csrrw_i (csr_csrrw_i),
-        .csr_csrrs_i (csr_csrrs_i),
-        .csr_csrrc_i (csr_csrrc_i),
-        .csr_rdata_i (csr_rdata_i),
-        .commit_id_i (commit_id_i),
-        .csr_we_i    (csr_we_i),
-        .csr_reg_we_i(reg_we_i),
-        .csr_waddr_i (csr_waddr_i),
-        .reg_waddr_i (reg_waddr_i),
-        .wb_ready_i  (csr_wb_ready_i),
-        .csr_stall_o (csr_stall),
-        .int_assert_i(int_assert_i),
-        .csr_wdata_o (csr_wdata_o),
-        .csr_we_o    (csr_we_o),
-        .csr_waddr_o (csr_waddr_o),
-        .reg_wdata_o (csr_reg_wdata_o),
-        .reg_waddr_o (csr_reg_waddr_o),
-        .commit_id_o (csr_commit_id_o),
-        .csr_reg_we_o(csr_reg_we_o)
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .req_csr_i          (req_csr_i),
+        .csr_op1_i          (csr_op1_i),
+        .csr_addr_i         (csr_addr_i),
+        .csr_csrrw_i        (csr_csrrw_i),
+        .csr_csrrs_i        (csr_csrrs_i),
+        .csr_csrrc_i        (csr_csrrc_i),
+        .csr_rdata_i        (csr_rdata_i),
+        .commit_id_i        (commit_id_i),
+        .csr_pass_op_i      (csr_pass_op1_i),     // 新增：CSR旁路信号
+        .alu_result_bypass_i(alu_result_bypass),
+        .csr_we_i           (csr_we_i),
+        .csr_reg_we_i       (reg_we_i),
+        .csr_waddr_i        (csr_waddr_i),
+        .reg_waddr_i        (reg_waddr_i),
+        .wb_ready_i         (csr_wb_ready_i),
+        .csr_stall_o        (csr_stall),
+        .int_assert_i       (int_assert_i),
+        .csr_wdata_o        (csr_wdata_o),
+        .csr_we_o           (csr_we_o),
+        .csr_waddr_o        (csr_waddr_o),
+        .reg_wdata_o        (csr_reg_wdata_o),
+        .reg_waddr_o        (csr_reg_waddr_o),
+        .commit_id_o        (csr_commit_id_o),
+        .csr_reg_we_o       (csr_reg_we_o)
     );
 
     // 乘法单元
     exu_mul u_mul (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .wb_ready        (mul_wb_ready_i),
-        .reg_waddr_i     (reg_waddr_i),
-        .reg1_rdata_i    (mul_op1_i),
-        .reg2_rdata_i    (mul_op2_i),
-        .commit_id_i     (mul_commit_id_i),
-        .req_mul_i       (req_mul_i),
-        .mul_op_mul_i    (mul_op_mul_i),
-        .mul_op_mulh_i   (mul_op_mulh_i),
-        .mul_op_mulhsu_i (mul_op_mulhsu_i),
-        .mul_op_mulhu_i  (mul_op_mulhu_i),
-        .int_assert_i    (int_assert_i),
-        .mul_stall_flag_o(mul_stall_flag),
-        .reg_wdata_o     (mul_reg_wdata),
-        .reg_we_o        (mul_reg_we),
-        .reg_waddr_o     (mul_reg_waddr),
-        .commit_id_o     (mul_commit_id)
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .wb_ready           (mul_wb_ready_i),
+        .reg_waddr_i        (reg_waddr_i),
+        .reg1_rdata_i       (mul_op1_i),
+        .reg2_rdata_i       (mul_op2_i),
+        .commit_id_i        (mul_commit_id_i),
+        .req_mul_i          (req_mul_i),
+        .mul_op_mul_i       (mul_op_mul_i),
+        .mul_op_mulh_i      (mul_op_mulh_i),
+        .mul_op_mulhsu_i    (mul_op_mulhsu_i),
+        .mul_op_mulhu_i     (mul_op_mulhu_i),
+        .mul_pass_op1_i     (mul_pass_op1_i),     // 新增
+        .mul_pass_op2_i     (mul_pass_op2_i),     // 新增
+        .alu_result_bypass_i(alu_result_bypass),
+        .int_assert_i       (int_assert_i),
+        .mul_stall_flag_o   (mul_stall_flag),
+        .reg_wdata_o        (mul_reg_wdata),
+        .reg_we_o           (mul_reg_we),
+        .reg_waddr_o        (mul_reg_waddr),
+        .commit_id_o        (mul_commit_id)
     );
 
     // 除法单元
     exu_div u_div (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .wb_ready        (div_wb_ready_i),
-        .reg_waddr_i     (reg_waddr_i),
-        .reg1_rdata_i    (div_op1_i),
-        .reg2_rdata_i    (div_op2_i),
-        .commit_id_i     (div_commit_id_i),
-        .req_div_i       (req_div_i),
-        .div_op_div_i    (div_op_div_i),
-        .div_op_divu_i   (div_op_divu_i),
-        .div_op_rem_i    (div_op_rem_i),
-        .div_op_remu_i   (div_op_remu_i),
-        .int_assert_i    (int_assert_i),
-        .div_stall_flag_o(div_stall_flag),
-        .reg_wdata_o     (div_reg_wdata),
-        .reg_we_o        (div_reg_we),
-        .reg_waddr_o     (div_reg_waddr),
-        .commit_id_o     (div_commit_id)
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .wb_ready           (div_wb_ready_i),
+        .reg_waddr_i        (reg_waddr_i),
+        .reg1_rdata_i       (div_op1_i),
+        .reg2_rdata_i       (div_op2_i),
+        .commit_id_i        (div_commit_id_i),
+        .req_div_i          (req_div_i),
+        .div_op_div_i       (div_op_div_i),
+        .div_op_divu_i      (div_op_divu_i),
+        .div_op_rem_i       (div_op_rem_i),
+        .div_op_remu_i      (div_op_remu_i),
+        .div_pass_op1_i     (div_pass_op1_i),     // 新增
+        .div_pass_op2_i     (div_pass_op2_i),     // 新增
+        .alu_result_bypass_i(alu_result_bypass),
+        .int_assert_i       (int_assert_i),
+        .div_stall_flag_o   (div_stall_flag),
+        .reg_wdata_o        (div_reg_wdata),
+        .reg_we_o           (div_reg_we),
+        .reg_waddr_o        (div_reg_waddr),
+        .commit_id_o        (div_commit_id)
     );
 
     assign mul_reg_wdata_o = mul_reg_wdata;

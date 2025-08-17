@@ -48,7 +48,12 @@ module hdu (
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,  // 为新的长指令分配的ID
     output wire long_inst_atom_lock_o,  // 原子锁信号，FIFO中有未销毁的长指令时为1
     output wire alu_pass_op1_o,  // ALU rs1 RAW冒险旁路前递，特判放行
-    output wire alu_pass_op2_o  // ALU rs2 RAW冒险旁路前递，特判放行
+    output wire alu_pass_op2_o,  // ALU rs2 RAW冒险旁路前递，特判放行
+    output wire mul_pass_op1_o,  // MUL rs1 RAW冒险旁路前递
+    output wire mul_pass_op2_o,  // MUL rs2 RAW冒险旁路前递
+    output wire div_pass_op1_o,  // DIV rs1 RAW冒险旁路前递
+    output wire div_pass_op2_o,  // DIV rs2 RAW冒险旁路前递
+    output wire csr_pass_op1_o  // CSR rs1 RAW冒险旁路前递
 );
 
     // 定义FIFO表项结构
@@ -57,27 +62,34 @@ module hdu (
         logic [`EX_INFO_BUS_WIDTH-1:0] exu_type;
     } fifo_entry_t;
 
-    reg          [7:0] fifo_valid;  // 有效位，深度8
-    fifo_entry_t       fifo_entry                         [0:7];  // 存储表项结构体，深度8
+    reg [7:0] fifo_valid;  // 有效位，深度8
+    fifo_entry_t fifo_entry[0:7];  // 存储表项结构体，深度8
 
     // 冒险检测信号
-    reg                raw_hazard;  // 读后写冒险
-    reg                waw_hazard;  // 写后写冒险
-    wire               hazard;  // 总冒险信号
+    reg raw_hazard;  // 读后写冒险
+    reg waw_hazard;  // 写后写冒险
+    wire hazard;  // 总冒险信号
 
     // ALU RAW冒险掩码及其对应ID
     reg [7:0] alu_raw_mask;
-    reg [2:0] alu_raw_mask_id; // 记录当前mask对应的commit_id
+    reg [2:0] alu_raw_mask_id;  // 记录当前mask对应的commit_id
 
     // RAW冒险对象指示
     reg alu_raw_rs1, alu_raw_rs2;
+    reg mul_raw_rs1, mul_raw_rs2;
+    reg div_raw_rs1, div_raw_rs2;
+    reg        csr_raw_rs1;
 
     // RAW冒险向量
     wire [7:0] raw_hazard_vec;
     wire [7:0] waw_hazard_vec;
     wire [7:0] masked_raw_hazard_vec;
 
-    wire is_alu_inst = (ex_info_bus == `EX_INFO_ALU);
+    wire       is_alu_inst = (ex_info_bus == `EX_INFO_ALU);
+    wire       is_mul_inst = (ex_info_bus == `EX_INFO_MUL);
+    wire       is_div_inst = (ex_info_bus == `EX_INFO_DIV);
+    wire       is_csr_inst = (ex_info_bus == `EX_INFO_CSR);
+    wire       is_alu_bypass_inst = (ex_info_bus[`EX_INFO_BYPASS_BIT] == 1'b0);
 
     genvar i;
     generate
@@ -109,7 +121,7 @@ module hdu (
         end
     end
 
-    assign masked_raw_hazard_vec = is_alu_inst ? (raw_hazard_vec & alu_raw_mask) : raw_hazard_vec;
+    assign masked_raw_hazard_vec = is_alu_bypass_inst ? (raw_hazard_vec & alu_raw_mask) : raw_hazard_vec;
     // RAW冒险输出（掩码屏蔽新分配ID）
     assign raw_hazard = |masked_raw_hazard_vec;
     assign waw_hazard = |waw_hazard_vec;
@@ -153,24 +165,55 @@ module hdu (
         end
     end
 
-    // RAW冒险对象检测（只对ALU指令有效）
+    // RAW冒险对象检测（对ALU/MUL/DIV/CSR指令有效）
     always @(*) begin
         alu_raw_rs1 = 1'b0;
         alu_raw_rs2 = 1'b0;
+        mul_raw_rs1 = 1'b0;
+        mul_raw_rs2 = 1'b0;
+        div_raw_rs1 = 1'b0;
+        div_raw_rs2 = 1'b0;
+        csr_raw_rs1 = 1'b0;
         if (is_alu_inst) begin
             for (int i = 0; i < 8; i = i + 1) begin
                 if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
-                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr)
-                        alu_raw_rs1 = 1'b1;
-                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr)
-                        alu_raw_rs2 = 1'b1;
+                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) alu_raw_rs1 = 1'b1;
+                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr) alu_raw_rs2 = 1'b1;
+                end
+            end
+        end
+        if (is_mul_inst) begin
+            for (int i = 0; i < 8; i = i + 1) begin
+                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
+                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) mul_raw_rs1 = 1'b1;
+                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr) mul_raw_rs2 = 1'b1;
+                end
+            end
+        end
+        if (is_div_inst) begin
+            for (int i = 0; i < 8; i = i + 1) begin
+                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
+                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) div_raw_rs1 = 1'b1;
+                    if (rs2_re && rs2_addr == fifo_entry[i].rd_addr) div_raw_rs2 = 1'b1;
+                end
+            end
+        end
+        if (is_csr_inst) begin
+            for (int i = 0; i < 8; i = i + 1) begin
+                if (fifo_valid[i] && !(commit_valid_i && commit_id_i == i)) begin
+                    if (rs1_re && rs1_addr == fifo_entry[i].rd_addr) csr_raw_rs1 = 1'b1;
                 end
             end
         end
     end
 
-    assign alu_pass_op1_o = alu_raw_rs1;
-    assign alu_pass_op2_o = alu_raw_rs2;
+    assign alu_pass_op1_o        = alu_raw_rs1;
+    assign alu_pass_op2_o        = alu_raw_rs2;
+    assign mul_pass_op1_o        = mul_raw_rs1;
+    assign mul_pass_op2_o        = mul_raw_rs2;
+    assign div_pass_op1_o        = div_raw_rs1;
+    assign div_pass_op2_o        = div_raw_rs2;
+    assign csr_pass_op1_o        = csr_raw_rs1;
 
     // 生成原子锁信号 - 当FIFO中有任何一个有效的长指令时为1
     assign long_inst_atom_lock_o = |fifo_valid;
