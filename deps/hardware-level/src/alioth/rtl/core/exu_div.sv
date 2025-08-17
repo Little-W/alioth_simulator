@@ -69,6 +69,8 @@ module exu_div (
     wire ctrl_ready1;
     wire div0_start;
     wire div1_start;
+    wire div0_waw_mark;
+    wire div1_waw_mark;
 
     wire [`REG_DATA_WIDTH-1:0] div0_dividend;
     wire [`REG_DATA_WIDTH-1:0] div0_divisor;
@@ -114,13 +116,13 @@ module exu_div (
     assign div1_divisor   = reg2_rdata_mux;
 
     // 控制信号
-    wire sel_div0 = div0_valid;
-    wire sel_div1 = div1_valid;
+    wire                        sel_div0 = div0_valid && !div0_waw_mark;
+    wire                        sel_div1 = div1_valid && !div1_waw_mark;
 
     // 写回地址和commit_id调整为mux后的数据
-    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_mux;
+    wire [ `REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_mux;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id_nxt = commit_id_mux;
-    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_mux;
+    wire [ `REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_mux;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_nxt = commit_id_mux;
 
     // 保存除法器写回地址和commit_id
@@ -172,6 +174,33 @@ module exu_div (
     wire div0_available = !div0_busy && !div0_result_pending;
     wire div1_available = !div1_busy && !div1_result_pending;
 
+    wire div0_wb_accept = sel_div0 && wb_ready;
+    wire div1_wb_accept = sel_div1 && wb_ready;
+
+    // WAW检测条件
+    wire div0_waw_mark_nxt = (saved_div0_waddr_nxt == saved_div1_waddr) && div1_busy && !div1_wb_accept;
+    wire div1_waw_mark_nxt = (saved_div1_waddr_nxt == saved_div0_waddr) && div0_busy && !div0_wb_accept;
+
+    gnrl_dfflr #(
+        .DW(1)
+    ) div0_waw_mark_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div0_start | div1_wb_accept),
+        .dnxt (div0_waw_mark_nxt),
+        .qout (div0_waw_mark)
+    );
+
+    gnrl_dfflr #(
+        .DW(1)
+    ) div1_waw_mark_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div1_start | div0_wb_accept),
+        .dnxt (div1_waw_mark_nxt),
+        .qout (div1_waw_mark)
+    );
+
     // Buffer写入条件
     wire buffer_write_en = is_div_op && !div1_available && !div1_available;
 
@@ -197,8 +226,10 @@ module exu_div (
 
     // 流水线保持控制逻辑
     assign div_stall_flag_o = buffer_req_valid & is_div_op;
-    assign ctrl_ready0 = wb_ready || !sel_div0;
-    assign ctrl_ready1 = wb_ready && !sel_div0 || !sel_div1;
+    // WAW避免：div0_waw_mark为1时block写回
+    assign ctrl_ready0 = (wb_ready || !div0_valid) && !div0_waw_mark;
+    // WAW避免：div1_waw_mark为1时block写回
+    assign ctrl_ready1 = ((wb_ready && !sel_div0) || !div1_valid) && !div1_waw_mark;
 
     // 启动条件调整
     assign div0_start = (is_div_op || buffer_req_valid) && div0_available;
