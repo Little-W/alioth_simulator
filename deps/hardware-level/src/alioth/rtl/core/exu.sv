@@ -135,7 +135,6 @@ module exu (
     input wire [             63:0]    mem_wdata_i,  // 升级到64位数据
     input wire [              7:0]    mem_wmask_i,  // 升级到8位掩码
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
-    input wire                        mem_reg_we_i,
     input wire                        mem_wb_ready_i,
 
     // CSR接口 (仅保留一路)
@@ -225,6 +224,7 @@ module exu (
 
     // 访存繁忙信号
     output wire mem_store_busy_o,
+    output wire exu_lsu_stall_o,
 
     // 系统操作信号输出
     output wire exu_op_ecall_o,

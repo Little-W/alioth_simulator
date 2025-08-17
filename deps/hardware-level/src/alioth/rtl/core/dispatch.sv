@@ -72,6 +72,8 @@ module dispatch (
     input wire inst1_illegal_inst_i,
     input wire inst2_illegal_inst_i,
 
+    input wire exu_lsu_stall_i,
+
     //分发到各功能单元的输出接口
     // dispatch to alu (第一路)
     output wire        inst1_req_alu_o,
@@ -415,7 +417,7 @@ module dispatch (
     agu_dual u_agu_dual (
         .clk(clk),
         .rst_n(rst_n),
-        .exu_lsu_stall(stall_flag_i[`CU_STALL_EXU]),
+        .exu_lsu_stall(exu_lsu_stall_i),
         
         // 第一路输入
         .inst1_valid_i(inst1_valid_i),
@@ -841,7 +843,7 @@ module dispatch (
         .csr_csrrs_i       (inst2_logic_csr_csrrs),
         .csr_csrrc_i       (inst2_logic_csr_csrrc),
         // MEM信号
-        .req_mem_i          (inst2_logic_req_mem),
+        .req_mem_i          (1'b0),
         .mem_op_lb_i        (1'b0), // 第二路不使用AGU，保持为0
         .mem_op_lh_i        (1'b0),
         .mem_op_lw_i        (1'b0),

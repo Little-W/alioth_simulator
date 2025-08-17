@@ -145,7 +145,6 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] exu_lsu_reg_wdata_o;
     wire exu_lsu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_lsu_reg_waddr_o;
-    wire [`COMMIT_ID_WIDTH-1:0] exu_lsu_commit_id_o;
 
     // EXU双发射CSR输出信号  
     wire [`REG_DATA_WIDTH-1:0] exu_csr_reg_wdata_o;
@@ -159,6 +158,7 @@ module cpu_top (
 
     // EXU访存繁忙信号
     wire exu_mem_store_busy_o;
+    wire exu_lsu_stall_o;
 
     // EXU到WBU的数据通路信号
     wire [`REG_DATA_WIDTH-1:0] exu_alu_reg_wdata_o;
@@ -168,10 +168,6 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] exu_muldiv_reg_wdata_o;
     wire exu_muldiv_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_muldiv_reg_waddr_o;
-
-    wire [`REG_DATA_WIDTH-1:0] exu_lsu_reg_wdata_o;
-    wire exu_lsu_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] exu_lsu_reg_waddr_o;
 
     // wbu输出信号
     wire [`REG_DATA_WIDTH-1:0] wbu_reg1_wdata_o;
@@ -888,6 +884,8 @@ module cpu_top (
         .inst1_illegal_inst_i(icu_inst1_illegal_inst_o),
         .inst2_illegal_inst_i(icu_inst2_illegal_inst_o),
 
+        .exu_lsu_stall_i(exu_lsu_stall_o),
+
         // 分发到各功能单元的信号 
         //第一路ALU
         .inst1_req_alu_o    (dispatch_req_alu),
@@ -982,8 +980,6 @@ module cpu_top (
         .mem_wdata_o             (dispatch_mem_wdata),
         .mem_commit_id_o         (dispatch_mem_commit_id),
         .mem_reg_waddr_o         (dispatch_mem_reg_waddr),
-        .misaligned_load_o       (dispatch_inst1_misaligned_load_o),
-        .misaligned_store_o      (dispatch_inst1_misaligned_store_o),
         .mem_atom_lock_o         (dispatch_mem_atom_lock_o),
         .mem_stall_req_o         (dispatch_mem_stall_req_o),
 
@@ -1136,12 +1132,11 @@ module cpu_top (
         .mem_op_lhu_i(dispatch_mem_op_lhu),
         .mem_op_load_i(dispatch_mem_op_load),
         .mem_op_store_i(dispatch_mem_op_store),
-        .mem_rd_i(dispatch_inst1_reg_waddr_o),
+        .mem_rd_i(dispatch_mem_reg_waddr),
         .mem_addr_i(dispatch_mem_addr),
         .mem_wdata_i(dispatch_mem_wdata),
         .mem_wmask_i(dispatch_mem_wmask),
-        .mem_commit_id_i(dispatch_inst1_commit_id_o),
-        .mem_reg_we_i(dispatch_inst1_reg_we_o),
+        .mem_commit_id_i(dispatch_mem_commit_id),
         .mem_wb_ready_i(wbu_lsu_ready_o),
 
         // 单一路CSR接口
@@ -1223,6 +1218,7 @@ module cpu_top (
 
         // 访存繁忙信号
         .mem_store_busy_o(exu_mem_store_busy_o),
+        .exu_lsu_stall_o(exu_lsu_stall_o),
 
         // 系统操作信号输出
         .exu_op_ecall_o(exu_ecall_o),

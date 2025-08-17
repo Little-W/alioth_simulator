@@ -111,11 +111,11 @@ module agu_dual (
     always_ff @(posedge clk) begin
         if (fifo_push && !fifo_full) begin
             // 根据push_sel决定存入通道1还是通道2的数据
-            if (push_sel) begin
-                fifo_buffer[fifo_tail] <= '{rs1_2_i, rs2_2_i, imm_2_i, dec_2_i, commit_id_2_i, mem_reg_waddr_2_i, inst2_valid_i};
-            end else begin
-                fifo_buffer[fifo_tail] <= '{rs1_1_i, rs2_1_i, imm_1_i, dec_1_i, commit_id_1_i, mem_reg_waddr_1_i, inst1_valid_i};
-            end
+            case (push_sel)
+                2'b01: fifo_buffer[fifo_tail] <= '{rs1_1_i, rs2_1_i, imm_1_i, dec_1_i, commit_id_1_i, mem_reg_waddr_1_i, inst1_valid_i};
+                2'b10: fifo_buffer[fifo_tail] <= '{rs1_2_i, rs2_2_i, imm_2_i, dec_2_i, commit_id_2_i, mem_reg_waddr_2_i, inst2_valid_i};
+                default: ; // 不应该发生
+            endcase
         end
     end
 
@@ -146,22 +146,33 @@ module agu_dual (
     // 只有当mem_valid为1时才进行FIFO判断
     wire both_mem_valid = mem_valid_1 & mem_valid_2;
     wire same_type = both_mem_valid & ((op1_load & op2_load) | (op1_store & op2_store));
-    wire push_sel; // 0=通道1进FIFO, 1=通道2进FIFO
+    logic [1:0] push_sel; // 00=无推入, 01=仅通道1进FIFO, 10=仅通道2进FIFO, 11=两通道都进FIFO
     
     // FIFO推入逻辑
     always_comb begin
         fifo_push = 1'b0;
-        push_sel = 1'b0;
+        push_sel = 2'b00;
         
         if (!fifo_full) begin
-            if (same_type) begin
-                // 两路同类型，通道2进FIFO
-                fifo_push = 1'b1;
-                push_sel = 1'b1;
-            end else if (!fifo_empty & mem_valid_1) begin
-                // FIFO非空且通道1有效，通道1进FIFO等待
-                fifo_push = 1'b1;
-                push_sel = 1'b0;
+            if (both_mem_valid) begin
+                if (same_type) begin
+                    // 两路同类型，通道2进FIFO，通道1直接输出
+                    fifo_push = 1'b1;
+                    push_sel = 2'b10;
+                end else begin
+                    // 两路不同类型，不需要进FIFO等待
+                    fifo_push = 1'b0;
+                    push_sel = 2'b00;
+                end
+            end else if (!fifo_empty) begin
+                // FIFO非空，任何有效通道都需要进FIFO等待
+                if (mem_valid_1) begin
+                    fifo_push = 1'b1;
+                    push_sel = 2'b01;
+                end else if (mem_valid_2) begin
+                    fifo_push = 1'b1;
+                    push_sel = 2'b10;
+                end
             end
         end
     end
