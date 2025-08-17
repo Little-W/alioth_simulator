@@ -61,6 +61,12 @@ module dispatch_pipe (
     input wire [`ALU_OP_WIDTH-1:0] alu_op_info_i,
     input wire                     alu_pass_op1_i,
     input wire                     alu_pass_op2_i,
+    // 新增旁路信号输入
+    input wire                     mul_pass_op1_i,
+    input wire                     mul_pass_op2_i,
+    input wire                     div_pass_op1_i,
+    input wire                     div_pass_op2_i,
+    input wire                     csr_pass_op1_i,
 
     // BJP输入端口
     input wire        req_bjp_i,
@@ -192,6 +198,12 @@ module dispatch_pipe (
     // 新增旁路信号输出
     output wire                     alu_pass_op1_o,
     output wire                     alu_pass_op2_o,
+    // 新增MUL/DIV/CSR旁路信号输出
+    output wire                     mul_pass_op1_o,
+    output wire                     mul_pass_op2_o,
+    output wire                     div_pass_op1_o,
+    output wire                     div_pass_op2_o,
+    output wire                     csr_pass_op1_o,
 
     // BJP输出端口
     output wire        req_bjp_o,
@@ -1473,5 +1485,63 @@ module dispatch_pipe (
         alu_pass_op2
     );
     assign alu_pass_op2_o = alu_pass_op2;
+
+    // 新增：MUL RAW冒险旁路前递信号寄存器
+    wire mul_pass_op1_dnxt = mul_pass_op1_i;
+    wire mul_pass_op1;
+    gnrl_dfflr #(1) mul_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mul_pass_op1_dnxt,
+        mul_pass_op1
+    );
+    assign mul_pass_op1_o = mul_pass_op1;
+
+    wire mul_pass_op2_dnxt = mul_pass_op2_i;
+    wire mul_pass_op2;
+    gnrl_dfflr #(1) mul_pass_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mul_pass_op2_dnxt,
+        mul_pass_op2
+    );
+    assign mul_pass_op2_o = mul_pass_op2;
+
+    // 新增：DIV RAW冒险旁路前递信号寄存器
+    wire div_pass_op1_dnxt = div_pass_op1_i;
+    wire div_pass_op1;
+    gnrl_dfflr #(1) div_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_op1_dnxt,
+        div_pass_op1
+    );
+    assign div_pass_op1_o = div_pass_op1;
+
+    wire div_pass_op2_dnxt = div_pass_op2_i;
+    wire div_pass_op2;
+    gnrl_dfflr #(1) div_pass_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_op2_dnxt,
+        div_pass_op2
+    );
+    assign div_pass_op2_o = div_pass_op2;
+
+    // 新增：CSR RAW冒险旁路前递信号寄存器
+    wire csr_pass_op1_dnxt = csr_pass_op1_i;
+    wire csr_pass_op1;
+    gnrl_dfflr #(1) csr_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        csr_pass_op1_dnxt,
+        csr_pass_op1
+    );
+    assign csr_pass_op1_o = csr_pass_op1;
 
 endmodule

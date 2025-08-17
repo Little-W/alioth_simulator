@@ -34,6 +34,10 @@ module exu_mul (
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,
+    // 新增旁路输入和选择信号
+    input wire [ `REG_DATA_WIDTH-1:0] alu_result_bypass_i,
+    input wire                        mul_pass_op1_i,
+    input wire                        mul_pass_op2_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 译码输入
@@ -81,9 +85,12 @@ module exu_mul (
 
     // Buffer数据选择
     wire use_buffer = buffer_req_valid;
+    // 新增旁路mux
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_pre_mux = use_buffer ? multiplicand_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_pre_mux = use_buffer ? multiplier_buffer : reg2_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = mul_pass_op1_i ? alu_result_bypass_i : reg1_rdata_pre_mux;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = mul_pass_op2_i ? alu_result_bypass_i : reg2_rdata_pre_mux;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
-    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? multiplicand_buffer : reg1_rdata_i;
-    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? multiplier_buffer : reg2_rdata_i;
     wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
     wire [3:0] mul_op_mux = use_buffer ? mul_op_buffer : {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
 
@@ -111,8 +118,8 @@ module exu_mul (
         end else if ((buffer_write_en && !buffer_req_valid) || (buffer_req_valid && is_mul_op && ctrl_ready)) begin
             buffer_req_valid    <= 1'b1;
             waddr_buffer        <= reg_waddr_i;
-            multiplicand_buffer <= reg1_rdata_i;
-            multiplier_buffer   <= reg2_rdata_i;
+            multiplicand_buffer <= reg1_rdata_mux;
+            multiplier_buffer   <= reg2_rdata_mux;
             commit_id_buffer    <= commit_id_i;
             mul_op_buffer       <= {mul_op_mulhu_i, mul_op_mulhsu_i, mul_op_mulh_i, mul_op_mul_i};
         end else if (mul_valid_in && ctrl_ready) begin

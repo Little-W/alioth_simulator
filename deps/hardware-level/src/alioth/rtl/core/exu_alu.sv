@@ -55,7 +55,8 @@ module exu_alu (
     output wire [ `REG_DATA_WIDTH-1:0] result_o,
     output wire                        reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o   // 输出指令ID
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,   // 输出指令ID
+    output wire [ `REG_DATA_WIDTH-1:0] alu_result_bypass_o  // 新增：ALU结果旁路输出
 );
 
     // ALU操作数选择 - 支持前递
@@ -256,5 +257,6 @@ module exu_alu (
     assign reg_we_o    = alu_r_we;
     assign reg_waddr_o = alu_r_waddr;
     assign commit_id_o = commit_id_i;
+    assign alu_result_bypass_o = last_result_reg;  // 新增：ALU结果旁路输出
 
 endmodule
