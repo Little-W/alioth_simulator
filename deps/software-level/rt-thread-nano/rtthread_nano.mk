@@ -61,7 +61,6 @@ LDFLAGS += -nostartfiles -nostdlib -T $(LINKER_SCRIPT)
 LDFLAGS += -Wl,--gc-sections
 LDFLAGS += -march=$(DEFAULT_RISCV_ARCH)
 LDFLAGS += -mabi=$(DEFAULT_RISCV_ABI)
-LDFLAGS += -L$(RISCV_GCC_ROOT)/riscv64-unknown-elf/lib/rv32im/ilp32
 
 .PHONY: all
 all: $(TARGET)
