@@ -34,6 +34,13 @@ module exu_div (
     input wire [ `REG_ADDR_WIDTH-1:0] reg_waddr_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg1_rdata_i,
     input wire [ `REG_DATA_WIDTH-1:0] reg2_rdata_i,
+    // 新增旁路输入和选择信号
+    input wire [ `REG_DATA_WIDTH-1:0] alu1_result_bypass_i,
+    input wire [ `REG_DATA_WIDTH-1:0] alu2_result_bypass_i,
+    input wire                        div_pass_alu1_op1_i,
+    input wire                        div_pass_alu1_op2_i,
+    input wire                        div_pass_alu2_op1_i,
+    input wire                        div_pass_alu2_op2_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
 
     // 译码输入
@@ -69,6 +76,8 @@ module exu_div (
     wire ctrl_ready1;
     wire div0_start;
     wire div1_start;
+    wire div0_waw_mark;
+    wire div1_waw_mark;
 
     wire [`REG_DATA_WIDTH-1:0] div0_dividend;
     wire [`REG_DATA_WIDTH-1:0] div0_divisor;
@@ -98,9 +107,19 @@ module exu_div (
 
     // Buffer数据选择
     wire use_buffer = buffer_req_valid;
+    // 新增旁路mux
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_pre_mux = use_buffer ? dividend_buffer : reg1_rdata_i;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_pre_mux = use_buffer ? divisor_buffer : reg2_rdata_i;
+    // 修改为支持四种旁路选择
+    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux =
+        div_pass_alu1_op1_i ? alu1_result_bypass_i :
+        div_pass_alu2_op1_i ? alu2_result_bypass_i :
+        reg1_rdata_pre_mux;
+    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux =
+        div_pass_alu1_op2_i ? alu1_result_bypass_i :
+        div_pass_alu2_op2_i ? alu2_result_bypass_i :
+        reg2_rdata_pre_mux;
     wire [`REG_ADDR_WIDTH-1:0] reg_waddr_mux = use_buffer ? waddr_buffer : reg_waddr_i;
-    wire [`REG_DATA_WIDTH-1:0] reg1_rdata_mux = use_buffer ? dividend_buffer : reg1_rdata_i;
-    wire [`REG_DATA_WIDTH-1:0] reg2_rdata_mux = use_buffer ? divisor_buffer : reg2_rdata_i;
     wire [`COMMIT_ID_WIDTH-1:0] commit_id_mux = use_buffer ? commit_id_buffer : commit_id_i;
     wire [3:0] div_op_mux = use_buffer ? div_op_buffer : {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
 
@@ -114,13 +133,13 @@ module exu_div (
     assign div1_divisor   = reg2_rdata_mux;
 
     // 控制信号
-    wire sel_div0 = div0_valid;
-    wire sel_div1 = div1_valid;
+    wire                        sel_div0 = div0_valid && !div0_waw_mark;
+    wire                        sel_div1 = div1_valid && !div1_waw_mark;
 
     // 写回地址和commit_id调整为mux后的数据
-    wire [`REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_mux;
+    wire [ `REG_ADDR_WIDTH-1:0] saved_div0_waddr_nxt = reg_waddr_mux;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div0_commit_id_nxt = commit_id_mux;
-    wire [`REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_mux;
+    wire [ `REG_ADDR_WIDTH-1:0] saved_div1_waddr_nxt = reg_waddr_mux;
     wire [`COMMIT_ID_WIDTH-1:0] saved_div1_commit_id_nxt = commit_id_mux;
 
     // 保存除法器写回地址和commit_id
@@ -172,6 +191,33 @@ module exu_div (
     wire div0_available = !div0_busy && !div0_result_pending;
     wire div1_available = !div1_busy && !div1_result_pending;
 
+    wire div0_wb_accept = sel_div0 && wb_ready;
+    wire div1_wb_accept = sel_div1 && wb_ready;
+
+    // WAW检测条件
+    wire div0_waw_mark_nxt = (saved_div0_waddr_nxt == saved_div1_waddr) && div1_busy && !div1_wb_accept;
+    wire div1_waw_mark_nxt = (saved_div1_waddr_nxt == saved_div0_waddr) && div0_busy && !div0_wb_accept;
+
+    gnrl_dfflr #(
+        .DW(1)
+    ) div0_waw_mark_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div0_start | div1_wb_accept),
+        .dnxt (div0_waw_mark_nxt),
+        .qout (div0_waw_mark)
+    );
+
+    gnrl_dfflr #(
+        .DW(1)
+    ) div1_waw_mark_dfflr (
+        .clk  (clk),
+        .rst_n(rst_n),
+        .lden (div1_start | div0_wb_accept),
+        .dnxt (div1_waw_mark_nxt),
+        .qout (div1_waw_mark)
+    );
+
     // Buffer写入条件
     wire buffer_write_en = is_div_op && !div1_available && !div1_available;
 
@@ -186,8 +232,9 @@ module exu_div (
         end else if (buffer_write_en && !buffer_req_valid) begin
             buffer_req_valid <= 1'b1;
             waddr_buffer     <= reg_waddr_i;
-            dividend_buffer  <= reg1_rdata_i;
-            divisor_buffer   <= reg2_rdata_i;
+            // buffer写入时使用mux数据
+            dividend_buffer  <= reg1_rdata_mux;
+            divisor_buffer   <= reg2_rdata_mux;
             commit_id_buffer <= commit_id_i;
             div_op_buffer    <= {div_op_remu_i, div_op_rem_i, div_op_divu_i, div_op_div_i};
         end else if (div0_start || div1_start) begin
@@ -197,8 +244,10 @@ module exu_div (
 
     // 流水线保持控制逻辑
     assign div_stall_flag_o = buffer_req_valid & is_div_op;
-    assign ctrl_ready0 = wb_ready || !sel_div0;
-    assign ctrl_ready1 = wb_ready && !sel_div0 || !sel_div1;
+    // WAW避免：div0_waw_mark为1时block写回
+    assign ctrl_ready0 = (wb_ready || !div0_valid) && !div0_waw_mark;
+    // WAW避免：div1_waw_mark为1时block写回
+    assign ctrl_ready1 = ((wb_ready && !sel_div0) || !div1_valid) && !div1_waw_mark;
 
     // 启动条件调整
     assign div0_start = (is_div_op || buffer_req_valid) && div0_available;

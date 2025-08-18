@@ -451,7 +451,8 @@ module cpu_top (
     wire [2:0] dispatch_inst1_commit_id_o; 
     wire [2:0] dispatch_inst2_commit_id_o;
 
-    
+    wire dispatch_agu_stall_req_o;
+    wire dispatch_agu_atom_lock_o;
 
     // AXI接口信号 - EXU
     wire [`BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
@@ -521,8 +522,8 @@ module cpu_top (
     // wire inst2_rd_access_valid = icu_inst2_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o && !pc_misaligned_o;
 
     wire clint_inst_valid_i = inst1_clint_valid || inst2_clint_valid;
-    wire [31:0] clint_inst_addr_i = inst1_clint_valid ? dispatch_inst1_addr_o : dispatch_inst2_addr_o;
-    wire [31:0] clint_inst_i = inst1_clint_valid ? dispatch_inst1_o : dispatch_inst2_o;
+    wire [31:0] clint_inst_addr_i = inst2_clint_valid ? dispatch_inst2_addr_o : dispatch_inst1_addr_o;
+    wire [31:0] clint_inst_i = inst2_clint_valid ? dispatch_inst2_o : dispatch_inst1_o;
 
     // CLINT AXI-Lite接口信号
     wire OM1_AXI_ACLK;
@@ -1377,6 +1378,7 @@ module cpu_top (
         .jump_addr_i       (exu_jump_addr_o),
         .stall_flag_i      (ctrl_stall_flag_o),
         .atom_opt_busy_i   (atom_opt_busy),
+        .agu_atom_lock_i   (dispatch_mem_atom_lock_o),     // AGU原子锁信号输入
         .sys_op_ecall_i    (exu_ecall_o),
         .sys_op_ebreak_i   (exu_ebreak_o),
         .sys_op_mret_i     (exu_mret_o),
