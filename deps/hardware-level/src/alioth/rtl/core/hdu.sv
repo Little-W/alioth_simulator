@@ -427,9 +427,11 @@ module hdu (
                     alu1_raw_alu1_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     alu1_raw_alu1_rs2 = 1'b1;
-                if (inst1_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
+            end
+            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     alu1_raw_alu2_rs1 = 1'b1;
-                if (inst1_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
+                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     alu1_raw_alu2_rs2 = 1'b1;
             end
         end
@@ -439,6 +441,8 @@ module hdu (
                     mul1_raw_alu1_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     mul1_raw_alu1_rs2 = 1'b1;
+            end
+            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     mul1_raw_alu2_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
@@ -451,6 +455,8 @@ module hdu (
                     div1_raw_alu1_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     div1_raw_alu1_rs2 = 1'b1;
+            end
+            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     div1_raw_alu2_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
@@ -465,6 +471,8 @@ module hdu (
                     alu2_raw_alu2_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     alu2_raw_alu2_rs2 = 1'b1;
+            end
+            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     alu2_raw_alu1_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
@@ -477,6 +485,8 @@ module hdu (
                     mul2_raw_alu2_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     mul2_raw_alu2_rs2 = 1'b1;
+            end
+            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     mul2_raw_alu1_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
@@ -489,6 +499,8 @@ module hdu (
                     div2_raw_alu2_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     div2_raw_alu2_rs2 = 1'b1;
+            end
+            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     div2_raw_alu1_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
