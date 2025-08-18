@@ -130,7 +130,7 @@ module ifu_pipe (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (!stall_i),       // 当stall_i为1时不更新
-        .dnxt (flush_en ? 1'b0 : selected_branch1),
+        .dnxt (flush_en ? 1'b0 : is_pred_branch1_i),
         .qout (is_pred_branch1_r)
     );
     assign is_pred_branch1_o = is_pred_branch1_r;
@@ -141,7 +141,7 @@ module ifu_pipe (
         .clk  (clk),
         .rst_n(rst_n),
         .lden (!stall_i),       // 当stall_i为1时不更新
-        .dnxt (flush_en ? 1'b0 : selected_branch2),
+        .dnxt (flush_en ? 1'b0 : is_pred_branch2_i),
         .qout (is_pred_branch2_r)
     );
     assign is_pred_branch2_o = is_pred_branch2_r;

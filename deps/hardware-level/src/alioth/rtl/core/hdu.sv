@@ -300,6 +300,7 @@ module hdu (
     // issue_inst_o: 发射指令选择
     assign issue_inst_o = issue_inst_reg;
 
+
     // ID 分配
     wire [2:0] next_id1, next_id2;
     wire can_alloc_two;
@@ -355,8 +356,8 @@ module hdu (
                       3'd0;
 
     // 输出分配的ID（不再特殊处理0）
-    assign inst1_commit_id_o = (issue_inst_o[0]) ? next_id1 : 3'd0;
-    assign inst2_commit_id_o = (issue_inst_o[1]) ? next_id2 : 3'd0;
+    assign inst1_commit_id_o =  next_id1 ;
+    assign inst2_commit_id_o =  next_id2 ;
     //仅当指令有效、发射且写寄存器时写入
     assign can_into_fifo_inst1 = (inst1_rd_check) && issue_inst_o[0];
     assign can_into_fifo_inst2 =  (inst2_rd_check) && issue_inst_o[1] ;//&& inst2_commit_id_o != 3'd0

@@ -693,7 +693,7 @@ module dispatch (
         .rst_n                (rst_n),
         .stall_en             (stall_en1),
         .flush_en             (flush_en1),
-        .inst_valid_i         (hdu_issue_inst[0]),
+        .inst_valid_i         (hdu_issue_inst[0] && inst1_valid_i), // 仅当HDU发出指令1时才有效
         .inst_i               (inst1_i),
         .inst_addr_i          (inst1_addr_i),
         .commit_id_i          (hdu_inst1_commit_id),
@@ -962,7 +962,7 @@ module dispatch (
         .rst_n                (rst_n),
         .stall_en             (stall_en2),
         .flush_en             (flush_en2),
-        .inst_valid_i         (hdu_issue_inst[1]),
+        .inst_valid_i         (hdu_issue_inst[1] && inst2_valid_i),
         .inst_i               (inst2_i),
         .inst_addr_i          (inst2_addr_i),
         .commit_id_i          (hdu_inst2_commit_id),
@@ -1205,7 +1205,7 @@ module dispatch (
     assign bjp_op_bgeu_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_bgeu_o    : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_bgeu_o : 0;
     assign bjp_op_jalr_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jalr_o : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_jalr_o : 0;
 
-    assign inst_is_pred_branch_o = pipe_inst1_is_pred_branch | pipe_inst2_is_pred_branch;
+    assign inst_is_pred_branch_o = pipe_inst1_req_bjp_o ? pipe_inst1_is_pred_branch : pipe_inst2_req_bjp_o ? pipe_inst2_is_pred_branch : 0;
 
     //sys合并逻辑
     //sys只留一路即可
