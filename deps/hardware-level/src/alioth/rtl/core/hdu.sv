@@ -57,7 +57,6 @@ module hdu (
     // input wire [`COMMIT_ID_WIDTH-1:0] pending_inst1_id_i,
 
     // 跳转控制信号
-    input wire                        idu_flush_i,        //此时忽视来自idu的指令，防止它们进入FIFO
     input wire                        inst1_jump_i,    // 指令1跳转信号
     input wire                        clint_req_valid, //中断请求有效信号
     input wire                        inst1_branch_i,  // 指令1分支信号
@@ -74,14 +73,12 @@ module hdu (
     output wire mul1_pass_op2_o,
     output wire div1_pass_op1_o,
     output wire div1_pass_op2_o,
-    output wire csr1_pass_op1_o,
     output wire alu2_pass_op1_o,
     output wire alu2_pass_op2_o,
     output wire mul2_pass_op1_o,
     output wire mul2_pass_op2_o,
     output wire div2_pass_op1_o,
     output wire div2_pass_op2_o,
-    output wire csr2_pass_op1_o,
     output wire long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
 );
 
@@ -372,12 +369,7 @@ module hdu (
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[div1_raw_mask_id].rd_addr) div1_raw_rs2 = 1'b1;
             end
         end
-        if (inst1_is_csr_inst) begin
-            if (fifo_valid[csr1_raw_mask_id] && !(commit_valid_i && commit_id_i == csr1_raw_mask_id)) begin
-                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[csr1_raw_mask_id].rd_addr) csr1_raw_rs1 = 1'b1;
-            end
-        end
-
+        
         if (inst2_is_alu_inst) begin
             // 只需检查alu_raw_mask_id对应的FIFO表项
             if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
@@ -397,11 +389,6 @@ module hdu (
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[div2_raw_mask_id].rd_addr) div2_raw_rs2 = 1'b1;
             end
         end
-        if (inst2_is_csr_inst) begin
-            if (fifo_valid[csr2_raw_mask_id] && !(commit_valid_i && commit_id_i == csr2_raw_mask_id)) begin
-                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[csr2_raw_mask_id].rd_addr) csr2_raw_rs1 = 1'b1;
-            end
-        end
     end
 
     assign alu1_pass_op1_o        = alu1_raw_rs1;
@@ -409,15 +396,13 @@ module hdu (
     assign mul1_pass_op1_o        = mul1_raw_rs1;
     assign mul1_pass_op2_o        = mul1_raw_rs2;
     assign div1_pass_op1_o        = div1_raw_rs1;
-    assign div1_pass_op2_o        = div1_raw_rs2;
-    assign csr1_pass_op1_o        = csr1_raw_rs1;
+    assign div1_pass_op2_o        = div1_raw_rs2;;
     assign alu2_pass_op1_o        = alu2_raw_rs1;
     assign alu2_pass_op2_o        = alu2_raw_rs2;
     assign mul2_pass_op1_o        = mul2_raw_rs1;
     assign mul2_pass_op2_o        = mul2_raw_rs2;
     assign div2_pass_op1_o        = div2_raw_rs1;
     assign div2_pass_op2_o        = div2_raw_rs2;
-    assign csr2_pass_op1_o        = csr2_raw_rs1;
 
 
     // 原子锁：FIFO 中尚有未完成指令

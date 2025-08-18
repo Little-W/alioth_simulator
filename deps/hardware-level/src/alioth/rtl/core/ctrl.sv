@@ -34,7 +34,7 @@ module ctrl (
     // from ex
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
-    input wire                        stall_flag_ex_i,
+    input wire [1:0]                  stall_flag_ex_i,
     input wire                        atom_opt_busy_i,  // 原子操作忙信号
 
     // from clint
@@ -48,7 +48,6 @@ module ctrl (
     output wire [`CU_BUS_WIDTH-1:0] stall_flag_o,
     output wire [`CU_BUS_WIDTH-1:0] stall_flag1_o,
     output wire [`CU_BUS_WIDTH-1:0] stall_flag2_o,
-    output wire [`CU_BUS_WIDTH-1:0] stall_flag_icu_o,
 
     // to ifu
     output wire                        jump_flag_o,
@@ -110,23 +109,21 @@ module ctrl (
     //给IFU和Dispatch
     assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | (stall_flag_hdu_if & ~jump_flag_i) ;
     assign stall_flag_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i ;
-    assign stall_flag_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
+    assign stall_flag_o[`CU_STALL_DISPATCH_1] = stall_flag_ex_i[0];
+    assign stall_flag_o[`CU_STALL_DISPATCH_2] = stall_flag_ex_i[1];
     assign stall_flag_o[`CU_STALL_AGU] = agu_req_stall_i;
 
     //分别给两个IDU
     assign stall_flag1_o[`CU_STALL] = stall_flag_ex_i | (stall_flag_hdu_id1 & ~jump_flag_i) ;
     assign stall_flag1_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i | flush_flag_hdu_id1;
-    assign stall_flag1_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
+    assign stall_flag1_o[`CU_STALL_DISPATCH_1] = stall_flag_ex_i[0];
+    assign stall_flag1_o[`CU_STALL_DISPATCH_2] = stall_flag_ex_i[1];
     assign stall_flag1_o[`CU_STALL_AGU] = agu_req_stall_i;
 
     assign stall_flag2_o[`CU_STALL] = stall_flag_ex_i | (stall_flag_hdu_id2 & ~jump_flag_i) ;
     assign stall_flag2_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i | flush_flag_hdu_id2;
-    assign stall_flag2_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
+    assign stall_flag2_o[`CU_STALL_DISPATCH_1] = stall_flag_ex_i[0];
+    assign stall_flag2_o[`CU_STALL_DISPATCH_2] = stall_flag_ex_i[1];
     assign stall_flag2_o[`CU_STALL_AGU] = agu_req_stall_i;
-    //给ICU
-    assign stall_flag_icu_o[`CU_STALL] = agu_req_stall_i;
-    assign stall_flag_icu_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i;
-    assign stall_flag_icu_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
-    assign stall_flag_icu_o[`CU_STALL_AGU] = agu_req_stall_i;
 
 endmodule

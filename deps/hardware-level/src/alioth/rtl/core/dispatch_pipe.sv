@@ -28,7 +28,18 @@
 module dispatch_pipe (
     input wire                     clk,
     input wire                     rst_n,
-    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
+    input wire                     stall_en, // 流水线暂停标志
+    input wire                     flush_en, // 流水线刷新标志
+    input wire                     mem_atom_lock,
+
+    // HDU信号输入
+    input wire                     alu_pass_op1_i,
+    input wire                     alu_pass_op2_i,
+    input wire                     mul_pass_op1_i,
+    input wire                     mul_pass_op2_i,
+    input wire                     div_pass_op1_i,
+    input wire                     div_pass_op2_i,
+    input wire                     csr_pass_op1_i,
 
     // 新增：指令有效信号输入
     input wire                        inst_valid_i,
@@ -122,8 +133,6 @@ module dispatch_pipe (
     // 新增：未对齐访存异常输入
     input wire misaligned_load_i,
     input wire misaligned_store_i,
-    input wire mem_atom_lock_i,
-    input wire mem_stall_req_i,
 
     // SYS输入端口
     input wire sys_op_nop_i,
@@ -218,8 +227,6 @@ module dispatch_pipe (
     // 新增：未对齐访存异常输出
     output wire misaligned_load_o,
     output wire misaligned_store_o,
-    output wire mem_atom_lock_o,
-    output wire mem_stall_req_o,
 
     // SYS输出端口
     output wire sys_op_nop_o,
@@ -230,13 +237,20 @@ module dispatch_pipe (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o
+    output wire illegal_inst_o,
+
+    // HDU信号输出
+    output wire                     alu_pass_op1_o,
+    output wire                     alu_pass_op2_o,
+    output wire                     mul_pass_op1_o,
+    output wire                     mul_pass_op2_o,
+    output wire                     div_pass_op1_o,
+    output wire                     div_pass_op2_o,
+    output wire                     csr_pass_op1_o
 );
 
-    wire                        flush_en = stall_flag_i[`CU_FLUSH] | stall_flag_i[`CU_STALL_AGU];
-    // wire                        flush_fakecommit_en = stall_flag_i[`CU_FLUSH];
-    wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        reg_update_en = ~stall_en;
+    wire                        mem_flush = flush_en & !mem_atom_lock;
 
     // 指令地址寄存器
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = inst_addr_i; // 去除flush清零
@@ -759,7 +773,7 @@ module dispatch_pipe (
     assign csr_csrrc_o = csr_csrrc;
 
     // MEM信号 (req_mem 保留flush 其余去除flush)
-    wire req_mem_dnxt = flush_en ? 1'b0 : req_mem_i;
+    wire req_mem_dnxt = mem_flush ? 1'b0 : req_mem_i;
     wire req_mem;
     gnrl_dfflr #(1) req_mem_ff (
         clk,
@@ -1041,28 +1055,6 @@ module dispatch_pipe (
     );
     assign misaligned_store_o = misaligned_store;
 
-    wire mem_atom_lock_dnxt = flush_en ? 1'b0 : mem_atom_lock_i;
-    wire mem_atom_lock;
-    gnrl_dfflr #(1) mem_atom_lock_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_atom_lock_dnxt,
-        mem_atom_lock
-    );
-    assign mem_atom_lock_o = mem_atom_lock;
-
-    wire mem_stall_req_dnxt = flush_en ? 1'b0 : mem_stall_req_i;
-    wire mem_stall_req;
-    gnrl_dfflr #(1) mem_stall_req_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        mem_stall_req_dnxt,
-        mem_stall_req
-    );
-    assign mem_stall_req_o = mem_stall_req;
-
     // 新增：指令内容流水线寄存器
     wire [31:0] inst_dnxt = inst_i; // 去除flush清零
     wire [31:0] inst;
@@ -1086,5 +1078,83 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
+
+    // HDU信号流水线寄存器 (去除flush清零)
+    wire alu_pass_op1_dnxt = alu_pass_op1_i;
+    wire alu_pass_op1;
+    gnrl_dfflr #(1) alu_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_pass_op1_dnxt,
+        alu_pass_op1
+    );
+    assign alu_pass_op1_o = alu_pass_op1;
+
+    wire alu_pass_op2_dnxt = alu_pass_op2_i;
+    wire alu_pass_op2;
+    gnrl_dfflr #(1) alu_pass_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_pass_op2_dnxt,
+        alu_pass_op2
+    );
+    assign alu_pass_op2_o = alu_pass_op2;
+
+    wire mul_pass_op1_dnxt = mul_pass_op1_i;
+    wire mul_pass_op1;
+    gnrl_dfflr #(1) mul_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mul_pass_op1_dnxt,
+        mul_pass_op1
+    );
+    assign mul_pass_op1_o = mul_pass_op1;
+
+    wire mul_pass_op2_dnxt = mul_pass_op2_i;
+    wire mul_pass_op2;
+    gnrl_dfflr #(1) mul_pass_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mul_pass_op2_dnxt,
+        mul_pass_op2
+    );
+    assign mul_pass_op2_o = mul_pass_op2;
+
+    wire div_pass_op1_dnxt = div_pass_op1_i;
+    wire div_pass_op1;
+    gnrl_dfflr #(1) div_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_op1_dnxt,
+        div_pass_op1
+    );
+    assign div_pass_op1_o = div_pass_op1;
+
+    wire div_pass_op2_dnxt = div_pass_op2_i;
+    wire div_pass_op2;
+    gnrl_dfflr #(1) div_pass_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_op2_dnxt,
+        div_pass_op2
+    );
+    assign div_pass_op2_o = div_pass_op2;
+
+    wire csr_pass_op1_dnxt = csr_pass_op1_i;
+    wire csr_pass_op1;
+    gnrl_dfflr #(1) csr_pass_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        csr_pass_op1_dnxt,
+        csr_pass_op1
+    );
+    assign csr_pass_op1_o = csr_pass_op1;
 
 endmodule

@@ -41,11 +41,12 @@
 `define INT_TIMER0 8'b00000001
 `define INT_TIMER0_ENTRY_ADDR 32'h4
 
-`define CU_BUS_WIDTH 4
+`define CU_BUS_WIDTH 5
 `define CU_FLUSH 0
 `define CU_STALL 1
-`define CU_STALL_DISPATCH 2
-`define CU_STALL_AGU 3
+`define CU_STALL_DISPATCH_1 2
+`define CU_STALL_DISPATCH_2 3
+`define CU_STALL_AGU 4
 
 `define TIMESTAMP_WIDTH 32
 
@@ -368,7 +369,7 @@
 `define EX_INFO_ALU 3'b000
 `define EX_INFO_MUL 3'b001
 `define EX_INFO_DIV 3'b010
-`define EX_INFO_CSR 3'b011
+`define EX_INFO_CSR 3'b111
 `define EX_INFO_BJP 3'b100
 `define EX_INFO_LOAD 3'b101
 `define EX_INFO_OTHER 3'b110

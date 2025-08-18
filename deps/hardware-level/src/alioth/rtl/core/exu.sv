@@ -28,8 +28,6 @@
 module exu (
     input wire clk,
     input wire rst_n,
-    input wire stall_i,
-    input wire flush_i,
 
     // from id_ex (保持兼容性的信号)
     input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,
@@ -253,7 +251,7 @@ module exu (
     output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // CSR读地址输出
 
     // 控制输出
-    output wire                        stall_flag_o,
+    output wire [1:0]                  stall_flag_o,
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
 
@@ -650,9 +648,11 @@ module exu (
     );
 
     // 控制信号汇总 (统一LSU stall信号)
-    assign stall_flag_o = alu0_stall | alu1_stall | mul0_stall | mul1_stall |
-                          div0_stall | div1_stall | lsu_stall |
-                          csr_stall;
+    assign stall_flag_o[0] = alu0_stall | mul0_stall | div0_stall | (req_csr_0_i & csr_stall);
+
+    assign stall_flag_o[1] = alu1_stall | mul1_stall | div1_stall | (req_csr_1_i & csr_stall);
+
+    assign exu_lsu_stall_o = lsu_stall;
 
     assign jump_flag_o = bru_jump_flag || int_jump_i;
     assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;

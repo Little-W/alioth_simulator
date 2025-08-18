@@ -89,7 +89,7 @@ module cpu_top (
     wire idu_inst2_is_pred_branch_o; // 第二路预测分支指令标志输出
 
     // exu模块输出信号
-    wire exu_stall_flag_o;
+    wire [1:0] exu_stall_flag_o;
     wire exu_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] exu_jump_addr_o;
 
@@ -221,49 +221,9 @@ module cpu_top (
     wire idu_inst1_csr_type_o;  // 第一路CSR类型指令输出
     wire idu_inst2_csr_type_o;  // 第二路CSR类型指令输出
     
-    // ICU其他信号定义
-    wire [`COMMIT_ID_WIDTH-1:0] icu_inst1_rd_addr_o;
-    wire [`COMMIT_ID_WIDTH-1:0] icu_inst2_rd_addr_o;
-
     // 显式声明原子操作忙信号和其他缺失信号
     wire atom_opt_busy;
     wire ifu_read_resp_error_o;
-    wire [1:0] issue_inst_o;
-
-    // ICU信号定义
-    wire [`INST_ADDR_WIDTH-1:0] icu_inst1_addr_o;
-    wire [`INST_ADDR_WIDTH-1:0] icu_inst2_addr_o;
-    wire icu_inst1_reg_we_o;
-    wire icu_inst2_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] icu_inst1_reg_waddr_o;
-    wire [`REG_ADDR_WIDTH-1:0] icu_inst2_reg_waddr_o;
-    wire [`REG_ADDR_WIDTH-1:0] icu_inst1_reg1_raddr_o;
-    wire [`REG_ADDR_WIDTH-1:0] icu_inst1_reg2_raddr_o;
-    wire [`REG_ADDR_WIDTH-1:0] icu_inst2_reg1_raddr_o;
-    wire [`REG_ADDR_WIDTH-1:0] icu_inst2_reg2_raddr_o;
-    wire icu_inst1_csr_we_o;
-    wire icu_inst2_csr_we_o;
-    wire [`BUS_ADDR_WIDTH-1:0] icu_inst1_csr_waddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] icu_inst2_csr_waddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] icu_inst1_csr_raddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] icu_inst2_csr_raddr_o;
-    wire [31:0] icu_inst1_dec_imm_o;
-    wire [31:0] icu_inst2_dec_imm_o;
-    wire [`DECINFO_WIDTH-1:0] icu_inst1_dec_info_bus_o;
-    wire [`DECINFO_WIDTH-1:0] icu_inst2_dec_info_bus_o;
-    wire icu_inst1_is_pred_branch_o;
-    wire icu_inst2_is_pred_branch_o;
-    wire [`COMMIT_ID_WIDTH-1:0] icu_inst1_commit_id_o;
-    wire [`COMMIT_ID_WIDTH-1:0] icu_inst2_commit_id_o;
-    wire icu_inst1_illegal_inst_o;
-    wire icu_inst2_illegal_inst_o;
-    wire icu_inst1_valid_o;
-    wire icu_inst2_valid_o;
-    wire icu_long_inst_atom_lock_o;
-
-
-    wire [`INST_DATA_WIDTH-1:0] icu_inst1_o;
-    wire [`INST_DATA_WIDTH-1:0] icu_inst2_o;
 
     // inst_valid相关信号定义
     wire if_inst1_valid_o;  // IFU输出指令有效信号
@@ -280,11 +240,32 @@ module cpu_top (
     wire dispatch_illegal_inst_o;  // dispatch输出非法指令信号
     wire misaligned_fetch_o;  // EXU输出misaligned fetch信号
 
-    // 给dispatch和HDU的译码信息
+    // HDU直接输出信号
+    wire [1:0] dispatch_issue_inst;
+    wire dispatch_atom_lock_o;
+
+    // HDU流水线输出信号 (第一路)
+    wire dispatch_inst1_alu_pass_op1;
+    wire dispatch_inst1_alu_pass_op2;
+    wire dispatch_inst1_mul_pass_op1;
+    wire dispatch_inst1_mul_pass_op2;
+    wire dispatch_inst1_div_pass_op1;
+    wire dispatch_inst1_div_pass_op2;
+
+    // HDU流水线输出信号 (第二路)
+    wire dispatch_inst2_alu_pass_op1;
+    wire dispatch_inst2_alu_pass_op2;
+    wire dispatch_inst2_mul_pass_op1;
+    wire dispatch_inst2_mul_pass_op2;
+    wire dispatch_inst2_div_pass_op1;
+    wire dispatch_inst2_div_pass_op2;
+    
+    // 外部中断信号
     wire ext_int_req;
     wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
                         (idu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
+    
     // AXI接口信号 - IFU
     wire [`BUS_ID_WIDTH-1:0] ifu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
     wire [`INST_ADDR_WIDTH-1:0] ifu_axi_araddr;
@@ -622,12 +603,11 @@ module cpu_top (
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
-        .issue_inst_hdu_i  (issue_inst_o),  // 修改为从icu获取数据冒险暂停信号
+        // .issue_inst_hdu_i  (issue_inst_o),  // 修改为从icu获取数据冒险暂停信号 //icu
         .agu_req_stall_i   (dispatch_mem_stall_req_o),
         .stall_flag_o      (ctrl_stall_flag_o),
         .stall_flag1_o     (ctrl_stall_flag1_o),
         .stall_flag2_o     (ctrl_stall_flag2_o),
-        .stall_flag_icu_o  (ctrl_stall_flag_icu_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)
     );
@@ -644,10 +624,10 @@ module cpu_top (
         .waddr2_i(wbu_reg2_waddr_o),
         .wdata2_i(wbu_reg2_wdata_o),
         // 4路读取端口 (inst1的rs1, rs2和inst2的rs1, rs2)
-        .inst1_rs1_raddr_i(icu_inst1_reg1_raddr_o),
-        .inst1_rs2_raddr_i(icu_inst1_reg2_raddr_o),
-        .inst2_rs1_raddr_i(icu_inst2_reg1_raddr_o),
-        .inst2_rs2_raddr_i(icu_inst2_reg2_raddr_o),
+        .inst1_rs1_raddr_i(idu_inst1_reg1_raddr_o), 
+        .inst1_rs2_raddr_i(idu_inst1_reg2_raddr_o), 
+        .inst2_rs1_raddr_i(idu_inst2_reg1_raddr_o), 
+        .inst2_rs2_raddr_i(idu_inst2_reg2_raddr_o), 
         .inst1_rs1_rdata_o(regs_inst1_rs1_rdata_o),
         .inst1_rs2_rdata_o(regs_inst1_rs2_rdata_o),
         .inst2_rs1_rdata_o(regs_inst2_rs1_rdata_o),
@@ -736,133 +716,39 @@ module cpu_top (
         .inst2_ex_info_bus_o(idu_inst2_ex_info_bus_o) // 第二路ex单元类型信号输出
     );
 
-    // ICU模块例化 - 指令控制单元
-    icu u_icu (
-        .clk                    (clk),
-        .rst_n                  (rst_n),
-        
-        // from idu - 第一路指令
-        .inst1_addr_i           (idu_inst1_addr_o),
-        .inst1_reg_we_i         (idu_inst1_reg_we_o),
-        .inst1_reg_waddr_i      (idu_inst1_reg_waddr_o),
-        .inst1_reg1_raddr_i     (idu_inst1_reg1_raddr_o),
-        .inst1_reg2_raddr_i     (idu_inst1_reg2_raddr_o),
-        .inst1_csr_we_i         (idu_inst1_csr_we_o),
-        .inst1_csr_waddr_i      (idu_inst1_csr_waddr_o),
-        .inst1_csr_raddr_i      (idu_inst1_csr_raddr_o),
-        .inst1_dec_imm_i        (idu_inst1_dec_imm_o),
-        .inst1_dec_info_bus_i   (idu_inst1_dec_info_bus_o),
-        .inst1_is_pred_branch_i (idu_inst1_is_pred_branch_o),
-        .inst1_i                (idu_inst1_o),
-        .inst1_illegal_inst_i   (idu_illegal_inst1_o),
-        .inst1_valid_i          (idu_inst1_valid_o),
-        .inst1_jump_i           (idu_inst1_jump_o),  // 第一路跳转信号
-        .inst1_branch_i         (idu_inst1_branch_o), // 第一路分支信号
-        .inst1_csr_type_i       (idu_inst1_csr_type_o), // 第一路CSR类型指令
-
-        // from idu - 第二路指令
-        .inst2_addr_i           (idu_inst2_addr_o),
-        .inst2_reg_we_i         (idu_inst2_reg_we_o),
-        .inst2_reg_waddr_i      (idu_inst2_reg_waddr_o),
-        .inst2_reg1_raddr_i     (idu_inst2_reg1_raddr_o),
-        .inst2_reg2_raddr_i     (idu_inst2_reg2_raddr_o),
-        .inst2_csr_we_i         (idu_inst2_csr_we_o),
-        .inst2_csr_waddr_i      (idu_inst2_csr_waddr_o),
-        .inst2_csr_raddr_i      (idu_inst2_csr_raddr_o),
-        .inst2_dec_imm_i        (idu_inst2_dec_imm_o),
-        .inst2_dec_info_bus_i   (idu_inst2_dec_info_bus_o),
-        .inst2_is_pred_branch_i (idu_inst2_is_pred_branch_o),
-        .inst2_i                (idu_inst2_o),
-        .inst2_illegal_inst_i   (idu_illegal_inst2_o),
-        .inst2_valid_i          (idu_inst2_valid_o),
-        .inst2_csr_type_i       (idu_inst2_csr_type_o),
-
-        // 指令完成信号
-        .commit_valid_i         (wbu_commit_valid1_o),
-        .commit_id_i            (wbu_commit_id1_o),
-        .commit_valid2_i        (wbu_commit_valid2_o),
-        .commit_id2_i           (wbu_commit_id2_o),
-        
-        // from control 控制信号
-        .stall_flag_i           (ctrl_stall_flag_icu_o),
-        .jump_flag_i            (ctrl_jump_flag_o),  // 跳转标志
-
-        .clint_req_valid_i      (clint_req_valid_o),
-
-        // 发射指令的完整decode信息 - 第一路输出
-        .inst1_addr_o           (icu_inst1_addr_o),
-        .inst1_reg_we_o         (icu_inst1_reg_we_o),
-        .inst1_reg_waddr_o      (icu_inst1_reg_waddr_o),
-        .inst1_reg1_raddr_o     (icu_inst1_reg1_raddr_o),
-        .inst1_reg2_raddr_o     (icu_inst1_reg2_raddr_o),
-        .inst1_csr_waddr_o      (icu_inst1_csr_waddr_o),
-        .inst1_csr_raddr_o      (icu_inst1_csr_raddr_o),
-        .inst1_csr_we_o         (icu_inst1_csr_we_o),
-        .inst1_dec_imm_o        (icu_inst1_dec_imm_o),
-        .inst1_dec_info_bus_o   (icu_inst1_dec_info_bus_o),
-        .inst1_is_pred_branch_o (icu_inst1_is_pred_branch_o),
-        .inst1_o                (icu_inst1_o),
-        .inst1_illegal_inst_o   (icu_inst1_illegal_inst_o),
-        .inst1_valid_o           (icu_inst1_valid_o),
-
-        // 发射指令的完整decode信息 - 第二路输出
-        .inst2_addr_o           (icu_inst2_addr_o),
-        .inst2_reg_we_o         (icu_inst2_reg_we_o),
-        .inst2_reg_waddr_o      (icu_inst2_reg_waddr_o),
-        .inst2_reg1_raddr_o     (icu_inst2_reg1_raddr_o),
-        .inst2_reg2_raddr_o     (icu_inst2_reg2_raddr_o),
-        .inst2_csr_waddr_o      (icu_inst2_csr_waddr_o),
-        .inst2_csr_raddr_o      (icu_inst2_csr_raddr_o),
-        .inst2_csr_we_o         (icu_inst2_csr_we_o),
-        .inst2_dec_imm_o        (icu_inst2_dec_imm_o),
-        .inst2_dec_info_bus_o   (icu_inst2_dec_info_bus_o),
-        .inst2_is_pred_branch_o (icu_inst2_is_pred_branch_o),
-        .inst2_o                (icu_inst2_o),
-        .inst2_illegal_inst_o   (icu_inst2_illegal_inst_o),
-        .inst2_valid_o          (icu_inst2_valid_o),
-
-        // HDU输出信号
-        .issue_inst_o      (issue_inst_o), // to ctrl
-        .inst1_commit_id_o      (icu_inst1_commit_id_o), //to dispatch
-        .inst2_commit_id_o      (icu_inst2_commit_id_o), 
-        .long_inst_atom_lock_o  (icu_long_inst_atom_lock_o) //used in top
-    );
-
     // 添加dispatch模块例化 
     dispatch u_dispatch (
         .clk           (clk),
         .rst_n         (rst_n),
         .stall_flag_i  (ctrl_stall_flag_o),
 
-        // 第一路指令信息输入 - 从ICU获取
-        .inst1_addr_i(icu_inst1_addr_o),
-        .inst1_reg_we_i(icu_inst1_reg_we_o),
-        .inst1_reg_waddr_i(icu_inst1_reg_waddr_o),
-        .inst1_reg1_raddr_i(icu_inst1_reg1_raddr_o),
-        .inst1_reg2_raddr_i(icu_inst1_reg2_raddr_o),
-        .inst1_csr_waddr_i(icu_inst1_csr_waddr_o),
-        .inst1_csr_raddr_i(icu_inst1_csr_raddr_o),
-        .inst1_csr_we_i(icu_inst1_csr_we_o),
-        .inst1_dec_imm_i(icu_inst1_dec_imm_o),
-        .inst1_dec_info_bus_i(icu_inst1_dec_info_bus_o),
-        .inst1_is_pred_branch_i(icu_inst1_is_pred_branch_o),
-        .inst1_i(icu_inst1_o),
-        .inst1_commit_id_i(icu_inst1_commit_id_o),
+        // 第一路指令信息输入 - 从IDU获取
+        .inst1_addr_i(idu_inst1_addr_o),
+        .inst1_reg_we_i(idu_inst1_reg_we_o),
+        .inst1_reg_waddr_i(idu_inst1_reg_waddr_o),
+        .inst1_reg1_raddr_i(idu_inst1_reg1_raddr_o),
+        .inst1_reg2_raddr_i(idu_inst1_reg2_raddr_o),
+        .inst1_csr_waddr_i(idu_inst1_csr_waddr_o),
+        .inst1_csr_raddr_i(idu_inst1_csr_raddr_o),
+        .inst1_csr_we_i(idu_inst1_csr_we_o),
+        .inst1_dec_imm_i(idu_inst1_dec_imm_o),
+        .inst1_dec_info_bus_i(idu_inst1_dec_info_bus_o),
+        .inst1_is_pred_branch_i(idu_inst1_is_pred_branch_o),
+        .inst1_i(idu_inst1_o),
         
-        // 第二路指令信息输入 - 从ICU获取
-        .inst2_addr_i(icu_inst2_addr_o),
-        .inst2_reg_we_i(icu_inst2_reg_we_o),
-        .inst2_reg_waddr_i(icu_inst2_reg_waddr_o),
-        .inst2_reg1_raddr_i(icu_inst2_reg1_raddr_o),
-        .inst2_reg2_raddr_i(icu_inst2_reg2_raddr_o),
-        .inst2_csr_waddr_i(icu_inst2_csr_waddr_o),
-        .inst2_csr_raddr_i(icu_inst2_csr_raddr_o),
-        .inst2_csr_we_i(icu_inst2_csr_we_o),
-        .inst2_dec_imm_i(icu_inst2_dec_imm_o),
-        .inst2_dec_info_bus_i(icu_inst2_dec_info_bus_o),
-        .inst2_is_pred_branch_i(icu_inst2_is_pred_branch_o),
-        .inst2_i(icu_inst2_o),
-        .inst2_commit_id_i(icu_inst2_commit_id_o),
+        // 第二路指令信息输入 - 从IDU获取
+        .inst2_addr_i(idu_inst2_addr_o),
+        .inst2_reg_we_i(idu_inst2_reg_we_o),
+        .inst2_reg_waddr_i(idu_inst2_reg_waddr_o),
+        .inst2_reg1_raddr_i(idu_inst2_reg1_raddr_o),
+        .inst2_reg2_raddr_i(idu_inst2_reg2_raddr_o),
+        .inst2_csr_waddr_i(idu_inst2_csr_waddr_o),
+        .inst2_csr_raddr_i(idu_inst2_csr_raddr_o),
+        .inst2_csr_we_i(idu_inst2_csr_we_o),
+        .inst2_dec_imm_i(idu_inst2_dec_imm_o),
+        .inst2_dec_info_bus_i(idu_inst2_dec_info_bus_o),
+        .inst2_is_pred_branch_i(idu_inst2_is_pred_branch_o),
+        .inst2_i(idu_inst2_o),
 
         // 来自寄存器堆的读取数据
         .inst1_rs1_rdata_i(regs_inst1_rs1_rdata_o),
@@ -871,12 +757,24 @@ module cpu_top (
         .inst2_rs2_rdata_i(regs_inst2_rs2_rdata_o),
 
         // 指令有效和非法指令信号
-        .inst1_valid_i (icu_inst1_valid_o),
-        .inst2_valid_i (icu_inst2_valid_o),
-        .inst1_illegal_inst_i(icu_inst1_illegal_inst_o),
-        .inst2_illegal_inst_i(icu_inst2_illegal_inst_o),
+        .inst1_valid_i (idu_inst1_valid_o), 
+        .inst2_valid_i (idu_inst2_valid_o),
+        .inst1_illegal_inst_i(idu_illegal_inst1_o), 
+        .inst2_illegal_inst_i(idu_illegal_inst2_o), 
 
         .exu_lsu_stall_i(exu_lsu_stall_o),
+        // HDU所需输入信号
+        .clint_req_valid_i(clint_req_valid_o),
+        .inst1_ex_info_bus_i(idu_inst1_ex_info_bus_o),
+        .inst2_ex_info_bus_i(idu_inst2_ex_info_bus_o),
+        .inst1_jump_i(idu_inst1_jump_o),
+        .inst1_branch_i(idu_inst1_branch_o),
+        
+        // 来自WBU的提交信号
+        .inst1_commit_valid_i(wbu_commit_valid1_o),
+        .inst2_commit_valid_i(wbu_commit_valid2_o),
+        .inst1_wb_commit_id_i(wbu_commit_id1_o),
+        .inst2_wb_commit_id_i(wbu_commit_id2_o),
 
         // 分发到各功能单元的信号 
         //第一路ALU
@@ -987,6 +885,8 @@ module cpu_top (
         .mem_reg_waddr_o         (dispatch_mem_reg_waddr),
         .mem_atom_lock_o         (dispatch_mem_atom_lock_o),
         .mem_stall_req_o         (dispatch_mem_stall_req_o),
+        .misaligned_load_o       (dispatch_misaligned_load_o),
+        .misaligned_store_o      (dispatch_misaligned_store_o),
 
         // sys指令 - 只需要一路
         .sys_op_nop_o      (dispatch_sys_op_nop),
@@ -997,8 +897,6 @@ module cpu_top (
         .sys_op_dret_o     (dispatch_sys_op_dret),
 
         // 其他指令信号 - 第一路
-        .misaligned_load_o (dispatch_misaligned_load_o),
-        .misaligned_store_o(dispatch_misaligned_store_o),
         .inst1_illegal_inst_o    (dispatch_inst1_illegal_o),       // 连接IDU的非法指令输出
 
         // 其他指令信号 - 第二路
@@ -1023,16 +921,33 @@ module cpu_top (
         .inst2_rs1_rdata_o     (dispatch_inst2_rs1_rdata_o),
         .inst2_rs2_rdata_o     (dispatch_inst2_rs2_rdata_o),
         .inst1_commit_id_o     (dispatch_inst1_commit_id_o),
-        .inst2_commit_id_o     (dispatch_inst2_commit_id_o)
+        .inst2_commit_id_o     (dispatch_inst2_commit_id_o),
+
+        // HDU直接输出信号
+        .issue_inst_o          (dispatch_issue_inst),
+        .dispatch_atom_lock_o  (dispatch_atom_lock_o),
+
+        // HDU流水线输出信号 (第一路)
+        .inst1_alu_pass_op1_o(dispatch_inst1_alu_pass_op1),
+        .inst1_alu_pass_op2_o(dispatch_inst1_alu_pass_op2),
+        .inst1_mul_pass_op1_o(dispatch_inst1_mul_pass_op1),
+        .inst1_mul_pass_op2_o(dispatch_inst1_mul_pass_op2),
+        .inst1_div_pass_op1_o(dispatch_inst1_div_pass_op1),
+        .inst1_div_pass_op2_o(dispatch_inst1_div_pass_op2),
+
+        // HDU流水线输出信号 (第二路)
+        .inst2_alu_pass_op1_o(dispatch_inst2_alu_pass_op1),
+        .inst2_alu_pass_op2_o(dispatch_inst2_alu_pass_op2),
+        .inst2_mul_pass_op1_o(dispatch_inst2_mul_pass_op1),
+        .inst2_mul_pass_op2_o(dispatch_inst2_mul_pass_op2),
+        .inst2_div_pass_op1_o(dispatch_inst2_div_pass_op1),
+        .inst2_div_pass_op2_o(dispatch_inst2_div_pass_op2)
     );
 
     // exu模块例化 - 修改为双发射接口
     exu u_exu (
         .clk(clk),
         .rst_n(rst_n),
-        .stall_i(ctrl_stall_flag_o[`CU_STALL_DISPATCH]),
-        .flush_i(ctrl_jump_flag_o),
-
         // (保持兼容性的信号)
         .inst_addr_i(dispatch_inst2_addr_o),
         .int_assert_i(clint_int_assert_o),
@@ -1058,6 +973,31 @@ module cpu_top (
         .alu1_commit_id_i(dispatch_inst2_commit_id_o),
         .alu1_reg_we_i(dispatch_inst2_reg_we_o),
         .alu1_wb_ready_i(wbu_alu1_ready_o),
+        // 旁路信号
+        .alu0_pass_alu0_op1_i(dispatch_inst1_alu_pass_op1),
+        .alu0_pass_alu0_op2_i(dispatch_inst1_alu_pass_op2),
+        .alu0_pass_alu1_op1_i(1'b0),  // ALU0不依赖ALU1的旁路
+        .alu0_pass_alu1_op2_i(1'b0),
+        .alu1_pass_alu0_op1_i(1'b0),  // ALU1不依赖ALU0的旁路
+        .alu1_pass_alu0_op2_i(1'b0),
+        .alu1_pass_alu1_op1_i(dispatch_inst2_alu_pass_op1),
+        .alu1_pass_alu1_op2_i(dispatch_inst2_alu_pass_op2),
+        .mul0_pass_alu0_op1_i(dispatch_inst1_mul_pass_op1),
+        .mul0_pass_alu0_op2_i(dispatch_inst1_mul_pass_op2),
+        .mul0_pass_alu1_op1_i(1'b0),  // MUL0不依赖ALU1的旁路
+        .mul0_pass_alu1_op2_i(1'b0),
+        .mul1_pass_alu0_op1_i(1'b0),  // MUL1不依赖ALU0的旁路
+        .mul1_pass_alu0_op2_i(1'b0),
+        .mul1_pass_alu1_op1_i(dispatch_inst2_mul_pass_op1),
+        .mul1_pass_alu1_op2_i(dispatch_inst2_mul_pass_op2),
+        .div0_pass_alu0_op1_i(dispatch_inst1_div_pass_op1),
+        .div0_pass_alu0_op2_i(dispatch_inst1_div_pass_op2),
+        .div0_pass_alu1_op1_i(1'b0),  // DIV0不依赖ALU1的旁路
+        .div0_pass_alu1_op2_i(1'b0),
+        .div1_pass_alu0_op1_i(1'b0),  // DIV1不依赖ALU0的旁路
+        .div1_pass_alu0_op2_i(1'b0),
+        .div1_pass_alu1_op1_i(dispatch_inst2_div_pass_op1),
+        .div1_pass_alu1_op2_i(dispatch_inst2_div_pass_op2),
 
         // 乘法器0接口
         .req_mul0_i(dispatch_req_mul),
@@ -1610,11 +1550,7 @@ module cpu_top (
     );
 
     // 定义原子操作忙信号 - 使用dispatch提供的HDU原子锁信号
-    assign atom_opt_busy = icu_long_inst_atom_lock_o | exu_mem_store_busy_o | dispatch_mem_stall_req_o;
-
-
-    assign dispatch_misaligned_load_o = dispatch_inst1_misaligned_load_o | dispatch_inst2_misaligned_load_o;
-    assign dispatch_misaligned_store_o = dispatch_inst1_misaligned_store_o | dispatch_inst2_misaligned_store_o;
+    assign atom_opt_busy = exu_mem_store_busy_o | dispatch_atom_lock_o;
     assign dispatch_illegal_inst_o = dispatch_inst1_illegal_o | dispatch_inst2_illegal_o;
 
 

@@ -43,7 +43,6 @@ module dispatch (
     input wire [  `DECINFO_WIDTH-1:0] inst1_dec_info_bus_i,
     input wire                        inst1_is_pred_branch_i,
     input wire [`INST_DATA_WIDTH-1:0] inst1_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_i,
 
     // 从ICU接收的第二路指令信息
     input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i,
@@ -58,7 +57,6 @@ module dispatch (
     input wire [  `DECINFO_WIDTH-1:0] inst2_dec_info_bus_i,
     input wire                        inst2_is_pred_branch_i,
     input wire [`INST_DATA_WIDTH-1:0] inst2_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_i,
 
     // 从GPR读取的寄存器数据
     input wire [ `REG_DATA_WIDTH-1:0] inst1_rs1_rdata_i,
@@ -73,6 +71,18 @@ module dispatch (
     input wire inst2_illegal_inst_i,
 
     input wire exu_lsu_stall_i,
+    //hdu所需输入
+    input wire clint_req_valid_i,
+    //来自idu
+    input wire [`EX_INFO_BUS_WIDTH-1:0] inst1_ex_info_bus_i,
+    input wire [`EX_INFO_BUS_WIDTH-1:0] inst2_ex_info_bus_i,
+    input wire inst1_jump_i,
+    input wire inst1_branch_i,
+    //来自wbu
+    input wire inst1_commit_valid_i,
+    input wire inst2_commit_valid_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] inst1_wb_commit_id_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] inst2_wb_commit_id_i,
 
     //分发到各功能单元的输出接口
     // dispatch to alu (第一路)
@@ -188,7 +198,6 @@ module dispatch (
     output wire [4:0]              mem_reg_waddr_o,
     output wire misaligned_load_o,
     output wire misaligned_store_o,
-    output wire mem_atom_lock_o,
     output wire mem_stall_req_o,
 
     // dispatch to SYS (合并单路输出)
@@ -225,7 +234,28 @@ module dispatch (
     output wire [               31:0] inst2_rs1_rdata_o,
     output wire [               31:0] inst2_rs2_rdata_o,
     output wire [2:0] inst1_commit_id_o,
-    output wire [2:0] inst2_commit_id_o
+    output wire [2:0] inst2_commit_id_o,
+    //hdu 直接输出信号
+    // to ctrl
+    output wire [1:0] issue_inst_o,
+    //to clint
+    output wire dispatch_atom_lock_o,
+
+    // HDU流水线输出信号 (第一路)
+    output wire inst1_alu_pass_op1_o,
+    output wire inst1_alu_pass_op2_o,
+    output wire inst1_mul_pass_op1_o,
+    output wire inst1_mul_pass_op2_o,
+    output wire inst1_div_pass_op1_o,
+    output wire inst1_div_pass_op2_o,
+
+    // HDU流水线输出信号 (第二路)
+    output wire inst2_alu_pass_op1_o,
+    output wire inst2_alu_pass_op2_o,
+    output wire inst2_mul_pass_op1_o,
+    output wire inst2_mul_pass_op2_o,
+    output wire inst2_div_pass_op1_o,
+    output wire inst2_div_pass_op2_o
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
@@ -250,6 +280,25 @@ module dispatch (
     wire        agu_atom_lock;
     wire        agu_stall_req;
 
+    // HDU相关信号
+    wire hdu_inst1_valid = inst1_valid_i && !stall_flag_i && !clint_req_valid_i;
+    wire hdu_inst2_valid = inst2_valid_i && !stall_flag_i && !clint_req_valid_i;
+    wire [1:0] hdu_issue_inst;
+    wire [2:0] hdu_inst1_commit_id;
+    wire [2:0] hdu_inst2_commit_id;
+    wire hdu_alu1_pass_op1;
+    wire hdu_alu1_pass_op2;
+    wire hdu_mul1_pass_op1;
+    wire hdu_mul1_pass_op2;
+    wire hdu_div1_pass_op1;
+    wire hdu_div1_pass_op2; 
+    wire hdu_alu2_pass_op1;
+    wire hdu_alu2_pass_op2;
+    wire hdu_mul2_pass_op1;
+    wire hdu_mul2_pass_op2;
+    wire hdu_div2_pass_op1;
+    wire hdu_div2_pass_op2;
+    wire hdu_long_inst_atom_lock;
 
     // 第一路和第二路CSR内部信号
     wire        pipe_inst1_req_csr_o;
@@ -362,8 +411,6 @@ module dispatch (
     wire                        inst1_logic_csr_csrrs;
     wire                        inst1_logic_csr_csrrc;
 
-    wire                        inst1_logic_req_mem;
-
     wire                        inst1_logic_sys_op_nop;
     wire                        inst1_logic_sys_op_mret;
     wire                        inst1_logic_sys_op_ecall;
@@ -422,6 +469,18 @@ module dispatch (
     wire                        inst2_logic_sys_op_fence;
     wire                        inst2_logic_sys_op_dret;
 
+    wire flush_en1;
+    wire flush_en2;
+    wire stall_en1;
+    wire stall_en2;
+    wire common_flush_en = stall_flag_i[`CU_FLUSH] || stall_flag_i[`CU_STALL_AGU] || clint_req_valid_i;
+
+    assign flush_en1 = common_flush_en || (~hdu_issue_inst[0])  || stall_flag_i[`CU_STALL_DISPATCH_2];
+    assign flush_en2 = common_flush_en || (~hdu_issue_inst[1])  || stall_flag_i[`CU_STALL_DISPATCH_1];
+    assign stall_en1 = stall_flag_i[`CU_STALL_DISPATCH_1];
+    assign stall_en2 = stall_flag_i[`CU_STALL_DISPATCH_2];
+    assign mem_stall_req_o = agu_stall_req;
+
     // AGU已经接管地址/掩码/数据与未对齐标志
       // 实例化双发射AGU：计算两路地址/掩码/写数据与未对齐
     agu_dual u_agu_dual (
@@ -430,21 +489,21 @@ module dispatch (
         .exu_lsu_stall(exu_lsu_stall_i),
         
         // 第一路输入
-        .inst1_valid_i(inst1_valid_i), //内部连到hduissue_inst[0]
+        .inst1_valid_i(hdu_issue_inst[0]), //内部连到hduissue_inst[0]
         .rs1_1_i(inst1_rs1_rdata_i),
         .rs2_1_i(inst1_rs2_rdata_i),
         .imm_1_i(inst1_dec_imm_i),
         .dec_1_i(inst1_dec_info_bus_i),
-        .commit_id_1_i(inst1_commit_id_i),
+        .commit_id_1_i(hdu_inst1_commit_id),
         .mem_reg_waddr_1_i(inst1_reg_waddr_i),
         
         // 第二路输入
-        .inst2_valid_i(inst2_valid_i), //内部连到hduissue_inst[1]
+        .inst2_valid_i(hdu_issue_inst[1]), //内部连到hduissue_inst[1]
         .rs1_2_i(inst2_rs1_rdata_i),
         .rs2_2_i(inst2_rs2_rdata_i),
         .imm_2_i(inst2_dec_imm_i),
         .dec_2_i(inst2_dec_info_bus_i),
-        .commit_id_2_i(inst2_commit_id_i),
+        .commit_id_2_i(hdu_inst2_commit_id),
         .mem_reg_waddr_2_i(inst2_reg_waddr_i),
 
         // 单路输出（64位总线编码）
@@ -469,6 +528,57 @@ module dispatch (
         // 控制类信号输出
         .agu_atom_lock(agu_atom_lock),
         .agu_stall_req(agu_stall_req)
+    );
+
+    // 实例化HDU模块
+    hdu u_hdu (
+        .clk(clk),
+        .rst_n(rst_n),
+
+        // 指令1信息
+        .inst1_valid(hdu_inst1_valid),
+        .inst1_rd_addr(inst1_reg_waddr_i),
+        .inst1_rs1_addr(inst1_reg1_raddr_i),
+        .inst1_rs2_addr(inst1_reg2_raddr_i),
+        .inst1_rd_we(inst1_reg_we_i),
+        .inst1_ex_info_bus(inst1_ex_info_bus_i), 
+
+        // 指令2信息
+        .inst2_valid(hdu_inst2_valid),
+        .inst2_rd_addr(inst2_reg_waddr_i),
+        .inst2_rs1_addr(inst2_reg1_raddr_i),
+        .inst2_rs2_addr(inst2_reg2_raddr_i),
+        .inst2_rd_we(inst2_reg_we_i),
+        .inst2_ex_info_bus(inst2_ex_info_bus_i), 
+
+        // 指令完成信号（需要从后续模块连接）
+        .commit_valid_i(inst1_commit_valid_i), 
+        .commit_id_i(inst1_wb_commit_id_i),    
+        .commit_valid2_i(inst2_commit_valid_i), 
+        .commit_id2_i(inst2_wb_commit_id_i),    
+
+        // 跳转控制信号（需要从其他模块连接）
+        .inst1_jump_i(inst1_jump_i),    
+        .clint_req_valid(clint_req_valid_i), 
+        .inst1_branch_i(inst1_branch_i),  
+
+        // 输出信号
+        .issue_inst_o(hdu_issue_inst),
+        .inst1_commit_id_o(hdu_inst1_commit_id),
+        .inst2_commit_id_o(hdu_inst2_commit_id),
+        .alu1_pass_op1_o(hdu_alu1_pass_op1),
+        .alu1_pass_op2_o(hdu_alu1_pass_op2),
+        .mul1_pass_op1_o(hdu_mul1_pass_op1),
+        .mul1_pass_op2_o(hdu_mul1_pass_op2),
+        .div1_pass_op1_o(hdu_div1_pass_op1),
+        .div1_pass_op2_o(hdu_div1_pass_op2),
+        .alu2_pass_op1_o(hdu_alu2_pass_op1),
+        .alu2_pass_op2_o(hdu_alu2_pass_op2),
+        .mul2_pass_op1_o(hdu_mul2_pass_op1),
+        .mul2_pass_op2_o(hdu_mul2_pass_op2),
+        .div2_pass_op1_o(hdu_div2_pass_op1),
+        .div2_pass_op2_o(hdu_div2_pass_op2),
+        .long_inst_atom_lock_o(hdu_long_inst_atom_lock)
     );
 
     // 实例化dispatch_logic模块 (第一路)
@@ -544,11 +654,12 @@ module dispatch (
     dispatch_pipe u_inst1_dispatch_pipe (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .stall_flag_i         (stall_flag_i),
-        .inst_valid_i         (inst1_valid_i),
+        .stall_en             (stall_en1),
+        .flush_en             (flush_en1),
+        .inst_valid_i         (hdu_issue_inst[0]),
         .inst_i               (inst1_i),
         .inst_addr_i          (inst1_addr_i),
-        .commit_id_i          (inst1_commit_id_i),
+        .commit_id_i          (hdu_inst1_commit_id),
 
         .reg_we_i             (inst1_reg_we_i),
         .reg_waddr_i          (inst1_reg_waddr_i),
@@ -561,6 +672,14 @@ module dispatch (
         .dec_info_bus_i       (inst1_dec_info_bus_i),
         .is_pred_branch_i     (inst1_is_pred_branch_i),
         .illegal_inst_i      (inst1_illegal_inst_i),
+        // HDU信号输入
+        .alu_pass_op1_i(hdu_alu1_pass_op1),
+        .alu_pass_op2_i(hdu_alu1_pass_op2),
+        .mul_pass_op1_i(hdu_mul1_pass_op1),
+        .mul_pass_op2_i(hdu_mul1_pass_op2),
+        .div_pass_op1_i(hdu_div1_pass_op1),
+        .div_pass_op2_i(hdu_div1_pass_op2),
+
         // alu信号
         .req_alu_i          (inst1_logic_req_alu),
         .alu_op1_i          (inst1_logic_alu_op1),
@@ -620,8 +739,6 @@ module dispatch (
         .mem_wdata_i        (agu_wdata),
         .mem_commit_id_i    (agu_commit_id),
         .mem_reg_waddr_i    (agu_mem_reg_waddr),
-        .mem_atom_lock_i    (agu_atom_lock),
-        .mem_stall_req_i    (agu_stall_req),
         // SYS信号
         .sys_op_nop_i       (inst1_logic_sys_op_nop),
         .sys_op_mret_i      (inst1_logic_sys_op_mret),
@@ -709,15 +826,20 @@ module dispatch (
         // 新增：未对齐访存异常输出
         .misaligned_load_o  (misaligned_load_o),
         .misaligned_store_o  (misaligned_store_o),
-        .mem_atom_lock_o     (mem_atom_lock_o),
-        .mem_stall_req_o     (mem_stall_req_o),
         // SYS输出端口
         .sys_op_nop_o       (pipe_inst1_sys_op_nop_o),
         .sys_op_mret_o      (pipe_inst1_sys_op_mret_o),
         .sys_op_ecall_o     (pipe_inst1_sys_op_ecall_o),
         .sys_op_ebreak_o    (pipe_inst1_sys_op_ebreak_o),
         .sys_op_fence_o     (pipe_inst1_sys_op_fence_o),
-        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o)
+        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o),
+        // HDU信号输出
+        .alu_pass_op1_o(inst1_alu_pass_op1_o),
+        .alu_pass_op2_o(inst1_alu_pass_op2_o),
+        .mul_pass_op1_o(inst1_mul_pass_op1_o),
+        .mul_pass_op2_o(inst1_mul_pass_op2_o),
+        .div_pass_op1_o(inst1_div_pass_op1_o),
+        .div_pass_op2_o(inst1_div_pass_op2_o)
     );
 
     // 实例化dispatch_logic模块 (第二路)
@@ -789,11 +911,12 @@ module dispatch (
     dispatch_pipe u_inst2_dispatch_pipe (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .stall_flag_i         (stall_flag_i),
-        .inst_valid_i         (inst2_valid_i),
+        .stall_en             (stall_en2),
+        .flush_en             (flush_en2),
+        .inst_valid_i         (hdu_issue_inst[1]),
         .inst_i               (inst2_i),
         .inst_addr_i          (inst2_addr_i),
-        .commit_id_i          (inst2_commit_id_i),
+        .commit_id_i          (hdu_inst2_commit_id),
 
         .reg_we_i             (inst2_reg_we_i),
         .reg_waddr_i          (inst2_reg_waddr_i),
@@ -806,6 +929,13 @@ module dispatch (
         .dec_info_bus_i       (inst2_dec_info_bus_i),
         .is_pred_branch_i     (inst2_is_pred_branch_i),
         .illegal_inst_i      (inst2_illegal_inst_i),
+        // HDU信号输入
+        .alu_pass_op1_i(hdu_alu2_pass_op1),
+        .alu_pass_op2_i(hdu_alu2_pass_op2),
+        .mul_pass_op1_i(hdu_mul2_pass_op1),
+        .mul_pass_op2_i(hdu_mul2_pass_op2),
+        .div_pass_op1_i(hdu_div2_pass_op1),
+        .div_pass_op2_i(hdu_div2_pass_op2),
         // alu信号
         .req_alu_i            (inst2_logic_req_alu),
         .alu_op1_i            (inst2_logic_alu_op1),
@@ -864,8 +994,6 @@ module dispatch (
         .mem_wdata_i        (64'b0),
         .mem_commit_id_i    (3'b0),
         .mem_reg_waddr_i    (5'b0),
-        .mem_atom_lock_i     (1'b0),
-        .mem_stall_req_i     (1'b0),
         // SYS信号
         .sys_op_nop_i       (inst2_logic_sys_op_nop),
         .sys_op_mret_i      (inst2_logic_sys_op_mret),
@@ -953,16 +1081,23 @@ module dispatch (
         // 新增：未对齐访存异常输出
         .misaligned_load_o  (),
         .misaligned_store_o  (),
-        .mem_atom_lock_o     (),
-        .mem_stall_req_o     (),
         // SYS输出端口
         .sys_op_nop_o       (pipe_inst2_sys_op_nop_o),
         .sys_op_mret_o      (pipe_inst2_sys_op_mret_o),
         .sys_op_ecall_o     (pipe_inst2_sys_op_ecall_o),
         .sys_op_ebreak_o    (pipe_inst2_sys_op_ebreak_o),
         .sys_op_fence_o     (pipe_inst2_sys_op_fence_o),
-        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o)
+        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o),
+        // HDU信号输出
+        .alu_pass_op1_o(inst2_alu_pass_op1_o),
+        .alu_pass_op2_o(inst2_alu_pass_op2_o),
+        .mul_pass_op1_o(inst2_mul_pass_op1_o),
+        .mul_pass_op2_o(inst2_mul_pass_op2_o),
+        .div_pass_op1_o(inst2_div_pass_op1_o),
+        .div_pass_op2_o(inst2_div_pass_op2_o)
     );
+    assign dispatch_atom_lock_o = agu_atom_lock | hdu_long_inst_atom_lock;
+    assign issue_inst_o = hdu_issue_inst;
     // CSR输出端口直接连接
     assign inst1_req_csr_o = pipe_inst1_req_csr_o;
     assign inst1_csr_op1_o = pipe_inst1_csr_op1_o;
