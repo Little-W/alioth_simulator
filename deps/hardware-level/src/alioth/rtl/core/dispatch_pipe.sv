@@ -1222,26 +1222,4 @@ module dispatch_pipe (
     );
     assign mul_pass_alu2_op2_o = mul_pass_alu2_op2;
 
-    wire div_pass_alu2_op1_dnxt = div_pass_alu2_op1_i;
-    wire div_pass_alu2_op1;
-    gnrl_dfflr #(1) div_pass_alu2_op1_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        div_pass_alu2_op1_dnxt,
-        div_pass_alu2_op1
-    );
-    assign div_pass_alu2_op1_o = div_pass_alu2_op1;
-
-    wire div_pass_alu2_op2_dnxt = div_pass_alu2_op2_i;
-    wire div_pass_alu2_op2;
-    gnrl_dfflr #(1) div_pass_alu2_op2_ff (
-        clk,
-        rst_n,
-        reg_update_en,
-        div_pass_alu2_op2_dnxt,
-        div_pass_alu2_op2
-    );
-    assign div_pass_alu2_op2_o = div_pass_alu2_op2;
-
 endmodule

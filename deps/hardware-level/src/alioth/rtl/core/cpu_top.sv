@@ -198,7 +198,6 @@ module cpu_top (
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_o;
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag1_o;
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag2_o;
-    wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_icu_o;
     wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -274,7 +273,7 @@ module cpu_top (
 
     // 外部中断信号
     wire ext_int_req;
-    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
+    wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH_1] == 0 | ctrl_stall_flag_o[`CU_STALL_DISPATCH_2] == 0) && 
                         (idu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
     
@@ -405,7 +404,6 @@ module cpu_top (
     wire [31:0] dispatch_mem_addr;
     wire [63:0] dispatch_mem_wdata;
     wire [7:0] dispatch_mem_wmask;
-    wire dispatch_mem_atom_lock_o;
     wire dispatch_mem_stall_req_o;
 
     // dispatch to SYS
@@ -612,7 +610,7 @@ module cpu_top (
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
-        .issue_inst_hdu_i  (dispatch_issue_inst),  // 修改为从icu获取数据冒险暂停信号 //icu
+        .issue_inst_hdu_i  (dispatch_issue_inst),  // 修改为从dispatch获取数据冒险暂停信号 
         .agu_req_stall_i   (dispatch_mem_stall_req_o),
         .stall_flag_o      (ctrl_stall_flag_o),
         .stall_flag1_o     (ctrl_stall_flag1_o),
@@ -892,7 +890,6 @@ module cpu_top (
         .mem_wdata_o             (dispatch_mem_wdata),
         .mem_commit_id_o         (dispatch_mem_commit_id),
         .mem_reg_waddr_o         (dispatch_mem_reg_waddr),
-        .mem_atom_lock_o         (dispatch_mem_atom_lock_o),
         .mem_stall_req_o         (dispatch_mem_stall_req_o),
         .misaligned_load_o       (dispatch_misaligned_load_o),
         .misaligned_store_o      (dispatch_misaligned_store_o),
