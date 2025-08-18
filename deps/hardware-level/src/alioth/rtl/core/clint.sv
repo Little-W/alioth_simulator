@@ -39,7 +39,6 @@ module clint (
     input wire                        jump_flag_i,
     input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,
     input wire                        atom_opt_busy_i,  // 原子操作忙标志
-    input wire                        agu_atom_lock_i,  // AGU原子锁标志
 
     // 添加系统操作输入端口
     input wire sys_op_ecall_i,
@@ -149,7 +148,7 @@ module clint (
                             || misaligned_load_i || misaligned_store_i
                             || misaligned_fetch_i);
 
-    wire int_env_valid = (atom_opt_busy_i == 1'b0) && !agu_atom_lock_i;
+    wire int_env_valid = (atom_opt_busy_i == 1'b0);
 
     wire int_req = (ext_irq_en | timer_irq_en | soft_irq_en) & global_int_en;
 
