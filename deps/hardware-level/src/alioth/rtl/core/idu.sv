@@ -67,6 +67,7 @@ module idu (
     output wire                        inst1_jump_o,         // 新增：第一路跳转指令输出
     output wire                        inst1_branch_o,       // 新增：第一路分支指令输出
     output wire                        inst1_csr_type_o,     // 新增：第一路CSR类型指令输出
+    output wire [`EX_INFO_BUS_WIDTH-1:0] inst1_ex_info_bus_o, // 新增：第一路ex单元类型信号输出
 
     // to ex - 第二路
     output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,          // 第二路指令地址
@@ -82,7 +83,8 @@ module idu (
     output wire                        inst2_valid_o,        // 第二路指令有效输出
     output wire                        inst2_illegal_inst_o, // 第二路非法指令输出
     output wire [`INST_DATA_WIDTH-1:0] inst2_o,             // 第二路指令内容输出
-    output wire                        inst2_csr_type_o     // 第二路CSR类型指令输出
+    output wire                        inst2_csr_type_o,     // 第二路CSR类型指令输出
+    output wire [`EX_INFO_BUS_WIDTH-1:0] inst2_ex_info_bus_o // 第二路ex单元类型信号输出
 );
 
     // 内部连线，连接id和id_pipe
@@ -100,6 +102,7 @@ module idu (
     wire                        id_inst_jump;     // 新增：跳转指令信号
     wire                        id_inst_branch;   // 新增：分支指令信号
     wire                        id_inst_csr_type; // 新增：CSR类型指令信号
+    wire [`EX_INFO_BUS_WIDTH-1:0]id_ex_info_bus;
 
     // 第二路内部连线
     wire [`INST_ADDR_WIDTH-1:0] id2_inst_addr;
@@ -114,6 +117,7 @@ module idu (
     wire [  `DECINFO_WIDTH-1:0] id2_dec_info_bus;
     wire                        id2_illegal_inst;  // 第二路非法指令信号
     wire                        id2_inst_csr_type; // 第二路CSR类型指令信号
+    wire [`EX_INFO_BUS_WIDTH-1:0]id2_ex_info_bus;
     // 第二路的跳转和分支信号不连接，直接悬空
 
     // 实例化第一路id模块
@@ -143,7 +147,8 @@ module idu (
         .illegal_inst_o(id_illegal_inst),   // 输出非法指令信号
         .inst_jump_o   (id_inst_jump),      // 新增：跳转指令信号
         .inst_branch_o (id_inst_branch),    // 新增：分支指令信号
-        .inst_csr_type_o(id_inst_csr_type)  // 新增：CSR类型指令信号
+        .inst_csr_type_o(id_inst_csr_type),  // 新增：CSR类型指令信号
+        .ex_info_bus_o (id_ex_info_bus)
     );
 
     // 实例化第二路id模块
@@ -173,7 +178,8 @@ module idu (
         .illegal_inst_o(id2_illegal_inst),   // 输出第二路非法指令信号
         .inst_jump_o   (),                   // 第二路跳转信号悬空
         .inst_branch_o (),                   // 第二路分支信号悬空
-        .inst_csr_type_o(id2_inst_csr_type)  // 第二路CSR类型指令信号
+        .inst_csr_type_o(id2_inst_csr_type),  // 第二路CSR类型指令信号
+        .ex_info_bus_o (id2_ex_info_bus)
     );
 
     // 实例化第一路idu_id_pipe模块
@@ -199,6 +205,7 @@ module idu (
         .inst_jump_i     (id_inst_jump),      // 新增：跳转指令信号输入
         .inst_branch_i   (id_inst_branch),    // 新增：分支指令信号输入
         .inst_csr_type_i (id_inst_csr_type),  // 新增：CSR类型指令信号输入
+        .ex_info_bus_i   (id_ex_info_bus),    // 新增：ex单元类型输入
 
         // from ctrl
         .stall_flag_i(stall_flag1_i),
@@ -220,7 +227,8 @@ module idu (
         .inst_o          (inst1_o),            // 新增：指令内容输出
         .inst_jump_o     (inst1_jump_o),       // 新增：跳转指令信号输出
         .inst_branch_o   (inst1_branch_o),     // 新增：分支指令信号输出
-        .inst_csr_type_o (inst1_csr_type_o)    // 新增：CSR类型指令信号输出
+        .inst_csr_type_o (inst1_csr_type_o),   // 新增：CSR类型指令信号输出
+        .ex_info_bus_o   (inst1_ex_info_bus_o) // 新增：ex单元类型信号输出
     );
 
     // 实例化第二路idu_id_pipe模块
@@ -246,6 +254,7 @@ module idu (
         .inst_jump_i     (1'b0),               // 第二路跳转信号接地
         .inst_branch_i   (),               // 第二路分支信号接地
         .inst_csr_type_i (id2_inst_csr_type),  // 第二路CSR类型指令信号输入
+        .ex_info_bus_i   (id2_ex_info_bus),    // 第二路ex单元类型输入
 
         // from ctrl
         .stall_flag_i(stall_flag2_i),
@@ -266,8 +275,9 @@ module idu (
         .illegal_inst_o  (inst2_illegal_inst_o),    // 第二路非法指令输出
         .inst_o          (inst2_o),            // 第二路指令内容输出
         .inst_jump_o     (),                   // 第二路跳转信号输出悬空
-        .inst_branch_o   (),        
-        .inst_csr_type_o (inst2_csr_type_o)    // 第二路CSR类型指令信号输出
+        .inst_branch_o   (),
+        .inst_csr_type_o (inst2_csr_type_o),   // 第二路CSR类型指令信号输出
+        .ex_info_bus_o   (inst2_ex_info_bus_o)  // 第二路ex单元类型信号输出
     );
 
 endmodule

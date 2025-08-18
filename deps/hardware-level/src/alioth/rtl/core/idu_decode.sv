@@ -52,7 +52,8 @@ module idu_decode (
     output wire                        illegal_inst_o,  // 非法指令输出
     output wire                        inst_jump_o,     // 跳转指令信号
     output wire                        inst_branch_o,   // 分支指令信号
-    output wire                        inst_csr_type_o  // CSR类型指令信号
+    output wire                        inst_csr_type_o, // CSR类型指令信号
+    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o    // 新增：ex单元类型输出
 );
 
     assign inst_addr_o = inst_addr_i;
@@ -331,5 +332,14 @@ module idu_decode (
 
     // CSR类型指令信号
     assign inst_csr_type_o = op_csr;
+
+    assign ex_info_bus_o =
+        op_alu        ? `EX_INFO_ALU   :
+        inst_type_mul ? `EX_INFO_MUL   :
+        inst_type_div ? `EX_INFO_DIV   :
+        op_csr        ? `EX_INFO_CSR   :
+        op_bjp        ? `EX_INFO_BJP   :
+        inst_type_load ? `EX_INFO_LOAD :
+        `EX_INFO_OTHER; // 默认设置为其他类型
 
 endmodule
