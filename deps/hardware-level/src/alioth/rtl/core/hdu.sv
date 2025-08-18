@@ -258,9 +258,9 @@ module hdu (
     // 输出时若未发射或无效则为 0；有效永不输出 0
     assign inst1_commit_id_o = (issue_inst_o[0]) ? next_id1 : 3'd0;
     assign inst2_commit_id_o = (issue_inst_o[1]) ? next_id2 : 3'd0;
-    //仅当指令有效、发射且写寄存器（或不写寄存器但是是csr）时写入
-    assign can_into_fifo_inst1 =  (inst1_rd_check | inst1_csr_type_i) && issue_inst_o[0];// && inst1_commit_id_o != 3'd0
-    assign can_into_fifo_inst2 =  (inst2_rd_check | inst2_csr_type_i) && issue_inst_o[1] ;//&& inst2_commit_id_o != 3'd0
+    //仅当指令有效、发射且写寄存器时写入
+    assign can_into_fifo_inst1 =  (inst1_rd_check ) && issue_inst_o[0];// && inst1_commit_id_o != 3'd0
+    assign can_into_fifo_inst2 =  (inst2_rd_check ) && issue_inst_o[1] ;//&& inst2_commit_id_o != 3'd0
 
     // FIFO 与 序列化状态 更新（仅记录上一拍跳转检测用于形成单拍脉冲）
     always @(posedge clk or negedge rst_n) begin
