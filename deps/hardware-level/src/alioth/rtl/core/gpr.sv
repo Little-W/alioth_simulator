@@ -92,14 +92,14 @@ module gpr (
         end
     endgenerate
 
-    // 4路读寄存器输出 (取消同周期写前递逻辑)
+    // 4路读寄存器输出 (同周期写前递逻辑)
     assign inst1_rs1_rdata_o = (inst1_rs1_raddr_i == `ZeroReg) ? `ZeroWord :
-                               regs[inst1_rs1_raddr_i];
+                               ((inst1_rs1_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i : regs[inst1_rs1_raddr_i];
     assign inst1_rs2_rdata_o = (inst1_rs2_raddr_i == `ZeroReg) ? `ZeroWord :
-                               regs[inst1_rs2_raddr_i];
+                               ((inst1_rs2_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i : regs[inst1_rs2_raddr_i];
     assign inst2_rs1_rdata_o = (inst2_rs1_raddr_i == `ZeroReg) ? `ZeroWord :
-                               regs[inst2_rs1_raddr_i];
+                               ((inst2_rs1_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i : regs[inst2_rs1_raddr_i];
     assign inst2_rs2_rdata_o = (inst2_rs2_raddr_i == `ZeroReg) ? `ZeroWord :
-                               regs[inst2_rs2_raddr_i];
+                               ((inst2_rs2_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i : regs[inst2_rs2_raddr_i];
 
 endmodule

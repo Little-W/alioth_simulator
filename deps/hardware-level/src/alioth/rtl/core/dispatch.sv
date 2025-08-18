@@ -28,7 +28,8 @@
 module dispatch (
     input wire                     clk,
     input wire                     rst_n,
-    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
+    // 流水线暂停标志
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag_dis_i,
 
     // 从ICU接收的第一路指令信息
     input wire [`INST_ADDR_WIDTH-1:0] inst1_addr_i,
@@ -293,8 +294,8 @@ module dispatch (
     wire        agu_stall_req;
 
     // HDU相关信号
-    wire hdu_inst1_valid = inst1_valid_i && !stall_flag_i && !clint_req_valid_i;
-    wire hdu_inst2_valid = inst2_valid_i && !stall_flag_i && !clint_req_valid_i;
+    wire hdu_inst1_valid = inst1_valid_i && !stall_flag_dis_i && !clint_req_valid_i;
+    wire hdu_inst2_valid = inst2_valid_i && !stall_flag_dis_i && !clint_req_valid_i;
     wire [1:0] hdu_issue_inst;
     wire [2:0] hdu_inst1_commit_id;
     wire [2:0] hdu_inst2_commit_id;
@@ -497,12 +498,12 @@ module dispatch (
     wire flush_en2;
     wire stall_en1;
     wire stall_en2;
-    wire common_flush_en = stall_flag_i[`CU_FLUSH] || stall_flag_i[`CU_STALL_AGU] || clint_req_valid_i;
+    wire common_flush_en = stall_flag_dis_i[`CU_FLUSH] || stall_flag_dis_i[`CU_STALL_AGU] || clint_req_valid_i;
 
-    assign flush_en1 = common_flush_en || (~hdu_issue_inst[0])  || stall_flag_i[`CU_STALL_DISPATCH_2];
-    assign flush_en2 = common_flush_en || (~hdu_issue_inst[1])  || stall_flag_i[`CU_STALL_DISPATCH_1];
-    assign stall_en1 = stall_flag_i[`CU_STALL_DISPATCH_1];
-    assign stall_en2 = stall_flag_i[`CU_STALL_DISPATCH_2];
+    assign flush_en1 = common_flush_en || (~hdu_issue_inst[0])  || stall_flag_dis_i[`CU_STALL_DISPATCH_2];
+    assign flush_en2 = common_flush_en || (~hdu_issue_inst[1])  || stall_flag_dis_i[`CU_STALL_DISPATCH_1];
+    assign stall_en1 = stall_flag_dis_i[`CU_STALL_DISPATCH_1];
+    assign stall_en2 = stall_flag_dis_i[`CU_STALL_DISPATCH_2];
     assign mem_stall_req_o = agu_stall_req;
 
     // AGU已经接管地址/掩码/数据与未对齐标志

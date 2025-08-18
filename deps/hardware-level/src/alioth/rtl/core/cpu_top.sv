@@ -198,6 +198,7 @@ module cpu_top (
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_o;
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag1_o;
     wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag2_o;
+    wire [`CU_BUS_WIDTH-1:0] ctrl_stall_flag_dis_o;
     wire ctrl_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] ctrl_jump_addr_o;
 
@@ -615,6 +616,7 @@ module cpu_top (
         .stall_flag_o      (ctrl_stall_flag_o),
         .stall_flag1_o     (ctrl_stall_flag1_o),
         .stall_flag2_o     (ctrl_stall_flag2_o),
+        .stall_flag_dis_o   (ctrl_stall_flag_dis_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)
     );
@@ -727,7 +729,7 @@ module cpu_top (
     dispatch u_dispatch (
         .clk         (clk),
         .rst_n       (rst_n),
-        .stall_flag_i(ctrl_stall_flag_o),
+        .stall_flag_dis_i(ctrl_stall_flag_dis_o),
 
         // 第一路指令信息输入 - 从IDU获取
         .inst1_addr_i(idu_inst1_addr_o),

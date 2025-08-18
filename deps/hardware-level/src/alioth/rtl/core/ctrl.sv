@@ -48,6 +48,7 @@ module ctrl (
     output wire [`CU_BUS_WIDTH-1:0] stall_flag_o,
     output wire [`CU_BUS_WIDTH-1:0] stall_flag1_o,
     output wire [`CU_BUS_WIDTH-1:0] stall_flag2_o,
+    output wire [`CU_BUS_WIDTH-1:0] stall_flag_dis_o,
 
     // to ifu
     output wire                        jump_flag_o,
@@ -125,5 +126,11 @@ module ctrl (
     assign stall_flag2_o[`CU_STALL_DISPATCH_1] = stall_flag_ex_i[0];
     assign stall_flag2_o[`CU_STALL_DISPATCH_2] = stall_flag_ex_i[1];
     assign stall_flag2_o[`CU_STALL_AGU] = agu_req_stall_i;
+
+    assign stall_flag_dis_o[`CU_STALL] = agu_req_stall_i;
+    assign stall_flag_dis_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i;
+    assign stall_flag_dis_o[`CU_STALL_DISPATCH_1] = stall_flag_ex_i[0];
+    assign stall_flag_dis_o[`CU_STALL_DISPATCH_2] = stall_flag_ex_i[1];
+    assign stall_flag_dis_o[`CU_STALL_AGU] = agu_req_stall_i;
 
 endmodule
