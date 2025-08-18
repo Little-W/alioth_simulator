@@ -422,13 +422,13 @@ module hdu (
 
         if (inst1_is_alu_inst) begin
             // 只需检查alu_raw_mask_id对应的FIFO表项
-            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
+            if (fifo_valid[alu1_raw_mask_id] && (alu1_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     alu1_raw_alu1_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     alu1_raw_alu1_rs2 = 1'b1;
             end
-            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+            if (fifo_valid[alu2_raw_mask_id] && (alu2_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     alu1_raw_alu2_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
@@ -436,13 +436,13 @@ module hdu (
             end
         end
         if (inst1_is_mul_inst) begin
-            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
+            if (fifo_valid[alu1_raw_mask_id] && (alu1_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     mul1_raw_alu1_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     mul1_raw_alu1_rs2 = 1'b1;
             end
-            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+            if (fifo_valid[alu2_raw_mask_id] && (alu2_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     mul1_raw_alu2_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
@@ -450,13 +450,13 @@ module hdu (
             end
         end
         if (inst1_is_div_inst) begin
-            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
+            if (fifo_valid[alu1_raw_mask_id] && (alu1_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     div1_raw_alu1_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     div1_raw_alu1_rs2 = 1'b1;
             end
-            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+            if (fifo_valid[alu2_raw_mask_id] && (alu2_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     div1_raw_alu2_rs1 = 1'b1;
                 if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
@@ -466,13 +466,13 @@ module hdu (
 
         if (inst2_is_alu_inst) begin
             // 只需检查alu_raw_mask_id对应的FIFO表项
-            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+            if (fifo_valid[alu2_raw_mask_id] && (alu2_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     alu2_raw_alu2_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     alu2_raw_alu2_rs2 = 1'b1;
             end
-            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
+            if (fifo_valid[alu1_raw_mask_id] && (alu1_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     alu2_raw_alu1_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
@@ -480,13 +480,13 @@ module hdu (
             end
         end
         if (inst2_is_mul_inst) begin
-            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+            if (fifo_valid[alu2_raw_mask_id] && (alu2_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     mul2_raw_alu2_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     mul2_raw_alu2_rs2 = 1'b1;
             end
-            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
+            if (fifo_valid[alu1_raw_mask_id] && (alu1_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     mul2_raw_alu1_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
@@ -494,13 +494,13 @@ module hdu (
             end
         end
         if (inst2_is_div_inst) begin
-            if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
+            if (fifo_valid[alu2_raw_mask_id] && (alu2_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     div2_raw_alu2_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr)
                     div2_raw_alu2_rs2 = 1'b1;
             end
-            if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
+            if (fifo_valid[alu1_raw_mask_id] && (alu1_raw_mask != 8'hFF) && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
                 if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
                     div2_raw_alu1_rs1 = 1'b1;
                 if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr)
