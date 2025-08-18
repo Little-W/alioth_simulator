@@ -155,6 +155,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] exu_csr_wdata_o;
     wire exu_csr_we_o;
     wire [`BUS_ADDR_WIDTH-1:0] exu_csr_waddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] exu_csr_raddr_o;  // CSR读地址输出
 
     // EXU访存繁忙信号
     wire exu_mem_store_busy_o;
@@ -228,7 +229,9 @@ module cpu_top (
     wire clint_req_valid_o;  // 添加中断请求有效信号
     wire clint_flush_flag_o;  // 添加CLINT flush信号
     
-    // IDU输出信号定义
+    // IDU信号声明
+    wire [`BUS_ADDR_WIDTH-1:0] idu_inst1_csr_raddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] idu_inst2_csr_raddr_o;
     wire idu_inst1_jump_o;      // 第一路跳转指令输出
     wire idu_inst1_branch_o;    // 第一路分支指令输出
     wire idu_inst1_csr_type_o;  // 第一路CSR类型指令输出
@@ -384,26 +387,32 @@ module cpu_top (
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_div2_commit_id;
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_mul2_commit_id;
 
-    // dispatch to CSR
-    wire dispatch_req_csr;
-    wire [31:0] dispatch_csr_op1;
-    wire [31:0] dispatch_csr_addr;
-    wire dispatch_csr_csrrw;
-    wire dispatch_csr_csrrs;
-    wire dispatch_csr_csrrc;
+    // dispatch to CSR - 双路输出
+    wire dispatch_inst1_req_csr_o;
+    wire [31:0] dispatch_inst1_csr_op1_o;
+    wire [31:0] dispatch_inst1_csr_addr_o;
+    wire dispatch_inst1_csr_csrrw_o;
+    wire dispatch_inst1_csr_csrrs_o;
+    wire dispatch_inst1_csr_csrrc_o;
+    wire dispatch_inst1_csr_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] dispatch_inst1_csr_waddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] dispatch_inst1_csr_raddr_o;
+    wire dispatch_inst1_csr_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_inst1_csr_reg_waddr_o;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_inst1_csr_commit_id_o;
 
-    wire [`BUS_ADDR_WIDTH-1:0] idu_inst1_csr_raddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] idu_inst2_csr_raddr_o;
-    wire dispatch_csr_reg_we_o;
-    wire [`REG_ADDR_WIDTH-1:0] dispatch_csr_reg_waddr_o;
-    wire dispatch_csr_we_o;
-    wire [`BUS_ADDR_WIDTH-1:0] dispatch_csr_waddr_o;
-    wire [`BUS_ADDR_WIDTH-1:0] dispatch_csr_raddr_o;
-    wire [31:0] dispatch_dec_imm_o;
-    wire [`DECINFO_WIDTH-1:0] dispatch_dec_info_bus_o;
-    wire [`INST_ADDR_WIDTH-1:0] dispatch_inst_addr_o;
-    wire [31:0] dispatch_inst_o;  // 修改为32位：指令内容输出
-    wire [`COMMIT_ID_WIDTH-1:0] dispatch_csr_commit_id_o;
+    wire dispatch_inst2_req_csr_o;
+    wire [31:0] dispatch_inst2_csr_op1_o;
+    wire [31:0] dispatch_inst2_csr_addr_o;
+    wire dispatch_inst2_csr_csrrw_o;
+    wire dispatch_inst2_csr_csrrs_o;
+    wire dispatch_inst2_csr_csrrc_o;
+    wire dispatch_inst2_csr_we_o;
+    wire [`BUS_ADDR_WIDTH-1:0] dispatch_inst2_csr_waddr_o;
+    wire [`BUS_ADDR_WIDTH-1:0] dispatch_inst2_csr_raddr_o;
+    wire dispatch_inst2_csr_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_inst2_csr_reg_waddr_o;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_inst2_csr_commit_id_o;
 
     // dispatch to MEM
     wire dispatch_req_mem;
@@ -669,7 +678,7 @@ module cpu_top (
         .clk              (clk),
         .rst_n            (rst_n),
         .we_i             (wbu_csr_we_o),
-        .raddr_i          (dispatch_csr_raddr_o),
+        .raddr_i          (exu_csr_raddr_o),
         .waddr_i          (wbu_csr_waddr_o),
         .data_i           (wbu_csr_wdata_o),
         .inst_valid_i     (inst_exu_valid),  
@@ -953,18 +962,31 @@ module cpu_top (
 
 
         // csr指令信号- to csru
-        .req_csr_o  (dispatch_req_csr),
-        .csr_op1_o  (dispatch_csr_op1),
-        .csr_addr_o (dispatch_csr_addr),
-        .csr_csrrw_o(dispatch_csr_csrrw),
-        .csr_csrrs_o(dispatch_csr_csrrs),
-        .csr_csrrc_o(dispatch_csr_csrrc),
-        .csr_we_o (dispatch_csr_we_o),
-        .csr_waddr_o(dispatch_csr_waddr_o),
-        .csr_raddr_o(dispatch_csr_raddr_o),
-        .csr_reg_we_o(dispatch_csr_reg_we_o),
-        .csr_reg_waddr_o(dispatch_csr_reg_waddr_o),
-        .csr_commit_id_o(dispatch_csr_commit_id_o),
+        .inst1_req_csr_o  (dispatch_inst1_req_csr_o),
+        .inst1_csr_op1_o  (dispatch_inst1_csr_op1_o),
+        .inst1_csr_addr_o (dispatch_inst1_csr_addr_o),
+        .inst1_csr_csrrw_o(dispatch_inst1_csr_csrrw_o),
+        .inst1_csr_csrrs_o(dispatch_inst1_csr_csrrs_o),
+        .inst1_csr_csrrc_o(dispatch_inst1_csr_csrrc_o),
+        .inst1_csr_we_o (dispatch_inst1_csr_we_o),
+        .inst1_csr_waddr_o(dispatch_inst1_csr_waddr_o),
+        .inst1_csr_raddr_o(dispatch_inst1_csr_raddr_o),
+        .inst1_csr_reg_we_o(dispatch_inst1_csr_reg_we_o),
+        .inst1_csr_reg_waddr_o(dispatch_inst1_csr_reg_waddr_o),
+        .inst1_csr_commit_id_o(dispatch_inst1_csr_commit_id_o),
+
+        .inst2_req_csr_o  (dispatch_inst2_req_csr_o),
+        .inst2_csr_op1_o  (dispatch_inst2_csr_op1_o),
+        .inst2_csr_addr_o (dispatch_inst2_csr_addr_o),
+        .inst2_csr_csrrw_o(dispatch_inst2_csr_csrrw_o),
+        .inst2_csr_csrrs_o(dispatch_inst2_csr_csrrs_o),
+        .inst2_csr_csrrc_o(dispatch_inst2_csr_csrrc_o),
+        .inst2_csr_we_o (dispatch_inst2_csr_we_o),
+        .inst2_csr_waddr_o(dispatch_inst2_csr_waddr_o),
+        .inst2_csr_raddr_o(dispatch_inst2_csr_raddr_o),
+        .inst2_csr_reg_we_o(dispatch_inst2_csr_reg_we_o),
+        .inst2_csr_reg_waddr_o(dispatch_inst2_csr_reg_waddr_o),
+        .inst2_csr_commit_id_o(dispatch_inst2_csr_commit_id_o),
 
         //to lsu - 修改为正确的接口名称
         .req_mem_o               (dispatch_req_mem),
@@ -1140,18 +1162,31 @@ module cpu_top (
         .mem_wb_ready_i(wbu_lsu_ready_o),
 
         // 单一路CSR接口
-        .req_csr_i(dispatch_req_csr),
-        .csr_op1_i(dispatch_csr_op1),
-        .csr_addr_i(dispatch_csr_addr),
-        .csr_csrrw_i(dispatch_csr_csrrw),
-        .csr_csrrs_i(dispatch_csr_csrrs),
-        .csr_csrrc_i(dispatch_csr_csrrc),
+        .req_csr_0_i(dispatch_inst1_req_csr_o),
+        .csr_op1_0_i(dispatch_inst1_csr_op1_o),
+        .csr_addr_0_i(dispatch_inst1_csr_addr_o),
+        .csr_csrrw_0_i(dispatch_inst1_csr_csrrw_o),
+        .csr_csrrs_0_i(dispatch_inst1_csr_csrrs_o),
+        .csr_csrrc_0_i(dispatch_inst1_csr_csrrc_o),
+        .csr_commit_id_0_i(dispatch_inst1_csr_commit_id_o),
+        .csr_we_0_i(dispatch_inst1_csr_we_o),
+        .csr_reg_we_0_i(dispatch_inst1_csr_reg_we_o),
+        .csr_waddr_0_i(dispatch_inst1_csr_waddr_o),
+        .csr_reg_waddr_0_i(dispatch_inst1_csr_reg_waddr_o),
+
+        .req_csr_1_i(dispatch_inst2_req_csr_o),
+        .csr_op1_1_i(dispatch_inst2_csr_op1_o),
+        .csr_addr_1_i(dispatch_inst2_csr_addr_o),
+        .csr_csrrw_1_i(dispatch_inst2_csr_csrrw_o),
+        .csr_csrrs_1_i(dispatch_inst2_csr_csrrs_o),
+        .csr_csrrc_1_i(dispatch_inst2_csr_csrrc_o),
+        .csr_commit_id_1_i(dispatch_inst2_csr_commit_id_o),
+        .csr_we_1_i(dispatch_inst2_csr_we_o),
+        .csr_reg_we_1_i(dispatch_inst2_csr_reg_we_o),
+        .csr_waddr_1_i(dispatch_inst2_csr_waddr_o),
+        .csr_reg_waddr_1_i(dispatch_inst2_csr_reg_waddr_o),
+
         .csr_rdata_i(csr_data_o),
-        .csr_commit_id_i(dispatch_csr_commit_id_o),
-        .csr_we_i(dispatch_csr_we_o),
-        .csr_reg_we_i(dispatch_csr_reg_we_o),
-        .csr_waddr_i(dispatch_csr_waddr_o),
-        .csr_reg_waddr_i(dispatch_csr_reg_waddr_o),
         .csr_wb_ready_i(wbu_csr_ready_o),
 
         // 系统操作信号
@@ -1210,6 +1245,7 @@ module cpu_top (
         .csr_wdata_o(exu_csr_wdata_o),
         .csr_we_o(exu_csr_we_o),
         .csr_waddr_o(exu_csr_waddr_o),
+        .csr_raddr_o(exu_csr_raddr_o),  // CSR读地址输出
 
         // 控制输出
         .stall_flag_o(exu_stall_flag_o),

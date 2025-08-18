@@ -145,8 +145,7 @@ module hdu (
         // inst2 依赖 inst1 的 RAW (读 inst1 写)
         if (!(commit_valid_i && commit_id_i == pending_inst1_id)) begin
             if ((inst2_rs1_check && inst1_rd_check && (inst2_rs1_addr == inst1_rd_addr)) 
-            || (inst2_rs2_check && inst1_rd_check && (inst2_rs2_addr == inst1_rd_addr))
-            || (inst1_csr_type_i && inst2_csr_type_i)) begin
+            || (inst2_rs2_check && inst1_rd_check && (inst2_rs2_addr == inst1_rd_addr))) begin
                 raw_hazard_inst2_inst1 = 1'b1;
             end
 
@@ -223,7 +222,7 @@ module hdu (
     // 当已使用 <=5 时，说明剩余至少 2 个空槽位，可双分配
     assign can_alloc_two = (fifo_used_count <= 3'd5);
 
-    // 选择最先空闲的 1..7 槽位；若全部占用则给 0（后续因 fifo_full=1 会阻止发射）
+    // 选择最先空闲的 1..7 槽位；若全部占用则给 0（后续因 fifo_full=1 会阻止发射） 
     assign next_id1 = inst1_valid ? ((~fifo_valid[1]) ? 3'd1 :
                       (~fifo_valid[2]) ? 3'd2 :
                       (~fifo_valid[3]) ? 3'd3 :
@@ -257,8 +256,8 @@ module hdu (
                       3'd0;
 
     // 输出时若未发射或无效则为 0；有效永不输出 0
-    assign inst1_commit_id_o = (inst1_valid && issue_inst_o[0]) ? next_id1 : 3'd0;
-    assign inst2_commit_id_o = (inst2_valid && issue_inst_o[1]) ? next_id2 : 3'd0;
+    assign inst1_commit_id_o = (issue_inst_o[0]) ? next_id1 : 3'd0;
+    assign inst2_commit_id_o = (issue_inst_o[1]) ? next_id2 : 3'd0;
     //仅当指令有效、发射且写寄存器（或不写寄存器但是是csr）时写入
     assign can_into_fifo_inst1 =  (inst1_rd_check | inst1_csr_type_i) && issue_inst_o[0];// && inst1_commit_id_o != 3'd0
     assign can_into_fifo_inst2 =  (inst2_rd_check | inst2_csr_type_i) && issue_inst_o[1] ;//&& inst2_commit_id_o != 3'd0

@@ -137,19 +137,32 @@ module exu (
     input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
     input wire                        mem_wb_ready_i,
 
-    // CSR接口 (仅保留一路)
-    input wire        req_csr_i,
-    input wire [31:0] csr_op1_i,
-    input wire [31:0] csr_addr_i,
-    input wire        csr_csrrw_i,
-    input wire        csr_csrrs_i,
-    input wire        csr_csrrc_i,
+    // CSR接口 (双路输入)
+    input wire        req_csr_0_i,
+    input wire [31:0] csr_op1_0_i,
+    input wire [31:0] csr_addr_0_i,
+    input wire        csr_csrrw_0_i,
+    input wire        csr_csrrs_0_i,
+    input wire        csr_csrrc_0_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_0_i,
+    input wire        csr_we_0_i,
+    input wire        csr_reg_we_0_i,
+    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_0_i,
+    input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_0_i,
+
+    input wire        req_csr_1_i,
+    input wire [31:0] csr_op1_1_i,
+    input wire [31:0] csr_addr_1_i,
+    input wire        csr_csrrw_1_i,
+    input wire        csr_csrrs_1_i,
+    input wire        csr_csrrc_1_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_1_i,
+    input wire        csr_we_1_i,
+    input wire        csr_reg_we_1_i,
+    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_1_i,
+    input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_1_i,
+
     input wire [`REG_DATA_WIDTH-1:0] csr_rdata_i,
-    input wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_i,
-    input wire        csr_we_i,
-    input wire        csr_reg_we_i,
-    input wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_i,
-    input wire [`REG_ADDR_WIDTH-1:0] csr_reg_waddr_i,
     input wire        csr_wb_ready_i,
 
     // 系统操作信号
@@ -216,6 +229,7 @@ module exu (
     output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
     output wire                       csr_we_o,
     output wire [`BUS_ADDR_WIDTH-1:0] csr_waddr_o,
+    output wire [`BUS_ADDR_WIDTH-1:0] csr_raddr_o,  // CSR读地址输出
 
     // 控制输出
     output wire                        stall_flag_o,
@@ -526,25 +540,44 @@ module exu (
         .M_AXI_RREADY(M_AXI_RREADY)
     );
 
-    // ===================== 单一路CSR实例 =====================
+    // ===================== CSR实例 (支持双路输入) =====================
     exu_csr_unit u_csr (
         .clk(clk),
         .rst_n(rst_n),
         .int_assert_i(int_assert_i),
         .pc_i(inst_addr_i),
-        .req_csr_i(req_csr_i),
-        .csr_op1_i(csr_op1_i),
-        .csr_addr_i(csr_addr_i),
-        .csr_csrrw_i(csr_csrrw_i),
-        .csr_csrrs_i(csr_csrrs_i),
-        .csr_csrrc_i(csr_csrrc_i),
+        
+        // 第一路CSR输入
+        .req_csr_0_i(req_csr_0_i),
+        .csr_op1_0_i(csr_op1_0_i),
+        .csr_addr_0_i(csr_addr_0_i),
+        .csr_csrrw_0_i(csr_csrrw_0_i),
+        .csr_csrrs_0_i(csr_csrrs_0_i),
+        .csr_csrrc_0_i(csr_csrrc_0_i),
+        .commit_id_0_i(csr_commit_id_0_i),
+        .csr_we_0_i(csr_we_0_i),
+        .csr_reg_we_0_i(csr_reg_we_0_i),
+        .csr_waddr_0_i(csr_waddr_0_i),
+        .reg_waddr_0_i(csr_reg_waddr_0_i),
+        
+        // 第二路CSR输入
+        .req_csr_1_i(req_csr_1_i),
+        .csr_op1_1_i(csr_op1_1_i),
+        .csr_addr_1_i(csr_addr_1_i),
+        .csr_csrrw_1_i(csr_csrrw_1_i),
+        .csr_csrrs_1_i(csr_csrrs_1_i),
+        .csr_csrrc_1_i(csr_csrrc_1_i),
+        .commit_id_1_i(csr_commit_id_1_i),
+        .csr_we_1_i(csr_we_1_i),
+        .csr_reg_we_1_i(csr_reg_we_1_i),
+        .csr_waddr_1_i(csr_waddr_1_i),
+        .reg_waddr_1_i(csr_reg_waddr_1_i),
+        
         .csr_rdata_i(csr_rdata_i),
-        .commit_id_i(csr_commit_id_i),
-        .csr_we_i(csr_we_i),
-        .csr_reg_we_i(csr_reg_we_i),
-        .csr_waddr_i(csr_addr_i),
-        .reg_waddr_i(csr_reg_waddr_i),
         .wb_ready_i(csr_wb_ready_i),
+        
+        // 输出信号
+        .csr_raddr_o(csr_raddr_o),
         .csr_wdata_o(csr_wdata_o),
         .csr_we_o(csr_we_o),
         .csr_waddr_o(csr_waddr_o),

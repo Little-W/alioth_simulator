@@ -144,21 +144,35 @@ module dispatch (
     output wire [                31:0] inst2_div_op1_o,
     output wire [                31:0] inst2_div_op2_o,
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_div_commit_id_o,
-    // dispatch to CSR (合并单路输出)
-    output wire        req_csr_o,
-    output wire [31:0] csr_op1_o,
-    output wire [31:0] csr_addr_o,
-    output wire        csr_csrrw_o,
-    output wire        csr_csrrs_o,
-    output wire        csr_csrrc_o,
-    output wire        csr_we_o,
-    output wire [31:0] csr_waddr_o,
-    output wire [31:0] csr_raddr_o,
-    output wire        csr_reg_we_o,
-    output wire [31:0] csr_reg_waddr_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] csr_commit_id_o,
+    // dispatch to CSR (第一路)
+    output wire        inst1_req_csr_o,
+    output wire [31:0] inst1_csr_op1_o,
+    output wire [31:0] inst1_csr_addr_o,
+    output wire        inst1_csr_csrrw_o,
+    output wire        inst1_csr_csrrs_o,
+    output wire        inst1_csr_csrrc_o,
+    output wire        inst1_csr_we_o,
+    output wire [31:0] inst1_csr_waddr_o,
+    output wire [31:0] inst1_csr_raddr_o,
+    output wire        inst1_csr_reg_we_o,
+    output wire [4:0] inst1_csr_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] inst1_csr_commit_id_o,
 
-    // dispatch to MEM 
+    // dispatch to CSR (第二路)
+    output wire        inst2_req_csr_o,
+    output wire [31:0] inst2_csr_op1_o,
+    output wire [31:0] inst2_csr_addr_o,
+    output wire        inst2_csr_csrrw_o,
+    output wire        inst2_csr_csrrs_o,
+    output wire        inst2_csr_csrrc_o,
+    output wire        inst2_csr_we_o,
+    output wire [31:0] inst2_csr_waddr_o,
+    output wire [31:0] inst2_csr_raddr_o,
+    output wire        inst2_csr_reg_we_o,
+    output wire [4:0] inst2_csr_reg_waddr_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] inst2_csr_commit_id_o,
+
+    // dispatch to MEM
     output wire                        req_mem_o,
     output wire                        mem_op_lb_o,
     output wire                        mem_op_lh_o,
@@ -420,7 +434,7 @@ module dispatch (
         .exu_lsu_stall(exu_lsu_stall_i),
         
         // 第一路输入
-        .inst1_valid_i(inst1_valid_i),
+        .inst1_valid_i(inst1_valid_i), //内部连到hduissue_inst[0]
         .rs1_1_i(inst1_rs1_rdata_i),
         .rs2_1_i(inst1_rs2_rdata_i),
         .imm_1_i(inst1_dec_imm_i),
@@ -429,7 +443,7 @@ module dispatch (
         .mem_reg_waddr_1_i(inst1_reg_waddr_i),
         
         // 第二路输入
-        .inst2_valid_i(inst2_valid_i),
+        .inst2_valid_i(inst2_valid_i), //内部连到hduissue_inst[1]
         .rs1_2_i(inst2_rs1_rdata_i),
         .rs2_2_i(inst2_rs2_rdata_i),
         .imm_2_i(inst2_dec_imm_i),
@@ -959,24 +973,33 @@ module dispatch (
         .req_fake_commit_o  (req_fake_commit_o),
         .fake_commit_id_o   (fake_commit_id_o)
     );
-    // CSR合并逻辑
-    // 由于ICU已经处理了两个指令都是CSR的情况（通过RAW冒险检测），
-    // 这里只需要简单的OR逻辑来合并两路CSR输出
-    // 优先级：如果第一路有有效的CSR请求，则使用第一路；否则使用第二路
-    assign req_csr_o = pipe_inst1_req_csr_o | pipe_inst2_req_csr_o;
+    // CSR输出端口直接连接
+    assign inst1_req_csr_o = pipe_inst1_req_csr_o;
+    assign inst1_csr_op1_o = pipe_inst1_csr_op1_o;
+    assign inst1_csr_addr_o = pipe_inst1_csr_addr_o;
+    assign inst1_csr_csrrw_o = pipe_inst1_csr_csrrw_o;
+    assign inst1_csr_csrrs_o = pipe_inst1_csr_csrrs_o;
+    assign inst1_csr_csrrc_o = pipe_inst1_csr_csrrc_o;
+    assign inst1_csr_we_o = pipe_inst1_csr_we_o;
+    assign inst1_csr_waddr_o = pipe_inst1_csr_waddr_o;
+    assign inst1_csr_raddr_o = pipe_inst1_csr_raddr_o;
+    assign inst1_csr_reg_we_o =   pipe_inst1_req_csr_o ? inst1_reg_we_o : 1'b0;
+    assign inst1_csr_reg_waddr_o = pipe_inst1_req_csr_o ? inst1_reg_waddr_o : 5'b0;
+    assign inst1_csr_commit_id_o = pipe_inst1_req_csr_o ? inst1_commit_id_o :  3'b0;
 
-    // 当第一路有CSR请求时，使用第一路的信号；否则使用第二路的信号
-    assign csr_op1_o  = pipe_inst1_req_csr_o ? pipe_inst1_csr_op1_o  : pipe_inst2_req_csr_o ? pipe_inst2_csr_op1_o : 32'b0;
-    assign csr_addr_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_addr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_addr_o : 32'b0;
-    assign csr_csrrw_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrw_o : pipe_inst2_req_csr_o? pipe_inst2_csr_csrrw_o : 0;
-    assign csr_csrrs_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrs_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_csrrs_o : 0;
-    assign csr_csrrc_o = pipe_inst1_req_csr_o ? pipe_inst1_csr_csrrc_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_csrrc_o : 0;
-    assign csr_we_o =  pipe_inst1_csr_we_o | pipe_inst2_csr_we_o;
-    assign csr_waddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_waddr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_waddr_o : 32'b0;
-    assign csr_raddr_o = pipe_inst1_csr_we_o ? pipe_inst1_csr_raddr_o : pipe_inst2_req_csr_o ? pipe_inst2_csr_raddr_o : 32'b0;
-    assign csr_reg_we_o = pipe_inst1_req_csr_o ? inst1_reg_we_o : pipe_inst2_req_csr_o ? inst2_reg_we_o : 1'b0;
-    assign csr_reg_waddr_o = pipe_inst1_req_csr_o ? inst1_reg_waddr_o : pipe_inst2_req_csr_o ? inst2_reg_waddr_o : 5'b0;
-    assign csr_commit_id_o = pipe_inst1_req_csr_o ? inst1_commit_id_o : pipe_inst2_req_csr_o ? inst2_commit_id_o : 3'b0;
+    assign inst2_req_csr_o = pipe_inst2_req_csr_o;
+    assign inst2_csr_op1_o = pipe_inst2_csr_op1_o;
+    assign inst2_csr_addr_o = pipe_inst2_csr_addr_o;
+    assign inst2_csr_csrrw_o = pipe_inst2_csr_csrrw_o;
+    assign inst2_csr_csrrs_o = pipe_inst2_csr_csrrs_o;
+    assign inst2_csr_csrrc_o = pipe_inst2_csr_csrrc_o;
+    assign inst2_csr_we_o = pipe_inst2_csr_we_o;
+    assign inst2_csr_waddr_o = pipe_inst2_csr_waddr_o;
+    assign inst2_csr_raddr_o = pipe_inst2_csr_raddr_o;
+    assign inst2_csr_reg_we_o = pipe_inst2_req_csr_o ? inst2_reg_we_o : 1'b0;
+    assign inst2_csr_reg_waddr_o = pipe_inst2_req_csr_o ? inst2_reg_waddr_o : 5'b0;
+    assign inst2_csr_commit_id_o = pipe_inst2_req_csr_o ? inst2_commit_id_o :  3'b0;
+
 
     // BJP合并逻辑
     // 由于ICU已经处理了两个指令都是BJP的情况（通过RAW冒险检测），
