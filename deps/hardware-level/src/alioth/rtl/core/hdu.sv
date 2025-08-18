@@ -246,7 +246,7 @@ module hdu (
                 alu2_raw_mask_id <= 3'd0;
             end
             // 添加新的ALU写寄存器指令，分配mask并记录id
-            if (inst2_valid && issue_inst_o[0] && inst2_is_alu_inst && inst2_rd_check) begin
+            if (inst2_valid && issue_inst_o[1] && inst2_is_alu_inst && inst2_rd_check) begin
                 alu2_raw_mask    <= ~(8'b1 << inst2_commit_id_o);
                 alu2_raw_mask_id <= inst2_commit_id_o;
             end
