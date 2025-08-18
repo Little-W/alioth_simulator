@@ -1,6 +1,3 @@
-`define verilator5
-`define verilator5
-`define DISABLE_TIMEOUT
 `timescale 1 ns / 1 ps
 
 `include "defines.svh"
