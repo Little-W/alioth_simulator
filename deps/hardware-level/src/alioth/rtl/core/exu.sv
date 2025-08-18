@@ -478,7 +478,7 @@ module exu (
         
         // 输出信号
         .mem_stall_o(lsu_stall),
-        .mem_busy_o(mem_store_busy_o),  // 暂时悬空，如果需要可以连接到输出端口
+        .mem_busy_o(mem_store_busy_o),  
         .reg_wdata_o(lsu_reg_wdata_o),
         .reg_we_o(lsu_reg_we_o),
         .reg_waddr_o(lsu_reg_waddr_o),

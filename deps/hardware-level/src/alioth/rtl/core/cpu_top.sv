@@ -75,6 +75,8 @@ module cpu_top (
     wire [`REG_ADDR_WIDTH-1:0] idu_inst2_reg2_raddr_o;  // 第二路指令寄存器2读地址输出
     wire idu_inst1_csr_we_o;
     wire idu_inst2_csr_we_o;  // 第二路指令CSR写使能输出
+    wire [`EX_INFO_BUS_WIDTH-1:0] idu_inst1_ex_info_bus_o; // 第一路ex单元类型信号输出
+    wire [`EX_INFO_BUS_WIDTH-1:0] idu_inst2_ex_info_bus_o; // 第二路ex单元类型信号输出
     wire [`BUS_ADDR_WIDTH-1:0] idu_inst1_csr_waddr_o;
     wire [`BUS_ADDR_WIDTH-1:0] idu_inst2_csr_waddr_o;  // 第二路指令CSR写地址输出
     wire [`REG_DATA_WIDTH-1:0] idu_inst1_csr_rdata_o;
@@ -714,6 +716,7 @@ module cpu_top (
         .inst1_branch_o  (idu_inst1_branch_o),                 // 分支指令输出
         .inst1_csr_type_o(idu_inst1_csr_type_o),               // CSR类型指令输出 
         .inst1_addr_o    (idu_inst1_addr_o),
+        .inst1_ex_info_bus_o(idu_inst1_ex_info_bus_o),         // 新增：第一路ex单元类型信号输出
         // 第二路输出
         .inst2_addr_o    (idu_inst2_addr_o),
         .inst2_reg_we_o  (idu_inst2_reg_we_o),
@@ -728,7 +731,8 @@ module cpu_top (
         .inst2_valid_o   (idu_inst2_valid_o),
         .inst2_illegal_inst_o(idu_illegal_inst2_o),
         .inst2_o         (idu_inst2_o),
-        .inst2_csr_type_o(idu_inst2_csr_type_o)
+        .inst2_csr_type_o(idu_inst2_csr_type_o),
+        .inst2_ex_info_bus_o(idu_inst2_ex_info_bus_o) // 第二路ex单元类型信号输出
     );
 
     // ICU模块例化 - 指令控制单元

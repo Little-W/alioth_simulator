@@ -47,6 +47,7 @@ module idu_id_pipe (
     input wire                        inst_jump_i,       // 新增：跳转指令信号输入
     input wire                        inst_branch_i,     // 新增：分支指令信号输入
     input wire                        inst_csr_type_i,   // 新增：CSR类型指令信号输入
+    input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,    // 新增：ex单元类型输入
 
     input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
 
@@ -66,7 +67,8 @@ module idu_id_pipe (
     output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 新增：指令内容输出
     output wire                        inst_jump_o,        // 新增：跳转指令信号输出
     output wire                        inst_branch_o,      // 新增：分支指令信号输出
-    output wire                        inst_csr_type_o     // 新增：CSR类型指令信号输出
+    output wire                        inst_csr_type_o,   // 新增：CSR类型指令信号输出
+    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o    // 新增：ex单元类型输出
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
@@ -270,5 +272,16 @@ module idu_id_pipe (
         inst_csr_type
     );
     assign inst_csr_type_o = inst_csr_type;
+
+    wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_dnxt = flush_en ? `ZeroWord : ex_info_bus_i;
+    wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus;
+    gnrl_dfflr #(`EX_INFO_BUS_WIDTH) ex_info_bus_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        ex_info_bus_dnxt,
+        ex_info_bus
+    );
+    assign ex_info_bus_o = ex_info_bus;
 
 endmodule
