@@ -296,7 +296,7 @@ module exu_lsu #(
 
     // 访存阻塞信号 - 简化为32位指令处理
     assign mem_stall_o = req_mem_i && !int_assert_i && input_fifo_full;
-    assign mem_busy_o = !write_fifo_empty;
+    assign mem_busy_o = !write_fifo_empty || !input_fifo_empty;
 
     // 读请求FIFO操作
     wire read_fifo_wr_en;
