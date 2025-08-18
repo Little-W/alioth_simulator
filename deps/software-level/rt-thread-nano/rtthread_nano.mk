@@ -53,11 +53,11 @@ CFLAGS += -findirect-inlining -finline-functions-called-once
 CFLAGS += --param max-inline-insns-auto=4000 --param large-function-insns=4000
 CFLAGS += --param large-function-growth=4000 --param inline-unit-growth=4000
 CFLAGS += -finline-limit=4000
-CFLAGS += -frename-registers -fomit-frame-pointer
-CFLAGS += -O3 -mtune=alioth
+CFLAGS += -frename-registers 
+CFLAGS += -fweb
+CFLAGS += -fomit-frame-pointer
 CFLAGS += -falign-functions=4 -falign-jumps=4 -falign-loops=4
 CFLAGS += -fno-tree-loop-distribute-patterns -fno-tree-loop-vectorize -fno-tree-slp-vectorize
-# CFLAGS += -fno-section-anchors
 CFLAGS += -fno-caller-saves
 CFLAGS += -fno-branch-count-reg
 CFLAGS += -fno-crossjumping   # 显著提升
@@ -67,11 +67,14 @@ CFLAGS += -fno-peel-loops
 CFLAGS += -fno-split-loops
 CFLAGS += -fno-code-hoisting
 CFLAGS += -fno-tree-dse
-CFLAGS += -fweb
-
+CFLAGS += -fno-section-anchors
+CFLAGS += -fno-tree-forwprop
+CFLAGS += -fno-tree-partial-pre
+CFLAGS += -O3 -mtune=alioth
 
 # 移除以下针对coremark的激进优化参数
 # CFLAGS += -fno-tree-pre -fno-tree-forwprop -fno-tree-partial-pre -fno-tree-dominator-opts
+
 # CFLAGS += -flto
 
 COREMARK_CFLAGS := "\"-O3 -mtune=alioth -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4 -fno-strict-aliasing -frename-registers\""
