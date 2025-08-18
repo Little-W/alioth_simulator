@@ -205,10 +205,6 @@ module dispatch (
     //指令其他信号（第二路）
     output wire inst2_illegal_inst_o,
 
-    //fake_commit信号，inst1的输出空置
-    output wire req_fake_commit_o,
-    output wire [31:0] fake_commit_id_o,
-
     // 输出指令地址和提交ID以及保留到后续模块的其他指令信息
     output wire [`INST_ADDR_WIDTH-1:0] inst1_addr_o,
     output wire [`INST_ADDR_WIDTH-1:0] inst2_addr_o,
@@ -721,10 +717,7 @@ module dispatch (
         .sys_op_ecall_o     (pipe_inst1_sys_op_ecall_o),
         .sys_op_ebreak_o    (pipe_inst1_sys_op_ebreak_o),
         .sys_op_fence_o     (pipe_inst1_sys_op_fence_o),
-        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o),
-        //fake_commit信号，inst1的输出空置
-        .req_fake_commit_o  (),
-        .fake_commit_id_o  ()
+        .sys_op_dret_o      (pipe_inst1_sys_op_dret_o)
     );
 
     // 实例化dispatch_logic模块 (第二路)
@@ -968,10 +961,7 @@ module dispatch (
         .sys_op_ecall_o     (pipe_inst2_sys_op_ecall_o),
         .sys_op_ebreak_o    (pipe_inst2_sys_op_ebreak_o),
         .sys_op_fence_o     (pipe_inst2_sys_op_fence_o),
-        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o),
-        //fake_commit信号，inst2的输出空置
-        .req_fake_commit_o  (req_fake_commit_o),
-        .fake_commit_id_o   (fake_commit_id_o)
+        .sys_op_dret_o      (pipe_inst2_sys_op_dret_o)
     );
     // CSR输出端口直接连接
     assign inst1_req_csr_o = pipe_inst1_req_csr_o;
@@ -1002,7 +992,6 @@ module dispatch (
 
 
     // BJP合并逻辑
-    // 由于ICU已经处理了两个指令都是BJP的情况（通过RAW冒险检测），
     // 这里只需要简单的OR逻辑来合并两路BJP输出
     // 优先级：如果第一路有有效的BJP请求，则使用第一路；否则使用第二路
     assign req_bjp_o = pipe_inst1_req_bjp_o | pipe_inst2_req_bjp_o;

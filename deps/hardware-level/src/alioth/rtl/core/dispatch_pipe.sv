@@ -230,11 +230,7 @@ module dispatch_pipe (
     output wire sys_op_dret_o,
     output wire is_pred_branch_o,  // 新增：预测分支信号输出
     // 新增：非法指令信号输出
-    output wire illegal_inst_o,
-
-    // Fake_commit输出端口
-    output wire req_fake_commit_o,
-    output wire [`COMMIT_ID_WIDTH-1:0] fake_commit_id_o
+    output wire illegal_inst_o
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH] | stall_flag_i[`CU_STALL_AGU];
@@ -1090,18 +1086,5 @@ module dispatch_pipe (
         illegal_inst
     );
     assign illegal_inst_o = illegal_inst;
-
-    // wire   req_fake_commit_dnxt = flush_fakecommit_en ? 1 : 0;
-    // wire   req_fake_commit;
-    // gnrl_dfflr #(1) req_fake_commit_ff (
-    //     clk,
-    //     rst_n,
-    //     reg_update_en,
-    //     req_fake_commit_dnxt,
-    //     req_fake_commit
-    // );
-    assign req_fake_commit_o = 1'b0;
-
-    assign fake_commit_id_o =  3'b0;
 
 endmodule

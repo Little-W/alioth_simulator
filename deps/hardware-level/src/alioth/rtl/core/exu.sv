@@ -173,11 +173,6 @@ module exu (
     input wire sys_op_fence_i,
     input wire sys_op_dret_i,
 
-    // fake commit输入信号
-    input wire req_fakecommit_i,
-    input wire [31:0] fake_commit_id_i,
-    input wire        fakecommit_wb_ready_i,
-
     // 输出信号 - 到WBU的写回接口
     // ALU0写回
     output wire [ `REG_DATA_WIDTH-1:0] alu0_reg_wdata_o,
@@ -244,12 +239,6 @@ module exu (
     output wire exu_op_ecall_o,
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
-
-    // fake commit信号输出
-    output wire [31:0]                 fakecommit_reg_wdata_o,
-    output wire [31:0]                 fakecommit_commit_id_o,
-    output wire                        fakecommit_reg_we_o,
-    output wire [ `REG_ADDR_WIDTH-1:0] fakecommit_reg_waddr_o,
     
     // misaligned_fetch信号输出
     output wire                     misaligned_fetch_o,
@@ -586,20 +575,6 @@ module exu (
         .commit_id_o(csr_commit_id_o),
         .csr_reg_we_o(csr_reg_we_o),
         .csr_stall_o(csr_stall)
-    );
-
-    // ===================== 伪提交单元实例 =====================
-    exu_fakecommit u_fakecommit (
-        .clk(clk),
-        .rst_n(rst_n),
-        .req_fakecommit_i(req_fakecommit_i),
-        .commit_id_i(fake_commit_id_i),
-        .wb_ready_i(fakecommit_wb_ready_i),
-        .int_assert_i(int_assert_i),
-        .reg_wdata_o(fakecommit_reg_wdata_o),
-        .reg_we_o(fakecommit_reg_we_o),
-        .reg_waddr_o(fakecommit_reg_waddr_o),
-        .commit_id_o(fakecommit_commit_id_o)
     );
 
     // 控制信号汇总 (统一LSU stall信号)
