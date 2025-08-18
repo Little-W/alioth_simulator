@@ -208,10 +208,10 @@ module wbu (
     assign csr_wdata_o =  csr_wdata_i;
 
     // 提交信号与ID
-    assign commit_valid1_o = wb_ch1_valid || csr_we_o;
-    assign commit_valid2_o = wb_ch2_valid || csr_we_o;
-    assign commit_id1_o    = wb_ch1_valid ? eu_commit_id[wb_ch1_eu] : csr_we_o ? csr_commit_id_i :{`COMMIT_ID_WIDTH{1'b0}};
-    assign commit_id2_o    = wb_ch2_valid ? eu_commit_id[wb_ch2_eu] : csr_we_o ? csr_commit_id_i :{`COMMIT_ID_WIDTH{1'b0}};
+    assign commit_valid1_o = wb_ch1_valid ;
+    assign commit_valid2_o = wb_ch2_valid ;
+    assign commit_id1_o    = wb_ch1_valid ? eu_commit_id[wb_ch1_eu] : {`COMMIT_ID_WIDTH{1'b0}};
+    assign commit_id2_o    = wb_ch2_valid ? eu_commit_id[wb_ch2_eu] : {`COMMIT_ID_WIDTH{1'b0}};
 
     // Ready 信号
     wire eu_selected [0:8];
