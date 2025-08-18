@@ -156,15 +156,26 @@ module hdu (
     genvar i;
     generate
         for (i = 0; i < 8; i = i + 1) begin : hazard_vec_gen
-            assign inst1_raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                ((inst1_rs1_check && inst1_rs1_check == fifo_entry[i].rd_addr) || (inst1_rs2_check && inst1_rs2_addr == fifo_entry[i].rd_addr));
-            assign inst2_raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                ((inst2_rs1_check && inst2_rs1_addr == fifo_entry[i].rd_addr) || (inst2_rs2_check && inst2_rs2_addr == fifo_entry[i].rd_addr));
+            assign inst1_raw_hazard_vec[i] = 
+            (fifo_valid[i]) && 
+            !((commit_valid_i && (commit_id_i == i)) || (commit_valid2_i && (commit_id2_i == i))) 
+            &&
+            ((inst1_rs1_check && (inst1_rs1_check == fifo_entry[i].rd_addr)) || (inst1_rs2_check && (inst1_rs2_addr == fifo_entry[i].rd_addr)));
+            assign inst2_raw_hazard_vec[i] = 
+            (fifo_valid[i]) 
+            && 
+            !((commit_valid_i && (commit_id_i == i)) || (commit_valid2_i && (commit_id2_i == i))) 
+            &&
+            ((inst2_rs1_check && (inst2_rs1_addr == fifo_entry[i].rd_addr)) || (inst2_rs2_check && (inst2_rs2_addr == fifo_entry[i].rd_addr)));
             // waw检测：只有exu_type不同才算冲突
-            assign inst1_waw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                (inst1_rd_check && inst1_rd_addr == fifo_entry[i].rd_addr && inst1_ex_info_bus != fifo_entry[i].exu_type);
-            assign inst2_waw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
-                (inst2_rd_check && inst2_rd_addr == fifo_entry[i].rd_addr && inst2_ex_info_bus != fifo_entry[i].exu_type);
+            assign inst1_waw_hazard_vec[i] = 
+            (fifo_valid[i]) && 
+            !((commit_valid_i && (commit_id_i == i)) || (commit_valid2_i && (commit_id2_i == i)))
+            && (inst1_rd_check && (inst1_rd_addr == fifo_entry[i].rd_addr) && (inst1_ex_info_bus != fifo_entry[i].exu_type));
+            assign inst2_waw_hazard_vec[i] = 
+            (fifo_valid[i]) && 
+            !((commit_valid_i && (commit_id_i == i)) || (commit_valid2_i && (commit_id2_i == i))) 
+            && (inst2_rd_check && (inst2_rd_addr == fifo_entry[i].rd_addr) && (inst2_ex_info_bus != fifo_entry[i].exu_type));
         end
     endgenerate
 
@@ -188,7 +199,7 @@ module hdu (
                 alu1_raw_mask_id <= 3'd0;
             end
             // 添加新的ALU写寄存器指令，分配mask并记录id
-            if (inst1_valid && ~hazard && inst1_is_alu_inst && inst1_rd_check) begin
+            if (inst1_valid && issue_inst_o[0] && inst1_is_alu_inst && inst1_rd_check) begin
                 alu1_raw_mask    <= ~(8'b1 << inst1_commit_id_o);
                 alu1_raw_mask_id <= inst1_commit_id_o;
             end
@@ -198,7 +209,7 @@ module hdu (
                 alu2_raw_mask_id <= 3'd0;
             end
             // 添加新的ALU写寄存器指令，分配mask并记录id
-            if (inst2_valid && ~hazard && inst2_is_alu_inst && inst2_rd_check) begin
+            if (inst2_valid && issue_inst_o[0] && inst2_is_alu_inst && inst2_rd_check) begin
                 alu2_raw_mask    <= ~(8'b1 << inst2_commit_id_o);
                 alu2_raw_mask_id <= inst2_commit_id_o;
             end
