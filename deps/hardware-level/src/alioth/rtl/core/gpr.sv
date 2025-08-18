@@ -53,8 +53,8 @@ module gpr (
 
 );
 
-    wire [`REG_DATA_WIDTH-1:0] regs[0:`REG_NUM - 1];
-    wire [`REG_NUM-1:0] reg_we;  // 每个寄存器的写使能信号
+    wire [`REG_DATA_WIDTH-1:0] regs                                          [0:`REG_NUM - 1];
+    wire [       `REG_NUM-1:0] reg_we;  // 每个寄存器的写使能信号
 
     // 为每个寄存器生成写使能信号
     // 零寄存器(x0)永远不能被写入
@@ -83,23 +83,31 @@ module gpr (
             gnrl_dfflr #(
                 .DW(`REG_DATA_WIDTH)
             ) reg_dfflr (
-                .clk(clk),
+                .clk  (clk),
                 .rst_n(rst_n),
-                .lden(reg_we[i]),
-                .dnxt(write_data[i]),
-                .qout(regs[i])
+                .lden (reg_we[i]),
+                .dnxt (write_data[i]),
+                .qout (regs[i])
             );
         end
     endgenerate
 
     // 4路读寄存器输出 (同周期写前递逻辑)
     assign inst1_rs1_rdata_o = (inst1_rs1_raddr_i == `ZeroReg) ? `ZeroWord :
-                               ((inst1_rs1_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i : regs[inst1_rs1_raddr_i];
+                               ((inst1_rs1_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i :
+                               ((inst1_rs1_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i :
+                               regs[inst1_rs1_raddr_i];
     assign inst1_rs2_rdata_o = (inst1_rs2_raddr_i == `ZeroReg) ? `ZeroWord :
-                               ((inst1_rs2_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i : regs[inst1_rs2_raddr_i];
+                               ((inst1_rs2_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i :
+                               ((inst1_rs2_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i :
+                               regs[inst1_rs2_raddr_i];
     assign inst2_rs1_rdata_o = (inst2_rs1_raddr_i == `ZeroReg) ? `ZeroWord :
-                               ((inst2_rs1_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i : regs[inst2_rs1_raddr_i];
+                               ((inst2_rs1_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i :
+                               ((inst2_rs1_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i :
+                               regs[inst2_rs1_raddr_i];
     assign inst2_rs2_rdata_o = (inst2_rs2_raddr_i == `ZeroReg) ? `ZeroWord :
-                               ((inst2_rs2_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i : regs[inst2_rs2_raddr_i];
+                               ((inst2_rs2_raddr_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i :
+                               ((inst2_rs2_raddr_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i :
+                               regs[inst2_rs2_raddr_i];
 
 endmodule
