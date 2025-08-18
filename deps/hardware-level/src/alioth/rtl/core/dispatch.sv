@@ -242,20 +242,32 @@ module dispatch (
     output wire dispatch_atom_lock_o,
 
     // HDU流水线输出信号 (第一路)
-    output wire inst1_alu_pass_op1_o,
-    output wire inst1_alu_pass_op2_o,
-    output wire inst1_mul_pass_op1_o,
-    output wire inst1_mul_pass_op2_o,
-    output wire inst1_div_pass_op1_o,
-    output wire inst1_div_pass_op2_o,
+    output wire inst1_alu_pass_alu2_op1_o,
+    output wire inst1_alu_pass_alu2_op2_o,
+    output wire inst1_mul_pass_alu2_op1_o,
+    output wire inst1_mul_pass_alu2_op2_o,
+    output wire inst1_div_pass_alu2_op1_o,
+    output wire inst1_div_pass_alu2_op2_o,
+    output wire inst1_alu_pass_alu1_op1_o,
+    output wire inst1_alu_pass_alu1_op2_o,
+    output wire inst1_mul_pass_alu1_op1_o,
+    output wire inst1_mul_pass_alu1_op2_o,
+    output wire inst1_div_pass_alu1_op1_o,
+    output wire inst1_div_pass_alu1_op2_o,
 
     // HDU流水线输出信号 (第二路)
-    output wire inst2_alu_pass_op1_o,
-    output wire inst2_alu_pass_op2_o,
-    output wire inst2_mul_pass_op1_o,
-    output wire inst2_mul_pass_op2_o,
-    output wire inst2_div_pass_op1_o,
-    output wire inst2_div_pass_op2_o
+    output wire inst2_alu_pass_alu1_op1_o,
+    output wire inst2_alu_pass_alu1_op2_o,
+    output wire inst2_mul_pass_alu1_op1_o,
+    output wire inst2_mul_pass_alu1_op2_o,
+    output wire inst2_div_pass_alu1_op1_o,
+    output wire inst2_div_pass_alu1_op2_o,
+    output wire inst2_alu_pass_alu2_op1_o,
+    output wire inst2_alu_pass_alu2_op2_o,
+    output wire inst2_mul_pass_alu2_op1_o,
+    output wire inst2_mul_pass_alu2_op2_o,
+    output wire inst2_div_pass_alu2_op1_o,
+    output wire inst2_div_pass_alu2_op2_o
 );
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
@@ -286,18 +298,30 @@ module dispatch (
     wire [1:0] hdu_issue_inst;
     wire [2:0] hdu_inst1_commit_id;
     wire [2:0] hdu_inst2_commit_id;
-    wire hdu_alu1_pass_op1;
-    wire hdu_alu1_pass_op2;
-    wire hdu_mul1_pass_op1;
-    wire hdu_mul1_pass_op2;
-    wire hdu_div1_pass_op1;
-    wire hdu_div1_pass_op2; 
-    wire hdu_alu2_pass_op1;
-    wire hdu_alu2_pass_op2;
-    wire hdu_mul2_pass_op1;
-    wire hdu_mul2_pass_op2;
-    wire hdu_div2_pass_op1;
-    wire hdu_div2_pass_op2;
+    wire hdu_alu1_pass_alu1_op1;
+    wire hdu_alu1_pass_alu1_op2;
+    wire hdu_alu1_pass_alu2_op1;
+    wire hdu_alu1_pass_alu2_op2;
+    wire hdu_mul1_pass_alu1_op1;
+    wire hdu_mul1_pass_alu1_op2;
+    wire hdu_mul1_pass_alu2_op1;
+    wire hdu_mul1_pass_alu2_op2;
+    wire hdu_div1_pass_alu1_op1;
+    wire hdu_div1_pass_alu1_op2;
+    wire hdu_div1_pass_alu2_op1;
+    wire hdu_div1_pass_alu2_op2;
+    wire hdu_alu2_pass_alu2_op1;
+    wire hdu_alu2_pass_alu2_op2;
+    wire hdu_alu2_pass_alu1_op1;
+    wire hdu_alu2_pass_alu1_op2;
+    wire hdu_mul2_pass_alu1_op1;
+    wire hdu_mul2_pass_alu1_op2;
+    wire hdu_mul2_pass_alu2_op1;
+    wire hdu_mul2_pass_alu2_op2;
+    wire hdu_div2_pass_alu1_op1;
+    wire hdu_div2_pass_alu1_op2;
+    wire hdu_div2_pass_alu2_op1;
+    wire hdu_div2_pass_alu2_op2;
     wire hdu_long_inst_atom_lock;
 
     // 第一路和第二路CSR内部信号
@@ -566,18 +590,30 @@ module dispatch (
         .issue_inst_o(hdu_issue_inst),
         .inst1_commit_id_o(hdu_inst1_commit_id),
         .inst2_commit_id_o(hdu_inst2_commit_id),
-        .alu1_pass_op1_o(hdu_alu1_pass_op1),
-        .alu1_pass_op2_o(hdu_alu1_pass_op2),
-        .mul1_pass_op1_o(hdu_mul1_pass_op1),
-        .mul1_pass_op2_o(hdu_mul1_pass_op2),
-        .div1_pass_op1_o(hdu_div1_pass_op1),
-        .div1_pass_op2_o(hdu_div1_pass_op2),
-        .alu2_pass_op1_o(hdu_alu2_pass_op1),
-        .alu2_pass_op2_o(hdu_alu2_pass_op2),
-        .mul2_pass_op1_o(hdu_mul2_pass_op1),
-        .mul2_pass_op2_o(hdu_mul2_pass_op2),
-        .div2_pass_op1_o(hdu_div2_pass_op1),
-        .div2_pass_op2_o(hdu_div2_pass_op2),
+        .alu1_pass_alu1_op1_o(hdu_alu1_pass_alu1_op1),
+        .alu1_pass_alu1_op2_o(hdu_alu1_pass_alu1_op2),
+        .alu1_pass_alu2_op1_o(hdu_alu1_pass_alu2_op1),
+        .alu1_pass_alu2_op2_o(hdu_alu1_pass_alu2_op2),
+        .mul1_pass_alu1_op1_o(hdu_mul1_pass_alu1_op1),
+        .mul1_pass_alu1_op2_o(hdu_mul1_pass_alu1_op2),
+        .mul1_pass_alu2_op1_o(hdu_mul1_pass_alu2_op1),
+        .mul1_pass_alu2_op2_o(hdu_mul1_pass_alu2_op2),
+        .div1_pass_alu1_op1_o(hdu_div1_pass_alu1_op1),
+        .div1_pass_alu1_op2_o(hdu_div1_pass_alu1_op2),
+        .div1_pass_alu2_op1_o(hdu_div1_pass_alu2_op1),
+        .div1_pass_alu2_op2_o(hdu_div1_pass_alu2_op2),
+        .alu2_pass_alu1_op1_o(hdu_alu2_pass_alu1_op1),
+        .alu2_pass_alu1_op2_o(hdu_alu2_pass_alu1_op2),
+        .alu2_pass_alu2_op1_o(hdu_alu2_pass_alu2_op1),
+        .alu2_pass_alu2_op2_o(hdu_alu2_pass_alu2_op2),
+        .mul2_pass_alu1_op1_o(hdu_mul2_pass_alu1_op1),
+        .mul2_pass_alu1_op2_o(hdu_mul2_pass_alu1_op2),
+        .mul2_pass_alu2_op1_o(hdu_mul2_pass_alu2_op1),
+        .mul2_pass_alu2_op2_o(hdu_mul2_pass_alu2_op2),
+        .div2_pass_alu1_op1_o(hdu_div2_pass_alu1_op1),
+        .div2_pass_alu1_op2_o(hdu_div2_pass_alu1_op2),
+        .div2_pass_alu2_op1_o(hdu_div2_pass_alu2_op1),
+        .div2_pass_alu2_op2_o(hdu_div2_pass_alu2_op2),
         .long_inst_atom_lock_o(hdu_long_inst_atom_lock)
     );
 
@@ -673,12 +709,18 @@ module dispatch (
         .is_pred_branch_i     (inst1_is_pred_branch_i),
         .illegal_inst_i      (inst1_illegal_inst_i),
         // HDU信号输入
-        .alu_pass_op1_i(hdu_alu1_pass_op1),
-        .alu_pass_op2_i(hdu_alu1_pass_op2),
-        .mul_pass_op1_i(hdu_mul1_pass_op1),
-        .mul_pass_op2_i(hdu_mul1_pass_op2),
-        .div_pass_op1_i(hdu_div1_pass_op1),
-        .div_pass_op2_i(hdu_div1_pass_op2),
+        .alu_pass_alu1_op1_i(hdu_alu1_pass_alu1_op1),
+        .alu_pass_alu1_op2_i(hdu_alu1_pass_alu1_op2),
+        .mul_pass_alu1_op1_i(hdu_mul1_pass_alu1_op1),
+        .mul_pass_alu1_op2_i(hdu_mul1_pass_alu1_op2),
+        .div_pass_alu1_op1_i(hdu_div1_pass_alu1_op1),
+        .div_pass_alu1_op2_i(hdu_div1_pass_alu1_op2),
+        .mul_pass_alu2_op1_i(hdu_mul1_pass_alu2_op1),
+        .mul_pass_alu2_op2_i(hdu_mul1_pass_alu2_op2),
+        .div_pass_alu2_op1_i(hdu_div1_pass_alu2_op1),
+        .div_pass_alu2_op2_i(hdu_div1_pass_alu2_op2),
+        .alu_pass_alu2_op1_i(hdu_alu1_pass_alu2_op1),
+        .alu_pass_alu2_op2_i(hdu_alu1_pass_alu2_op2),
 
         // alu信号
         .req_alu_i          (inst1_logic_req_alu),
@@ -834,12 +876,18 @@ module dispatch (
         .sys_op_fence_o     (pipe_inst1_sys_op_fence_o),
         .sys_op_dret_o      (pipe_inst1_sys_op_dret_o),
         // HDU信号输出
-        .alu_pass_op1_o(inst1_alu_pass_op1_o),
-        .alu_pass_op2_o(inst1_alu_pass_op2_o),
-        .mul_pass_op1_o(inst1_mul_pass_op1_o),
-        .mul_pass_op2_o(inst1_mul_pass_op2_o),
-        .div_pass_op1_o(inst1_div_pass_op1_o),
-        .div_pass_op2_o(inst1_div_pass_op2_o)
+        .alu_pass_alu1_op1_o(inst1_alu_pass_alu1_op1_o),
+        .alu_pass_alu1_op2_o(inst1_alu_pass_alu1_op2_o),
+        .alu_pass_alu2_op1_o(inst1_alu_pass_alu2_op1_o),
+        .alu_pass_alu2_op2_o(inst1_alu_pass_alu2_op2_o),
+        .mul_pass_alu1_op1_o(inst1_mul_pass_alu1_op1_o),
+        .mul_pass_alu1_op2_o(inst1_mul_pass_alu1_op2_o),
+        .mul_pass_alu2_op1_o(inst1_mul_pass_alu2_op1_o),
+        .mul_pass_alu2_op2_o(inst1_mul_pass_alu2_op2_o),
+        .div_pass_alu1_op1_o(inst1_div_pass_alu1_op1_o),
+        .div_pass_alu1_op2_o(inst1_div_pass_alu1_op2_o),
+        .div_pass_alu2_op1_o(inst1_div_pass_alu2_op1_o),
+        .div_pass_alu2_op2_o(inst1_div_pass_alu2_op2_o)
     );
 
     // 实例化dispatch_logic模块 (第二路)
@@ -930,12 +978,18 @@ module dispatch (
         .is_pred_branch_i     (inst2_is_pred_branch_i),
         .illegal_inst_i      (inst2_illegal_inst_i),
         // HDU信号输入
-        .alu_pass_op1_i(hdu_alu2_pass_op1),
-        .alu_pass_op2_i(hdu_alu2_pass_op2),
-        .mul_pass_op1_i(hdu_mul2_pass_op1),
-        .mul_pass_op2_i(hdu_mul2_pass_op2),
-        .div_pass_op1_i(hdu_div2_pass_op1),
-        .div_pass_op2_i(hdu_div2_pass_op2),
+        .alu_pass_alu1_op1_i(hdu_alu2_pass_alu1_op1),
+        .alu_pass_alu1_op2_i(hdu_alu2_pass_alu1_op2),
+        .mul_pass_alu1_op1_i(hdu_mul2_pass_alu1_op1),
+        .mul_pass_alu1_op2_i(hdu_mul2_pass_alu1_op2),
+        .div_pass_alu1_op1_i(hdu_div2_pass_alu1_op1),
+        .div_pass_alu1_op2_i(hdu_div2_pass_alu1_op2),
+        .mul_pass_alu2_op1_i(hdu_mul2_pass_alu2_op1),
+        .mul_pass_alu2_op2_i(hdu_mul2_pass_alu2_op2),
+        .div_pass_alu2_op1_i(hdu_div2_pass_alu2_op1),
+        .div_pass_alu2_op2_i(hdu_div2_pass_alu2_op2),
+        .alu_pass_alu2_op1_i(hdu_alu2_pass_alu2_op1),
+        .alu_pass_alu2_op2_i(hdu_alu2_pass_alu2_op2),
         // alu信号
         .req_alu_i            (inst2_logic_req_alu),
         .alu_op1_i            (inst2_logic_alu_op1),
@@ -1089,12 +1143,18 @@ module dispatch (
         .sys_op_fence_o     (pipe_inst2_sys_op_fence_o),
         .sys_op_dret_o      (pipe_inst2_sys_op_dret_o),
         // HDU信号输出
-        .alu_pass_op1_o(inst2_alu_pass_op1_o),
-        .alu_pass_op2_o(inst2_alu_pass_op2_o),
-        .mul_pass_op1_o(inst2_mul_pass_op1_o),
-        .mul_pass_op2_o(inst2_mul_pass_op2_o),
-        .div_pass_op1_o(inst2_div_pass_op1_o),
-        .div_pass_op2_o(inst2_div_pass_op2_o)
+        .alu_pass_alu1_op1_o(inst2_alu_pass_alu1_op1_o),
+        .alu_pass_alu1_op2_o(inst2_alu_pass_alu1_op2_o),
+        .alu_pass_alu2_op1_o(inst2_alu_pass_alu2_op1_o),
+        .alu_pass_alu2_op2_o(inst2_alu_pass_alu2_op2_o),
+        .mul_pass_alu1_op1_o(inst2_mul_pass_alu1_op1_o),
+        .mul_pass_alu1_op2_o(inst2_mul_pass_alu1_op2_o),
+        .mul_pass_alu2_op1_o(inst2_mul_pass_alu2_op1_o),
+        .mul_pass_alu2_op2_o(inst2_mul_pass_alu2_op2_o),
+        .div_pass_alu1_op1_o(inst2_div_pass_alu1_op1_o),
+        .div_pass_alu1_op2_o(inst2_div_pass_alu1_op2_o),
+        .div_pass_alu2_op1_o(inst2_div_pass_alu2_op1_o),
+        .div_pass_alu2_op2_o(inst2_div_pass_alu2_op2_o)
     );
     assign dispatch_atom_lock_o = agu_atom_lock | hdu_long_inst_atom_lock;
     assign issue_inst_o = hdu_issue_inst;

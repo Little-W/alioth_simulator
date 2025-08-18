@@ -67,18 +67,30 @@ module hdu (
     output wire [1:0] issue_inst_o,  // 发射指令标志[1:0]，bit0控制指令A，bit1控制指令B
     output wire [`COMMIT_ID_WIDTH-1:0] inst1_commit_id_o,  // 为指令1分配的ID
     output wire [`COMMIT_ID_WIDTH-1:0] inst2_commit_id_o,  // 为指令2分配的ID
-    output wire alu1_pass_op1_o,
-    output wire alu1_pass_op2_o,
-    output wire mul1_pass_op1_o,
-    output wire mul1_pass_op2_o,
-    output wire div1_pass_op1_o,
-    output wire div1_pass_op2_o,
-    output wire alu2_pass_op1_o,
-    output wire alu2_pass_op2_o,
-    output wire mul2_pass_op1_o,
-    output wire mul2_pass_op2_o,
-    output wire div2_pass_op1_o,
-    output wire div2_pass_op2_o,
+    output wire alu1_pass_alu1_op1_o,
+    output wire alu1_pass_alu1_op2_o,
+    output wire alu1_pass_alu2_op1_o,
+    output wire alu1_pass_alu2_op2_o,
+    output wire mul1_pass_alu1_op1_o,
+    output wire mul1_pass_alu1_op2_o,
+    output wire mul1_pass_alu2_op1_o,
+    output wire mul1_pass_alu2_op2_o,
+    output wire div1_pass_alu1_op1_o,
+    output wire div1_pass_alu1_op2_o,
+    output wire div1_pass_alu2_op1_o,
+    output wire div1_pass_alu2_op2_o,
+    output wire alu2_pass_alu2_op1_o,
+    output wire alu2_pass_alu2_op2_o,
+    output wire alu2_pass_alu1_op1_o,
+    output wire alu2_pass_alu1_op2_o,
+    output wire mul2_pass_alu1_op1_o,
+    output wire mul2_pass_alu1_op2_o,
+    output wire mul2_pass_alu2_op1_o,
+    output wire mul2_pass_alu2_op2_o,
+    output wire div2_pass_alu1_op1_o,
+    output wire div2_pass_alu1_op2_o,
+    output wire div2_pass_alu2_op1_o,
+    output wire div2_pass_alu2_op2_o,
     output wire long_inst_atom_lock_o  // 原子锁信号，FIFO中有未销毁的长指令时为1
 );
 
@@ -113,10 +125,10 @@ module hdu (
     reg [7:0] alu2_raw_mask;
     reg [2:0] alu2_raw_mask_id;  // 记录当前mask对应的commit_id
 
-    reg alu1_raw_rs1, alu1_raw_rs2, alu2_raw_rs1, alu2_raw_rs2;
-    reg mul1_raw_rs1, mul1_raw_rs2, mul2_raw_rs1, mul2_raw_rs2;
-    reg div1_raw_rs1, div1_raw_rs2, div2_raw_rs1, div2_raw_rs2;
-    reg        csr1_raw_rs1, csr2_raw_rs1;
+    reg alu1_raw_alu1_rs1, alu1_raw_alu1_rs2, alu2_raw_alu2_rs1, alu2_raw_alu2_rs2, alu1_raw_alu2_rs1, alu1_raw_alu2_rs2, alu2_raw_alu1_rs1, alu2_raw_alu1_rs2;
+    reg mul1_raw_alu1_rs1, mul1_raw_alu1_rs2, mul2_raw_alu2_rs1, mul2_raw_alu2_rs2, mul1_raw_alu2_rs1, mul1_raw_alu2_rs2, mul2_raw_alu1_rs1, mul2_raw_alu1_rs2;
+    reg div1_raw_alu1_rs1, div1_raw_alu1_rs2, div2_raw_alu2_rs1, div2_raw_alu2_rs2, div1_raw_alu2_rs1, div1_raw_alu2_rs2, div2_raw_alu1_rs1, div2_raw_alu1_rs2;
+
 
     wire [7:0] inst1_raw_hazard_vec;
     wire [7:0] inst2_raw_hazard_vec;
@@ -335,75 +347,109 @@ module hdu (
 
     // RAW冒险对象检测（对ALU/MUL/DIV/CSR指令有效）
     always @(*) begin
-        alu1_raw_rs1 = 1'b0;
-        alu1_raw_rs2 = 1'b0;
-        alu2_raw_rs1 = 1'b0;
-        alu2_raw_rs2 = 1'b0;
-        mul1_raw_rs1 = 1'b0;
-        mul1_raw_rs2 = 1'b0;
-        mul2_raw_rs1 = 1'b0;
-        mul2_raw_rs2 = 1'b0;
-        div1_raw_rs1 = 1'b0;
-        div1_raw_rs2 = 1'b0;
-        div2_raw_rs1 = 1'b0;
-        div2_raw_rs2 = 1'b0;
-        csr1_raw_rs1 = 1'b0;
-        csr2_raw_rs1 = 1'b0;
-        
+        alu1_raw_alu1_rs1 = 1'b0;
+        alu1_raw_alu1_rs2 = 1'b0;
+        alu1_raw_alu2_rs1 = 1'b0;
+        alu1_raw_alu2_rs2 = 1'b0;
+        alu2_raw_alu2_rs1 = 1'b0;
+        alu2_raw_alu2_rs2 = 1'b0;
+        alu2_raw_alu1_rs1 = 1'b0;
+        alu2_raw_alu1_rs2 = 1'b0;
+        mul1_raw_alu1_rs1 = 1'b0;
+        mul1_raw_alu1_rs2 = 1'b0;
+        mul1_raw_alu2_rs1 = 1'b0;
+        mul1_raw_alu2_rs2 = 1'b0;
+        mul2_raw_alu2_rs1 = 1'b0;
+        mul2_raw_alu2_rs2 = 1'b0;
+        mul2_raw_alu1_rs1 = 1'b0;
+        mul2_raw_alu1_rs2 = 1'b0;
+        div1_raw_alu1_rs1 = 1'b0;
+        div1_raw_alu1_rs2 = 1'b0;
+        div1_raw_alu2_rs1 = 1'b0;
+        div1_raw_alu2_rs2 = 1'b0;
+        div2_raw_alu2_rs1 = 1'b0;
+        div2_raw_alu2_rs2 = 1'b0;
+        div2_raw_alu1_rs1 = 1'b0;
+        div2_raw_alu1_rs2 = 1'b0;
+
+
         if (inst1_is_alu_inst) begin
             // 只需检查alu_raw_mask_id对应的FIFO表项
             if (fifo_valid[alu1_raw_mask_id] && !(commit_valid_i && commit_id_i == alu1_raw_mask_id)) begin
-                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) alu1_raw_rs1 = 1'b1;
-                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) alu1_raw_rs2 = 1'b1;
+                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) alu1_raw_alu1_rs1 = 1'b1;
+                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) alu1_raw_alu1_rs2 = 1'b1;
+                if (inst1_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) alu1_raw_alu2_rs1 = 1'b1;
+                if (inst1_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) alu1_raw_alu2_rs2 = 1'b1;
             end
         end
         if (inst1_is_mul_inst) begin
             if (fifo_valid[mul1_raw_mask_id] && !(commit_valid_i && commit_id_i == mul1_raw_mask_id)) begin
-                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[mul1_raw_mask_id].rd_addr) mul1_raw_rs1 = 1'b1;
-                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[mul1_raw_mask_id].rd_addr) mul1_raw_rs2 = 1'b1;
+                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) mul1_raw_alu1_rs1 = 1'b1;
+                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) mul1_raw_alu1_rs2 = 1'b1;
+                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) mul1_raw_alu2_rs1 = 1'b1;
+                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) mul1_raw_alu2_rs2 = 1'b1;
             end
         end
         if (inst1_is_div_inst) begin
             if (fifo_valid[div1_raw_mask_id] && !(commit_valid_i && commit_id_i == div1_raw_mask_id)) begin
-                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[div1_raw_mask_id].rd_addr) div1_raw_rs1 = 1'b1;
-                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[div1_raw_mask_id].rd_addr) div1_raw_rs2 = 1'b1;
+                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) div1_raw_alu1_rs1 = 1'b1;
+                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) div1_raw_alu1_rs2 = 1'b1;
+                if (inst1_rs1_check && inst1_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) div1_raw_alu2_rs1 = 1'b1;
+                if (inst1_rs2_check && inst1_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) div1_raw_alu2_rs2 = 1'b1;
             end
         end
-        
+
         if (inst2_is_alu_inst) begin
             // 只需检查alu_raw_mask_id对应的FIFO表项
             if (fifo_valid[alu2_raw_mask_id] && !(commit_valid_i && commit_id_i == alu2_raw_mask_id)) begin
-                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) alu2_raw_rs1 = 1'b1;
-                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) alu2_raw_rs2 = 1'b1;
+                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) alu2_raw_alu2_rs1 = 1'b1;
+                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) alu2_raw_alu2_rs2 = 1'b1;
+                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) alu2_raw_alu1_rs1 = 1'b1;
+                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) alu2_raw_alu1_rs2 = 1'b1;
             end
         end
         if (inst2_is_mul_inst) begin
             if (fifo_valid[mul2_raw_mask_id] && !(commit_valid_i && commit_id_i == mul2_raw_mask_id)) begin
-                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[mul2_raw_mask_id].rd_addr) mul2_raw_rs1 = 1'b1;
-                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[mul2_raw_mask_id].rd_addr) mul2_raw_rs2 = 1'b1;
+                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) mul2_raw_alu2_rs1 = 1'b1;
+                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) mul2_raw_alu2_rs2 = 1'b1;
+                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) mul2_raw_alu1_rs1 = 1'b1;
+                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) mul2_raw_alu1_rs2 = 1'b1;
             end
         end
         if (inst2_is_div_inst) begin
             if (fifo_valid[div2_raw_mask_id] && !(commit_valid_i && commit_id_i == div2_raw_mask_id)) begin
-                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[div2_raw_mask_id].rd_addr) div2_raw_rs1 = 1'b1;
-                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[div2_raw_mask_id].rd_addr) div2_raw_rs2 = 1'b1;
+                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu2_raw_mask_id].rd_addr) div2_raw_alu2_rs1 = 1'b1;
+                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu2_raw_mask_id].rd_addr) div2_raw_alu2_rs2 = 1'b1;
+                if (inst2_rs1_check && inst2_rs1_addr == fifo_entry[alu1_raw_mask_id].rd_addr) div2_raw_alu1_rs1 = 1'b1;
+                if (inst2_rs2_check && inst2_rs2_addr == fifo_entry[alu1_raw_mask_id].rd_addr) div2_raw_alu1_rs2 = 1'b1;
             end
         end
     end
 
-    assign alu1_pass_op1_o        = alu1_raw_rs1;
-    assign alu1_pass_op2_o        = alu1_raw_rs2;
-    assign mul1_pass_op1_o        = mul1_raw_rs1;
-    assign mul1_pass_op2_o        = mul1_raw_rs2;
-    assign div1_pass_op1_o        = div1_raw_rs1;
-    assign div1_pass_op2_o        = div1_raw_rs2;;
-    assign alu2_pass_op1_o        = alu2_raw_rs1;
-    assign alu2_pass_op2_o        = alu2_raw_rs2;
-    assign mul2_pass_op1_o        = mul2_raw_rs1;
-    assign mul2_pass_op2_o        = mul2_raw_rs2;
-    assign div2_pass_op1_o        = div2_raw_rs1;
-    assign div2_pass_op2_o        = div2_raw_rs2;
-
+    assign alu1_pass_alu1_op1_o        = alu1_raw_alu1_rs1;
+    assign alu1_pass_alu1_op2_o        = alu1_raw_alu1_rs2;
+    assign alu1_pass_alu2_op1_o        = alu1_raw_alu2_rs1;
+    assign alu1_pass_alu2_op2_o        = alu1_raw_alu2_rs2;
+    assign mul1_pass_alu1_op1_o        = mul1_raw_alu1_rs1;
+    assign mul1_pass_alu1_op2_o        = mul1_raw_alu1_rs2;
+    assign mul1_pass_alu2_op1_o        = mul1_raw_alu2_rs1;
+    assign mul1_pass_alu2_op2_o        = mul1_raw_alu2_rs2;
+    assign div1_pass_alu1_op1_o        = div1_raw_alu1_rs1;
+    assign div1_pass_alu1_op2_o        = div1_raw_alu1_rs2;
+    assign div1_pass_alu2_op1_o        = div1_raw_alu2_rs1;
+    assign div1_pass_alu2_op2_o        = div1_raw_alu2_rs2;
+    assign alu2_pass_alu1_op1_o        = alu2_raw_alu1_rs1;
+    assign alu2_pass_alu1_op2_o        = alu2_raw_alu1_rs2;
+    assign alu2_pass_alu2_op1_o        = alu2_raw_alu2_rs1;
+    assign alu2_pass_alu2_op2_o        = alu2_raw_alu2_rs2;
+    assign mul2_pass_alu1_op1_o        = mul2_raw_alu1_rs1;
+    assign mul2_pass_alu1_op2_o        = mul2_raw_alu1_rs2;
+    assign mul2_pass_alu2_op1_o        = mul2_raw_alu2_rs1;
+    assign mul2_pass_alu2_op2_o        = mul2_raw_alu2_rs2;
+    assign div2_pass_alu1_op1_o        = div2_raw_alu1_rs1;
+    assign div2_pass_alu1_op2_o        = div2_raw_alu1_rs2;
+    assign div2_pass_alu2_op1_o        = div2_raw_alu2_rs1;
+    assign div2_pass_alu2_op2_o        = div2_raw_alu2_rs2;
 
     // 原子锁：FIFO 中尚有未完成指令
     assign long_inst_atom_lock_o = |fifo_valid;

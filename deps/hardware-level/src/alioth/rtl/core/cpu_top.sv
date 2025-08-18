@@ -60,7 +60,7 @@ module cpu_top (
     wire [`INST_ADDR_WIDTH-1:0] if_inst1_addr_o;
     wire [`INST_ADDR_WIDTH-1:0] if_inst2_addr_o;
     wire if_inst1_is_pred_branch_o;  // 添加预测分支信号线
-    wire if_inst2_is_pred_branch_o; // 第二路预测分支信号线
+    wire if_inst2_is_pred_branch_o;  // 第二路预测分支信号线
 
     // id模块输出信号
     wire [`INST_ADDR_WIDTH-1:0] idu_inst1_addr_o;
@@ -86,7 +86,7 @@ module cpu_top (
     wire [`DECINFO_WIDTH-1:0] idu_inst1_dec_info_bus_o;
     wire [`DECINFO_WIDTH-1:0] idu_inst2_dec_info_bus_o;  // 第二路指令译码信息输出
     wire idu_inst1_is_pred_branch_o;  // 添加预测分支指令标志输出
-    wire idu_inst2_is_pred_branch_o; // 第二路预测分支指令标志输出
+    wire idu_inst2_is_pred_branch_o;  // 第二路预测分支指令标志输出
 
     // exu模块输出信号
     wire [1:0] exu_stall_flag_o;
@@ -107,7 +107,7 @@ module cpu_top (
     wire exu_alu0_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_alu0_reg_waddr_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_alu0_commit_id_o;
-    
+
     wire [`REG_DATA_WIDTH-1:0] exu_alu1_reg_wdata_o;
     wire exu_alu1_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_alu1_reg_waddr_o;
@@ -118,7 +118,7 @@ module cpu_top (
     wire exu_mul0_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_mul0_reg_waddr_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_mul0_commit_id_o;
-    
+
     wire [`REG_DATA_WIDTH-1:0] exu_mul1_reg_wdata_o;
     wire exu_mul1_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_mul1_reg_waddr_o;
@@ -129,7 +129,7 @@ module cpu_top (
     wire exu_div0_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_div0_reg_waddr_o;
     wire [`COMMIT_ID_WIDTH-1:0] exu_div0_commit_id_o;
-    
+
     wire [`REG_DATA_WIDTH-1:0] exu_div1_reg_wdata_o;
     wire exu_div1_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] exu_div1_reg_waddr_o;
@@ -159,7 +159,7 @@ module cpu_top (
     wire [`REG_DATA_WIDTH-1:0] wbu_reg1_wdata_o;
     wire wbu_reg1_we_o;
     wire [`REG_ADDR_WIDTH-1:0] wbu_reg1_waddr_o;
-    
+
     wire [`REG_DATA_WIDTH-1:0] wbu_reg2_wdata_o;
     wire wbu_reg2_we_o;
     wire [`REG_ADDR_WIDTH-1:0] wbu_reg2_waddr_o;
@@ -212,12 +212,12 @@ module cpu_top (
     wire clint_int_jump_o;  // 添加中断跳转信号
     wire clint_req_valid_o;  // 添加中断请求有效信号
     wire clint_flush_flag_o;  // 添加CLINT flush信号
-    
+
     // IDU信号声明
     wire [`BUS_ADDR_WIDTH-1:0] idu_inst1_csr_raddr_o;
     wire [`BUS_ADDR_WIDTH-1:0] idu_inst2_csr_raddr_o;
-    wire idu_inst1_jump_o;      // 第一路跳转指令输出
-    wire idu_inst1_branch_o;    // 第一路分支指令输出
+    wire idu_inst1_jump_o;  // 第一路跳转指令输出
+    wire idu_inst1_branch_o;  // 第一路分支指令输出
     wire idu_inst1_csr_type_o;  // 第一路CSR类型指令输出
     wire idu_inst2_csr_type_o;  // 第二路CSR类型指令输出
     
@@ -244,22 +244,34 @@ module cpu_top (
     wire [1:0] dispatch_issue_inst;
     wire dispatch_atom_lock_o;
 
-    // HDU流水线输出信号 (第一路)
-    wire dispatch_inst1_alu_pass_op1;
-    wire dispatch_inst1_alu_pass_op2;
-    wire dispatch_inst1_mul_pass_op1;
-    wire dispatch_inst1_mul_pass_op2;
-    wire dispatch_inst1_div_pass_op1;
-    wire dispatch_inst1_div_pass_op2;
+    // HDU流水线输出信号 (第一路) - 修正为正确的信号名
+    wire dispatch_inst1_alu_pass_alu2_op1;
+    wire dispatch_inst1_alu_pass_alu2_op2;
+    wire dispatch_inst1_alu_pass_alu1_op1;
+    wire dispatch_inst1_alu_pass_alu1_op2;
+    wire dispatch_inst1_mul_pass_alu2_op1;
+    wire dispatch_inst1_mul_pass_alu2_op2;
+    wire dispatch_inst1_mul_pass_alu1_op1;
+    wire dispatch_inst1_mul_pass_alu1_op2;
+    wire dispatch_inst1_div_pass_alu2_op1;
+    wire dispatch_inst1_div_pass_alu2_op2;
+    wire dispatch_inst1_div_pass_alu1_op1;
+    wire dispatch_inst1_div_pass_alu1_op2;
 
-    // HDU流水线输出信号 (第二路)
-    wire dispatch_inst2_alu_pass_op1;
-    wire dispatch_inst2_alu_pass_op2;
-    wire dispatch_inst2_mul_pass_op1;
-    wire dispatch_inst2_mul_pass_op2;
-    wire dispatch_inst2_div_pass_op1;
-    wire dispatch_inst2_div_pass_op2;
-    
+    // HDU流水线输出信号 (第二路) - 修正为正确的信号名
+    wire dispatch_inst2_alu_pass_alu1_op1;
+    wire dispatch_inst2_alu_pass_alu1_op2;
+    wire dispatch_inst2_alu_pass_alu2_op1;
+    wire dispatch_inst2_alu_pass_alu2_op2;
+    wire dispatch_inst2_mul_pass_alu1_op1;
+    wire dispatch_inst2_mul_pass_alu1_op2;
+    wire dispatch_inst2_mul_pass_alu2_op1;
+    wire dispatch_inst2_mul_pass_alu2_op2;
+    wire dispatch_inst2_div_pass_alu1_op1;
+    wire dispatch_inst2_div_pass_alu1_op2;
+    wire dispatch_inst2_div_pass_alu2_op1;
+    wire dispatch_inst2_div_pass_alu2_op2;
+
     // 外部中断信号
     wire ext_int_req;
     wire inst_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
@@ -292,7 +304,7 @@ module cpu_top (
     wire [31:0] dispatch_alu_op2;
     wire dispatch_req_alu;
     wire [`ALU_OP_WIDTH-1:0] dispatch_alu_op_info;
-    
+
     // dispatch to ALU1 - 第二路ALU
     wire [31:0] dispatch_alu1_op1;
     wire [31:0] dispatch_alu1_op2;
@@ -404,36 +416,33 @@ module cpu_top (
     wire dispatch_sys_op_fence;
     wire dispatch_sys_op_dret;
 
-    wire  dispatch_inst1_misaligned_load_o;
-    wire  dispatch_inst1_misaligned_store_o;
-    wire  dispatch_inst1_illegal_o;
-    wire  dispatch_inst2_misaligned_load_o;
-    wire  dispatch_inst2_misaligned_store_o;
-    wire  dispatch_inst2_illegal_o;
+    wire dispatch_inst1_misaligned_load_o;
+    wire dispatch_inst1_misaligned_store_o;
+    wire dispatch_inst1_illegal_o;
+    wire dispatch_inst2_misaligned_load_o;
+    wire dispatch_inst2_misaligned_store_o;
+    wire dispatch_inst2_illegal_o;
 
-    wire [31:0] dispatch_inst1_addr_o; 
-    wire [31:0] dispatch_inst2_addr_o; 
-    wire [31:0] dispatch_inst1_o; 
-    wire [31:0] dispatch_inst2_o; 
-    wire dispatch_inst1_valid_o; 
-    wire dispatch_inst2_valid_o; 
-    wire dispatch_inst1_reg_we_o; 
-    wire dispatch_inst2_reg_we_o; 
-    wire [ `REG_ADDR_WIDTH-1:0] dispatch_inst1_reg_waddr_o; 
-    wire [ `REG_ADDR_WIDTH-1:0] dispatch_inst2_reg_waddr_o; 
-    wire [                31:0] dispatch_inst1_dec_imm_o; 
-    wire [  `DECINFO_WIDTH-1:0] dispatch_inst1_dec_info_bus_o; 
-    wire [                31:0] dispatch_inst2_dec_imm_o; 
-    wire [  `DECINFO_WIDTH-1:0] dispatch_inst2_dec_info_bus_o; 
-    wire [               31:0] dispatch_inst1_rs1_rdata_o; 
-    wire [               31:0] dispatch_inst1_rs2_rdata_o; 
-    wire [               31:0] dispatch_inst2_rs1_rdata_o; 
-    wire [               31:0] dispatch_inst2_rs2_rdata_o;  
-    wire [2:0] dispatch_inst1_commit_id_o; 
+    wire [31:0] dispatch_inst1_addr_o;
+    wire [31:0] dispatch_inst2_addr_o;
+    wire [31:0] dispatch_inst1_o;
+    wire [31:0] dispatch_inst2_o;
+    wire dispatch_inst1_valid_o;
+    wire dispatch_inst2_valid_o;
+    wire dispatch_inst1_reg_we_o;
+    wire dispatch_inst2_reg_we_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_inst1_reg_waddr_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_inst2_reg_waddr_o;
+    wire [31:0] dispatch_inst1_dec_imm_o;
+    wire [`DECINFO_WIDTH-1:0] dispatch_inst1_dec_info_bus_o;
+    wire [31:0] dispatch_inst2_dec_imm_o;
+    wire [`DECINFO_WIDTH-1:0] dispatch_inst2_dec_info_bus_o;
+    wire [31:0] dispatch_inst1_rs1_rdata_o;
+    wire [31:0] dispatch_inst1_rs2_rdata_o;
+    wire [31:0] dispatch_inst2_rs1_rdata_o;
+    wire [31:0] dispatch_inst2_rs2_rdata_o;
+    wire [2:0] dispatch_inst1_commit_id_o;
     wire [2:0] dispatch_inst2_commit_id_o;
-
-    wire dispatch_agu_stall_req_o;
-    wire dispatch_agu_atom_lock_o;
 
     // AXI接口信号 - EXU
     wire [`BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
@@ -486,14 +495,14 @@ module cpu_top (
     // // 当PC[2]=1时：只能单发射（只有inst1有效，inst2无效）
     // wire inst1_valid = (ctrl_stall_flag_o == 0);  // inst1总是可能有效
     // wire inst2_valid = (ctrl_stall_flag_o == 0) && !pc_misaligned_o;  // inst2只在PC对齐时有效
-    
+
     // // 双发射的EXU有效信号 - 64位访存的正确处理
     // wire inst1_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
     //                       (icu_inst1_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
     // wire inst2_exu_valid = (ctrl_stall_flag_o[`CU_STALL_DISPATCH] == 0) && 
     //                       !pc_misaligned_o &&
     //                       (icu_inst2_dec_info_bus_o[`DECINFO_GRP_BUS] != `DECINFO_GRP_NONE);
-    
+
     // 双发射的CLINT有效信号 - 考虑PC非对齐
     wire inst1_clint_valid = !dispatch_inst_is_pred_branch_o && (dispatch_inst1_valid_o);
     wire inst2_clint_valid = !dispatch_inst_is_pred_branch_o && (dispatch_inst2_valid_o);
@@ -566,11 +575,11 @@ module cpu_top (
         .inst2_o          (if_inst2_o),
         .inst2_addr_o     (if_inst2_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
-        .is_pred_branch1_o(if_inst1_is_pred_branch_o),    // 第一条指令预测分支信号输出
-        .is_pred_branch2_o(if_inst2_is_pred_branch_o),    // 第二条指令预测分支信号输出
-        .inst1_valid_o     (if_inst1_valid_o),   
-        .inst2_valid_o     (if_inst2_valid_o),       // 添加指令有效信号输出
-        .pc_misaligned_o  (pc_misaligned_o),   // PC非对齐信号输出
+        .is_pred_branch1_o(if_inst1_is_pred_branch_o),  // 第一条指令预测分支信号输出
+        .is_pred_branch2_o(if_inst2_is_pred_branch_o),  // 第二条指令预测分支信号输出
+        .inst1_valid_o    (if_inst1_valid_o),
+        .inst2_valid_o    (if_inst2_valid_o),           // 添加指令有效信号输出
+        .pc_misaligned_o  (pc_misaligned_o),            // PC非对齐信号输出
 
         // AXI接口
         .M_AXI_ARID   (ifu_axi_arid),
@@ -603,7 +612,7 @@ module cpu_top (
         .atom_opt_busy_i   (atom_opt_busy),
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
-        // .issue_inst_hdu_i  (issue_inst_o),  // 修改为从icu获取数据冒险暂停信号 //icu
+        .issue_inst_hdu_i  (dispatch_issue_inst),  // 修改为从icu获取数据冒险暂停信号 //icu
         .agu_req_stall_i   (dispatch_mem_stall_req_o),
         .stall_flag_o      (ctrl_stall_flag_o),
         .stall_flag1_o     (ctrl_stall_flag1_o),
@@ -614,15 +623,15 @@ module cpu_top (
 
     // gpr模块例化 - 支持4路读取和双路写回
     gpr u_gpr (
-        .clk     (clk),
-        .rst_n   (rst_n),
+        .clk              (clk),
+        .rst_n            (rst_n),
         // 双路写回端口
-        .we1_i   (wbu_reg1_we_o),
-        .waddr1_i(wbu_reg1_waddr_o),
-        .wdata1_i(wbu_reg1_wdata_o),
-        .we2_i   (wbu_reg2_we_o),
-        .waddr2_i(wbu_reg2_waddr_o),
-        .wdata2_i(wbu_reg2_wdata_o),
+        .we1_i            (wbu_reg1_we_o),
+        .waddr1_i         (wbu_reg1_waddr_o),
+        .wdata1_i         (wbu_reg1_wdata_o),
+        .we2_i            (wbu_reg2_we_o),
+        .waddr2_i         (wbu_reg2_waddr_o),
+        .wdata2_i         (wbu_reg2_wdata_o),
         // 4路读取端口 (inst1的rs1, rs2和inst2的rs1, rs2)
         .inst1_rs1_raddr_i(idu_inst1_reg1_raddr_o), 
         .inst1_rs2_raddr_i(idu_inst1_reg2_raddr_o), 
@@ -642,7 +651,7 @@ module cpu_top (
         .raddr_i          (exu_csr_raddr_o),
         .waddr_i          (wbu_csr_waddr_o),
         .data_i           (wbu_csr_wdata_o),
-        .inst_valid_i     (inst_exu_valid),  
+        .inst_valid_i     (inst_exu_valid),
         .data_o           (csr_data_o),
         .clint_we_i       (clint_we_o),
         .clint_raddr_i    (clint_raddr_o),
@@ -657,70 +666,70 @@ module cpu_top (
 
     // idu模块例化 - 更新接口，支持双发射
     idu u_idu (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        
+        .clk  (clk),
+        .rst_n(rst_n),
+
         // 控制信号
-        .stall_flag1_i    (ctrl_stall_flag1_o),
-        .stall_flag2_i    (ctrl_stall_flag2_o),
+        .stall_flag1_i(ctrl_stall_flag1_o),
+        .stall_flag2_i(ctrl_stall_flag2_o),
 
         // 第一路指令输入
         .inst_i          (if_inst1_o),
         .inst_addr_i     (if_inst1_addr_o),
         .is_pred_branch_i(if_inst1_is_pred_branch_o),  // 连接预测分支信号输入
-        .inst_valid_i    (if_inst1_valid_o),            // 添加指令有效信号输入
+        .inst_valid_i    (if_inst1_valid_o),           // 添加指令有效信号输入
 
         // 第二路指令输入（暂时未实现，连接到无效值）
-        .inst2_i         (if_inst2_o),                 // 第二路指令
-        .inst2_addr_i    (if_inst2_addr_o),            // 第二路地址
-        .is_pred_branch2_i(if_inst2_is_pred_branch_o), // 第二路预测分支
-        .inst2_valid_i   (if_inst2_valid_o),            // 第二路指令有效信号输入
+        .inst2_i          (if_inst2_o),                 // 第二路指令
+        .inst2_addr_i     (if_inst2_addr_o),            // 第二路地址
+        .is_pred_branch2_i(if_inst2_is_pred_branch_o),  // 第二路预测分支
+        .inst2_valid_i    (if_inst2_valid_o),           // 第二路指令有效信号输入
 
         // CSR读地址输出
-        .inst1_csr_raddr_o     (idu_inst1_csr_raddr_o),
-        .inst2_csr_raddr_o     (idu_inst2_csr_raddr_o),     // 第二路CSR读地址
+        .inst1_csr_raddr_o(idu_inst1_csr_raddr_o),
+        .inst2_csr_raddr_o(idu_inst2_csr_raddr_o),  // 第二路CSR读地址
 
         // 第一路输出
-        .inst1_reg_we_o  (idu_inst1_reg_we_o),
-        .inst1_reg_waddr_o(idu_inst1_reg_waddr_o),
-        .inst1_reg1_raddr_o(idu_inst1_reg1_raddr_o),
-        .inst1_reg2_raddr_o(idu_inst1_reg2_raddr_o),
-        .inst1_csr_we_o  (idu_inst1_csr_we_o),
-        .inst1_csr_waddr_o(idu_inst1_csr_waddr_o),
-        .inst1_dec_imm_o (idu_inst1_dec_imm_o),
-        .inst1_dec_info_bus_o(idu_inst1_dec_info_bus_o),
+        .inst1_reg_we_o        (idu_inst1_reg_we_o),
+        .inst1_reg_waddr_o     (idu_inst1_reg_waddr_o),
+        .inst1_reg1_raddr_o    (idu_inst1_reg1_raddr_o),
+        .inst1_reg2_raddr_o    (idu_inst1_reg2_raddr_o),
+        .inst1_csr_we_o        (idu_inst1_csr_we_o),
+        .inst1_csr_waddr_o     (idu_inst1_csr_waddr_o),
+        .inst1_dec_imm_o       (idu_inst1_dec_imm_o),
+        .inst1_dec_info_bus_o  (idu_inst1_dec_info_bus_o),
         .inst1_is_pred_branch_o(idu_inst1_is_pred_branch_o),  // 连接预测分支信号输出
-        .inst1_valid_o   (idu_inst1_valid_o),                  // 添加指令有效信号输出
-        .inst1_illegal_inst_o(idu_illegal_inst1_o),
-        .inst1_o         (idu_inst1_o),                        // 添加指令内容输出
-        .inst1_jump_o    (idu_inst1_jump_o),                   // 跳转指令输出
-        .inst1_branch_o  (idu_inst1_branch_o),                 // 分支指令输出
-        .inst1_csr_type_o(idu_inst1_csr_type_o),               // CSR类型指令输出 
-        .inst1_addr_o    (idu_inst1_addr_o),
+        .inst1_valid_o         (idu_inst1_valid_o),           // 添加指令有效信号输出
+        .inst1_illegal_inst_o  (idu_illegal_inst1_o),
+        .inst1_o               (idu_inst1_o),                 // 添加指令内容输出
+        .inst1_jump_o          (idu_inst1_jump_o),            // 跳转指令输出
+        .inst1_branch_o        (idu_inst1_branch_o),          // 分支指令输出
+        .inst1_csr_type_o      (idu_inst1_csr_type_o),        // CSR类型指令输出 
+        .inst1_addr_o          (idu_inst1_addr_o),
         .inst1_ex_info_bus_o(idu_inst1_ex_info_bus_o),         // 新增：第一路ex单元类型信号输出
         // 第二路输出
-        .inst2_addr_o    (idu_inst2_addr_o),
-        .inst2_reg_we_o  (idu_inst2_reg_we_o),
-        .inst2_reg_waddr_o(idu_inst2_reg_waddr_o),
-        .inst2_reg1_raddr_o(idu_inst2_reg1_raddr_o),
-        .inst2_reg2_raddr_o(idu_inst2_reg2_raddr_o),
-        .inst2_csr_we_o  (idu_inst2_csr_we_o),
-        .inst2_csr_waddr_o(idu_inst2_csr_waddr_o),
-        .inst2_dec_imm_o (idu_inst2_dec_imm_o),
-        .inst2_dec_info_bus_o(idu_inst2_dec_info_bus_o),
+        .inst2_addr_o          (idu_inst2_addr_o),
+        .inst2_reg_we_o        (idu_inst2_reg_we_o),
+        .inst2_reg_waddr_o     (idu_inst2_reg_waddr_o),
+        .inst2_reg1_raddr_o    (idu_inst2_reg1_raddr_o),
+        .inst2_reg2_raddr_o    (idu_inst2_reg2_raddr_o),
+        .inst2_csr_we_o        (idu_inst2_csr_we_o),
+        .inst2_csr_waddr_o     (idu_inst2_csr_waddr_o),
+        .inst2_dec_imm_o       (idu_inst2_dec_imm_o),
+        .inst2_dec_info_bus_o  (idu_inst2_dec_info_bus_o),
         .inst2_is_pred_branch_o(idu_inst2_is_pred_branch_o),
-        .inst2_valid_o   (idu_inst2_valid_o),
-        .inst2_illegal_inst_o(idu_illegal_inst2_o),
-        .inst2_o         (idu_inst2_o),
+        .inst2_valid_o         (idu_inst2_valid_o),
+        .inst2_illegal_inst_o  (idu_illegal_inst2_o),
+        .inst2_o               (idu_inst2_o),
         .inst2_csr_type_o(idu_inst2_csr_type_o),
         .inst2_ex_info_bus_o(idu_inst2_ex_info_bus_o) // 第二路ex单元类型信号输出
     );
 
     // 添加dispatch模块例化 
     dispatch u_dispatch (
-        .clk           (clk),
-        .rst_n         (rst_n),
-        .stall_flag_i  (ctrl_stall_flag_o),
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .stall_flag_i(ctrl_stall_flag_o),
 
         // 第一路指令信息输入 - 从IDU获取
         .inst1_addr_i(idu_inst1_addr_o),
@@ -790,20 +799,20 @@ module cpu_top (
         .inst2_alu_op_info_o(dispatch_alu1_op_info),
 
         // 跳转/分支指令 - to bru
-        .req_bjp_o     (dispatch_req_bjp),
-        .bjp_op1_o     (dispatch_bjp_op1),
-        .bjp_op2_o     (dispatch_bjp_op2),
-        .bjp_jump_op1_o(dispatch_bjp_jump_op1),
-        .bjp_jump_op2_o(dispatch_bjp_jump_op2),
-        .bjp_op_jal_o  (dispatch_bjp_op_jal),
-        .bjp_op_beq_o  (dispatch_bjp_op_beq),
-        .bjp_op_bne_o  (dispatch_bjp_op_bne),
-        .bjp_op_blt_o  (dispatch_bjp_op_blt),
-        .bjp_op_bltu_o (dispatch_bjp_op_bltu),
-        .bjp_op_bge_o  (dispatch_bjp_op_bge),
-        .bjp_op_bgeu_o (dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_o (dispatch_bjp_op_jalr),
-        .inst_is_pred_branch_o  (dispatch_inst_is_pred_branch_o), // 连接预测分支信号输出
+        .req_bjp_o            (dispatch_req_bjp),
+        .bjp_op1_o            (dispatch_bjp_op1),
+        .bjp_op2_o            (dispatch_bjp_op2),
+        .bjp_jump_op1_o       (dispatch_bjp_jump_op1),
+        .bjp_jump_op2_o       (dispatch_bjp_jump_op2),
+        .bjp_op_jal_o         (dispatch_bjp_op_jal),
+        .bjp_op_beq_o         (dispatch_bjp_op_beq),
+        .bjp_op_bne_o         (dispatch_bjp_op_bne),
+        .bjp_op_blt_o         (dispatch_bjp_op_blt),
+        .bjp_op_bltu_o        (dispatch_bjp_op_bltu),
+        .bjp_op_bge_o         (dispatch_bjp_op_bge),
+        .bjp_op_bgeu_o        (dispatch_bjp_op_bgeu),
+        .bjp_op_jalr_o        (dispatch_bjp_op_jalr),
+        .inst_is_pred_branch_o(dispatch_inst_is_pred_branch_o), // 连接预测分支信号输出
 
         // 第一路乘除法指令
         .inst1_req_mul_o      (dispatch_req_mul),
@@ -843,29 +852,29 @@ module cpu_top (
 
 
         // csr指令信号- to csru
-        .inst1_req_csr_o  (dispatch_inst1_req_csr_o),
-        .inst1_csr_op1_o  (dispatch_inst1_csr_op1_o),
-        .inst1_csr_addr_o (dispatch_inst1_csr_addr_o),
-        .inst1_csr_csrrw_o(dispatch_inst1_csr_csrrw_o),
-        .inst1_csr_csrrs_o(dispatch_inst1_csr_csrrs_o),
-        .inst1_csr_csrrc_o(dispatch_inst1_csr_csrrc_o),
-        .inst1_csr_we_o (dispatch_inst1_csr_we_o),
-        .inst1_csr_waddr_o(dispatch_inst1_csr_waddr_o),
-        .inst1_csr_raddr_o(dispatch_inst1_csr_raddr_o),
-        .inst1_csr_reg_we_o(dispatch_inst1_csr_reg_we_o),
+        .inst1_req_csr_o      (dispatch_inst1_req_csr_o),
+        .inst1_csr_op1_o      (dispatch_inst1_csr_op1_o),
+        .inst1_csr_addr_o     (dispatch_inst1_csr_addr_o),
+        .inst1_csr_csrrw_o    (dispatch_inst1_csr_csrrw_o),
+        .inst1_csr_csrrs_o    (dispatch_inst1_csr_csrrs_o),
+        .inst1_csr_csrrc_o    (dispatch_inst1_csr_csrrc_o),
+        .inst1_csr_we_o       (dispatch_inst1_csr_we_o),
+        .inst1_csr_waddr_o    (dispatch_inst1_csr_waddr_o),
+        .inst1_csr_raddr_o    (dispatch_inst1_csr_raddr_o),
+        .inst1_csr_reg_we_o   (dispatch_inst1_csr_reg_we_o),
         .inst1_csr_reg_waddr_o(dispatch_inst1_csr_reg_waddr_o),
         .inst1_csr_commit_id_o(dispatch_inst1_csr_commit_id_o),
 
-        .inst2_req_csr_o  (dispatch_inst2_req_csr_o),
-        .inst2_csr_op1_o  (dispatch_inst2_csr_op1_o),
-        .inst2_csr_addr_o (dispatch_inst2_csr_addr_o),
-        .inst2_csr_csrrw_o(dispatch_inst2_csr_csrrw_o),
-        .inst2_csr_csrrs_o(dispatch_inst2_csr_csrrs_o),
-        .inst2_csr_csrrc_o(dispatch_inst2_csr_csrrc_o),
-        .inst2_csr_we_o (dispatch_inst2_csr_we_o),
-        .inst2_csr_waddr_o(dispatch_inst2_csr_waddr_o),
-        .inst2_csr_raddr_o(dispatch_inst2_csr_raddr_o),
-        .inst2_csr_reg_we_o(dispatch_inst2_csr_reg_we_o),
+        .inst2_req_csr_o      (dispatch_inst2_req_csr_o),
+        .inst2_csr_op1_o      (dispatch_inst2_csr_op1_o),
+        .inst2_csr_addr_o     (dispatch_inst2_csr_addr_o),
+        .inst2_csr_csrrw_o    (dispatch_inst2_csr_csrrw_o),
+        .inst2_csr_csrrs_o    (dispatch_inst2_csr_csrrs_o),
+        .inst2_csr_csrrc_o    (dispatch_inst2_csr_csrrc_o),
+        .inst2_csr_we_o       (dispatch_inst2_csr_we_o),
+        .inst2_csr_waddr_o    (dispatch_inst2_csr_waddr_o),
+        .inst2_csr_raddr_o    (dispatch_inst2_csr_raddr_o),
+        .inst2_csr_reg_we_o   (dispatch_inst2_csr_reg_we_o),
         .inst2_csr_reg_waddr_o(dispatch_inst2_csr_reg_waddr_o),
         .inst2_csr_commit_id_o(dispatch_inst2_csr_commit_id_o),
 
@@ -889,18 +898,18 @@ module cpu_top (
         .misaligned_store_o      (dispatch_misaligned_store_o),
 
         // sys指令 - 只需要一路
-        .sys_op_nop_o      (dispatch_sys_op_nop),
-        .sys_op_mret_o     (dispatch_sys_op_mret),
-        .sys_op_ecall_o    (dispatch_sys_op_ecall),
-        .sys_op_ebreak_o   (dispatch_sys_op_ebreak),
-        .sys_op_fence_o    (dispatch_sys_op_fence),
-        .sys_op_dret_o     (dispatch_sys_op_dret),
+        .sys_op_nop_o   (dispatch_sys_op_nop),
+        .sys_op_mret_o  (dispatch_sys_op_mret),
+        .sys_op_ecall_o (dispatch_sys_op_ecall),
+        .sys_op_ebreak_o(dispatch_sys_op_ebreak),
+        .sys_op_fence_o (dispatch_sys_op_fence),
+        .sys_op_dret_o  (dispatch_sys_op_dret),
 
         // 其他指令信号 - 第一路
         .inst1_illegal_inst_o    (dispatch_inst1_illegal_o),       // 连接IDU的非法指令输出
 
         // 其他指令信号 - 第二路
-        .inst2_illegal_inst_o    (dispatch_inst2_illegal_o),
+        .inst2_illegal_inst_o(dispatch_inst2_illegal_o),
 
         .inst1_addr_o          (dispatch_inst1_addr_o),
         .inst2_addr_o          (dispatch_inst2_addr_o),
@@ -928,20 +937,32 @@ module cpu_top (
         .dispatch_atom_lock_o  (dispatch_atom_lock_o),
 
         // HDU流水线输出信号 (第一路)
-        .inst1_alu_pass_op1_o(dispatch_inst1_alu_pass_op1),
-        .inst1_alu_pass_op2_o(dispatch_inst1_alu_pass_op2),
-        .inst1_mul_pass_op1_o(dispatch_inst1_mul_pass_op1),
-        .inst1_mul_pass_op2_o(dispatch_inst1_mul_pass_op2),
-        .inst1_div_pass_op1_o(dispatch_inst1_div_pass_op1),
-        .inst1_div_pass_op2_o(dispatch_inst1_div_pass_op2),
+        .inst1_alu_pass_alu2_op1_o(dispatch_inst1_alu_pass_alu2_op1),
+        .inst1_alu_pass_alu2_op2_o(dispatch_inst1_alu_pass_alu2_op2),
+        .inst1_mul_pass_alu2_op1_o(dispatch_inst1_mul_pass_alu2_op1),
+        .inst1_mul_pass_alu2_op2_o(dispatch_inst1_mul_pass_alu2_op2),
+        .inst1_div_pass_alu2_op1_o(dispatch_inst1_div_pass_alu2_op1),
+        .inst1_div_pass_alu2_op2_o(dispatch_inst1_div_pass_alu2_op2),
+        .inst1_alu_pass_alu1_op1_o(dispatch_inst1_alu_pass_alu1_op1),  // 第一路到ALU1的旁路（未使用）
+        .inst1_alu_pass_alu1_op2_o(dispatch_inst1_alu_pass_alu1_op2),
+        .inst1_mul_pass_alu1_op1_o(dispatch_inst1_mul_pass_alu1_op1),
+        .inst1_mul_pass_alu1_op2_o(dispatch_inst1_mul_pass_alu1_op2),
+        .inst1_div_pass_alu1_op1_o(dispatch_inst1_div_pass_alu1_op1),
+        .inst1_div_pass_alu1_op2_o(dispatch_inst1_div_pass_alu1_op2),
 
         // HDU流水线输出信号 (第二路)
-        .inst2_alu_pass_op1_o(dispatch_inst2_alu_pass_op1),
-        .inst2_alu_pass_op2_o(dispatch_inst2_alu_pass_op2),
-        .inst2_mul_pass_op1_o(dispatch_inst2_mul_pass_op1),
-        .inst2_mul_pass_op2_o(dispatch_inst2_mul_pass_op2),
-        .inst2_div_pass_op1_o(dispatch_inst2_div_pass_op1),
-        .inst2_div_pass_op2_o(dispatch_inst2_div_pass_op2)
+        .inst2_alu_pass_alu1_op1_o(dispatch_inst2_alu_pass_alu1_op1),
+        .inst2_alu_pass_alu1_op2_o(dispatch_inst2_alu_pass_alu1_op2),
+        .inst2_mul_pass_alu1_op1_o(dispatch_inst2_mul_pass_alu1_op1),
+        .inst2_mul_pass_alu1_op2_o(dispatch_inst2_mul_pass_alu1_op2),
+        .inst2_div_pass_alu1_op1_o(dispatch_inst2_div_pass_alu1_op1),
+        .inst2_div_pass_alu1_op2_o(dispatch_inst2_div_pass_alu1_op2),
+        .inst2_alu_pass_alu2_op1_o(dispatch_inst2_alu_pass_alu2_op1),  // 第二路到ALU2的旁路（未使用）
+        .inst2_alu_pass_alu2_op2_o(dispatch_inst2_alu_pass_alu2_op2),
+        .inst2_mul_pass_alu2_op1_o(dispatch_inst2_mul_pass_alu2_op1),
+        .inst2_mul_pass_alu2_op2_o(dispatch_inst2_mul_pass_alu2_op2),
+        .inst2_div_pass_alu2_op1_o(dispatch_inst2_div_pass_alu2_op1),
+        .inst2_div_pass_alu2_op2_o(dispatch_inst2_div_pass_alu2_op2)
     );
 
     // exu模块例化 - 修改为双发射接口
@@ -949,278 +970,278 @@ module cpu_top (
         .clk(clk),
         .rst_n(rst_n),
         // (保持兼容性的信号)
-        .inst_addr_i(dispatch_inst2_addr_o),
+        .inst_addr_i (dispatch_inst2_addr_o),
         .int_assert_i(clint_int_assert_o),
-        .int_jump_i(clint_int_jump_o),
-        .int_addr_i(clint_int_addr_o),
+        .int_jump_i  (clint_int_jump_o),
+        .int_addr_i  (clint_int_addr_o),
 
         // 双发射ALU0接口 - 来自dispatch
-        .req_alu0_i(dispatch_req_alu),
-        .alu0_op1_i(dispatch_alu_op1),
-        .alu0_op2_i(dispatch_alu_op2),
-        .alu0_op_info_i(dispatch_alu_op_info),
-        .alu0_rd_i(dispatch_inst1_reg_waddr_o),
+        .req_alu0_i      (dispatch_req_alu),
+        .alu0_op1_i      (dispatch_alu_op1),
+        .alu0_op2_i      (dispatch_alu_op2),
+        .alu0_op_info_i  (dispatch_alu_op_info),
+        .alu0_rd_i       (dispatch_inst1_reg_waddr_o),
         .alu0_commit_id_i(dispatch_inst1_commit_id_o),
-        .alu0_reg_we_i(dispatch_inst1_reg_we_o),
-        .alu0_wb_ready_i(wbu_alu0_ready_o),
+        .alu0_reg_we_i   (dispatch_inst1_reg_we_o),
+        .alu0_wb_ready_i (wbu_alu0_ready_o),
 
         // 双发射ALU1接口 - 来自dispatch
-        .req_alu1_i(dispatch_req_alu1),
-        .alu1_op1_i(dispatch_alu1_op1),
-        .alu1_op2_i(dispatch_alu1_op2),
-        .alu1_op_info_i(dispatch_alu1_op_info),
-        .alu1_rd_i(dispatch_inst2_reg_waddr_o),
+        .req_alu1_i      (dispatch_req_alu1),
+        .alu1_op1_i      (dispatch_alu1_op1),
+        .alu1_op2_i      (dispatch_alu1_op2),
+        .alu1_op_info_i  (dispatch_alu1_op_info),
+        .alu1_rd_i       (dispatch_inst2_reg_waddr_o),
         .alu1_commit_id_i(dispatch_inst2_commit_id_o),
         .alu1_reg_we_i(dispatch_inst2_reg_we_o),
         .alu1_wb_ready_i(wbu_alu1_ready_o),
         // 旁路信号
-        .alu0_pass_alu0_op1_i(dispatch_inst1_alu_pass_op1),
-        .alu0_pass_alu0_op2_i(dispatch_inst1_alu_pass_op2),
-        .alu0_pass_alu1_op1_i(1'b0),  // ALU0不依赖ALU1的旁路
-        .alu0_pass_alu1_op2_i(1'b0),
-        .alu1_pass_alu0_op1_i(1'b0),  // ALU1不依赖ALU0的旁路
-        .alu1_pass_alu0_op2_i(1'b0),
-        .alu1_pass_alu1_op1_i(dispatch_inst2_alu_pass_op1),
-        .alu1_pass_alu1_op2_i(dispatch_inst2_alu_pass_op2),
-        .mul0_pass_alu0_op1_i(dispatch_inst1_mul_pass_op1),
-        .mul0_pass_alu0_op2_i(dispatch_inst1_mul_pass_op2),
-        .mul0_pass_alu1_op1_i(1'b0),  // MUL0不依赖ALU1的旁路
-        .mul0_pass_alu1_op2_i(1'b0),
-        .mul1_pass_alu0_op1_i(1'b0),  // MUL1不依赖ALU0的旁路
-        .mul1_pass_alu0_op2_i(1'b0),
-        .mul1_pass_alu1_op1_i(dispatch_inst2_mul_pass_op1),
-        .mul1_pass_alu1_op2_i(dispatch_inst2_mul_pass_op2),
-        .div0_pass_alu0_op1_i(dispatch_inst1_div_pass_op1),
-        .div0_pass_alu0_op2_i(dispatch_inst1_div_pass_op2),
-        .div0_pass_alu1_op1_i(1'b0),  // DIV0不依赖ALU1的旁路
-        .div0_pass_alu1_op2_i(1'b0),
-        .div1_pass_alu0_op1_i(1'b0),  // DIV1不依赖ALU0的旁路
-        .div1_pass_alu0_op2_i(1'b0),
-        .div1_pass_alu1_op1_i(dispatch_inst2_div_pass_op1),
-        .div1_pass_alu1_op2_i(dispatch_inst2_div_pass_op2),
+        .alu0_pass_alu0_op1_i(dispatch_inst1_alu_pass_alu1_op1),
+        .alu0_pass_alu0_op2_i(dispatch_inst1_alu_pass_alu1_op2),
+        .alu0_pass_alu1_op1_i(dispatch_inst1_alu_pass_alu2_op1),
+        .alu0_pass_alu1_op2_i(dispatch_inst1_alu_pass_alu2_op2),
+        .alu1_pass_alu0_op1_i(dispatch_inst2_alu_pass_alu1_op1),  
+        .alu1_pass_alu0_op2_i(dispatch_inst2_alu_pass_alu1_op2),
+        .alu1_pass_alu1_op1_i(dispatch_inst2_alu_pass_alu2_op1),  
+        .alu1_pass_alu1_op2_i(dispatch_inst2_alu_pass_alu2_op2),
+        .mul0_pass_alu0_op1_i(dispatch_inst1_mul_pass_alu1_op1),
+        .mul0_pass_alu0_op2_i(dispatch_inst1_mul_pass_alu1_op2),
+        .mul0_pass_alu1_op1_i(dispatch_inst1_mul_pass_alu2_op1),  
+        .mul0_pass_alu1_op2_i(dispatch_inst1_mul_pass_alu2_op2),
+        .mul1_pass_alu0_op1_i(dispatch_inst2_mul_pass_alu1_op1), 
+        .mul1_pass_alu0_op2_i(dispatch_inst2_mul_pass_alu1_op2),
+        .mul1_pass_alu1_op1_i(dispatch_inst2_mul_pass_alu2_op1),
+        .mul1_pass_alu1_op2_i(dispatch_inst2_mul_pass_alu2_op2),
+        .div0_pass_alu0_op1_i(dispatch_inst1_div_pass_alu1_op1),
+        .div0_pass_alu0_op2_i(dispatch_inst1_div_pass_alu1_op2),
+        .div0_pass_alu1_op1_i(dispatch_inst1_div_pass_alu2_op1),  
+        .div0_pass_alu1_op2_i(dispatch_inst1_div_pass_alu2_op2),
+        .div1_pass_alu0_op1_i(dispatch_inst2_div_pass_alu1_op1),  
+        .div1_pass_alu0_op2_i(dispatch_inst2_div_pass_alu1_op2),
+        .div1_pass_alu1_op1_i(dispatch_inst2_div_pass_alu2_op1),
+        .div1_pass_alu1_op2_i(dispatch_inst2_div_pass_alu2_op2),
 
         // 乘法器0接口
-        .req_mul0_i(dispatch_req_mul),
-        .mul0_op1_i(dispatch_mul_op1),
-        .mul0_op2_i(dispatch_mul_op2),
-        .mul0_op_mul_i(dispatch_mul_op_mul),
-        .mul0_op_mulh_i(dispatch_mul_op_mulh),
+        .req_mul0_i      (dispatch_req_mul),
+        .mul0_op1_i      (dispatch_mul_op1),
+        .mul0_op2_i      (dispatch_mul_op2),
+        .mul0_op_mul_i   (dispatch_mul_op_mul),
+        .mul0_op_mulh_i  (dispatch_mul_op_mulh),
         .mul0_op_mulhsu_i(dispatch_mul_op_mulhsu),
-        .mul0_op_mulhu_i(dispatch_mul_op_mulhu),
+        .mul0_op_mulhu_i (dispatch_mul_op_mulhu),
         .mul0_commit_id_i(dispatch_mul_commit_id),
         .mul0_reg_waddr_i(dispatch_inst1_reg_waddr_o),
-        .mul0_wb_ready_i(wbu_mul0_ready_o),
+        .mul0_wb_ready_i (wbu_mul0_ready_o),
 
         // 乘法器1接口
-        .req_mul1_i(dispatch_req_mul2),
-        .mul1_op1_i(dispatch_mul2_op1),
-        .mul1_op2_i(dispatch_mul2_op2),
-        .mul1_op_mul_i(dispatch_mul2_op_mul),
-        .mul1_op_mulh_i(dispatch_mul2_op_mulh),
+        .req_mul1_i      (dispatch_req_mul2),
+        .mul1_op1_i      (dispatch_mul2_op1),
+        .mul1_op2_i      (dispatch_mul2_op2),
+        .mul1_op_mul_i   (dispatch_mul2_op_mul),
+        .mul1_op_mulh_i  (dispatch_mul2_op_mulh),
         .mul1_op_mulhsu_i(dispatch_mul2_op_mulhsu),
-        .mul1_op_mulhu_i(dispatch_mul2_op_mulhu),
+        .mul1_op_mulhu_i (dispatch_mul2_op_mulhu),
         .mul1_commit_id_i(dispatch_mul2_commit_id),
         .mul1_reg_waddr_i(dispatch_inst2_reg_waddr_o),
-        .mul1_wb_ready_i(wbu_mul1_ready_o),
+        .mul1_wb_ready_i (wbu_mul1_ready_o),
 
         // 除法器0接口
-        .req_div0_i(dispatch_req_div),
-        .div0_op1_i(dispatch_div_op1),
-        .div0_op2_i(dispatch_div_op2),
-        .div0_op_div_i(dispatch_div_op_div),
-        .div0_op_divu_i(dispatch_div_op_divu),
-        .div0_op_rem_i(dispatch_div_op_rem),
-        .div0_op_remu_i(dispatch_div_op_remu),
+        .req_div0_i      (dispatch_req_div),
+        .div0_op1_i      (dispatch_div_op1),
+        .div0_op2_i      (dispatch_div_op2),
+        .div0_op_div_i   (dispatch_div_op_div),
+        .div0_op_divu_i  (dispatch_div_op_divu),
+        .div0_op_rem_i   (dispatch_div_op_rem),
+        .div0_op_remu_i  (dispatch_div_op_remu),
         .div0_reg_waddr_i(dispatch_inst1_reg_waddr_o),
         .div0_commit_id_i(dispatch_div_commit_id),
-        .div0_wb_ready_i(wbu_div0_ready_o),
+        .div0_wb_ready_i (wbu_div0_ready_o),
 
 
         // 除法器1接口
-        .req_div1_i(dispatch_req_div2),
-        .div1_op1_i(dispatch_div2_op1),
-        .div1_op2_i(dispatch_div2_op2),
-        .div1_op_div_i(dispatch_div2_op_div),
-        .div1_op_divu_i(dispatch_div2_op_divu),
-        .div1_op_rem_i(dispatch_div2_op_rem),
-        .div1_op_remu_i(dispatch_div2_op_remu),
+        .req_div1_i      (dispatch_req_div2),
+        .div1_op1_i      (dispatch_div2_op1),
+        .div1_op2_i      (dispatch_div2_op2),
+        .div1_op_div_i   (dispatch_div2_op_div),
+        .div1_op_divu_i  (dispatch_div2_op_divu),
+        .div1_op_rem_i   (dispatch_div2_op_rem),
+        .div1_op_remu_i  (dispatch_div2_op_remu),
         .div1_reg_waddr_i(dispatch_inst2_reg_waddr_o),
         .div1_commit_id_i(dispatch_div2_commit_id),
-        .div1_wb_ready_i(wbu_div1_ready_o),
+        .div1_wb_ready_i (wbu_div1_ready_o),
 
         // 分支单元接口
-        .req_bjp_i(dispatch_req_bjp),
-        .bjp_op1_i(dispatch_bjp_op1),
-        .bjp_op2_i(dispatch_bjp_op2),
-        .bjp_jump_op1_i(dispatch_bjp_jump_op1),
-        .bjp_jump_op2_i(dispatch_bjp_jump_op2),
-        .bjp_op_jal_i(dispatch_bjp_op_jal),
-        .bjp_op_beq_i(dispatch_bjp_op_beq),
-        .bjp_op_bne_i(dispatch_bjp_op_bne),
-        .bjp_op_blt_i(dispatch_bjp_op_blt),
-        .bjp_op_bltu_i(dispatch_bjp_op_bltu),
-        .bjp_op_bge_i(dispatch_bjp_op_bge),
-        .bjp_op_bgeu_i(dispatch_bjp_op_bgeu),
-        .bjp_op_jalr_i(dispatch_bjp_op_jalr),
+        .req_bjp_i       (dispatch_req_bjp),
+        .bjp_op1_i       (dispatch_bjp_op1),
+        .bjp_op2_i       (dispatch_bjp_op2),
+        .bjp_jump_op1_i  (dispatch_bjp_jump_op1),
+        .bjp_jump_op2_i  (dispatch_bjp_jump_op2),
+        .bjp_op_jal_i    (dispatch_bjp_op_jal),
+        .bjp_op_beq_i    (dispatch_bjp_op_beq),
+        .bjp_op_bne_i    (dispatch_bjp_op_bne),
+        .bjp_op_blt_i    (dispatch_bjp_op_blt),
+        .bjp_op_bltu_i   (dispatch_bjp_op_bltu),
+        .bjp_op_bge_i    (dispatch_bjp_op_bge),
+        .bjp_op_bgeu_i   (dispatch_bjp_op_bgeu),
+        .bjp_op_jalr_i   (dispatch_bjp_op_jalr),
         .is_pred_branch_i(dispatch_inst_is_pred_branch_o),
 
         // LSU0接口
-        .req_mem_i(dispatch_req_mem),
-        .mem_op_lb_i(dispatch_mem_op_lb),
-        .mem_op_lh_i(dispatch_mem_op_lh),
-        .mem_op_lw_i(dispatch_mem_op_lw),
-        .mem_op_lbu_i(dispatch_mem_op_lbu),
-        .mem_op_lhu_i(dispatch_mem_op_lhu),
-        .mem_op_load_i(dispatch_mem_op_load),
-        .mem_op_store_i(dispatch_mem_op_store),
-        .mem_rd_i(dispatch_mem_reg_waddr),
-        .mem_addr_i(dispatch_mem_addr),
-        .mem_wdata_i(dispatch_mem_wdata),
-        .mem_wmask_i(dispatch_mem_wmask),
+        .req_mem_i      (dispatch_req_mem),
+        .mem_op_lb_i    (dispatch_mem_op_lb),
+        .mem_op_lh_i    (dispatch_mem_op_lh),
+        .mem_op_lw_i    (dispatch_mem_op_lw),
+        .mem_op_lbu_i   (dispatch_mem_op_lbu),
+        .mem_op_lhu_i   (dispatch_mem_op_lhu),
+        .mem_op_load_i  (dispatch_mem_op_load),
+        .mem_op_store_i (dispatch_mem_op_store),
+        .mem_rd_i       (dispatch_mem_reg_waddr),
+        .mem_addr_i     (dispatch_mem_addr),
+        .mem_wdata_i    (dispatch_mem_wdata),
+        .mem_wmask_i    (dispatch_mem_wmask),
         .mem_commit_id_i(dispatch_mem_commit_id),
-        .mem_wb_ready_i(wbu_lsu_ready_o),
+        .mem_wb_ready_i (wbu_lsu_ready_o),
 
         // 单一路CSR接口
-        .req_csr_0_i(dispatch_inst1_req_csr_o),
-        .csr_op1_0_i(dispatch_inst1_csr_op1_o),
-        .csr_addr_0_i(dispatch_inst1_csr_addr_o),
-        .csr_csrrw_0_i(dispatch_inst1_csr_csrrw_o),
-        .csr_csrrs_0_i(dispatch_inst1_csr_csrrs_o),
-        .csr_csrrc_0_i(dispatch_inst1_csr_csrrc_o),
+        .req_csr_0_i      (dispatch_inst1_req_csr_o),
+        .csr_op1_0_i      (dispatch_inst1_csr_op1_o),
+        .csr_addr_0_i     (dispatch_inst1_csr_addr_o),
+        .csr_csrrw_0_i    (dispatch_inst1_csr_csrrw_o),
+        .csr_csrrs_0_i    (dispatch_inst1_csr_csrrs_o),
+        .csr_csrrc_0_i    (dispatch_inst1_csr_csrrc_o),
         .csr_commit_id_0_i(dispatch_inst1_csr_commit_id_o),
-        .csr_we_0_i(dispatch_inst1_csr_we_o),
-        .csr_reg_we_0_i(dispatch_inst1_csr_reg_we_o),
-        .csr_waddr_0_i(dispatch_inst1_csr_waddr_o),
+        .csr_we_0_i       (dispatch_inst1_csr_we_o),
+        .csr_reg_we_0_i   (dispatch_inst1_csr_reg_we_o),
+        .csr_waddr_0_i    (dispatch_inst1_csr_waddr_o),
         .csr_reg_waddr_0_i(dispatch_inst1_csr_reg_waddr_o),
 
-        .req_csr_1_i(dispatch_inst2_req_csr_o),
-        .csr_op1_1_i(dispatch_inst2_csr_op1_o),
-        .csr_addr_1_i(dispatch_inst2_csr_addr_o),
-        .csr_csrrw_1_i(dispatch_inst2_csr_csrrw_o),
-        .csr_csrrs_1_i(dispatch_inst2_csr_csrrs_o),
-        .csr_csrrc_1_i(dispatch_inst2_csr_csrrc_o),
+        .req_csr_1_i      (dispatch_inst2_req_csr_o),
+        .csr_op1_1_i      (dispatch_inst2_csr_op1_o),
+        .csr_addr_1_i     (dispatch_inst2_csr_addr_o),
+        .csr_csrrw_1_i    (dispatch_inst2_csr_csrrw_o),
+        .csr_csrrs_1_i    (dispatch_inst2_csr_csrrs_o),
+        .csr_csrrc_1_i    (dispatch_inst2_csr_csrrc_o),
         .csr_commit_id_1_i(dispatch_inst2_csr_commit_id_o),
-        .csr_we_1_i(dispatch_inst2_csr_we_o),
-        .csr_reg_we_1_i(dispatch_inst2_csr_reg_we_o),
-        .csr_waddr_1_i(dispatch_inst2_csr_waddr_o),
+        .csr_we_1_i       (dispatch_inst2_csr_we_o),
+        .csr_reg_we_1_i   (dispatch_inst2_csr_reg_we_o),
+        .csr_waddr_1_i    (dispatch_inst2_csr_waddr_o),
         .csr_reg_waddr_1_i(dispatch_inst2_csr_reg_waddr_o),
 
-        .csr_rdata_i(csr_data_o),
+        .csr_rdata_i   (csr_data_o),
         .csr_wb_ready_i(wbu_csr_ready_o),
 
         // 系统操作信号
-        .sys_op_nop_i(dispatch_sys_op_nop),
-        .sys_op_mret_i(dispatch_sys_op_mret),
-        .sys_op_ecall_i(dispatch_sys_op_ecall),
+        .sys_op_nop_i   (dispatch_sys_op_nop),
+        .sys_op_mret_i  (dispatch_sys_op_mret),
+        .sys_op_ecall_i (dispatch_sys_op_ecall),
         .sys_op_ebreak_i(dispatch_sys_op_ebreak),
-        .sys_op_fence_i(dispatch_sys_op_fence),
-        .sys_op_dret_i(dispatch_sys_op_dret),
+        .sys_op_fence_i (dispatch_sys_op_fence),
+        .sys_op_dret_i  (dispatch_sys_op_dret),
 
         // 输出信号 - 到WBU的写回接口
         .alu0_reg_wdata_o(exu_alu0_reg_wdata_o),
-        .alu0_reg_we_o(exu_alu0_reg_we_o),
+        .alu0_reg_we_o   (exu_alu0_reg_we_o),
         .alu0_reg_waddr_o(exu_alu0_reg_waddr_o),
         .alu0_commit_id_o(exu_alu0_commit_id_o),
 
         .alu1_reg_wdata_o(exu_alu1_reg_wdata_o),
-        .alu1_reg_we_o(exu_alu1_reg_we_o),
+        .alu1_reg_we_o   (exu_alu1_reg_we_o),
         .alu1_reg_waddr_o(exu_alu1_reg_waddr_o),
         .alu1_commit_id_o(exu_alu1_commit_id_o),
 
         .mul0_reg_wdata_o(exu_mul0_reg_wdata_o),
-        .mul0_reg_we_o(exu_mul0_reg_we_o),
+        .mul0_reg_we_o   (exu_mul0_reg_we_o),
         .mul0_reg_waddr_o(exu_mul0_reg_waddr_o),
         .mul0_commit_id_o(exu_mul0_commit_id_o),
 
         .mul1_reg_wdata_o(exu_mul1_reg_wdata_o),
-        .mul1_reg_we_o(exu_mul1_reg_we_o),
+        .mul1_reg_we_o   (exu_mul1_reg_we_o),
         .mul1_reg_waddr_o(exu_mul1_reg_waddr_o),
         .mul1_commit_id_o(exu_mul1_commit_id_o),
 
         .div0_reg_wdata_o(exu_div0_reg_wdata_o),
-        .div0_reg_we_o(exu_div0_reg_we_o),
+        .div0_reg_we_o   (exu_div0_reg_we_o),
         .div0_reg_waddr_o(exu_div0_reg_waddr_o),
         .div0_commit_id_o(exu_div0_commit_id_o),
 
         .div1_reg_wdata_o(exu_div1_reg_wdata_o),
-        .div1_reg_we_o(exu_div1_reg_we_o),
+        .div1_reg_we_o   (exu_div1_reg_we_o),
         .div1_reg_waddr_o(exu_div1_reg_waddr_o),
         .div1_commit_id_o(exu_div1_commit_id_o),
 
         .lsu_reg_wdata_o(exu_lsu_reg_wdata_o),
-        .lsu_reg_we_o(exu_lsu_reg_we_o),
+        .lsu_reg_we_o   (exu_lsu_reg_we_o),
         .lsu_reg_waddr_o(exu_lsu_reg_waddr_o),
         .lsu_commit_id_o(exu_lsu_commit_id_o),
 
         .csr_reg_wdata_o(exu_csr_reg_wdata_o),
         .csr_reg_waddr_o(exu_csr_reg_waddr_o),
         .csr_commit_id_o(exu_csr_commit_id_o),
-        .csr_reg_we_o(exu_csr_reg_we_o),
-        .csr_wdata_o(exu_csr_wdata_o),
-        .csr_we_o(exu_csr_we_o),
-        .csr_waddr_o(exu_csr_waddr_o),
-        .csr_raddr_o(exu_csr_raddr_o),  // CSR读地址输出
+        .csr_reg_we_o   (exu_csr_reg_we_o),
+        .csr_wdata_o    (exu_csr_wdata_o),
+        .csr_we_o       (exu_csr_we_o),
+        .csr_waddr_o    (exu_csr_waddr_o),
+        .csr_raddr_o    (exu_csr_raddr_o),      // CSR读地址输出
 
         // 控制输出
         .stall_flag_o(exu_stall_flag_o),
-        .jump_flag_o(exu_jump_flag_o),
-        .jump_addr_o(exu_jump_addr_o),
+        .jump_flag_o (exu_jump_flag_o),
+        .jump_addr_o (exu_jump_addr_o),
 
         // 访存繁忙信号
         .mem_store_busy_o(exu_mem_store_busy_o),
-        .exu_lsu_stall_o(exu_lsu_stall_o),
+        .exu_lsu_stall_o (exu_lsu_stall_o),
 
         // 系统操作信号输出
-        .exu_op_ecall_o(exu_ecall_o),
+        .exu_op_ecall_o (exu_ecall_o),
         .exu_op_ebreak_o(exu_ebreak_o),
-        .exu_op_mret_o(exu_mret_o),
+        .exu_op_mret_o  (exu_mret_o),
 
         // misaligned_fetch信号输出
         .misaligned_fetch_o(misaligned_fetch_o),
 
         // AXI接口 - 统一LSU
-        .M_AXI_AWID(exu_axi_awid),
-        .M_AXI_AWADDR(exu_axi_awaddr),
-        .M_AXI_AWLEN(exu_axi_awlen),
-        .M_AXI_AWSIZE(exu_axi_awsize),
+        .M_AXI_AWID   (exu_axi_awid),
+        .M_AXI_AWADDR (exu_axi_awaddr),
+        .M_AXI_AWLEN  (exu_axi_awlen),
+        .M_AXI_AWSIZE (exu_axi_awsize),
         .M_AXI_AWBURST(exu_axi_awburst),
-        .M_AXI_AWLOCK(exu_axi_awlock),
+        .M_AXI_AWLOCK (exu_axi_awlock),
         .M_AXI_AWCACHE(exu_axi_awcache),
-        .M_AXI_AWPROT(exu_axi_awprot),
-        .M_AXI_AWQOS(exu_axi_awqos),
-        .M_AXI_AWUSER(exu_axi_awuser),
+        .M_AXI_AWPROT (exu_axi_awprot),
+        .M_AXI_AWQOS  (exu_axi_awqos),
+        .M_AXI_AWUSER (exu_axi_awuser),
         .M_AXI_AWVALID(exu_axi_awvalid),
         .M_AXI_AWREADY(exu_axi_awready),
-        .M_AXI_WDATA(exu_axi_wdata),
-        .M_AXI_WSTRB(exu_axi_wstrb),
-        .M_AXI_WLAST(exu_axi_wlast),
-        .M_AXI_WUSER(exu_axi_wuser),
-        .M_AXI_WVALID(exu_axi_wvalid),
-        .M_AXI_WREADY(exu_axi_wready),
-        .M_AXI_BID(exu_axi_bid),
-        .M_AXI_BRESP(exu_axi_bresp),
-        .M_AXI_BUSER(exu_axi_buser),
-        .M_AXI_BVALID(exu_axi_bvalid),
-        .M_AXI_BREADY(exu_axi_bready),
-        .M_AXI_ARID(exu_axi_arid),
-        .M_AXI_ARADDR(exu_axi_araddr),
-        .M_AXI_ARLEN(exu_axi_arlen),
-        .M_AXI_ARSIZE(exu_axi_arsize),
+        .M_AXI_WDATA  (exu_axi_wdata),
+        .M_AXI_WSTRB  (exu_axi_wstrb),
+        .M_AXI_WLAST  (exu_axi_wlast),
+        .M_AXI_WUSER  (exu_axi_wuser),
+        .M_AXI_WVALID (exu_axi_wvalid),
+        .M_AXI_WREADY (exu_axi_wready),
+        .M_AXI_BID    (exu_axi_bid),
+        .M_AXI_BRESP  (exu_axi_bresp),
+        .M_AXI_BUSER  (exu_axi_buser),
+        .M_AXI_BVALID (exu_axi_bvalid),
+        .M_AXI_BREADY (exu_axi_bready),
+        .M_AXI_ARID   (exu_axi_arid),
+        .M_AXI_ARADDR (exu_axi_araddr),
+        .M_AXI_ARLEN  (exu_axi_arlen),
+        .M_AXI_ARSIZE (exu_axi_arsize),
         .M_AXI_ARBURST(exu_axi_arburst),
-        .M_AXI_ARLOCK(exu_axi_arlock),
+        .M_AXI_ARLOCK (exu_axi_arlock),
         .M_AXI_ARCACHE(exu_axi_arcache),
-        .M_AXI_ARPROT(exu_axi_arprot),
-        .M_AXI_ARQOS(exu_axi_arqos),
-        .M_AXI_ARUSER(exu_axi_aruser),
+        .M_AXI_ARPROT (exu_axi_arprot),
+        .M_AXI_ARQOS  (exu_axi_arqos),
+        .M_AXI_ARUSER (exu_axi_aruser),
         .M_AXI_ARVALID(exu_axi_arvalid),
         .M_AXI_ARREADY(exu_axi_arready),
-        .M_AXI_RID(exu_axi_rid),
-        .M_AXI_RDATA(exu_axi_rdata),
-        .M_AXI_RRESP(exu_axi_rresp),
-        .M_AXI_RLAST(exu_axi_rlast),
-        .M_AXI_RUSER(exu_axi_ruser),
-        .M_AXI_RVALID(exu_axi_rvalid),
-        .M_AXI_RREADY(exu_axi_rready)
+        .M_AXI_RID    (exu_axi_rid),
+        .M_AXI_RDATA  (exu_axi_rdata),
+        .M_AXI_RRESP  (exu_axi_rresp),
+        .M_AXI_RLAST  (exu_axi_rlast),
+        .M_AXI_RUSER  (exu_axi_ruser),
+        .M_AXI_RVALID (exu_axi_rvalid),
+        .M_AXI_RREADY (exu_axi_rready)
     );
 
     // wbu模块例化 - 更新为新的双发射接口
@@ -1230,80 +1251,80 @@ module cpu_top (
 
         // 来自EXU的ALU数据 (双发射)
         .alu1_reg_wdata_i(exu_alu0_reg_wdata_o),
-        .alu1_reg_we_i(exu_alu0_reg_we_o),
+        .alu1_reg_we_i   (exu_alu0_reg_we_o),
         .alu1_reg_waddr_i(exu_alu0_reg_waddr_o),
         .alu1_commit_id_i(exu_alu0_commit_id_o),
-        .alu1_ready_o(wbu_alu0_ready_o),
+        .alu1_ready_o    (wbu_alu0_ready_o),
 
         .alu2_reg_wdata_i(exu_alu1_reg_wdata_o),
-        .alu2_reg_we_i(exu_alu1_reg_we_o),
+        .alu2_reg_we_i   (exu_alu1_reg_we_o),
         .alu2_reg_waddr_i(exu_alu1_reg_waddr_o),
         .alu2_commit_id_i(exu_alu1_commit_id_o),
-        .alu2_ready_o(wbu_alu1_ready_o),
+        .alu2_ready_o    (wbu_alu1_ready_o),
 
         // 来自EXU的MUL数据 (双发射)
         .mul1_reg_wdata_i(exu_mul0_reg_wdata_o),
-        .mul1_reg_we_i(exu_mul0_reg_we_o),
+        .mul1_reg_we_i   (exu_mul0_reg_we_o),
         .mul1_reg_waddr_i(exu_mul0_reg_waddr_o),
         .mul1_commit_id_i(exu_mul0_commit_id_o),
-        .mul1_ready_o(wbu_mul0_ready_o),
+        .mul1_ready_o    (wbu_mul0_ready_o),
 
         .mul2_reg_wdata_i(exu_mul1_reg_wdata_o),
-        .mul2_reg_we_i(exu_mul1_reg_we_o),
+        .mul2_reg_we_i   (exu_mul1_reg_we_o),
         .mul2_reg_waddr_i(exu_mul1_reg_waddr_o),
         .mul2_commit_id_i(exu_mul1_commit_id_o),
-        .mul2_ready_o(wbu_mul1_ready_o),
+        .mul2_ready_o    (wbu_mul1_ready_o),
 
         // 来自EXU的DIV数据 (双发射)
         .div1_reg_wdata_i(exu_div0_reg_wdata_o),
-        .div1_reg_we_i(exu_div0_reg_we_o),
+        .div1_reg_we_i   (exu_div0_reg_we_o),
         .div1_reg_waddr_i(exu_div0_reg_waddr_o),
         .div1_commit_id_i(exu_div0_commit_id_o),
-        .div1_ready_o(wbu_div0_ready_o),
+        .div1_ready_o    (wbu_div0_ready_o),
 
         .div2_reg_wdata_i(exu_div1_reg_wdata_o),
-        .div2_reg_we_i(exu_div1_reg_we_o),
+        .div2_reg_we_i   (exu_div1_reg_we_o),
         .div2_reg_waddr_i(exu_div1_reg_waddr_o),
         .div2_commit_id_i(exu_div1_commit_id_o),
-        .div2_ready_o(wbu_div1_ready_o),
+        .div2_ready_o    (wbu_div1_ready_o),
 
         // 来自EXU的CSR数据 (单路) - 合并来自两个CSR单元的输出
-        .csr_wdata_i(exu_csr_wdata_o),
-        .csr_we_i(exu_csr_we_o),
-        .csr_waddr_i(exu_csr_waddr_o),
+        .csr_wdata_i    (exu_csr_wdata_o),
+        .csr_we_i       (exu_csr_we_o),
+        .csr_waddr_i    (exu_csr_waddr_o),
         .csr_commit_id_i(exu_csr_commit_id_o),
-        .csr_ready_o(wbu_csr_ready_o),
+        .csr_ready_o    (wbu_csr_ready_o),
 
         // CSR寄存器写数据输入 (单路) - 合并来自两个CSR单元的输出
         .csr_reg_wdata_i(exu_csr_reg_wdata_o),
         .csr_reg_waddr_i(exu_csr_reg_waddr_o),
-        .csr_reg_we_i(exu_csr_reg_we_o),
+        .csr_reg_we_i   (exu_csr_reg_we_o),
 
         // 来自EXU的LSU数据 (单路)
         .lsu_reg_wdata_i(exu_lsu_reg_wdata_o),
-        .lsu_reg_we_i(exu_lsu_reg_we_o),
+        .lsu_reg_we_i   (exu_lsu_reg_we_o),
         .lsu_reg_waddr_i(exu_lsu_reg_waddr_o),
         .lsu_commit_id_i(exu_lsu_commit_id_o),
-        .lsu_ready_o(wbu_lsu_ready_o),
+        .lsu_ready_o    (wbu_lsu_ready_o),
 
         // 长指令完成信号（对接icu）
         .commit_valid1_o(wbu_commit_valid1_o),
-        .commit_id1_o(wbu_commit_id1_o),
+        .commit_id1_o   (wbu_commit_id1_o),
         .commit_valid2_o(wbu_commit_valid2_o),
-        .commit_id2_o(wbu_commit_id2_o),
+        .commit_id2_o   (wbu_commit_id2_o),
 
         // 双寄存器写回接口
         .reg1_wdata_o(wbu_reg1_wdata_o),
-        .reg1_we_o(wbu_reg1_we_o),
+        .reg1_we_o   (wbu_reg1_we_o),
         .reg1_waddr_o(wbu_reg1_waddr_o),
 
         .reg2_wdata_o(wbu_reg2_wdata_o),
-        .reg2_we_o(wbu_reg2_we_o),
+        .reg2_we_o   (wbu_reg2_we_o),
         .reg2_waddr_o(wbu_reg2_waddr_o),
 
         // 单CSR寄存器写回接口
         .csr_wdata_o(wbu_csr_wdata_o),
-        .csr_we_o(wbu_csr_we_o),
+        .csr_we_o   (wbu_csr_we_o),
         .csr_waddr_o(wbu_csr_waddr_o)
     );
 
@@ -1313,12 +1334,11 @@ module cpu_top (
         .rst_n             (rst_n),
         .inst_addr_i       (clint_inst_addr_i),
         .inst_data_i       (clint_inst_i),
-        .inst_valid_i      (clint_inst_valid_i),  // 使用双发射的inst1_clint_valid
+        .inst_valid_i      (clint_inst_valid_i),           // 使用双发射的inst1_clint_valid
         .jump_flag_i       (jump_addr_valid),
         .jump_addr_i       (exu_jump_addr_o),
         .stall_flag_i      (ctrl_stall_flag_o),
         .atom_opt_busy_i   (atom_opt_busy),
-        .agu_atom_lock_i   (dispatch_mem_atom_lock_o),     // AGU原子锁信号输入
         .sys_op_ecall_i    (exu_ecall_o),
         .sys_op_ebreak_i   (exu_ebreak_o),
         .sys_op_mret_i     (exu_mret_o),
@@ -1407,11 +1427,11 @@ module cpu_top (
         .C_AXI_DATA_WIDTH    (`BUS_DATA_WIDTH),
         .C_AXI_ADDR_WIDTH    (`BUS_ADDR_WIDTH),
         .C_OM0_AXI_ADDR_WIDTH(32),
-        .C_OM0_AXI_DATA_WIDTH(64),  // APB - 改为64位
+        .C_OM0_AXI_DATA_WIDTH(64),                // APB - 改为64位
         .C_OM1_AXI_ADDR_WIDTH(32),
-        .C_OM1_AXI_DATA_WIDTH(64),  // CLINT - 改为64位
+        .C_OM1_AXI_DATA_WIDTH(64),                // CLINT - 改为64位
         .C_OM2_AXI_ADDR_WIDTH(`PLIC_ADDR_WIDTH),
-        .C_OM2_AXI_DATA_WIDTH(64)   // PLIC - 改为64位
+        .C_OM2_AXI_DATA_WIDTH(64)                 // PLIC - 改为64位
     ) u_mems (
         .clk  (clk),
         .rst_n(rst_n),

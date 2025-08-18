@@ -33,13 +33,18 @@ module dispatch_pipe (
     input wire                     mem_atom_lock,
 
     // HDU信号输入
-    input wire                     alu_pass_op1_i,
-    input wire                     alu_pass_op2_i,
-    input wire                     mul_pass_op1_i,
-    input wire                     mul_pass_op2_i,
-    input wire                     div_pass_op1_i,
-    input wire                     div_pass_op2_i,
-    input wire                     csr_pass_op1_i,
+    input wire                     alu_pass_alu1_op1_i,
+    input wire                     alu_pass_alu1_op2_i,
+    input wire                     alu_pass_alu2_op1_i,
+    input wire                     alu_pass_alu2_op2_i,
+    input wire                     mul_pass_alu1_op1_i,
+    input wire                     mul_pass_alu1_op2_i,
+    input wire                     mul_pass_alu2_op1_i,
+    input wire                     mul_pass_alu2_op2_i,
+    input wire                     div_pass_alu1_op1_i,
+    input wire                     div_pass_alu1_op2_i,
+    input wire                     div_pass_alu2_op1_i,
+    input wire                     div_pass_alu2_op2_i,
 
     // 新增：指令有效信号输入
     input wire                        inst_valid_i,
@@ -240,13 +245,18 @@ module dispatch_pipe (
     output wire illegal_inst_o,
 
     // HDU信号输出
-    output wire                     alu_pass_op1_o,
-    output wire                     alu_pass_op2_o,
-    output wire                     mul_pass_op1_o,
-    output wire                     mul_pass_op2_o,
-    output wire                     div_pass_op1_o,
-    output wire                     div_pass_op2_o,
-    output wire                     csr_pass_op1_o
+    output wire                     alu_pass_alu1_op1_o,
+    output wire                     alu_pass_alu1_op2_o,
+    output wire                     mul_pass_alu1_op1_o,
+    output wire                     mul_pass_alu1_op2_o,
+    output wire                     div_pass_alu1_op1_o,
+    output wire                     div_pass_alu1_op2_o,
+    output wire                     alu_pass_alu2_op1_o,
+    output wire                     alu_pass_alu2_op2_o,
+    output wire                     mul_pass_alu2_op1_o,
+    output wire                     mul_pass_alu2_op2_o,
+    output wire                     div_pass_alu2_op1_o,
+    output wire                     div_pass_alu2_op2_o
 );
 
     wire                        reg_update_en = ~stall_en;
@@ -1080,81 +1090,158 @@ module dispatch_pipe (
     assign illegal_inst_o = illegal_inst;
 
     // HDU信号流水线寄存器 (去除flush清零)
-    wire alu_pass_op1_dnxt = alu_pass_op1_i;
-    wire alu_pass_op1;
-    gnrl_dfflr #(1) alu_pass_op1_ff (
+    wire alu_pass_alu1_op1_dnxt = alu_pass_alu1_op1_i;
+    wire alu_pass_alu1_op1;
+    gnrl_dfflr #(1) alu_pass_alu1_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        alu_pass_op1_dnxt,
-        alu_pass_op1
+        alu_pass_alu1_op1_dnxt,
+        alu_pass_alu1_op1
     );
-    assign alu_pass_op1_o = alu_pass_op1;
+    assign alu_pass_alu1_op1_o = alu_pass_alu1_op1;
 
-    wire alu_pass_op2_dnxt = alu_pass_op2_i;
-    wire alu_pass_op2;
-    gnrl_dfflr #(1) alu_pass_op2_ff (
+    wire alu_pass_alu1_op2_dnxt = alu_pass_alu1_op2_i;
+    wire alu_pass_alu1_op2;
+    gnrl_dfflr #(1) alu_pass_alu1_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        alu_pass_op2_dnxt,
-        alu_pass_op2
+        alu_pass_alu1_op2_dnxt,
+        alu_pass_alu1_op2
     );
-    assign alu_pass_op2_o = alu_pass_op2;
+    assign alu_pass_alu1_op2_o = alu_pass_alu1_op2;
 
-    wire mul_pass_op1_dnxt = mul_pass_op1_i;
-    wire mul_pass_op1;
-    gnrl_dfflr #(1) mul_pass_op1_ff (
+    wire mul_pass_alu1_op1_dnxt = mul_pass_alu1_op1_i;
+    wire mul_pass_alu1_op1;
+    gnrl_dfflr #(1) mul_pass_alu1_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        mul_pass_op1_dnxt,
-        mul_pass_op1
+        mul_pass_alu1_op1_dnxt,
+        mul_pass_alu1_op1
     );
-    assign mul_pass_op1_o = mul_pass_op1;
+    assign mul_pass_alu1_op1_o = mul_pass_alu1_op1;
 
-    wire mul_pass_op2_dnxt = mul_pass_op2_i;
-    wire mul_pass_op2;
-    gnrl_dfflr #(1) mul_pass_op2_ff (
+    wire mul_pass_alu1_op2_dnxt = mul_pass_alu1_op2_i;
+    wire mul_pass_alu1_op2;
+    gnrl_dfflr #(1) mul_pass_alu1_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        mul_pass_op2_dnxt,
-        mul_pass_op2
+        mul_pass_alu1_op2_dnxt,
+        mul_pass_alu1_op2
     );
-    assign mul_pass_op2_o = mul_pass_op2;
+    assign mul_pass_alu1_op2_o = mul_pass_alu1_op2;
 
-    wire div_pass_op1_dnxt = div_pass_op1_i;
-    wire div_pass_op1;
-    gnrl_dfflr #(1) div_pass_op1_ff (
+    wire div_pass_alu1_op1_dnxt = div_pass_alu1_op1_i;
+    wire div_pass_alu1_op1;
+    gnrl_dfflr #(1) div_pass_alu1_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        div_pass_op1_dnxt,
-        div_pass_op1
+        div_pass_alu1_op1_dnxt,
+        div_pass_alu1_op1
     );
-    assign div_pass_op1_o = div_pass_op1;
+    assign div_pass_alu1_op1_o = div_pass_alu1_op1;
 
-    wire div_pass_op2_dnxt = div_pass_op2_i;
-    wire div_pass_op2;
-    gnrl_dfflr #(1) div_pass_op2_ff (
+    wire div_pass_alu1_op2_dnxt = div_pass_alu1_op2_i;
+    wire div_pass_alu1_op2;
+    gnrl_dfflr #(1) div_pass_alu1_op2_ff (
         clk,
         rst_n,
         reg_update_en,
-        div_pass_op2_dnxt,
-        div_pass_op2
+        div_pass_alu1_op2_dnxt,
+        div_pass_alu1_op2
     );
-    assign div_pass_op2_o = div_pass_op2;
+    assign div_pass_alu1_op2_o = div_pass_alu1_op2;
 
-    wire csr_pass_op1_dnxt = csr_pass_op1_i;
-    wire csr_pass_op1;
-    gnrl_dfflr #(1) csr_pass_op1_ff (
+    wire alu_pass_alu2_op1_dnxt = alu_pass_alu2_op1_i;
+    wire alu_pass_alu2_op1;
+    gnrl_dfflr #(1) alu_pass_alu2_op1_ff (
         clk,
         rst_n,
         reg_update_en,
-        csr_pass_op1_dnxt,
-        csr_pass_op1
+        alu_pass_alu2_op1_dnxt,
+        alu_pass_alu2_op1
     );
-    assign csr_pass_op1_o = csr_pass_op1;
+    assign alu_pass_alu2_op1_o = alu_pass_alu2_op1;
+
+    wire alu_pass_alu2_op2_dnxt = alu_pass_alu2_op2_i;
+    wire alu_pass_alu2_op2;
+    gnrl_dfflr #(1) alu_pass_alu2_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        alu_pass_alu2_op2_dnxt,
+        alu_pass_alu2_op2
+    );
+    assign alu_pass_alu2_op2_o = alu_pass_alu2_op2;
+
+    wire div_pass_alu2_op1_dnxt = div_pass_alu2_op1_i;
+    wire div_pass_alu2_op1;
+    gnrl_dfflr #(1) div_pass_alu2_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_alu2_op1_dnxt,
+        div_pass_alu2_op1
+    );
+    assign div_pass_alu2_op1_o = div_pass_alu2_op1;
+
+    wire div_pass_alu2_op2_dnxt = div_pass_alu2_op2_i;
+    wire div_pass_alu2_op2;
+    gnrl_dfflr #(1) div_pass_alu2_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_alu2_op2_dnxt,
+        div_pass_alu2_op2
+    );
+    assign div_pass_alu2_op2_o = div_pass_alu2_op2;
+
+    wire mul_pass_alu2_op1_dnxt = mul_pass_alu2_op1_i;
+    wire mul_pass_alu2_op1;
+    gnrl_dfflr #(1) mul_pass_alu2_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mul_pass_alu2_op1_dnxt,
+        mul_pass_alu2_op1
+    );
+    assign mul_pass_alu2_op1_o = mul_pass_alu2_op1;
+
+    wire mul_pass_alu2_op2_dnxt = mul_pass_alu2_op2_i;
+    wire mul_pass_alu2_op2;
+    gnrl_dfflr #(1) mul_pass_alu2_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        mul_pass_alu2_op2_dnxt,
+        mul_pass_alu2_op2
+    );
+    assign mul_pass_alu2_op2_o = mul_pass_alu2_op2;
+
+    wire div_pass_alu2_op1_dnxt = div_pass_alu2_op1_i;
+    wire div_pass_alu2_op1;
+    gnrl_dfflr #(1) div_pass_alu2_op1_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_alu2_op1_dnxt,
+        div_pass_alu2_op1
+    );
+    assign div_pass_alu2_op1_o = div_pass_alu2_op1;
+
+    wire div_pass_alu2_op2_dnxt = div_pass_alu2_op2_i;
+    wire div_pass_alu2_op2;
+    gnrl_dfflr #(1) div_pass_alu2_op2_ff (
+        clk,
+        rst_n,
+        reg_update_en,
+        div_pass_alu2_op2_dnxt,
+        div_pass_alu2_op2
+    );
+    assign div_pass_alu2_op2_o = div_pass_alu2_op2;
 
 endmodule
