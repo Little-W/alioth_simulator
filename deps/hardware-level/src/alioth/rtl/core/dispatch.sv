@@ -578,6 +578,8 @@ module dispatch (
         .inst1_rs2_addr   (inst1_reg2_raddr_i),
         .inst1_rd_we      (inst1_reg_we_i),
         .inst1_ex_info_bus(inst1_ex_info_bus_i),
+        .inst1_addr_i     (inst1_addr_i),
+        .inst1_i          (inst1_i),
 
         // 指令2信息
         .inst2_valid      (hdu_inst2_valid),
@@ -586,6 +588,8 @@ module dispatch (
         .inst2_rs2_addr   (inst2_reg2_raddr_i),
         .inst2_rd_we      (inst2_reg_we_i),
         .inst2_ex_info_bus(inst2_ex_info_bus_i),
+        .inst2_addr_i     (inst2_addr_i),
+        .inst2_i          (inst2_i),
 
         // 指令完成信号（需要从后续模块连接）
         .commit_valid_i (inst1_commit_valid_i),
@@ -700,14 +704,14 @@ module dispatch (
 
     // 实例化dispatch_pipe模块 - 第一路
     dispatch_pipe u_inst1_dispatch_pipe (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .stall_en    (stall_en1),
-        .flush_en    (flush_en1),
-        .inst_valid_i(inst1_valid_i),       // 仅当HDU发出指令1时才有效
-        .inst_i      (inst1_i),
-        .inst_addr_i (inst1_addr_i),
-        .commit_id_i (hdu_inst1_commit_id),
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .stall_en     (stall_en1),
+        .flush_en     (flush_en1),
+        .inst_valid_i (inst1_valid_i),        // 仅当HDU发出指令1时才有效
+        .inst_i       (inst1_i),
+        .inst_addr_i  (inst1_addr_i),
+        .commit_id_i  (hdu_inst1_commit_id),
         .mem_atom_lock(agu_atom_lock),
 
         .reg_we_i           (inst1_reg_we_i),

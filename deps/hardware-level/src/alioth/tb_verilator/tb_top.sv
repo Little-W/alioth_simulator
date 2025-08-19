@@ -20,6 +20,26 @@
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
 
+
+`define inst_commit_valid alioth_soc_top_0.u_cpu_top.u_wbu.commit_valid_o
+`define inst_commit_id alioth_soc_top_0.u_cpu_top.u_wbu.commit_id_o
+`define commit1_valid alioth_soc_top_0.u_cpu_top.u_wbu.commit_valid1_o
+`define commit1_id alioth_soc_top_0.u_cpu_top.u_wbu.commit_id1_o
+`define commit2_valid alioth_soc_top_0.u_cpu_top.u_wbu.commit_valid2_o
+`define commit2_id alioth_soc_top_0.u_cpu_top.u_wbu.commit_id2_o
+
+`define inst_wb_data alioth_soc_top_0.u_cpu_top.u_wbu.reg_wdata_o
+`define inst_wb_waddr alioth_soc_top_0.u_cpu_top.u_wbu.reg_waddr_o
+`define reg1_wdata alioth_soc_top_0.u_cpu_top.u_wbu.reg1_wdata_o
+`define reg1_we    alioth_soc_top_0.u_cpu_top.u_wbu.reg1_we_o
+`define reg1_waddr alioth_soc_top_0.u_cpu_top.u_wbu.reg1_waddr_o
+`define reg2_wdata alioth_soc_top_0.u_cpu_top.u_wbu.reg2_wdata_o
+`define reg2_we    alioth_soc_top_0.u_cpu_top.u_wbu.reg2_we_o
+`define reg2_waddr alioth_soc_top_0.u_cpu_top.u_wbu.reg2_waddr_o
+
+`define inst_fifo alioth_soc_top_0.u_cpu_top.u_dispatch.u_hdu.fifo_entry
+
+
 // 支持dump使能区间
 parameter DUMP_START_CYCLE = 133262798;
 parameter DUMP_END_CYCLE = 136262728;  // 可根据需要修改，默认最大32位无符号数
@@ -46,7 +66,7 @@ module tb_top (
     // 双发射结构下，监控两个发射槽的PC
     wire [31:0] pc_slot0 = alioth_soc_top_0.u_cpu_top.u_dispatch.inst1_addr_o; // 第一个发射槽PC
     wire [31:0] pc_slot1 = alioth_soc_top_0.u_cpu_top.u_dispatch.inst2_addr_o; // 第二个发射槽PC
-    wire [31:0] pc = pc_slot0; // 默认使用第一个发射槽的PC作为主要监控对象
+    wire [31:0] pc = pc_slot0;  // 默认使用第一个发射槽的PC作为主要监控对象
     wire [31:0] csr_cyclel = alioth_soc_top_0.u_cpu_top.u_csr.cycle[31:0];
     wire [31:0] csr_cycleh = alioth_soc_top_0.u_cpu_top.u_csr.cycleh[31:0];
     wire [31:0] csr_instret = alioth_soc_top_0.u_cpu_top.u_csr.minstret[31:0];
@@ -73,6 +93,30 @@ module tb_top (
     wire    [63:0] cycle = {csr_cycleh, csr_cyclel};  // 合并cycle高低位
     wire    [31:0] current_cycle = csr_cyclel[31:0];
     wire    [31:0] current_cycleh = csr_cycleh[31:0];
+
+    always @(posedge clk) begin
+        // 指令1提交
+        if (`commit1_valid) begin
+            $display("Cycle: %d, PC: 0x%08x, Inst: 0x%08x, Reg: x%02d, Data: 0x%08x",
+                current_cycle,
+                `inst_fifo[`commit1_id].inst_addr,
+                `inst_fifo[`commit1_id].inst,
+                `reg1_waddr,
+                `reg1_wdata
+            );
+        end
+        // 指令2提交
+        if (`commit2_valid) begin
+            $display("Cycle: %d, PC: 0x%08x, Inst: 0x%08x, Reg: x%02d, Data: 0x%08x",
+                current_cycle,
+                `inst_fifo[`commit2_id].inst_addr,
+                `inst_fifo[`commit2_id].inst,
+                `reg2_waddr,
+                `reg2_wdata
+            );
+        end
+    end
+
 
 `ifdef ENABLE_DUMP_EN
     reg dump_en_reg;
@@ -122,8 +166,7 @@ module tb_top (
                 pc_write_to_host_cycle = current_cycle;
                 pc_write_to_host_flag  = 1'b1;
             end
-        end
-        // 检查第二个发射槽
+        end  // 检查第二个发射槽
         else if (pc_slot1 == `PC_WRITE_TOHOST && pc_slot1 != last_pc_slot1) begin
             pc_write_to_host_cnt = pc_write_to_host_cnt + 1'b1;
             if (pc_write_to_host_flag == 1'b0) begin
@@ -181,7 +224,8 @@ module tb_top (
             if (pc_stuck_cnt >= 8'd100) begin
                 $display(
                     "PC stuck detection: PC has not changed for 100 cycles, simulation terminated!");
-                $display("PC values when stuck: slot0=0x%08x, slot1=0x%08x", pc_slot0_last, pc_slot1_last);
+                $display("PC values when stuck: slot0=0x%08x, slot1=0x%08x", pc_slot0_last,
+                         pc_slot1_last);
                 $finish;
             end
         end
@@ -214,10 +258,16 @@ module tb_top (
         // 处理小端序格式并更新到ITCM（64位内存版本）
         // 每个64位字包含两个32位指令：{inst1[31:0], inst0[31:0]}
         for (i = 0; i < ITCM_DEPTH; i = i + 1) begin  // 遍历ITCM的每个64位字
-            if (i*8+7 < ITCM_BYTE_SIZE) begin
+            if (i * 8 + 7 < ITCM_BYTE_SIZE) begin
                 `ITCM.mem_r[i] = {
-                    itcm_prog_mem[i*8+7], itcm_prog_mem[i*8+6], itcm_prog_mem[i*8+5], itcm_prog_mem[i*8+4],  // inst1[31:0]
-                    itcm_prog_mem[i*8+3], itcm_prog_mem[i*8+2], itcm_prog_mem[i*8+1], itcm_prog_mem[i*8+0]   // inst0[31:0]
+                    itcm_prog_mem[i*8+7],
+                    itcm_prog_mem[i*8+6],
+                    itcm_prog_mem[i*8+5],
+                    itcm_prog_mem[i*8+4],  // inst1[31:0]
+                    itcm_prog_mem[i*8+3],
+                    itcm_prog_mem[i*8+2],
+                    itcm_prog_mem[i*8+1],
+                    itcm_prog_mem[i*8+0]  // inst0[31:0]
                 };
             end else begin
                 `ITCM.mem_r[i] = 64'h0;
@@ -226,10 +276,16 @@ module tb_top (
 
         // 处理小端序格式并更新到DTCM（64位内存版本）
         for (i = 0; i < DTCM_DEPTH; i = i + 1) begin  // 遍历DTCM的每个64位字
-            if (i*8+7 < DTCM_BYTE_SIZE) begin
+            if (i * 8 + 7 < DTCM_BYTE_SIZE) begin
                 `DTCM.mem_r[i] = {
-                    dtcm_prog_mem[i*8+7], dtcm_prog_mem[i*8+6], dtcm_prog_mem[i*8+5], dtcm_prog_mem[i*8+4],  // high 32 bits
-                    dtcm_prog_mem[i*8+3], dtcm_prog_mem[i*8+2], dtcm_prog_mem[i*8+1], dtcm_prog_mem[i*8+0]   // low 32 bits
+                    dtcm_prog_mem[i*8+7],
+                    dtcm_prog_mem[i*8+6],
+                    dtcm_prog_mem[i*8+5],
+                    dtcm_prog_mem[i*8+4],  // high 32 bits
+                    dtcm_prog_mem[i*8+3],
+                    dtcm_prog_mem[i*8+2],
+                    dtcm_prog_mem[i*8+1],
+                    dtcm_prog_mem[i*8+0]  // low 32 bits
                 };
             end else begin
                 `DTCM.mem_r[i] = 64'h0;
@@ -416,8 +472,8 @@ module tb_top (
         end else begin
             if (swi != swi_last) begin
                 $display("------------------------------------------------------------");
-                $display("swi changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
-                         swi, pc_slot0, pc_slot1, cycle);
+                $display("swi changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", swi,
+                         pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 swi_last <= swi;
             end
@@ -432,7 +488,7 @@ module tb_top (
         end else begin
             if (timer_irq != timer_irq_last) begin
                 $display("------------------------------------------------------------");
-                $display("timer_irq changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                $display("timer_irq changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d",
                          timer_irq, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 timer_irq_last <= timer_irq;
@@ -452,14 +508,14 @@ module tb_top (
         end else begin
             if (irq_sources != irq_sources_last) begin
                 $display("------------------------------------------------------------");
-                $display("irq_sources changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                $display("irq_sources changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d",
                          irq_sources, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 irq_sources_last <= irq_sources;
             end
             if (irq_valid != irq_valid_last) begin
                 $display("------------------------------------------------------------");
-                $display("irq_valid changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d", 
+                $display("irq_valid changed to %b at pc_slot0=0x%08x, pc_slot1=0x%08x, cycle=%0d",
                          irq_valid, pc_slot0, pc_slot1, cycle);
                 $display("------------------------------------------------------------");
                 irq_valid_last <= irq_valid;

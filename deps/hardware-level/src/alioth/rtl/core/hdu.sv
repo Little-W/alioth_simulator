@@ -35,6 +35,8 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] inst1_rs1_addr,  // 指令1读寄存器1地址
     input wire [`REG_ADDR_WIDTH-1:0] inst1_rs2_addr,  // 指令1读寄存器2地址
     input wire                       inst1_rd_we,     // 指令1是否写寄存器
+    input wire [`INST_ADDR_WIDTH-1:0] inst1_addr_i,   // 新增：指令1地址
+    input wire [`INST_DATA_WIDTH-1:0] inst1_i,        // 新增：指令1内容
     // 新增：已发射保持标志（来自issue stage），若已发射则不再参与FIFO冒险判断
 
     // 指令2信息（标签2）
@@ -43,6 +45,8 @@ module hdu (
     input wire [`REG_ADDR_WIDTH-1:0] inst2_rs1_addr,  // 指令2读寄存器1地址
     input wire [`REG_ADDR_WIDTH-1:0] inst2_rs2_addr,  // 指令2读寄存器2地址
     input wire                       inst2_rd_we,     // 指令2是否写寄存器
+    input wire [`INST_ADDR_WIDTH-1:0] inst2_addr_i,   // 新增：指令2地址
+    input wire [`INST_DATA_WIDTH-1:0] inst2_i,        // 新增：指令2内容
 
     // 指令完成信号
     input wire                        commit_valid_i,   // 指令执行完成有效信号
@@ -97,6 +101,8 @@ module hdu (
     typedef struct packed {
         logic [`REG_ADDR_WIDTH-1:0] rd_addr;
         logic [`EX_INFO_BUS_WIDTH-1:0] exu_type;
+        logic [`INST_ADDR_WIDTH-1:0] inst_addr; // 新增
+        logic [`INST_DATA_WIDTH-1:0] inst;      // 新增
     } fifo_entry_t;
 
     // FIFO表项（跟踪未完成写回的长指令目的寄存器，用于RAW/WAW检测）
@@ -369,6 +375,8 @@ module hdu (
                 fifo_valid[i]          <= 1'b0;
                 fifo_entry[i].rd_addr  <= 5'h0;
                 fifo_entry[i].exu_type <= {`EX_INFO_BUS_WIDTH{1'b0}};
+                fifo_entry[i].inst_addr<= {`INST_ADDR_WIDTH{1'b0}}; // 新增
+                fifo_entry[i].inst     <= {`INST_DATA_WIDTH{1'b0}}; // 新增
             end
         end else begin
             // 清除已完成的长指令
@@ -384,11 +392,15 @@ module hdu (
                 fifo_valid[inst1_commit_id_o]          <= 1'b1;
                 fifo_entry[inst1_commit_id_o].rd_addr  <= inst1_rd_addr;
                 fifo_entry[inst1_commit_id_o].exu_type <= inst1_ex_info_bus;
+                fifo_entry[inst1_commit_id_o].inst_addr<= inst1_addr_i; // 新增
+                fifo_entry[inst1_commit_id_o].inst     <= inst1_i;      // 新增
             end
             if (can_into_fifo_inst2) begin
                 fifo_valid[inst2_commit_id_o]          <= 1'b1;
                 fifo_entry[inst2_commit_id_o].rd_addr  <= inst2_rd_addr;
                 fifo_entry[inst2_commit_id_o].exu_type <= inst2_ex_info_bus;
+                fifo_entry[inst2_commit_id_o].inst_addr<= inst2_addr_i; // 新增
+                fifo_entry[inst2_commit_id_o].inst     <= inst2_i;      // 新增
             end
         end
     end
