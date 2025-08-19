@@ -64,6 +64,8 @@ module dispatch (
     // 写回阶段提交信号 - 用于HDU
     input wire                        commit_valid_i,
     input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,
+    input wire                        commit_valid2_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id2_i,
 
     // HDU输出信号
     output wire                        hazard_stall_o,
@@ -284,6 +286,8 @@ module dispatch (
         .ex_info_bus          (ex_info_bus_i),           // 新增：连接到hdu
         .commit_valid_i       (commit_valid_i),
         .commit_id_i          (commit_id_i),
+        .commit_valid2_i      (commit_valid2_i),         // 新增：第二路写回端口
+        .commit_id2_i         (commit_id2_i),            // 新增：第二路执行完成的长指令ID
         .hazard_stall_o       (hazard_stall_o),
         .commit_id_o          (hdu_long_inst_id),
         .long_inst_atom_lock_o(long_inst_atom_lock_o),

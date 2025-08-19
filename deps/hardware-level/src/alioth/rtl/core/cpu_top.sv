@@ -127,6 +127,11 @@ module cpu_top (
     wire wbu_reg_we_o;
     wire [`REG_ADDR_WIDTH-1:0] wbu_reg_waddr_o;
 
+    // wbu输出信号 - 通道2
+    wire [`REG_DATA_WIDTH-1:0] wbu_reg_wdata2_o;
+    wire wbu_reg_we2_o;
+    wire [`REG_ADDR_WIDTH-1:0] wbu_reg_waddr2_o;
+
     // WBU CSR输出信号
     wire [`REG_DATA_WIDTH-1:0] wbu_csr_wdata_o;
     wire wbu_csr_we_o;
@@ -166,15 +171,18 @@ module cpu_top (
     wire dispatch_stall_flag_o;
     wire dispatch_long_inst_atom_lock_o;
     wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id_o;
+    wire wbu_commit_valid_o;
     wire [`COMMIT_ID_WIDTH-1:0] wbu_commit_id_o;
+    wire wbu_commit_valid2_o;
+    wire [`COMMIT_ID_WIDTH-1:0] wbu_commit_id2_o;
+
     wire wbu_alu_ready_o;
     wire wbu_mul_ready_o;
     wire wbu_div_ready_o;
     wire wbu_csr_ready_o;
     // 显式声明原子操作忙信号，避免隐式定义
     wire atom_opt_busy;
-    // 添加缺少的信号声明
-    wire wbu_commit_valid_o;
+
     wire [`COMMIT_ID_WIDTH-1:0] dispatch_commit_id_o;
 
     // inst_valid相关信号定义
@@ -461,9 +469,12 @@ module cpu_top (
     gpr u_gpr (
         .clk     (clk),
         .rst_n   (rst_n),
-        .we_i    (wbu_reg_we_o),
-        .waddr_i (wbu_reg_waddr_o),
-        .wdata_i (wbu_reg_wdata_o),
+        .we1_i   (wbu_reg_we_o),
+        .waddr1_i(wbu_reg_waddr_o),
+        .wdata1_i(wbu_reg_wdata_o),
+        .we2_i   (wbu_reg_we2_o),
+        .waddr2_i(wbu_reg_waddr2_o),
+        .wdata2_i(wbu_reg_wdata2_o),
         .raddr1_i(idu_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
         .raddr2_i(idu_reg2_raddr_o),
@@ -558,8 +569,10 @@ module cpu_top (
         .rd_access_inst_valid_i(rd_access_inst_valid),
 
         // 写回阶段提交信号
-        .commit_valid_i(wbu_commit_valid_o),
-        .commit_id_i   (wbu_commit_id_o),
+        .commit_valid_i (wbu_commit_valid_o),
+        .commit_id_i    (wbu_commit_id_o),
+        .commit_valid2_i(wbu_commit_valid2_o),
+        .commit_id2_i   (wbu_commit_id2_o),
 
         // HDU输出信号
         .hazard_stall_o       (dispatch_stall_flag_o),
@@ -625,12 +638,12 @@ module cpu_top (
         .mul_commit_id_o(dispatch_mul_commit_id),
         .div_commit_id_o(dispatch_div_commit_id),
 
-        .req_csr_o    (dispatch_req_csr),
-        .csr_op1_o    (dispatch_csr_op1),
-        .csr_addr_o   (dispatch_csr_addr),
-        .csr_csrrw_o  (dispatch_csr_csrrw),
-        .csr_csrrs_o  (dispatch_csr_csrrs),
-        .csr_csrrc_o  (dispatch_csr_csrrc),
+        .req_csr_o     (dispatch_req_csr),
+        .csr_op1_o     (dispatch_csr_op1),
+        .csr_addr_o    (dispatch_csr_addr),
+        .csr_csrrw_o   (dispatch_csr_csrrw),
+        .csr_csrrs_o   (dispatch_csr_csrrs),
+        .csr_csrrc_o   (dispatch_csr_csrrc),
         .csr_pass_op1_o(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_o         (dispatch_req_mem),
@@ -733,12 +746,12 @@ module cpu_top (
         .mul_commit_id_i(dispatch_mul_commit_id),
         .div_commit_id_i(dispatch_div_commit_id),
 
-        .req_csr_i    (dispatch_req_csr),
-        .csr_op1_i    (dispatch_csr_op1),
-        .csr_addr_i   (dispatch_csr_addr),
-        .csr_csrrw_i  (dispatch_csr_csrrw),
-        .csr_csrrs_i  (dispatch_csr_csrrs),
-        .csr_csrrc_i  (dispatch_csr_csrrc),
+        .req_csr_i     (dispatch_req_csr),
+        .csr_op1_i     (dispatch_csr_op1),
+        .csr_addr_i    (dispatch_csr_addr),
+        .csr_csrrw_i   (dispatch_csr_csrrw),
+        .csr_csrrs_i   (dispatch_csr_csrrs),
+        .csr_csrrc_i   (dispatch_csr_csrrc),
         .csr_pass_op1_i(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_i      (dispatch_req_mem),
@@ -890,12 +903,17 @@ module cpu_top (
         .lsu_commit_id_i(exu_lsu_commit_id_o),  // 直接使用全宽度
 
         // 新增长指令完成输出
-        .commit_valid_o(wbu_commit_valid_o),
-        .commit_id_o   (wbu_commit_id_o),
+        .commit_valid_o (wbu_commit_valid_o),
+        .commit_id_o    (wbu_commit_id_o),
+        .commit_valid2_o(wbu_commit_valid2_o),
+        .commit_id2_o   (wbu_commit_id2_o),
 
-        .reg_wdata_o(wbu_reg_wdata_o),
-        .reg_we_o   (wbu_reg_we_o),
-        .reg_waddr_o(wbu_reg_waddr_o),
+        .reg_wdata_o (wbu_reg_wdata_o),
+        .reg_we_o    (wbu_reg_we_o),
+        .reg_waddr_o (wbu_reg_waddr_o),
+        .reg_wdata2_o(wbu_reg_wdata2_o),
+        .reg_we2_o   (wbu_reg_we2_o),
+        .reg_waddr2_o(wbu_reg_waddr2_o),
 
         .csr_wdata_o(wbu_csr_wdata_o),
         .csr_we_o   (wbu_csr_we_o),

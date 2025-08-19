@@ -24,7 +24,7 @@
 
 `include "defines.svh"
 
-// 写回单元 - 负责寄存器写回逻辑和仲裁优先级
+// 写回单元 - 负责寄存器写回逻辑和仲裁优先级（双端口设计）
 module wbu (
     input wire clk,
     input wire rst_n,
@@ -71,11 +71,18 @@ module wbu (
     // 长指令完成信号（对接hazard_detection）
     output wire                        commit_valid_o,  // 指令完成有效信号
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,     // 完成指令ID
+    output wire                        commit_valid2_o, // 第二路指令完成有效信号
+    output wire [`COMMIT_ID_WIDTH-1:0] commit_id2_o,    // 第二路完成指令ID
 
-    // 寄存器写回接口
+    // 端口1：寄存器写回接口（LSU + ALU）
     output wire [`REG_DATA_WIDTH-1:0] reg_wdata_o,
     output wire                       reg_we_o,
     output wire [`REG_ADDR_WIDTH-1:0] reg_waddr_o,
+
+    // 端口2：寄存器写回接口（MUL + DIV + CSR）
+    output wire [`REG_DATA_WIDTH-1:0] reg_wdata2_o,
+    output wire                       reg_we2_o,
+    output wire [`REG_ADDR_WIDTH-1:0] reg_waddr2_o,
 
     // CSR寄存器写回接口
     output wire [`REG_DATA_WIDTH-1:0] csr_wdata_o,
@@ -86,55 +93,7 @@ module wbu (
     // === 使用FIFO模块实例化各种缓冲区 ===
     localparam FIFO_DEPTH = 2;
 
-    // MUL FIFO
-    wire [`REG_DATA_WIDTH-1:0] mul_fifo_wdata;
-    wire [`REG_ADDR_WIDTH-1:0] mul_fifo_waddr;
-    wire [`COMMIT_ID_WIDTH-1:0] mul_fifo_commit_id;
-    wire mul_fifo_push, mul_fifo_pop;
-    wire mul_fifo_full, mul_fifo_empty;
-    wire [$clog2(FIFO_DEPTH):0] mul_fifo_count;
-
-    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) mul_fifo_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .wdata_i(mul_reg_wdata_i),
-        .waddr_i(mul_reg_waddr_i),
-        .commit_id_i(mul_commit_id_i),
-        .push(mul_fifo_push),
-        .pop(mul_fifo_pop),
-        .wdata_o(mul_fifo_wdata),
-        .waddr_o(mul_fifo_waddr),
-        .commit_id_o(mul_fifo_commit_id),
-        .full(mul_fifo_full),
-        .empty(mul_fifo_empty),
-        .count(mul_fifo_count)
-    );
-
-    // DIV FIFO
-    wire [`REG_DATA_WIDTH-1:0] div_fifo_wdata;
-    wire [`REG_ADDR_WIDTH-1:0] div_fifo_waddr;
-    wire [`COMMIT_ID_WIDTH-1:0] div_fifo_commit_id;
-    wire div_fifo_push, div_fifo_pop;
-    wire div_fifo_full, div_fifo_empty;
-    wire [$clog2(FIFO_DEPTH):0] div_fifo_count;
-
-    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) div_fifo_inst (
-        .clk(clk),
-        .rst_n(rst_n),
-        .wdata_i(div_reg_wdata_i),
-        .waddr_i(div_reg_waddr_i),
-        .commit_id_i(div_commit_id_i),
-        .push(div_fifo_push),
-        .pop(div_fifo_pop),
-        .wdata_o(div_fifo_wdata),
-        .waddr_o(div_fifo_waddr),
-        .commit_id_o(div_fifo_commit_id),
-        .full(div_fifo_full),
-        .empty(div_fifo_empty),
-        .count(div_fifo_count)
-    );
-
-    // ALU FIFO
+    // ALU FIFO（端口1）
     wire [`REG_DATA_WIDTH-1:0] alu_fifo_wdata;
     wire [`REG_ADDR_WIDTH-1:0] alu_fifo_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] alu_fifo_commit_id;
@@ -158,7 +117,31 @@ module wbu (
         .count(alu_fifo_count)
     );
 
-    // CSR FIFO
+    // DIV FIFO（端口2）
+    wire [`REG_DATA_WIDTH-1:0] div_fifo_wdata;
+    wire [`REG_ADDR_WIDTH-1:0] div_fifo_waddr;
+    wire [`COMMIT_ID_WIDTH-1:0] div_fifo_commit_id;
+    wire div_fifo_push, div_fifo_pop;
+    wire div_fifo_full, div_fifo_empty;
+    wire [$clog2(FIFO_DEPTH):0] div_fifo_count;
+
+    reg_wb_fifo #(.FIFO_DEPTH(FIFO_DEPTH)) div_fifo_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .wdata_i(div_reg_wdata_i),
+        .waddr_i(div_reg_waddr_i),
+        .commit_id_i(div_commit_id_i),
+        .push(div_fifo_push),
+        .pop(div_fifo_pop),
+        .wdata_o(div_fifo_wdata),
+        .waddr_o(div_fifo_waddr),
+        .commit_id_o(div_fifo_commit_id),
+        .full(div_fifo_full),
+        .empty(div_fifo_empty),
+        .count(div_fifo_count)
+    );
+
+    // CSR FIFO（端口2）
     wire [`REG_DATA_WIDTH-1:0] csr_fifo_wdata;
     wire [`REG_ADDR_WIDTH-1:0] csr_fifo_waddr;
     wire [`COMMIT_ID_WIDTH-1:0] csr_fifo_commit_id;
@@ -182,97 +165,106 @@ module wbu (
         .count(csr_fifo_count)
     );
 
-    // === 冲突判断 ===
-    // 优先级: lsu > FIFO输出(mul > div > csr > alu) > 普通输入(mul > div > csr > alu)
+    // === 端口1：LSU + ALU 写回逻辑 ===
+    // LSU无条件写回，ALU优先级低一级
     wire lsu_active = lsu_reg_we_i;
+    wire alu_active = alu_reg_we_i;
+
+    // ALU FIFO操作：当LSU活跃时，ALU需要进FIFO
+    assign alu_fifo_push = alu_active && alu_ready_o && (lsu_active || !alu_fifo_empty);
+    assign alu_fifo_pop = !alu_fifo_empty && !lsu_active;
+
+    // ALU ready信号：FIFO未满
+    assign alu_ready_o = !alu_fifo_full;
+
+    // 端口1写回仲裁：LSU > ALU FIFO > ALU直接
+    wire alu_fifo_en = !alu_fifo_empty && !lsu_active;
+    wire alu_en = alu_active && !lsu_active && alu_fifo_empty;
+
+    // 端口1写回数据选择
+    wire [`REG_DATA_WIDTH-1:0] reg_wdata1_r;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr1_r;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id1_r;
+    wire reg_we1_r;
+
+    assign reg_wdata1_r =
+        ({`REG_DATA_WIDTH{lsu_active}}   & lsu_reg_wdata_i) |
+        ({`REG_DATA_WIDTH{alu_fifo_en}}  & alu_fifo_wdata)  |
+        ({`REG_DATA_WIDTH{alu_en}}       & alu_reg_wdata_i);
+
+    assign reg_waddr1_r =
+        ({`REG_ADDR_WIDTH{lsu_active}}   & lsu_reg_waddr_i) |
+        ({`REG_ADDR_WIDTH{alu_fifo_en}}  & alu_fifo_waddr)  |
+        ({`REG_ADDR_WIDTH{alu_en}}       & alu_reg_waddr_i);
+
+    assign commit_id1_r =
+        ({`COMMIT_ID_WIDTH{lsu_active}}  & lsu_commit_id_i) |
+        ({`COMMIT_ID_WIDTH{alu_fifo_en}} & alu_fifo_commit_id) |
+        ({`COMMIT_ID_WIDTH{alu_en}}      & alu_commit_id_i);
+
+    assign reg_we1_r = lsu_active || alu_fifo_en || alu_en;
+
+    // === 端口2：MUL + DIV + CSR 写回逻辑 ===
+    // MUL优先级最高且不需要FIFO，DIV和CSR需要FIFO
     wire mul_active = mul_reg_we_i;
     wire div_active = div_reg_we_i;
     wire csr_reg_active = csr_reg_we_i;
-    wire alu_active = alu_reg_we_i;
 
-    wire any_fifo_valid = (mul_fifo_count > 0) || (div_fifo_count > 0) || (alu_fifo_count > 0) || (csr_fifo_count > 0);
+    // MUL ready信号始终为1
+    assign mul_ready_o = 1'b1;
 
-    // === ready信号修改为FIFO未满 ===
-    assign mul_ready_o = !mul_fifo_full;
+    // DIV和CSR的FIFO操作：当MUL活跃时需要进FIFO
+    assign div_fifo_push = div_active && div_ready_o && (mul_active || !csr_fifo_empty || !div_fifo_empty);
+    assign div_fifo_pop = !div_fifo_empty && !mul_active;
+
+    assign csr_fifo_push = csr_reg_active && csr_ready_o && (mul_active || div_active || !div_fifo_empty || !csr_fifo_empty);
+    assign csr_fifo_pop = !csr_fifo_empty && !mul_active && div_fifo_empty;
+
+    // DIV和CSR ready信号：FIFO未满
     assign div_ready_o = !div_fifo_full;
-    assign alu_ready_o = !alu_fifo_full;
     assign csr_ready_o = !csr_fifo_full;
 
-    // === 写回仲裁，lsu始终最高优先，FIFO输出仅在lsu无写回时有效 ===
-    wire mul_fifo_en = !mul_fifo_empty && !lsu_active;
-    wire div_fifo_en = !div_fifo_empty && !lsu_active && mul_fifo_empty;
-    wire csr_fifo_en = !csr_fifo_empty && !lsu_active && mul_fifo_empty && div_fifo_empty;
-    wire alu_fifo_en = !alu_fifo_empty && !lsu_active && mul_fifo_empty && div_fifo_empty && csr_fifo_empty;
+    // 端口2写回仲裁：MUL > DIV FIFO > CSR FIFO > DIV直接 > CSR直接
+    wire div_fifo_en = !div_fifo_empty && !mul_active;
+    wire csr_fifo_en = !csr_fifo_empty && !mul_active && div_fifo_empty;
+    wire div_en = div_active && !mul_active && div_fifo_empty && csr_fifo_empty;
+    wire csr_en = csr_reg_active && !mul_active && div_fifo_empty && csr_fifo_empty && !div_active;
 
-    // 普通输入使能条件，mul > div > csr > alu，且都需 lsu 不活跃且上级FIFO为空
-    wire mul_en = mul_active && !lsu_active && mul_fifo_empty && !any_fifo_valid;
-    wire div_en = div_active && !lsu_active && mul_fifo_empty && div_fifo_empty && !mul_active && !(csr_fifo_count > 0) && !(alu_fifo_count > 0);
-    wire csr_en = csr_reg_active && !lsu_active && mul_fifo_empty && div_fifo_empty && csr_fifo_empty && !mul_active && !div_active && !(alu_fifo_count > 0);
-    wire alu_en = alu_active && !lsu_active && mul_fifo_empty && div_fifo_empty && csr_fifo_empty && alu_fifo_empty && !mul_active && !div_active && !csr_reg_active;
+    // 端口2写回数据选择
+    wire [`REG_DATA_WIDTH-1:0] reg_wdata2_r;
+    wire [`REG_ADDR_WIDTH-1:0] reg_waddr2_r;
+    wire [`COMMIT_ID_WIDTH-1:0] commit_id2_r;
+    wire reg_we2_r;
 
-    // FIFO操作控制
-    assign mul_fifo_push = mul_active && mul_ready_o && (lsu_active || any_fifo_valid);
-    assign mul_fifo_pop = mul_fifo_en;
+    assign reg_wdata2_r =
+        ({`REG_DATA_WIDTH{mul_active}}   & mul_reg_wdata_i) |
+        ({`REG_DATA_WIDTH{div_fifo_en}}  & div_fifo_wdata)  |
+        ({`REG_DATA_WIDTH{csr_fifo_en}}  & csr_fifo_wdata)  |
+        ({`REG_DATA_WIDTH{div_en}}       & div_reg_wdata_i) |
+        ({`REG_DATA_WIDTH{csr_en}}       & csr_reg_wdata_i);
 
-    assign div_fifo_push = div_active && div_ready_o && (lsu_active || mul_active || (mul_fifo_count > 0) || (csr_fifo_count > 0) || (alu_fifo_count > 0));
-    assign div_fifo_pop = div_fifo_en;
+    assign reg_waddr2_r =
+        ({`REG_ADDR_WIDTH{mul_active}}   & mul_reg_waddr_i) |
+        ({`REG_ADDR_WIDTH{div_fifo_en}}  & div_fifo_waddr)  |
+        ({`REG_ADDR_WIDTH{csr_fifo_en}}  & csr_fifo_waddr)  |
+        ({`REG_ADDR_WIDTH{div_en}}       & div_reg_waddr_i) |
+        ({`REG_ADDR_WIDTH{csr_en}}       & csr_reg_waddr_i);
 
-    assign csr_fifo_push = csr_reg_active && csr_ready_o && (lsu_active || mul_active || div_active || (mul_fifo_count > 0) || (div_fifo_count > 0) || (alu_fifo_count > 0));
-    assign csr_fifo_pop = csr_fifo_en;
+    assign commit_id2_r =
+        ({`COMMIT_ID_WIDTH{mul_active}}  & mul_commit_id_i) |
+        ({`COMMIT_ID_WIDTH{div_fifo_en}} & div_fifo_commit_id) |
+        ({`COMMIT_ID_WIDTH{csr_fifo_en}} & csr_fifo_commit_id) |
+        ({`COMMIT_ID_WIDTH{div_en}}      & div_commit_id_i) |
+        ({`COMMIT_ID_WIDTH{csr_en}}      & csr_commit_id_i);
 
-    assign alu_fifo_push = alu_active && alu_ready_o && (lsu_active || mul_active || div_active || csr_reg_active || any_fifo_valid);
-    assign alu_fifo_pop = alu_fifo_en;
-
-    // === 写数据和地址多路选择器，全部与或逻辑 ===
-    wire [`REG_DATA_WIDTH-1:0] reg_wdata_r;
-    wire [`REG_ADDR_WIDTH-1:0] reg_waddr_r;
-    wire [`COMMIT_ID_WIDTH-1:0] commit_id_r;
-    wire reg_we_r;
-    wire commit_valid_r;
-
-    assign reg_wdata_r =
-        ({`REG_DATA_WIDTH{lsu_active}}      & lsu_reg_wdata_i)   |
-        ({`REG_DATA_WIDTH{mul_fifo_en}}     & mul_fifo_wdata)     |
-        ({`REG_DATA_WIDTH{div_fifo_en}}     & div_fifo_wdata)     |
-        ({`REG_DATA_WIDTH{alu_fifo_en}}     & alu_fifo_wdata)     |
-        ({`REG_DATA_WIDTH{csr_fifo_en}}     & csr_fifo_wdata)     |
-        ({`REG_DATA_WIDTH{mul_en}}          & mul_reg_wdata_i)   |
-        ({`REG_DATA_WIDTH{div_en}}          & div_reg_wdata_i)   |
-        ({`REG_DATA_WIDTH{alu_en}}          & alu_reg_wdata_i)   |
-        ({`REG_DATA_WIDTH{csr_en}}          & csr_reg_wdata_i);
-
-    assign reg_waddr_r =
-        ({`REG_ADDR_WIDTH{lsu_active}}      & lsu_reg_waddr_i)   |
-        ({`REG_ADDR_WIDTH{mul_fifo_en}}     & mul_fifo_waddr)     |
-        ({`REG_ADDR_WIDTH{div_fifo_en}}     & div_fifo_waddr)     |
-        ({`REG_ADDR_WIDTH{alu_fifo_en}}     & alu_fifo_waddr)     |
-        ({`REG_ADDR_WIDTH{csr_fifo_en}}     & csr_fifo_waddr)     |
-        ({`REG_ADDR_WIDTH{mul_en}}          & mul_reg_waddr_i)   |
-        ({`REG_ADDR_WIDTH{div_en}}          & div_reg_waddr_i)   |
-        ({`REG_ADDR_WIDTH{alu_en}}          & alu_reg_waddr_i)   |
-        ({`REG_ADDR_WIDTH{csr_en}}          & csr_reg_waddr_i);
-
-    assign commit_id_r =
-        ({`COMMIT_ID_WIDTH{lsu_active}}     & lsu_commit_id_i)   |
-        ({`COMMIT_ID_WIDTH{mul_fifo_en}}    & mul_fifo_commit_id) |
-        ({`COMMIT_ID_WIDTH{div_fifo_en}}    & div_fifo_commit_id) |
-        ({`COMMIT_ID_WIDTH{alu_fifo_en}}    & alu_fifo_commit_id) |
-        ({`COMMIT_ID_WIDTH{csr_fifo_en}}    & csr_fifo_commit_id) |
-        ({`COMMIT_ID_WIDTH{mul_en}}         & mul_commit_id_i)   |
-        ({`COMMIT_ID_WIDTH{div_en}}         & div_commit_id_i)   |
-        ({`COMMIT_ID_WIDTH{alu_en}}         & alu_commit_id_i)   |
-        ({`COMMIT_ID_WIDTH{csr_en}}         & csr_commit_id_i);
-
-    assign reg_we_r = mul_fifo_en || div_fifo_en || alu_fifo_en || csr_fifo_en ||
-                      mul_en || div_en || alu_en || csr_en || lsu_active;
-    assign commit_valid_r = reg_we_r;
+    assign reg_we2_r = mul_active || div_fifo_en || csr_fifo_en || div_en || csr_en;
 
     // === 写回输出一级流水寄存器 ===
-    reg [`REG_DATA_WIDTH-1:0] reg_wdata_ff;
-    reg [`REG_ADDR_WIDTH-1:0] reg_waddr_ff;
-    reg [`COMMIT_ID_WIDTH-1:0] commit_id_ff;
-    reg reg_we_ff;
-    reg commit_valid_ff;
+    reg [`REG_DATA_WIDTH-1:0] reg_wdata1_ff, reg_wdata2_ff;
+    reg [`REG_ADDR_WIDTH-1:0] reg_waddr1_ff, reg_waddr2_ff;
+    reg [`COMMIT_ID_WIDTH-1:0] commit_id1_ff, commit_id2_ff;
+    reg reg_we1_ff, reg_we2_ff;
+    reg commit_valid1_ff, commit_valid2_ff;
 
     // csr输出打一拍
     reg csr_we_ff;
@@ -281,21 +273,31 @@ module wbu (
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            reg_wdata_ff    <= '0;
-            reg_waddr_ff    <= '0;
-            commit_id_ff    <= '0;
-            reg_we_ff       <= 1'b0;
-            commit_valid_ff <= 1'b0;
+            reg_wdata1_ff   <= '0;
+            reg_waddr1_ff   <= '0;
+            reg_wdata2_ff   <= '0;
+            reg_waddr2_ff   <= '0;
+            commit_id1_ff   <= '0;
+            commit_id2_ff   <= '0;
+            reg_we1_ff      <= 1'b0;
+            reg_we2_ff      <= 1'b0;
+            commit_valid1_ff<= 1'b0;
+            commit_valid2_ff<= 1'b0;
             // csr打一拍复位
             csr_we_ff       <= 1'b0;
             csr_wdata_ff    <= '0;
             csr_waddr_ff    <= '0;
         end else begin
-            reg_wdata_ff    <= reg_wdata_r;
-            reg_waddr_ff    <= reg_waddr_r;
-            commit_id_ff    <= commit_id_r;
-            reg_we_ff       <= reg_we_r;
-            commit_valid_ff <= commit_valid_r;
+            reg_wdata1_ff   <= reg_wdata1_r;
+            reg_waddr1_ff   <= reg_waddr1_r;
+            reg_wdata2_ff   <= reg_wdata2_r;
+            reg_waddr2_ff   <= reg_waddr2_r;
+            commit_id1_ff   <= commit_id1_r;
+            commit_id2_ff   <= commit_id2_r;
+            reg_we1_ff      <= reg_we1_r;
+            reg_we2_ff      <= reg_we2_r;
+            commit_valid1_ff<= reg_we1_r;
+            commit_valid2_ff<= reg_we2_r;
             // csr打一拍
             csr_we_ff       <= csr_we_i;
             csr_wdata_ff    <= csr_wdata_i;
@@ -304,17 +306,24 @@ module wbu (
     end
 
     // 输出到寄存器文件的信号（改为流水寄存器输出）
-    assign reg_we_o      = reg_we_ff;
-    assign reg_wdata_o   = reg_wdata_ff;
-    assign reg_waddr_o   = reg_waddr_ff;
+    assign reg_we_o      = reg_we1_ff;
+    assign reg_wdata_o   = reg_wdata1_ff;
+    assign reg_waddr_o   = reg_waddr1_ff;
+
+    assign reg_we2_o     = reg_we2_ff;
+    assign reg_wdata2_o  = reg_wdata2_ff;
+    assign reg_waddr2_o  = reg_waddr2_ff;
 
     // CSR寄存器写回信号打一拍输出
     assign csr_we_o      = csr_we_ff;
     assign csr_wdata_o   = csr_wdata_ff;
     assign csr_waddr_o   = csr_waddr_ff;
 
-    // 长指令完成信号（改为流水寄存器输出）
-    assign commit_valid_o = commit_valid_ff;
-    assign commit_id_o    = commit_id_ff;
+    // 长指令完成信号（双端口输出）
+    assign commit_valid_o    = commit_valid1_ff;
+    assign commit_id_o       = commit_id1_ff;
+    // 新增：第二路commit信号
+    assign commit_valid2_o   = commit_valid2_ff;
+    assign commit_id2_o      = commit_id2_ff;
 
 endmodule
