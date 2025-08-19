@@ -262,11 +262,11 @@ module agu_dual (
                     fifo_pop  = 1'b0;
                 end
             end else begin
-                // 情况3：两路都有效但不同类型，优先输出store路，load路推入FIFO
+                // 情况3：两路都有效但不同类型，优先输出inst1的请求，inst2推入FIFO
                 if (!fifo_full) begin
                     fifo_push = 1'b1;
-                    // 根据哪路是load来决定推入哪路
-                    push_sel  = op1_load ? 2'b01 : 2'b10;
+                    // inst2推入FIFO
+                    push_sel  = 2'b10;
                     fifo_pop  = 1'b0;
                 end else begin
                     // FIFO满，拉高stall
@@ -302,7 +302,8 @@ module agu_dual (
     // 输出通道选择逻辑
     // 根据不同情况选择输出
     wire use_fifo_for_output = !fifo_empty && fifo_pop;
-    wire use_store_priority_output = both_mem_valid && !same_type && !use_fifo_for_output; // 两路不同类型时优先输出store
+    // wire use_store_priority_output = both_mem_valid && !same_type && !use_fifo_for_output; // 两路不同类型时优先输出store
+    wire use_inst1_priority_output = both_mem_valid && !same_type && !use_fifo_for_output; // 两路不同类型时优先输出inst1
 
     // 输出数据选择
     logic [31:0] output_rs1, output_rs2, output_imm;
@@ -321,27 +322,15 @@ module agu_dual (
             output_commit_id     = fifo_commit_id;
             output_mem_reg_waddr = fifo_mem_reg_waddr;
             output_inst_valid    = fifo_inst_valid;
-        end else if (use_store_priority_output) begin
-            // 两路不同类型时，优先输出store那路
-            if (op1_store) begin
-                // 通道1是store，输出通道1
-                output_rs1           = rs1_1_i;
-                output_rs2           = rs2_1_i;
-                output_imm           = imm_1_i;
-                output_dec           = dec_1_i;
-                output_commit_id     = commit_id_1_i;
-                output_mem_reg_waddr = mem_reg_waddr_1_i;
-                output_inst_valid    = inst1_valid_i;
-            end else begin
-                // 通道2是store，输出通道2
-                output_rs1           = rs1_2_i;
-                output_rs2           = rs2_2_i;
-                output_imm           = imm_2_i;
-                output_dec           = dec_2_i;
-                output_commit_id     = commit_id_2_i;
-                output_mem_reg_waddr = mem_reg_waddr_2_i;
-                output_inst_valid    = inst2_valid_i;
-            end
+        end else if (use_inst1_priority_output) begin
+            // 两路不同类型时，优先输出inst1
+            output_rs1           = rs1_1_i;
+            output_rs2           = rs2_1_i;
+            output_imm           = imm_1_i;
+            output_dec           = dec_1_i;
+            output_commit_id     = commit_id_1_i;
+            output_mem_reg_waddr = mem_reg_waddr_1_i;
+            output_inst_valid    = inst1_valid_i;
         end else begin
             // 其他情况：优先使用有效的通道
             if (mem_valid_1) begin
