@@ -22,6 +22,12 @@
 `define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
 `define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
 
+`define inst_commit_valid alioth_soc_top_0.u_cpu_top.u_wbu.commit_valid_o
+`define inst_commit_id alioth_soc_top_0.u_cpu_top.u_wbu.commit_id_o
+`define inst_wb_data alioth_soc_top_0.u_cpu_top.u_wbu.reg_wdata_o
+`define inst_wb_waddr alioth_soc_top_0.u_cpu_top.u_wbu.reg_waddr_o
+`define inst_fifo alioth_soc_top_0.u_cpu_top.u_dispatch.u_hdu.fifo_entry
+
 // 支持dump使能区间
 parameter DUMP_START_CYCLE = 133262798;
 parameter DUMP_END_CYCLE = 136262728;  // 可根据需要修改，默认最大32位无符号数
@@ -54,6 +60,7 @@ module tb_top (
     wire [10:0] irq_sources = alioth_soc_top_0.u_cpu_top.u_plic.irq_sources;  // 修改为11位
     wire irq_valid = alioth_soc_top_0.u_cpu_top.u_plic.irq_valid;
 
+
     integer r;
     reg [8*300:1] testcase;
     integer dumpwave;
@@ -72,6 +79,16 @@ module tb_top (
     wire    [63:0] cycle = {csr_cycleh, csr_cyclel};  // 合并cycle高低位
     wire    [31:0] current_cycle = csr_cyclel[31:0];
     wire    [31:0] current_cycleh = csr_cycleh[31:0];
+
+    always @(posedge clk) begin
+        if(`inst_commit_valid) begin
+            // 仅在指令提交有效时更新
+            $display("Cycle: %d, PC: 0x%08x, Inst: 0x%08x, Reg: x%02d, Data: 0x%08x",
+                     current_cycle,`inst_fifo[`inst_commit_id].inst_addr,
+                     `inst_fifo[`inst_commit_id].inst,
+                     `inst_wb_waddr, `inst_wb_data);
+        end
+    end
 
 `ifdef ENABLE_DUMP_EN
     reg dump_en_reg;

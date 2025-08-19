@@ -275,6 +275,8 @@ module dispatch (
         .clk                  (clk),
         .rst_n                (rst_n),
         .inst_valid           (rd_access_inst_valid_i),
+        .inst_i               (inst_i),
+        .inst_addr_i          (dec_pc_i),
         .rd_addr              (reg_waddr_i),
         .rs1_addr             (reg1_raddr_i),
         .rs2_addr             (reg2_raddr_i),
