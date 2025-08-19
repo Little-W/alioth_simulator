@@ -272,7 +272,7 @@ module wbu (
     assign alu1_ready_o = !alu1_fifo_full;
     assign div1_ready_o = !div1_fifo_full;
     assign csr_ready_o  = !csr_fifo_full;
-    assign mul1_ready_o = 1'b1; // MUL1无条件写回
+    assign mul1_ready_o = 1'b1;  // MUL1无条件写回
 
     assign mul2_ready_o = !mul2_fifo_full;
     assign div2_ready_o = !div2_fifo_full;
@@ -293,13 +293,22 @@ module wbu (
     wire csr_en  = csr_reg_we_i  && !mul1_en && div1_fifo_empty && alu1_fifo_empty && csr_fifo_empty && !div1_reg_we_i && !alu1_reg_we_i;
 
     // FIFO操作
-    assign div1_fifo_push = div1_reg_we_i && div1_ready_o && (mul1_en || alu1_reg_we_i || csr_reg_we_i || (alu1_fifo_count > 0) || (csr_fifo_count > 0));
+    assign div1_fifo_push = div1_reg_we_i && div1_ready_o && (
+        mul1_en || alu1_reg_we_i || csr_reg_we_i ||
+        !alu1_fifo_empty || !csr_fifo_empty || !div1_fifo_empty
+    );
     assign div1_fifo_pop = div1_fifo_en;
 
-    assign alu1_fifo_push = alu1_reg_we_i && alu1_ready_o && (mul1_en || div1_reg_we_i || csr_reg_we_i || (div1_fifo_count > 0) || (csr_fifo_count > 0));
+    assign alu1_fifo_push = alu1_reg_we_i && alu1_ready_o && (
+        mul1_en || div1_reg_we_i || csr_reg_we_i ||
+        !div1_fifo_empty || !csr_fifo_empty || !alu1_fifo_empty
+    );
     assign alu1_fifo_pop = alu1_fifo_en;
 
-    assign csr_fifo_push  = csr_reg_we_i && csr_ready_o && (mul1_en || div1_reg_we_i || alu1_reg_we_i || (div1_fifo_count > 0) || (alu1_fifo_count > 0));
+    assign csr_fifo_push  = csr_reg_we_i && csr_ready_o && (
+        mul1_en || div1_reg_we_i || alu1_reg_we_i ||
+        !div1_fifo_empty || !alu1_fifo_empty || !csr_fifo_empty
+    );
     assign csr_fifo_pop = csr_fifo_en;
 
     // === 端口2仲裁 ===
@@ -316,13 +325,22 @@ module wbu (
     wire alu2_en = alu2_reg_we_i && !lsu_en && mul2_fifo_empty && div2_fifo_empty && alu2_fifo_empty && !mul2_reg_we_i && !div2_reg_we_i;
 
     // FIFO操作
-    assign mul2_fifo_push = mul2_reg_we_i && mul2_ready_o && (lsu_en || div2_reg_we_i || alu2_reg_we_i || (div2_fifo_count > 0) || (alu2_fifo_count > 0));
+    assign mul2_fifo_push = mul2_reg_we_i && mul2_ready_o && (
+        lsu_en || div2_reg_we_i || alu2_reg_we_i ||
+        !div2_fifo_empty || !alu2_fifo_empty || !mul2_fifo_empty
+    );
     assign mul2_fifo_pop = mul2_fifo_en;
 
-    assign div2_fifo_push = div2_reg_we_i && div2_ready_o && (lsu_en || mul2_reg_we_i || alu2_reg_we_i || (mul2_fifo_count > 0) || (alu2_fifo_count > 0));
+    assign div2_fifo_push = div2_reg_we_i && div2_ready_o && (
+        lsu_en || mul2_reg_we_i || alu2_reg_we_i ||
+        !mul2_fifo_empty || !alu2_fifo_empty || !div2_fifo_empty
+    );
     assign div2_fifo_pop = div2_fifo_en;
 
-    assign alu2_fifo_push = alu2_reg_we_i && alu2_ready_o && (lsu_en || mul2_reg_we_i || div2_reg_we_i || (mul2_fifo_count > 0) || (div2_fifo_count > 0));
+    assign alu2_fifo_push = alu2_reg_we_i && alu2_ready_o && (
+        lsu_en || mul2_reg_we_i || div2_reg_we_i ||
+        !mul2_fifo_empty || !div2_fifo_empty || !alu2_fifo_empty
+    );
     assign alu2_fifo_pop = alu2_fifo_en;
 
     // === 写数据和地址多路选择器 ===
@@ -409,7 +427,7 @@ module wbu (
     reg reg1_we_ff, reg2_we_ff;
     reg commit_valid1_ff, commit_valid2_ff;
     // CSR打一拍寄存器
-    reg csr_we_ff;
+    reg                       csr_we_ff;
     reg [`REG_DATA_WIDTH-1:0] csr_wdata_ff;
     reg [`BUS_ADDR_WIDTH-1:0] csr_waddr_ff;
 
