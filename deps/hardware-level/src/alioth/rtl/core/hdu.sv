@@ -40,11 +40,8 @@ module hdu (
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus, // 新增：指令ex单元类型
 
     // 长指令完成信号
-    input wire commit_valid_i,  // 长指令执行完成有效信号
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,  // 执行完成的长指令ID
-    // 新增第二路写回端口
-    input wire commit_valid2_i,  // 第二路长指令执行完成有效信号
-    input wire [`COMMIT_ID_WIDTH-1:0] commit_id2_i,  // 第二路执行完成的长指令ID
+    input wire                        commit_valid_i,  // 长指令执行完成有效信号
+    input wire [`COMMIT_ID_WIDTH-1:0] commit_id_i,     // 执行完成的长指令ID
 
     // 控制信号
     output wire hazard_stall_o,  // 暂停流水线信号
@@ -97,12 +94,10 @@ module hdu (
     genvar i;
     generate
         for (i = 0; i < 8; i = i + 1) begin : hazard_vec_gen
-            assign raw_hazard_vec[i] = fifo_valid[i] && 
-                !( (commit_valid_i && commit_id_i == i) || (commit_valid2_i && commit_id2_i == i) ) &&
+            assign raw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
                 ((rs1_re && rs1_addr == fifo_entry[i].rd_addr) || (rs2_re && rs2_addr == fifo_entry[i].rd_addr));
             // waw检测：只有exu_type不同才算冲突
-            assign waw_hazard_vec[i] = fifo_valid[i] && 
-                !( (commit_valid_i && commit_id_i == i) || (commit_valid2_i && commit_id2_i == i) ) &&
+            assign waw_hazard_vec[i] = fifo_valid[i] && !(commit_valid_i && commit_id_i == i) &&
                 (rd_we && rd_addr == fifo_entry[i].rd_addr && ex_info_bus != fifo_entry[i].exu_type);
         end
     endgenerate
@@ -113,7 +108,7 @@ module hdu (
             alu_raw_mask    <= 8'hFF;
             alu_raw_mask_id <= 3'd0;
         end else begin
-            // 只需关注通道一的写回
+            // 清除已完成的长指令
             if (commit_valid_i && (alu_raw_mask_id == commit_id_i)) begin
                 alu_raw_mask    <= 8'hFF;
                 alu_raw_mask_id <= 3'd0;
@@ -160,9 +155,7 @@ module hdu (
             if (commit_valid_i) begin
                 fifo_valid[commit_id_i] <= 1'b0;
             end
-            if (commit_valid2_i) begin
-                fifo_valid[commit_id2_i] <= 1'b0;
-            end
+
             // 添加新的长指令到FIFO
             if (inst_valid && ~hazard) begin
                 fifo_valid[commit_id_o]          <= 1'b1;

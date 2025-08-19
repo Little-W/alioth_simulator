@@ -24,20 +24,16 @@
 
 `include "defines.svh"
 
-// 通用寄存器模块 - 支持2路写回
+// 通用寄存器模块
 module gpr (
 
     input wire clk,
     input wire rst_n,
 
-    // from wbu - 双写回端口
-    input wire                       we1_i,     // 写寄存器1标志
-    input wire [`REG_ADDR_WIDTH-1:0] waddr1_i,  // 写寄存器1地址
-    input wire [`REG_DATA_WIDTH-1:0] wdata1_i,  // 写寄存器1数据
-
-    input wire                       we2_i,     // 写寄存器2标志
-    input wire [`REG_ADDR_WIDTH-1:0] waddr2_i,  // 写寄存器2地址
-    input wire [`REG_DATA_WIDTH-1:0] wdata2_i,  // 写寄存器2数据
+    // from ex
+    input wire                       we_i,     // 写寄存器标志
+    input wire [`REG_ADDR_WIDTH-1:0] waddr_i,  // 写寄存器地址
+    input wire [`REG_DATA_WIDTH-1:0] wdata_i,  // 写寄存器数据
 
     // from id
     input wire [`REG_ADDR_WIDTH-1:0] raddr1_i,  // 读寄存器1地址
@@ -64,17 +60,7 @@ module gpr (
     genvar i;
     generate
         for (i = 1; i < `REG_NUM; i = i + 1) begin : gen_reg_we
-            // 双写回端口的写使能逻辑
-            assign reg_we[i] = ((we1_i && (waddr1_i == i)) || (we2_i && (waddr2_i == i))) && rst_n;
-        end
-    endgenerate
-
-    // 为每个寄存器选择写数据
-    // 如果两个写端口同时写同一个寄存器，优先选择端口1
-    wire [`REG_DATA_WIDTH-1:0] write_data[0:`REG_NUM - 1];
-    generate
-        for (i = 0; i < `REG_NUM; i = i + 1) begin : gen_write_data
-            assign write_data[i] = (we1_i && (waddr1_i == i)) ? wdata1_i : wdata2_i;
+            assign reg_we[i] = (we_i == `WriteEnable) && (waddr_i == i) && rst_n;
         end
     endgenerate
 
@@ -83,11 +69,11 @@ module gpr (
             gnrl_dfflr #(
                 .DW(`REG_DATA_WIDTH)
             ) reg_dfflr (
-                .clk  (clk),
+                .clk(clk),
                 .rst_n(rst_n),
-                .lden (reg_we[i]),
-                .dnxt (write_data[i]),
-                .qout (regs[i])
+                .lden(reg_we[i]),
+                .dnxt(wdata_i),
+                .qout(regs[i])
             );
         end
     endgenerate
@@ -97,17 +83,15 @@ module gpr (
     // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
     // 否则返回寄存器值
     assign rdata1_o = (raddr1_i == `ZeroReg) ? `ZeroWord :
-                        ((raddr1_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i :
-                        ((raddr1_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i :
-                        regs[raddr1_i];    // 读寄存器2
+                      ((raddr1_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
+                      regs[raddr1_i];
 
     // 读寄存器2
     // 如果读地址为零寄存器，则返回零
     // 如果读地址等于写地址，并且正在写操作，则直接返回写数据
     // 否则返回寄存器值
     assign rdata2_o = (raddr2_i == `ZeroReg) ? `ZeroWord :
-                        ((raddr2_i == waddr1_i) && (we1_i == `WriteEnable)) ? wdata1_i :
-                        ((raddr2_i == waddr2_i) && (we2_i == `WriteEnable)) ? wdata2_i :
-                        regs[raddr2_i];
+                      ((raddr2_i == waddr_i) && (we_i == `WriteEnable)) ? wdata_i :
+                      regs[raddr2_i];
 
 endmodule
