@@ -266,6 +266,8 @@ module exu (
 
     // misaligned_fetch信号输出
     output wire misaligned_fetch_o,
+    // 预测分支跳转信号输出
+    output wire                        bru_pred_taken_o,
 
     // 统一AXI接口 - 64位LSU
     output wire [  `BUS_ID_WIDTH-1:0] M_AXI_AWID,
@@ -522,6 +524,7 @@ module exu (
         .int_addr_i        (int_addr_i),
         .jump_flag_o       (bru_jump_flag),
         .jump_addr_o       (bru_jump_addr),
+        .pred_taken_o      (bru_pred_taken_o),
         .misaligned_fetch_o(misaligned_fetch_bru)
     );
 

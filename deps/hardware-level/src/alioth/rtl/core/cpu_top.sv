@@ -92,6 +92,7 @@ module cpu_top (
     wire [1:0] exu_stall_flag_o;
     wire exu_jump_flag_o;
     wire [`INST_ADDR_WIDTH-1:0] exu_jump_addr_o;
+    wire exu_bru_pred_taken_o;
 
     // 系统操作信号
     wire exu_ecall_o;
@@ -784,6 +785,8 @@ module cpu_top (
         .inst2_commit_valid_i(wbu_commit_valid2_o),
         .inst1_wb_commit_id_i(wbu_commit_id1_o),
         .inst2_wb_commit_id_i(wbu_commit_id2_o),
+        // 预测分支跳转信号
+        .pred_taken_i(exu_bru_pred_taken_o),
 
         // 分发到各功能单元的信号 
         //第一路ALU
@@ -1197,6 +1200,8 @@ module cpu_top (
 
         // misaligned_fetch信号输出
         .misaligned_fetch_o(misaligned_fetch_o),
+
+        .bru_pred_taken_o (exu_bru_pred_taken_o),
 
         // AXI接口 - 统一LSU
         .M_AXI_AWID   (exu_axi_awid),

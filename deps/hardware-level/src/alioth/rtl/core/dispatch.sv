@@ -84,6 +84,8 @@ module dispatch (
     input wire                          inst2_commit_valid_i,
     input wire [  `COMMIT_ID_WIDTH-1:0] inst1_wb_commit_id_i,
     input wire [  `COMMIT_ID_WIDTH-1:0] inst2_wb_commit_id_i,
+    //来自bru
+    input wire                          pred_taken_i,
 
     //分发到各功能单元的输出接口
     // dispatch to alu (第一路)
@@ -498,12 +500,13 @@ module dispatch (
     wire flush_en2;
     wire stall_en1;
     wire stall_en2;
+    wire inst1_branch_flush_en2;
     wire common_flush_en = stall_flag_dis_i[`CU_FLUSH] || stall_flag_dis_i[`CU_STALL_AGU] || clint_req_valid_i;
     wire mem_op1_valid, mem_op2_valid;
     wire any_exu_stall;
 
     assign flush_en1 = common_flush_en || (~hdu_issue_inst[0])  || stall_flag_dis_i[`CU_STALL_DISPATCH_2];
-    assign flush_en2 = common_flush_en || (~hdu_issue_inst[1])  || stall_flag_dis_i[`CU_STALL_DISPATCH_1];
+    assign flush_en2 = common_flush_en || (~hdu_issue_inst[1])  || stall_flag_dis_i[`CU_STALL_DISPATCH_1] || inst1_branch_flush_en2;
     assign stall_en1 = stall_flag_dis_i[`CU_STALL_DISPATCH_1];
     assign stall_en2 = stall_flag_dis_i[`CU_STALL_DISPATCH_2];
     assign mem_stall_req_o = agu_stall_req;
@@ -1215,6 +1218,7 @@ module dispatch (
     assign bjp_op_jalr_o    = pipe_inst1_req_bjp_o ? pipe_inst1_bjp_op_jalr_o : pipe_inst2_req_bjp_o ? pipe_inst2_bjp_op_jalr_o : 0;
 
     assign inst_is_pred_branch_o = pipe_inst1_req_bjp_o ? pipe_inst1_is_pred_branch : pipe_inst2_req_bjp_o ? pipe_inst2_is_pred_branch : 0;
+    assign inst1_branch_flush_en2 = pred_taken_i;
 
     //sys合并逻辑
     //sys只留一路即可

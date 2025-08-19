@@ -50,6 +50,7 @@ module exu_bru (
     // 跳转输出
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
+    output wire                        pred_taken_o,  // 新增：预测分支跳转信号输出
     // 新增：非对齐跳转信号
     output wire                        misaligned_fetch_o
 );
@@ -70,6 +71,7 @@ module exu_bru (
 
     // 预测回退条件：当预测分支但实际不需要跳转
     wire pred_rollback = is_pred_branch_i & req_bjp_i & ~branch_cond;
+    assign pred_taken_o = is_pred_branch_i & branch_cond;
 
     // 复用加法器：根据是否需要回退选择加法的第二个操作数
     assign adder_op2 = pred_rollback ? 32'h4 : bjp_jump_op2_i;
