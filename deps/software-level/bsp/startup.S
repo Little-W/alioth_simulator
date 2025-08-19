@@ -1,4 +1,4 @@
-	.section .init // 初始化段
+.section .init // 初始化段
 	.globl   _start // 声明全局入口符号
 	.type    _start,@function // 声明_start为函数类型
 
@@ -13,28 +13,28 @@ _start:
 	csrrwi   x0, sstatus, 0x0 // 清除仿真结果标志
 #endif
 
-	//       拷贝.data段数据到RAM
-	la       a0, _data_lma // a0 = .data段LMA（存储在flash/itcm的起始地址）
-	la       a1, _data // a1 = .data段VMA（RAM/dtcm中的起始地址）
-	la       a2, _edata // a2 = .data段结束地址
-	bgeu     a1, a2, 2f // 如果a1 >= a2，跳转到2f
-1:
-	lw       t0, (a0) // 从LMA读取数据
-	sw       t0, (a1) // 写入VMA
-	addi     a0, a0, 4
-	addi     a1, a1, 4
-	bltu     a1, a2, 1b // 如果a1 < a2，继续循环
-2:
+# 	//       拷贝.data段数据到RAM
+# 	la       a0, _data_lma // a0 = .data段LMA（存储在flash/itcm的起始地址）
+# 	la       a1, _data // a1 = .data段VMA（RAM/dtcm中的起始地址）
+# 	la       a2, _edata // a2 = .data段结束地址
+# 	bgeu     a1, a2, data_copy_end // 如果a1 >= a2，跳转到data_copy_end
+# data_copy_loop:
+# 	lw       t0, (a0) // 从LMA读取数据
+# 	sw       t0, (a1) // 写入VMA
+# 	addi     a0, a0, 4
+# 	addi     a1, a1, 4
+# 	bltu     a1, a2, data_copy_loop // 如果a1 < a2，继续循环
+# data_copy_end:
 
 	//       清零.bss段
 	la       a0, __bss_start // a0 = .bss段起始地址
 	la       a1, _end // a1 = .bss段结束地址
-	bgeu     a0, a1, 2f // 如果a0 >= a1，跳转到2f
-1:
+	bgeu     a0, a1, bss_clear_end // 如果a0 >= a1，跳转到bss_clear_end
+bss_clear_loop:
 	sw       zero, (a0) // 清零
 	addi     a0, a0, 4
-	bltu     a0, a1, 1b // 如果a0 < a1，继续循环
-2:
+	bltu     a0, a1, bss_clear_loop // 如果a0 < a1，继续循环
+bss_clear_end:
 
 	//       设置异常和中断入口地址
 #ifdef RTOS_RTTHREAD

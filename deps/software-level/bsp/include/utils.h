@@ -37,6 +37,8 @@ __STATIC_FORCEINLINE void __ECALL(void)
   __ASM volatile("ecall");
 }
 
+uint64_t get_cycle_value();
+
 #ifdef SIMULATION
 #define set_test_pass() asm("csrrwi x0, sstatus, 0x3")
 #define set_test_fail() asm("csrrwi x0, sstatus, 0x1")
