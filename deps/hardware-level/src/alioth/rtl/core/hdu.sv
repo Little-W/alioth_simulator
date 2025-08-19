@@ -38,6 +38,8 @@ module hdu (
     input wire                          rs1_re,      // 是否检测rs1
     input wire                          rs2_re,      // 是否检测rs2
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus, // 新增：指令ex单元类型
+    input wire [`INST_ADDR_WIDTH-1:0]   inst_addr_i, // 新增：指令地址
+    input wire [`INST_DATA_WIDTH-1:0]   inst_i,      // 新增：指令内容
 
     // 长指令完成信号
     input wire commit_valid_i,  // 长指令执行完成有效信号
@@ -63,6 +65,8 @@ module hdu (
     typedef struct packed {
         logic [`REG_ADDR_WIDTH-1:0] rd_addr;
         logic [`EX_INFO_BUS_WIDTH-1:0] exu_type;
+        logic [`INST_ADDR_WIDTH-1:0] inst_addr; // 新增
+        logic [`INST_DATA_WIDTH-1:0] inst;      // 新增
     } fifo_entry_t;
 
     reg [7:0] fifo_valid;  // 有效位，深度8
@@ -154,6 +158,8 @@ module hdu (
                 fifo_valid[i]          <= 1'b0;
                 fifo_entry[i].rd_addr  <= 5'h0;
                 fifo_entry[i].exu_type <= {`EX_INFO_BUS_WIDTH{1'b0}};
+                fifo_entry[i].inst_addr<= {`INST_ADDR_WIDTH{1'b0}}; // 新增
+                fifo_entry[i].inst     <= {`INST_DATA_WIDTH{1'b0}}; // 新增
             end
         end else begin
             // 清除已完成的长指令
@@ -168,6 +174,8 @@ module hdu (
                 fifo_valid[commit_id_o]          <= 1'b1;
                 fifo_entry[commit_id_o].rd_addr  <= rd_addr;
                 fifo_entry[commit_id_o].exu_type <= ex_info_bus;
+                fifo_entry[commit_id_o].inst_addr<= inst_addr_i; // 新增
+                fifo_entry[commit_id_o].inst     <= inst_i;      // 新增
             end
         end
     end
