@@ -297,7 +297,7 @@ module dispatch (
 
     // HDU相关信号
     wire hdu_inst1_valid = inst1_valid_i && !stall_flag_dis_i && !clint_req_valid_i;
-    wire hdu_inst2_valid = inst2_valid_i && !stall_flag_dis_i && !clint_req_valid_i;
+    wire hdu_inst2_valid = inst2_valid_i && !stall_flag_dis_i && !clint_req_valid_i && !pred_taken_i;
     wire [1:0] hdu_issue_inst;
     wire [2:0] hdu_inst1_commit_id;
     wire [2:0] hdu_inst2_commit_id;
