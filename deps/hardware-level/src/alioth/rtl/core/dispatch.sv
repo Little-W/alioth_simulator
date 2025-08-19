@@ -290,7 +290,7 @@ module dispatch (
     wire agu_mem_lhu;
     wire agu_mem_load;
     wire agu_mem_store;
-    wire [2:0] agu_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] agu_commit_id;
     wire [4:0] agu_mem_reg_waddr;
     wire agu_atom_lock;
     wire agu_stall_req;
@@ -299,8 +299,8 @@ module dispatch (
     wire hdu_inst1_valid = inst1_valid_i && !stall_flag_dis_i && !clint_req_valid_i;
     wire hdu_inst2_valid = inst2_valid_i && !stall_flag_dis_i && !clint_req_valid_i && !pred_taken_i;
     wire [1:0] hdu_issue_inst;
-    wire [2:0] hdu_inst1_commit_id;
-    wire [2:0] hdu_inst2_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] hdu_inst1_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] hdu_inst2_commit_id;
     wire hdu_alu1_pass_alu1_op1;
     wire hdu_alu1_pass_alu1_op2;
     wire hdu_alu1_pass_alu2_op1;
@@ -512,8 +512,8 @@ module dispatch (
     assign mem_stall_req_o = agu_stall_req;
     // 还原出exu stall
     assign any_exu_stall = stall_flag_dis_i[`CU_STALL_DISPATCH_1] | stall_flag_dis_i[`CU_STALL_DISPATCH_2];
-    assign mem_op1_valid = !(any_exu_stall | clint_req_valid_i);
-    assign mem_op2_valid = !(any_exu_stall | clint_req_valid_i | pred_taken_i);
+    assign mem_op1_valid = !(any_exu_stall | clint_req_valid_i | stall_flag_dis_i[`CU_FLUSH]);
+    assign mem_op2_valid = !(any_exu_stall | clint_req_valid_i | pred_taken_i | stall_flag_dis_i[`CU_FLUSH]);
 
     // AGU已经接管地址/掩码/数据与未对齐标志
     // 实例化双发射AGU：计算两路地址/掩码/写数据与未对齐

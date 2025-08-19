@@ -132,7 +132,7 @@ module dispatch_pipe (
     // 访存数据输入 - 适配双发射64位数据总线
     input wire [ 7:0] mem_wmask_i,  // 升级到8位掩码
     input wire [63:0] mem_wdata_i,  // 升级到64位数据
-    input wire [2:0] mem_commit_id_i,
+    input wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_i,
     input wire [4:0] mem_reg_waddr_i,
 
     // 新增：未对齐访存异常输入
@@ -221,7 +221,7 @@ module dispatch_pipe (
     output wire mem_op_lhu_o,
     output wire mem_op_load_o,
     output wire mem_op_store_o,
-    output wire [2:0] mem_commit_id_o,
+    output wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id_o,
     output wire [4:0] mem_reg_waddr_o,
 
     // 保留这些计算好的内存地址和掩码/数据输出 - 适配双发射
@@ -871,8 +871,8 @@ module dispatch_pipe (
     );
     assign mem_op_store_o = mem_op_store;
 
-    wire [2:0] mem_commit_id;
-    gnrl_dfflr #(3) mem_commit_id_ff (
+    wire [`COMMIT_ID_WIDTH-1:0] mem_commit_id;
+    gnrl_dfflr #(`COMMIT_ID_WIDTH) mem_commit_id_ff (
         clk,
         rst_n,
         reg_update_en,

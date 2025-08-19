@@ -401,7 +401,7 @@ module cpu_top (
     wire dispatch_mem_op_lhu;
     wire dispatch_mem_op_load;
     wire dispatch_mem_op_store;
-    wire [2:0] dispatch_mem_commit_id;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_mem_commit_id;
     wire [4:0] dispatch_mem_reg_waddr;
     wire [31:0] dispatch_mem_addr;
     wire [63:0] dispatch_mem_wdata;
@@ -441,8 +441,8 @@ module cpu_top (
     wire [31:0] dispatch_inst1_rs2_rdata_o;
     wire [31:0] dispatch_inst2_rs1_rdata_o;
     wire [31:0] dispatch_inst2_rs2_rdata_o;
-    wire [2:0] dispatch_inst1_commit_id_o;
-    wire [2:0] dispatch_inst2_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_inst1_commit_id_o;
+    wire [`COMMIT_ID_WIDTH-1:0] dispatch_inst2_commit_id_o;
 
     // AXI接口信号 - EXU
     wire [`BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
