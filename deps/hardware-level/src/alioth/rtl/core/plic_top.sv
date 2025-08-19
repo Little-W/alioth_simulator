@@ -31,15 +31,15 @@ module plic_top #(
 );
 
     // AXI信号寄存器
-    reg  [C_S_AXI_ADDR_WIDTH-1 : 0] axi_awaddr;
-    reg                             axi_awready;
-    reg                             axi_wready;
-    reg  [                   1 : 0] axi_bresp;
-    reg                             axi_bvalid;
-    reg  [C_S_AXI_ADDR_WIDTH-1 : 0] axi_araddr;
-    reg                             axi_arready;
-    reg  [                   1 : 0] axi_rresp;
-    reg                             axi_rvalid;
+    reg [C_S_AXI_ADDR_WIDTH-1 : 0] axi_awaddr;
+    reg axi_awready;
+    reg axi_wready;
+    reg [1 : 0] axi_bresp;
+    reg axi_bvalid;
+    reg [C_S_AXI_ADDR_WIDTH-1 : 0] axi_araddr;
+    reg axi_arready;
+    reg [1 : 0] axi_rresp;
+    reg axi_rvalid;
 
     // 地址和数据选择逻辑
     wire [C_S_AXI_ADDR_WIDTH-1 : 0] mem_waddr = (S_AXI_AWVALID) ? S_AXI_AWADDR : axi_awaddr;
@@ -47,34 +47,32 @@ module plic_top #(
     wire addr_bit2_w = mem_waddr[2];
     wire addr_bit2_r = mem_raddr[2];
     wire [31:0] selected_wdata = addr_bit2_w ? S_AXI_WDATA[63:32] : S_AXI_WDATA[31:0];
-    wire [3:0]  selected_wstrb = addr_bit2_w ? S_AXI_WSTRB[7:4]   : S_AXI_WSTRB[3:0];
-    wire [`PLIC_AXI_ADDR_WIDTH-1:0] reg_waddr = {mem_waddr[`PLIC_AXI_ADDR_WIDTH-1:3], 1'b0, mem_waddr[1:0]};
-    wire [`PLIC_AXI_ADDR_WIDTH-1:0] reg_raddr = {mem_raddr[`PLIC_AXI_ADDR_WIDTH-1:3], 1'b0, mem_raddr[1:0]};
+    wire [3:0] selected_wstrb = addr_bit2_w ? S_AXI_WSTRB[7:4] : S_AXI_WSTRB[3:0];
 
     // PLIC接口信号
     wire [`PLIC_AXI_DATA_WIDTH-1:0] plic_rdata;
     wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_waddr;
     wire [`PLIC_AXI_ADDR_WIDTH-1:0] plic_raddr;
     wire [`PLIC_AXI_DATA_WIDTH-1:0] plic_wdata;
-    wire [                     3:0] plic_wstrb;
-    wire                            plic_wen;
+    wire [3:0] plic_wstrb;
+    wire plic_wen;
 
     // 写端口
-    assign plic_waddr = reg_waddr;
+    assign plic_waddr = (S_AXI_AWVALID) ? S_AXI_AWADDR[`PLIC_AXI_ADDR_WIDTH-1:0] : axi_awaddr[`PLIC_AXI_ADDR_WIDTH-1:0];
     assign plic_wdata = selected_wdata;
     assign plic_wstrb = selected_wstrb;
-    assign plic_wen   = S_AXI_WVALID && axi_wready;
+    assign plic_wen = S_AXI_WVALID && axi_wready;
     // 读端口
-    assign plic_raddr = reg_raddr;
+    assign plic_raddr = (S_AXI_ARVALID) ? S_AXI_ARADDR[`PLIC_AXI_ADDR_WIDTH-1:0] : axi_araddr[`PLIC_AXI_ADDR_WIDTH-1:0];
 
     // AXI接口信号输出
     assign S_AXI_AWREADY = axi_awready;
-    assign S_AXI_WREADY  = axi_wready;
-    assign S_AXI_BRESP   = axi_bresp;
-    assign S_AXI_BVALID  = axi_bvalid;
+    assign S_AXI_WREADY = axi_wready;
+    assign S_AXI_BRESP = axi_bresp;
+    assign S_AXI_BVALID = axi_bvalid;
     assign S_AXI_ARREADY = axi_arready;
-    assign S_AXI_RRESP   = axi_rresp;
-    assign S_AXI_RVALID  = axi_rvalid;
+    assign S_AXI_RRESP = axi_rresp;
+    assign S_AXI_RVALID = axi_rvalid;
 
     // 状态机
     reg [1:0] state_write;

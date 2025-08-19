@@ -62,21 +62,17 @@ module clint_swi #(
     assign S_AXI_RVALID  = axi_rvalid;
     assign mem_waddr     = (S_AXI_AWVALID) ? S_AXI_AWADDR : axi_awaddr;
     assign mem_raddr     = (S_AXI_ARVALID) ? S_AXI_ARADDR : axi_araddr;
-    
+
     // 64位AXI数据和地址第2位选择逻辑
-    wire addr_bit2_w = mem_waddr[2];  // 写地址的第2位
-    wire addr_bit2_r = mem_raddr[2];  // 读地址的第2位
-    
+    wire        addr_bit2_w = mem_waddr[2];  // 写地址的第2位
+    wire        addr_bit2_r = mem_raddr[2];  // 读地址的第2位
+
     // 根据地址第2位选择32位数据
     wire [31:0] selected_wdata = addr_bit2_w ? S_AXI_WDATA[63:32] : S_AXI_WDATA[31:0];
-    wire [3:0]  selected_wstrb = addr_bit2_w ? S_AXI_WSTRB[7:4]   : S_AXI_WSTRB[3:0];
-    
-    // 清除地址第2位用于寄存器访问
-    wire [C_S_AXI_ADDR_WIDTH-1:0] reg_waddr = {mem_waddr[C_S_AXI_ADDR_WIDTH-1:3], 1'b0, mem_waddr[1:0]};
-    wire [C_S_AXI_ADDR_WIDTH-1:0] reg_raddr = {mem_raddr[C_S_AXI_ADDR_WIDTH-1:3], 1'b0, mem_raddr[1:0]};
+    wire [ 3:0] selected_wstrb = addr_bit2_w ? S_AXI_WSTRB[7:4] : S_AXI_WSTRB[3:0];
 
-    reg [1:0] state_write;
-    reg [1:0] state_read;
+    reg  [ 1:0] state_write;
+    reg  [ 1:0] state_read;
     localparam Idle = 2'b00, Raddr = 2'b10, Rdata = 2'b11, Waddr = 2'b10, Wdata = 2'b11;
 
     always @(posedge S_AXI_ACLK) begin
@@ -180,7 +176,7 @@ module clint_swi #(
             {mtime_hi, mtime_lo} <= {mtime_hi, mtime_lo} + 64'd1;
 
             if (S_AXI_WVALID) begin
-                case (reg_waddr)
+                case (mem_waddr)
                     `CLINT_MSIP_ADDR: begin
                         if (selected_wstrb[0]) msip <= selected_wdata[0];
                     end
@@ -213,7 +209,7 @@ module clint_swi #(
         if (!S_AXI_ARESETN) begin
             clint_rdata_32 <= 32'b0;
         end else if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-            case (reg_raddr)
+            case (S_AXI_ARADDR)
                 `CLINT_MSIP_ADDR:       clint_rdata_32 <= {31'b0, msip};
                 `CLINT_MTIMECMP_ADDR:   clint_rdata_32 <= mtimecmp_lo;
                 `CLINT_MTIMECMP_ADDR_H: clint_rdata_32 <= mtimecmp_hi;
