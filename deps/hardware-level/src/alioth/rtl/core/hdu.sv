@@ -191,28 +191,28 @@ module hdu (
         csr_raw_rs1 = 1'b0;
         if (is_alu_inst) begin
             // 只需检查alu_raw_mask_id对应的FIFO表项，且只关心通道一写回
-            if (fifo_valid[alu_raw_mask_id] &&
+            if (fifo_valid[alu_raw_mask_id] && alu_raw_mask != 8'hFF &&
                 !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
                 if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) alu_raw_rs1 = 1'b1;
                 if (rs2_re && rs2_addr == fifo_entry[alu_raw_mask_id].rd_addr) alu_raw_rs2 = 1'b1;
             end
         end
         if (is_mul_inst) begin
-            if (fifo_valid[alu_raw_mask_id] && 
+            if (fifo_valid[alu_raw_mask_id] && alu_raw_mask != 8'hFF &&
                 !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
                 if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) mul_raw_rs1 = 1'b1;
                 if (rs2_re && rs2_addr == fifo_entry[alu_raw_mask_id].rd_addr) mul_raw_rs2 = 1'b1;
             end
         end
         if (is_div_inst) begin
-            if (fifo_valid[alu_raw_mask_id] && 
+            if (fifo_valid[alu_raw_mask_id] && alu_raw_mask != 8'hFF &&
                 !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
                 if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) div_raw_rs1 = 1'b1;
                 if (rs2_re && rs2_addr == fifo_entry[alu_raw_mask_id].rd_addr) div_raw_rs2 = 1'b1;
             end
         end
         if (is_csr_inst) begin
-            if (fifo_valid[alu_raw_mask_id] && 
+            if (fifo_valid[alu_raw_mask_id] && alu_raw_mask != 8'hFF &&
                 !(commit_valid_i && commit_id_i == alu_raw_mask_id)) begin
                 if (rs1_re && rs1_addr == fifo_entry[alu_raw_mask_id].rd_addr) csr_raw_rs1 = 1'b1;
             end
