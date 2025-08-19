@@ -456,8 +456,8 @@ module cpu_top (
     wire exu_axi_awuser;
     wire exu_axi_awvalid;
     wire exu_axi_awready;
-    wire [31:0] exu_axi_wdata;
-    wire [3:0] exu_axi_wstrb;
+    wire [`BUS_DATA_WIDTH-1:0] exu_axi_wdata;
+    wire [`BUS_DATA_WIDTH/8-1:0] exu_axi_wstrb;
     wire exu_axi_wlast;
     wire exu_axi_wuser;
     wire exu_axi_wvalid;
@@ -480,7 +480,7 @@ module cpu_top (
     wire exu_axi_arvalid;
     wire exu_axi_arready;
     wire [`BUS_ID_WIDTH-1:0] exu_axi_rid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [31:0] exu_axi_rdata;
+    wire [`BUS_DATA_WIDTH-1:0] exu_axi_rdata;
     wire [1:0] exu_axi_rresp;
     wire exu_axi_rlast;
     wire exu_axi_ruser;

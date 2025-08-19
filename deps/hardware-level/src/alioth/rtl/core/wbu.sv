@@ -272,6 +272,7 @@ module wbu (
     assign alu1_ready_o = !alu1_fifo_full;
     assign div1_ready_o = !div1_fifo_full;
     assign csr_ready_o  = !csr_fifo_full;
+    assign mul1_ready_o = 1'b1; // MUL1无条件写回
 
     assign mul2_ready_o = !mul2_fifo_full;
     assign div2_ready_o = !div2_fifo_full;

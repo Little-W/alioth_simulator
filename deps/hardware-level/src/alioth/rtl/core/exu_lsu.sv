@@ -156,8 +156,8 @@ module exu_lsu #(
     reg input_fifo_mem_op_store[0:INPUT_FIFO_DEPTH-1];
     reg [4:0] input_fifo_rd_addr[0:INPUT_FIFO_DEPTH-1];
     reg [31:0] input_fifo_mem_addr[0:INPUT_FIFO_DEPTH-1];
-    reg [31:0] input_fifo_mem_wdata[0:INPUT_FIFO_DEPTH-1];
-    reg [3:0] input_fifo_mem_wmask[0:INPUT_FIFO_DEPTH-1];
+    reg [C_M_AXI_DATA_WIDTH-1:0] input_fifo_mem_wdata[0:INPUT_FIFO_DEPTH-1];
+    reg [C_M_AXI_DATA_WIDTH/8-1:0] input_fifo_mem_wmask[0:INPUT_FIFO_DEPTH-1];
     reg [`COMMIT_ID_WIDTH-1:0] input_fifo_commit_id[0:INPUT_FIFO_DEPTH-1];
 
     // 输入FIFO状态信号
@@ -192,8 +192,8 @@ module exu_lsu #(
     wire effective_mem_op_store_i = input_fifo_empty ? mem_op_store_i : input_fifo_mem_op_store[input_fifo_rd_ptr];
     wire [4:0] effective_rd_addr_i = input_fifo_empty ? rd_addr_i : input_fifo_rd_addr[input_fifo_rd_ptr];
     wire [31:0] effective_mem_addr_i = input_fifo_empty ? mem_addr_i : input_fifo_mem_addr[input_fifo_rd_ptr];
-    wire [31:0] effective_mem_wdata_i = input_fifo_empty ? mem_wdata_i : input_fifo_mem_wdata[input_fifo_rd_ptr];
-    wire [3:0] effective_mem_wmask_i = input_fifo_empty ? mem_wmask_i : input_fifo_mem_wmask[input_fifo_rd_ptr];
+    wire [C_M_AXI_DATA_WIDTH-1:0] effective_mem_wdata_i = input_fifo_empty ? mem_wdata_i : input_fifo_mem_wdata[input_fifo_rd_ptr];
+    wire [C_M_AXI_DATA_WIDTH/8-1:0] effective_mem_wmask_i = input_fifo_empty ? mem_wmask_i : input_fifo_mem_wmask[input_fifo_rd_ptr];
     wire [`COMMIT_ID_WIDTH-1:0] effective_commit_id_i = input_fifo_empty ? commit_id_i : input_fifo_commit_id[input_fifo_rd_ptr];
 
     // 输入FIFO控制逻辑 - 简化为普通请求处理
@@ -408,8 +408,8 @@ module exu_lsu #(
            ({32{curr_mem_op_lw}} & lw_data);  // ldl直接使用读取数据
 
     // 从FIFO获取或直接使用的写数据 - 使用effective信号
-    wire [31:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : effective_mem_wdata_i;
-    wire [3:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : effective_mem_wmask_i;
+    wire [C_M_AXI_DATA_WIDTH-1:0] mem_wdata_out = !write_fifo_empty ? write_fifo_data[write_fifo_rd_ptr] : effective_mem_wdata_i;
+    wire [C_M_AXI_DATA_WIDTH/8-1:0] mem_wmask_out = !write_fifo_empty ? write_fifo_strb[write_fifo_rd_ptr] : effective_mem_wmask_i;
 
     // 输入请求FIFO更新逻辑 - 简化为普通32位指令处理
     always_ff @(posedge clk or negedge rst_n) begin
@@ -523,7 +523,7 @@ module exu_lsu #(
                         read_fifo_rd_addr[read_fifo_wr_ptr] <= effective_rd_addr_i;
                         read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
                         read_fifo_commit_id[read_fifo_wr_ptr] <= effective_commit_id_i;
-                        read_fifo_is_load_high[read_fifo_wr_ptr] <= 0; // 新增 effective_mem_addr_i[2]
+                        read_fifo_is_load_high[read_fifo_wr_ptr] <= effective_mem_addr_i[2];
                     end
                 end
                 2'b01: begin  // 只弹出
@@ -546,7 +546,7 @@ module exu_lsu #(
                     read_fifo_rd_addr[read_fifo_wr_ptr] <= effective_rd_addr_i;
                     read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
                     read_fifo_commit_id[read_fifo_wr_ptr] <= effective_commit_id_i;
-                    read_fifo_is_load_high[read_fifo_wr_ptr] <= 0; // 新增effective_mem_addr_i[2]
+                    read_fifo_is_load_high[read_fifo_wr_ptr] <= effective_mem_addr_i[2];
                 end
                 default: begin
                     // 保持当前状态
