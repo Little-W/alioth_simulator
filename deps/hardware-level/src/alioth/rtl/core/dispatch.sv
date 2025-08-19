@@ -514,7 +514,7 @@ module dispatch (
         .exu_lsu_stall(exu_lsu_stall_i),
         
         // 第一路输入
-        .inst1_valid_i(hdu_issue_inst[0]), //内部连到hduissue_inst[0]
+        .inst1_valid_i( inst1_valid_i), //内部连到hduissue_inst[0]
         .rs1_1_i(inst1_rs1_rdata_i),
         .rs2_1_i(inst1_rs2_rdata_i),
         .imm_1_i(inst1_dec_imm_i),
@@ -523,7 +523,7 @@ module dispatch (
         .mem_reg_waddr_1_i(inst1_reg_waddr_i),
         
         // 第二路输入
-        .inst2_valid_i(hdu_issue_inst[1]), //内部连到hduissue_inst[1]
+        .inst2_valid_i(inst2_valid_i), //内部连到hduissue_inst[1]
         .rs1_2_i(inst2_rs1_rdata_i),
         .rs2_2_i(inst2_rs2_rdata_i),
         .imm_2_i(inst2_dec_imm_i),

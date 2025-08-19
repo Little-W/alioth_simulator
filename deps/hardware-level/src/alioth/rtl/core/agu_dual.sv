@@ -73,6 +73,7 @@ module agu_dual (
 );
     wire mem_valid_1, mem_valid_2;
     // FIFO相关信号定义
+    localparam FIFO_DEPTH = 4;
     typedef struct packed {
         logic [31:0] rs1;
         logic [31:0] rs2;
@@ -83,39 +84,75 @@ module agu_dual (
         logic inst_valid;
     } fifo_entry_t;
 
-    fifo_entry_t [1:0] fifo_buffer;
-    logic [1:0] fifo_head, fifo_tail;
-    logic fifo_empty, fifo_full;
-    logic fifo_push, fifo_pop;
+    fifo_entry_t [FIFO_DEPTH-1:0] fifo_buffer;
+    logic [2:0] fifo_head, fifo_tail;
+    logic [2:0] fifo_count;
+    wire fifo_empty = (fifo_count == 0);
+    wire fifo_full = (fifo_count == FIFO_DEPTH);
+    wire fifo_has_two_space = (fifo_count <= FIFO_DEPTH - 2);
 
-    // FIFO状态控制
-    assign fifo_empty = (fifo_head == fifo_tail);
-    assign fifo_full = ((fifo_tail + 1'b1) & 2'b01) == fifo_head;
+
 
     // FIFO读写控制
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            fifo_head <= 2'b00;
-            fifo_tail <= 2'b00;
+            fifo_head <= 3'b000;
+            fifo_tail <= 3'b000;
+            fifo_count <= 3'b000;
         end else begin
-            if (fifo_push && !fifo_full) begin
-                fifo_tail <= (fifo_tail + 1'b1) & 2'b01;
-            end
-            if (fifo_pop && !fifo_empty) begin
-                fifo_head <= (fifo_head + 1'b1) & 2'b01;
-            end
+            // 同时处理推入和弹出操作
+            case ({fifo_push && !fifo_full, fifo_pop && !fifo_empty})
+                2'b00: begin
+                    // 既不推入也不弹出
+                end
+                2'b01: begin
+                    // 只弹出
+                    fifo_head <= (fifo_head + 1'b1) % FIFO_DEPTH;
+                    fifo_count <= fifo_count - 1;
+                end
+                2'b10: begin
+                    // 只推入
+                    if (fifo_push_double) begin
+                        // 双推入
+                        fifo_tail <= (fifo_tail + 2) % FIFO_DEPTH;
+                        fifo_count <= fifo_count + 2;
+                    end else begin
+                        // 单推入
+                        fifo_tail <= (fifo_tail + 1'b1) % FIFO_DEPTH;
+                        fifo_count <= fifo_count + 1;
+                    end
+                end
+                2'b11: begin
+                    // 同时推入和弹出
+                    fifo_head <= (fifo_head + 1'b1) % FIFO_DEPTH;
+                    if (fifo_push_double) begin
+                        // 双推入单弹出：净增加1
+                        fifo_tail <= (fifo_tail + 2) % FIFO_DEPTH;
+                        fifo_count <= fifo_count + 1;
+                    end else begin
+                        // 单推入单弹出：数量不变
+                        fifo_tail <= (fifo_tail + 1'b1) % FIFO_DEPTH;
+                    end
+                end
+            endcase
         end
     end
 
     // FIFO数据存储
     always_ff @(posedge clk) begin
         if (fifo_push && !fifo_full) begin
-            // 根据push_sel决定存入通道1还是通道2的数据
-            case (push_sel)
-                2'b01: fifo_buffer[fifo_tail] <= '{rs1_1_i, rs2_1_i, imm_1_i, dec_1_i, commit_id_1_i, mem_reg_waddr_1_i, inst1_valid_i};
-                2'b10: fifo_buffer[fifo_tail] <= '{rs1_2_i, rs2_2_i, imm_2_i, dec_2_i, commit_id_2_i, mem_reg_waddr_2_i, inst2_valid_i};
-                default: ; // 不应该发生
-            endcase
+            if (fifo_push_double) begin
+                // 双推入：先推第一路，再推第二路
+                fifo_buffer[fifo_tail] <= '{rs1_1_i, rs2_1_i, imm_1_i, dec_1_i, commit_id_1_i, mem_reg_waddr_1_i, inst1_valid_i};
+                fifo_buffer[(fifo_tail + 1) % FIFO_DEPTH] <= '{rs1_2_i, rs2_2_i, imm_2_i, dec_2_i, commit_id_2_i, mem_reg_waddr_2_i, inst2_valid_i};
+            end else begin
+                // 单推入：根据push_sel决定存入通道1还是通道2的数据
+                case (push_sel)
+                    2'b01: fifo_buffer[fifo_tail] <= '{rs1_1_i, rs2_1_i, imm_1_i, dec_1_i, commit_id_1_i, mem_reg_waddr_1_i, inst1_valid_i};
+                    2'b10: fifo_buffer[fifo_tail] <= '{rs1_2_i, rs2_2_i, imm_2_i, dec_2_i, commit_id_2_i, mem_reg_waddr_2_i, inst2_valid_i};
+                    default: ; // 不应该发生
+                endcase
+            end
         end
     end
 
@@ -146,52 +183,156 @@ module agu_dual (
     // 只有当mem_valid为1时才进行FIFO判断
     wire both_mem_valid = mem_valid_1 & mem_valid_2;
     wire same_type = both_mem_valid & ((op1_load & op2_load) | (op1_store & op2_store));
-    logic [1:0] push_sel; // 00=无推入, 01=仅通道1进FIFO, 10=仅通道2进FIFO, 11=两通道都进FIFO
+    wire only_one_valid = (mem_valid_1 & !mem_valid_2) | (!mem_valid_1 & mem_valid_2);
+    wire neither_valid = !mem_valid_1 & !mem_valid_2;
     
-    // FIFO推入逻辑
+    logic fifo_push;
+    logic fifo_pop;
+    logic [1:0] push_sel; // 00=无推入, 01=仅通道1进FIFO, 10=仅通道2进FIFO, 11=两通道都进FIFO
+    logic fifo_push_double; // 双推入标志
+    
+    // FIFO推入弹出逻辑
     always_comb begin
         fifo_push = 1'b0;
+        fifo_pop = 1'b0;
         push_sel = 2'b00;
+        fifo_push_double = 1'b0;
         
-        if (!fifo_full) begin
-            if (both_mem_valid) begin
-                if (same_type) begin
-                    // 两路同类型，通道2进FIFO，通道1直接输出
-                    fifo_push = 1'b1;
-                    push_sel = 2'b10;
+        if (both_mem_valid) begin
+            if (fifo_full) begin
+                // 情况1：两路都有效但FIFO满，拉高stall，不推入，允许弹出
+                fifo_push = 1'b0;
+                fifo_pop = !exu_lsu_stall && !fifo_empty;
+            end else if (same_type) begin
+                // 情况2：两路都有效且同类型
+                if (!fifo_empty) begin
+                    // FIFO非空，双推入（如果空间足够）
+                    if (fifo_has_two_space) begin
+                        fifo_push = 1'b1;
+                        fifo_push_double = 1'b1;
+                        push_sel = 2'b11;
+                        fifo_pop = !exu_lsu_stall;
+                    end else begin
+                        // FIFO不能容纳两路，拉高stall
+                        fifo_push = 1'b0;
+                        fifo_pop = !exu_lsu_stall && !fifo_empty;
+                    end
                 end else begin
-                    // 两路不同类型，不需要进FIFO等待
-                    fifo_push = 1'b0;
-                    push_sel = 2'b00;
-                end
-            end else if (!fifo_empty) begin
-                // FIFO非空，任何有效通道都需要进FIFO等待
-                if (mem_valid_1) begin
-                    fifo_push = 1'b1;
-                    push_sel = 2'b01;
-                end else if (mem_valid_2) begin
+                    // FIFO为空，单推入第二路，第一路直接输出
                     fifo_push = 1'b1;
                     push_sel = 2'b10;
+                    fifo_pop = 1'b0;
                 end
+            end else begin
+                // 情况3：两路都有效但不同类型，优先输出store路，load路推入FIFO
+                if (!fifo_full) begin
+                    fifo_push = 1'b1;
+                    // 根据哪路是load来决定推入哪路
+                    push_sel = op1_load ? 2'b01 : 2'b10;
+                    fifo_pop = 1'b0;
+                end else begin
+                    // FIFO满，拉高stall
+                    fifo_push = 1'b0;
+                    fifo_pop = !exu_lsu_stall && !fifo_empty;
+                end
+            end
+        end else if (only_one_valid) begin
+            // 情况4：只有一路有效
+            if (!fifo_empty) begin
+                // FIFO非空，单推入这一路，弹出最早的
+                if (!fifo_full) begin
+                    fifo_push = 1'b1;
+                    push_sel = mem_valid_1 ? 2'b01 : 2'b10;
+                    fifo_pop = !exu_lsu_stall;
+                end else begin
+                    // FIFO满，拉高stall
+                    fifo_push = 1'b0;
+                    fifo_pop = !exu_lsu_stall;
+                end
+            end else begin
+                // FIFO空，直接输出这一路
+                fifo_push = 1'b0;
+                fifo_pop = 1'b0;
+            end
+        end else begin
+            // 情况5：没有输入有效
+            fifo_push = 1'b0;
+            fifo_pop = !exu_lsu_stall && !fifo_empty;
+        end
+    end
+
+    // 输出通道选择逻辑
+    // 根据不同情况选择输出
+    wire use_fifo_for_output = !fifo_empty && fifo_pop;
+    wire use_store_priority_output = both_mem_valid && !same_type && !use_fifo_for_output; // 两路不同类型时优先输出store
+    
+    // 输出数据选择
+    logic [31:0] output_rs1, output_rs2, output_imm;
+    logic [`DECINFO_WIDTH-1:0] output_dec;
+    logic [`COMMIT_ID_WIDTH-1:0] output_commit_id;
+    logic [`REG_ADDR_WIDTH-1:0] output_mem_reg_waddr;
+    logic output_inst_valid;
+    
+    always_comb begin
+        if (use_fifo_for_output) begin
+            // 从FIFO弹出数据
+            output_rs1 = fifo_rs1;
+            output_rs2 = fifo_rs2;
+            output_imm = fifo_imm;
+            output_dec = fifo_dec;
+            output_commit_id = fifo_commit_id;
+            output_mem_reg_waddr = fifo_mem_reg_waddr;
+            output_inst_valid = fifo_inst_valid;
+        end else if (use_store_priority_output) begin
+            // 两路不同类型时，优先输出store那路
+            if (op1_store) begin
+                // 通道1是store，输出通道1
+                output_rs1 = rs1_1_i;
+                output_rs2 = rs2_1_i;
+                output_imm = imm_1_i;
+                output_dec = dec_1_i;
+                output_commit_id = commit_id_1_i;
+                output_mem_reg_waddr = mem_reg_waddr_1_i;
+                output_inst_valid = inst1_valid_i;
+            end else begin
+                // 通道2是store，输出通道2
+                output_rs1 = rs1_2_i;
+                output_rs2 = rs2_2_i;
+                output_imm = imm_2_i;
+                output_dec = dec_2_i;
+                output_commit_id = commit_id_2_i;
+                output_mem_reg_waddr = mem_reg_waddr_2_i;
+                output_inst_valid = inst2_valid_i;
+            end
+        end else begin
+            // 其他情况：优先使用有效的通道
+            if (mem_valid_1) begin
+                output_rs1 = rs1_1_i;
+                output_rs2 = rs2_1_i;
+                output_imm = imm_1_i;
+                output_dec = dec_1_i;
+                output_commit_id = commit_id_1_i;
+                output_mem_reg_waddr = mem_reg_waddr_1_i;
+                output_inst_valid = inst1_valid_i;
+            end else if (mem_valid_2) begin
+                output_rs1 = rs1_2_i;
+                output_rs2 = rs2_2_i;
+                output_imm = imm_2_i;
+                output_dec = dec_2_i;
+                output_commit_id = commit_id_2_i;
+                output_mem_reg_waddr = mem_reg_waddr_2_i;
+                output_inst_valid = inst2_valid_i;
+            end else begin
+                output_rs1 = 32'b0;
+                output_rs2 = 32'b0;
+                output_imm = 32'b0;
+                output_dec = 0;
+                output_commit_id = 0;
+                output_mem_reg_waddr = 0;
+                output_inst_valid = 1'b0;
             end
         end
     end
-    
-    // 当exu_lsu_stall不为1时，FIFO弹出
-    assign fifo_pop = !exu_lsu_stall && !fifo_empty;
-
-    // 输出通道选择逻辑
-    // 优先从FIFO弹出，否则使用当前输入
-    wire use_fifo_for_output = !fifo_empty && !exu_lsu_stall;
-    
-    // 输出数据选择：如果FIFO有数据且可以弹出，则使用FIFO数据，否则使用通道1数据
-    wire [31:0] output_rs1 = use_fifo_for_output ? fifo_rs1 : rs1_1_i;
-    wire [31:0] output_rs2 = use_fifo_for_output ? fifo_rs2 : rs2_1_i;
-    wire [31:0] output_imm = use_fifo_for_output ? fifo_imm : imm_1_i;
-    wire [`DECINFO_WIDTH-1:0] output_dec = use_fifo_for_output ? fifo_dec : dec_1_i;
-    wire [`COMMIT_ID_WIDTH-1:0] output_commit_id = use_fifo_for_output ? fifo_commit_id : commit_id_1_i;
-    wire [`REG_ADDR_WIDTH-1:0] output_mem_reg_waddr = use_fifo_for_output ? fifo_mem_reg_waddr : mem_reg_waddr_1_i;
-    wire output_inst_valid = use_fifo_for_output ? fifo_inst_valid : inst1_valid_i;
 
     // 重新计算MEM信息位（基于实际使用的输入）
     wire output_op_mem = (output_dec[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM);
@@ -214,6 +355,7 @@ module agu_dual (
     assign addr_o = addr;
 
     // 写掩码/写数据选择（基于输出数据进行计算）
+    // 注意：虽然总线是64位，但实际只使用32位，因此只需要4位写掩码
     logic [7:0]  wmask;
     logic [63:0] wdata;
     always_comb begin
@@ -221,30 +363,23 @@ module agu_dual (
         wdata = 64'b0;
         unique case (1'b1)
             op_sb: begin
-                unique case (addr[2:0])
-                    3'b000: begin wmask = 8'b0000_0001; wdata = {56'b0, output_rs2[7:0]}; end
-                    3'b001: begin wmask = 8'b0000_0010; wdata = {48'b0, output_rs2[7:0], 8'b0}; end
-                    3'b010: begin wmask = 8'b0000_0100; wdata = {40'b0, output_rs2[7:0], 16'b0}; end
-                    3'b011: begin wmask = 8'b0000_1000; wdata = {32'b0, output_rs2[7:0], 24'b0}; end
-                    3'b100: begin wmask = 8'b0001_0000; wdata = {24'b0, output_rs2[7:0], 32'b0}; end
-                    3'b101: begin wmask = 8'b0010_0000; wdata = {16'b0, output_rs2[7:0], 40'b0}; end
-                    3'b110: begin wmask = 8'b0100_0000; wdata = { 8'b0, output_rs2[7:0], 48'b0}; end
-                    3'b111: begin wmask = 8'b1000_0000; wdata = {output_rs2[7:0], 56'b0}; end
+                unique case (addr[1:0])  // 只考虑32位内的字节偏移
+                    2'b00: begin wmask = 8'b0000_0001; wdata = {56'b0, output_rs2[7:0]}; end
+                    2'b01: begin wmask = 8'b0000_0010; wdata = {48'b0, output_rs2[7:0], 8'b0}; end
+                    2'b10: begin wmask = 8'b0000_0100; wdata = {40'b0, output_rs2[7:0], 16'b0}; end
+                    2'b11: begin wmask = 8'b0000_1000; wdata = {32'b0, output_rs2[7:0], 24'b0}; end
                 endcase
             end
             op_sh: begin
-                unique case (addr[2:1])
-                    2'b00: begin wmask = 8'b0000_0011; wdata = {48'b0, output_rs2[15:0]}; end
-                    2'b01: begin wmask = 8'b0000_1100; wdata = {32'b0, output_rs2[15:0], 16'b0}; end
-                    2'b10: begin wmask = 8'b0011_0000; wdata = {16'b0, output_rs2[15:0], 32'b0}; end
-                    2'b11: begin wmask = 8'b1100_0000; wdata = {output_rs2[15:0], 48'b0}; end
+                unique case (addr[1])    // 只考虑32位内的半字偏移
+                    1'b0: begin wmask = 8'b0000_0011; wdata = {48'b0, output_rs2[15:0]}; end
+                    1'b1: begin wmask = 8'b0000_1100; wdata = {32'b0, output_rs2[15:0], 16'b0}; end
                 endcase
             end
             op_sw: begin
-                unique case (addr[2])
-                    1'b0: begin wmask = 8'b0000_1111; wdata = {32'b0, output_rs2}; end
-                    1'b1: begin wmask = 8'b1111_0000; wdata = {output_rs2, 32'b0}; end
-                endcase
+                // 32位字访问，始终使用低32位
+                wmask = 8'b0000_1111; 
+                wdata = {32'b0, output_rs2};
             end
             default: begin end
         endcase
@@ -275,7 +410,10 @@ module agu_dual (
         (op_sh && (addr[0] != 1'b0))
     );
 
-    assign agu_atom_lock = ! fifo_empty;
-    assign agu_stall_req = (mem_valid_1 | mem_valid_2 ) && fifo_full;
+    assign agu_atom_lock = !fifo_empty;
+    assign agu_stall_req = (both_mem_valid && fifo_full) || 
+                          (both_mem_valid && same_type && !fifo_empty && !fifo_has_two_space) ||
+                          (both_mem_valid && !same_type && fifo_full) ||
+                          (only_one_valid && !fifo_empty && fifo_full);
 
 endmodule

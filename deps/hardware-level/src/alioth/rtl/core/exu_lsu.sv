@@ -523,7 +523,7 @@ module exu_lsu #(
                         read_fifo_rd_addr[read_fifo_wr_ptr] <= effective_rd_addr_i;
                         read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
                         read_fifo_commit_id[read_fifo_wr_ptr] <= effective_commit_id_i;
-                        read_fifo_is_load_high[read_fifo_wr_ptr] <= effective_mem_addr_i[2]; // 新增
+                        read_fifo_is_load_high[read_fifo_wr_ptr] <= 0; // 新增 effective_mem_addr_i[2]
                     end
                 end
                 2'b01: begin  // 只弹出
@@ -546,7 +546,7 @@ module exu_lsu #(
                     read_fifo_rd_addr[read_fifo_wr_ptr] <= effective_rd_addr_i;
                     read_fifo_mem_addr_index[read_fifo_wr_ptr] <= mem_addr_index;
                     read_fifo_commit_id[read_fifo_wr_ptr] <= effective_commit_id_i;
-                    read_fifo_is_load_high[read_fifo_wr_ptr] <= effective_mem_addr_i[2]; // 新增
+                    read_fifo_is_load_high[read_fifo_wr_ptr] <= 0; // 新增effective_mem_addr_i[2]
                 end
                 default: begin
                     // 保持当前状态
