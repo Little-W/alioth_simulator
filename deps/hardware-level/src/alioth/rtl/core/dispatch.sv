@@ -512,8 +512,8 @@ module dispatch (
     assign mem_stall_req_o = agu_stall_req;
     // 还原出exu stall
     assign any_exu_stall = stall_flag_dis_i[`CU_STALL_DISPATCH_1] | stall_flag_dis_i[`CU_STALL_DISPATCH_2];
-    assign mem_op1_valid = !(stall_flag_dis_i[`CU_FLUSH] | any_exu_stall | clint_req_valid_i);
-    assign mem_op2_valid = !(stall_flag_dis_i[`CU_FLUSH] | any_exu_stall | clint_req_valid_i);
+    assign mem_op1_valid = !(any_exu_stall | clint_req_valid_i);
+    assign mem_op2_valid = !(any_exu_stall | clint_req_valid_i | pred_taken_i);
 
     // AGU已经接管地址/掩码/数据与未对齐标志
     // 实例化双发射AGU：计算两路地址/掩码/写数据与未对齐
