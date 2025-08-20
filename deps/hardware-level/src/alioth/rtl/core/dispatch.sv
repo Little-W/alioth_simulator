@@ -59,7 +59,7 @@ module dispatch (
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
 
     // 长指令有效信号 - 用于HDU
-    input wire rd_access_inst_valid_i,
+    input wire clint_req_valid_i,
 
     // 写回阶段提交信号 - 用于HDU
     input wire                        commit_valid_i,
@@ -272,30 +272,30 @@ module dispatch (
 
     // 实例化HDU模块
     hdu u_hdu (
-        .clk                  (clk),
-        .rst_n                (rst_n),
-        .inst_valid           (rd_access_inst_valid_i),
-        .rd_addr              (reg_waddr_i),
-        .rs1_addr             (reg1_raddr_i),
-        .rs2_addr             (reg2_raddr_i),
-        .rd_we                (reg_we_i),
-        .rs1_re               (rs1_re_i),
-        .rs2_re               (rs2_re_i),
-        .ex_info_bus          (ex_info_bus_i),           // 新增：连接到hdu
-        .commit_valid_i       (commit_valid_i),
-        .commit_id_i          (commit_id_i),
-        .hazard_stall_o       (hazard_stall_o),
-        .commit_id_o          (hdu_long_inst_id),
+        .clk(clk),
+        .rst_n(rst_n),
+        .rd_we_valid(reg_we_i && !stall_flag_i && !clint_req_valid_i),
+        .rd_addr(reg_waddr_i),
+        .rs1_addr(reg1_raddr_i),
+        .rs2_addr(reg2_raddr_i),
+        .rs1_re(rs1_re_i),
+        .rs2_re(rs2_re_i),
+        .rd_we(reg_we_i),
+        .ex_info_bus(ex_info_bus_i),  // 新增：连接到hdu
+        .commit_valid_i(commit_valid_i),
+        .commit_id_i(commit_id_i),
+        .hazard_stall_o(hazard_stall_o),
+        .commit_id_o(hdu_long_inst_id),
         .long_inst_atom_lock_o(long_inst_atom_lock_o),
         // 新增旁路信号输出
-        .alu_pass_op1_o       (alu_pass_op1),
-        .alu_pass_op2_o       (alu_pass_op2),
+        .alu_pass_op1_o(alu_pass_op1),
+        .alu_pass_op2_o(alu_pass_op2),
         // 新增MUL/DIV/CSR旁路信号输出
-        .mul_pass_op1_o       (mul_pass_op1),
-        .mul_pass_op2_o       (mul_pass_op2),
-        .div_pass_op1_o       (div_pass_op1),
-        .div_pass_op2_o       (div_pass_op2),
-        .csr_pass_op1_o       (csr_pass_op1)
+        .mul_pass_op1_o(mul_pass_op1),
+        .mul_pass_op2_o(mul_pass_op2),
+        .div_pass_op1_o(div_pass_op1),
+        .div_pass_op2_o(div_pass_op2),
+        .csr_pass_op1_o(csr_pass_op1)
     );
 
     // 实例化dispatch_logic模块

@@ -30,7 +30,7 @@ module hdu (
     input wire rst_n, // 复位信号，低电平有效
 
     // 新指令信息
-    input wire                          inst_valid,  // 新长指令有效
+    input wire                          rd_we_valid,  // 新长指令有效
     input wire [   `REG_ADDR_WIDTH-1:0] rd_addr,     // 新指令写寄存器地址
     input wire [   `REG_ADDR_WIDTH-1:0] rs1_addr,    // 新指令读寄存器1地址
     input wire [   `REG_ADDR_WIDTH-1:0] rs2_addr,    // 新指令读寄存器2地址
@@ -114,7 +114,7 @@ module hdu (
                 alu_raw_mask_id <= 3'd0;
             end
             // 添加新的ALU写寄存器指令，分配mask并记录id
-            if (inst_valid && ~hazard && is_alu_inst && rd_we) begin
+            if (rd_we_valid && ~hazard && is_alu_inst && rd_we) begin
                 alu_raw_mask    <= ~(8'b1 << commit_id_o);
                 alu_raw_mask_id <= commit_id_o;
             end
@@ -131,7 +131,7 @@ module hdu (
     assign hazard_stall_o = hazard || (&fifo_valid);  // 如果FIFO已满也暂停流水线
 
     // 为新的长指令分配ID - 使用assign语句
-    assign commit_id_o = (inst_valid && ~hazard) ?
+    assign commit_id_o = (rd_we_valid && ~hazard) ?
         ( ~fifo_valid[0] ? 0 :
           ~fifo_valid[1] ? 1 :
           ~fifo_valid[2] ? 2 :
@@ -157,7 +157,7 @@ module hdu (
             end
 
             // 添加新的长指令到FIFO
-            if (inst_valid && ~hazard) begin
+            if (rd_we_valid && ~hazard) begin
                 fifo_valid[commit_id_o]          <= 1'b1;
                 fifo_entry[commit_id_o].rd_addr  <= rd_addr;
                 fifo_entry[commit_id_o].exu_type <= ex_info_bus;
