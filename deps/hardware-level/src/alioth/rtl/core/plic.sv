@@ -66,9 +66,19 @@ module plic (
         .find_max_valid_out(arbiter_max_valid)
     );
 
-    // valid_mask直接用int_en
+    reg [`PLIC_NUM_SOURCES-1:0] irq_sources_r; // 新增打一拍寄存器
+
+    // irq_sources打一拍
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            irq_sources_r <= {`PLIC_NUM_SOURCES{1'b0}};
+        else
+            irq_sources_r <= irq_sources;
+    end
+
+    // valid_mask直接用int_en和打一拍后的irq_sources_r
     always @(*) begin
-        valid_mask = irq_sources & int_en;
+        valid_mask = irq_sources_r & int_en;
     end
 
     // valid_mask打一拍
