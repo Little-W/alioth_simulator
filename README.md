@@ -71,6 +71,8 @@
 | `make coremark` | 编译并仿真CoreMark跑分程序 |
 | `make build_rt_thread` | 编译RT-Thread实时操作系统 |
 | `make rt_thread_nano` | 编译并仿真RT-Thread Nano |
+| `make pkgs_update` | 更新RT-Thread依赖包 |
+| `make menuconfig` | 配置RT-Thread内核和组件 |
 
 ### 执行与测试指令
 
