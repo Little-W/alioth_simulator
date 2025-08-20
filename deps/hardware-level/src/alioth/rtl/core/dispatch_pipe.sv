@@ -28,8 +28,7 @@
 module dispatch_pipe (
     input wire                     clk,
     input wire                     rst_n,
-    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i,  // 流水线暂停标志
-    input wire                     flush_i,       // 流水线刷新标志
+    input wire [`CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     // 新增：指令有效信号输入
     input wire                        inst_valid_i,
@@ -247,7 +246,7 @@ module dispatch_pipe (
     output wire illegal_inst_o
 );
 
-    wire                        flush_en = flush_i;
+    wire                        flush_en = 0;
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;

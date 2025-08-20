@@ -55,6 +55,7 @@ module dispatch_reserve_stack #(
     input wire [   `BUS_ADDR_WIDTH-1:0] csr_waddr_i,
     input wire [   `BUS_ADDR_WIDTH-1:0] csr_raddr_i,
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
+    input wire                          rd_we_i,
 
     // 输出信号组
     output wire                          inst_valid_o,
@@ -73,7 +74,8 @@ module dispatch_reserve_stack #(
     output wire                          csr_we_o,
     output wire [   `BUS_ADDR_WIDTH-1:0] csr_waddr_o,
     output wire [   `BUS_ADDR_WIDTH-1:0] csr_raddr_o,
-    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o
+    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o,
+    output wire                          rd_we_o
 );
 
     // FIFO状态信号
@@ -114,6 +116,7 @@ module dispatch_reserve_stack #(
         logic [`BUS_ADDR_WIDTH-1:0] csr_waddr;
         logic [`BUS_ADDR_WIDTH-1:0] csr_raddr;
         logic [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus;
+        logic rd_we;
     } fifo_data_t;
 
     // FIFO存储器
@@ -138,6 +141,7 @@ module dispatch_reserve_stack #(
     assign input_data.csr_waddr      = csr_waddr_i;
     assign input_data.csr_raddr      = csr_raddr_i;
     assign input_data.ex_info_bus    = ex_info_bus_i;
+    assign input_data.rd_we          = rd_we_i;
 
     // FIFO输出数据
     fifo_data_t output_data;
@@ -148,7 +152,7 @@ module dispatch_reserve_stack #(
     // 解包输出数据
     assign inst_valid_o     = output_data_valid ? output_data.inst_valid : 1'b0;
     assign illegal_inst_o   = output_data.illegal_inst;
-    assign dec_info_bus_o   = output_data.dec_info_bus;
+    assign dec_info_bus_o   = output_data_valid ? output_data.dec_info_bus : '0;
     assign dec_imm_o        = output_data.dec_imm;
     assign dec_pc_o         = output_data.dec_pc;
     assign inst_o           = output_data.inst;
@@ -156,13 +160,14 @@ module dispatch_reserve_stack #(
     assign reg_waddr_o      = output_data.reg_waddr;
     assign reg1_raddr_o     = output_data.reg1_raddr;
     assign reg2_raddr_o     = output_data.reg2_raddr;
-    assign reg_we_o         = output_data_valid ? output_data.reg_we : 1'b0;
+    assign reg_we_o         = output_data.reg_we;
     assign rs1_re_o         = output_data.rs1_re;
     assign rs2_re_o         = output_data.rs2_re;
     assign csr_we_o         = output_data.csr_we;
     assign csr_waddr_o      = output_data.csr_waddr;
     assign csr_raddr_o      = output_data.csr_raddr;
     assign ex_info_bus_o    = output_data.ex_info_bus;
+    assign rd_we_o          = output_data_valid ? output_data.rd_we : 1'b0;
 
     // FIFO满状态输出
     assign fifo_full_o      = fifo_full;

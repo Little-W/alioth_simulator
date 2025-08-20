@@ -59,6 +59,7 @@ module dispatch (
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
 
     // 长指令有效信号 - 用于HDU
+    input wire rd_we_i,           // 指令是否写寄存器
     input wire clint_req_valid_i, // CLINT请求信号
 
     // 写回阶段提交信号 - 用于HDU
@@ -296,22 +297,21 @@ module dispatch (
     wire                          logic_misaligned_store;
 
     wire                          hdu_hazard_detect;
-    wire                          dispatch_pipe_flush;
 
     // FIFO控制信号逻辑
-    assign push_req            = hdu_hazard_detect;
-    assign fifo_stall          = (stall_flag_i[`CU_STALL_DISPATCH]) | hdu_hazard_detect;
-    assign dispatch_pipe_flush = stall_flag_i[`CU_FLUSH] | hdu_hazard_detect;
+    assign push_req        = hdu_hazard_detect;
+    assign fifo_stall      = (stall_flag_i[`CU_STALL_DISPATCH]) || hdu_hazard_detect;
+
     // hazard_stall_o连接到FIFO满状态
-    assign hazard_stall_o      = fifo_full;
+    assign hazard_stall_o  = fifo_full;
 
     // 寄存器读地址输出连接到FIFO输出
-    assign reg1_raddr_o        = fifo_reg1_raddr;
-    assign reg2_raddr_o        = fifo_reg2_raddr;
+    assign reg1_raddr_o    = fifo_reg1_raddr;
+    assign reg2_raddr_o    = fifo_reg2_raddr;
 
-    assign mem_commit_id_o     = commit_id_o;
-    assign mul_commit_id_o     = commit_id_o;
-    assign div_commit_id_o     = commit_id_o;
+    assign mem_commit_id_o = commit_id_o;
+    assign mul_commit_id_o = commit_id_o;
+    assign div_commit_id_o = commit_id_o;
 
     // 实例化保留栈FIFO模块
     dispatch_reserve_stack #(
@@ -324,7 +324,7 @@ module dispatch (
         .push_req_i  (push_req),
         .fifo_stall_i(fifo_stall),
         .fifo_full_o (fifo_full),
-        .fifo_flush_i(stall_flag_i[`CU_FLUSH]),
+        .fifo_flush_i(stall_flag_i[`CU_FLUSH] | clint_req_valid_i),
 
         // 输入信号组
         .inst_valid_i    (inst_valid_i && !stall_flag_i),
@@ -344,6 +344,7 @@ module dispatch (
         .csr_waddr_i     (csr_waddr_i),
         .csr_raddr_i     (csr_raddr_i),
         .ex_info_bus_i   (ex_info_bus_i),
+        .rd_we_i         (rd_we_i),
 
         // 输出信号组
         .inst_valid_o    (fifo_inst_valid),
@@ -362,14 +363,15 @@ module dispatch (
         .csr_we_o        (fifo_csr_we),
         .csr_waddr_o     (fifo_csr_waddr),
         .csr_raddr_o     (fifo_csr_raddr),
-        .ex_info_bus_o   (fifo_ex_info_bus)
+        .ex_info_bus_o   (fifo_ex_info_bus),
+        .rd_we_o         (fifo_rd_we)
     );
 
     // 实例化HDU模块
     hdu u_hdu (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .rd_we_i              (fifo_reg_we && !clint_req_valid_i),
+        .rd_we_i              (fifo_rd_we),
         .rd_addr              (fifo_reg_waddr),
         .rs1_addr             (fifo_reg1_raddr),
         .rs2_addr             (fifo_reg2_raddr),
@@ -481,7 +483,6 @@ module dispatch (
         .clk         (clk),
         .rst_n       (rst_n),
         .stall_flag_i(stall_flag_i),
-        .flush_i     (dispatch_pipe_flush),
 
         .inst_valid_i(fifo_inst_valid),
         .inst_addr_i (fifo_dec_pc),
