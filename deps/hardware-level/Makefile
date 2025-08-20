@@ -189,8 +189,8 @@ ifeq ($(ARCH),x86_64)
 		shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/gcc)
 		shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/gcc && mv x86_64-riscv-gnu-toolchain.tar.xz ${SOFTWARE_TOOLS_DIR}/gcc && cd ${SOFTWARE_TOOLS_DIR}/gcc && tar -xvf x86_64-riscv-gnu-toolchain.tar.xz && rm x86_64-riscv-gnu-toolchain.tar.xz)
 		else
-		shell := $(shell rm x86_64-open_riscv-gnu-toolchain.tar.xz)
-		shell := $(shell wget https://bitbucket.org/little-w/e203_simulator/downloads/x86_64-open_riscv-gnu-toolchain.tar.xz || rm x86_64-open_riscv-gnu-toolchain.tar.xz)
+		shell := $(shell rm riscv-elf-ubuntu-22.04-gcc-nightly.tar.xz)
+		shell := $(shell wget https://hf-mirror.com/datasets/Yusen/tools/resolve/main/riscv-elf-ubuntu-22.04-gcc-nightly.tar.xz || rm riscv-elf-ubuntu-22.04-gcc-nightly.tar.xz)
 		shell := $(shell rm -rf ${SOFTWARE_TOOLS_DIR}/gcc_open)
 		shell := $(shell mkdir -p ${SOFTWARE_TOOLS_DIR}/gcc_open && mv x86_64-open_riscv-gnu-toolchain.tar.xz ${SOFTWARE_TOOLS_DIR}/gcc_open && cd ${SOFTWARE_TOOLS_DIR}/gcc_open && tar -xvf x86_64-open_riscv-gnu-toolchain.tar.xz && rm x86_64-open_riscv-gnu-toolchain.tar.xz)
 		endif
