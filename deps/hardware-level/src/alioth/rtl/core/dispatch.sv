@@ -266,15 +266,18 @@ module dispatch (
     wire                        logic_misaligned_load;
     wire                        logic_misaligned_store;
 
+    wire hdu_inst_we_en;
+
     assign mem_commit_id_o = commit_id_o;
     assign mul_commit_id_o = commit_id_o;
     assign div_commit_id_o = commit_id_o;
 
+    assign hdu_inst_we_en = !(stall_flag_i[`CU_STALL_ID] || stall_flag_i[`CU_FLUSH]);
     // 实例化HDU模块
     hdu u_hdu (
         .clk(clk),
         .rst_n(rst_n),
-        .rd_we_valid(reg_we_i && !stall_flag_i && !clint_req_valid_i),
+        .rd_we_valid(reg_we_i && hdu_inst_we_en && !clint_req_valid_i),
         .rd_addr(reg_waddr_i),
         .rs1_addr(reg1_raddr_i),
         .rs2_addr(reg2_raddr_i),

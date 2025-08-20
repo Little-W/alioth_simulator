@@ -43,6 +43,8 @@ module ctrl (
     // from hdu
     input wire stall_flag_hdu_i,
 
+    input wire stall_flag_irs_i,  // 指令保留栈FIFO暂停信号
+
     output wire [`CU_BUS_WIDTH-1:0] stall_flag_o,
 
     // to pc_reg
@@ -60,12 +62,13 @@ module ctrl (
     wire atom_stall = atom_opt_busy_i & jump_flag_i;
 
     // 简化的跳转输出逻辑
-    assign jump_addr_o = jump_addr_i;
-    assign jump_flag_o = jump_flag_i & ~none_data_hazard_stall;
+    assign jump_addr_o                      = jump_addr_i;
+    assign jump_flag_o                      = jump_flag_i & ~none_data_hazard_stall;
 
     // 更新暂停标志输出，区分stall和flush
-    assign stall_flag_o[`CU_STALL] = stall_flag_ex_i | (stall_flag_hdu_i & ~jump_flag_i);
-    assign stall_flag_o[`CU_FLUSH] = jump_flag_o | flush_flag_clint_i;
+    assign stall_flag_o[`CU_STALL_IF]       = stall_flag_irs_i;
+    assign stall_flag_o[`CU_STALL_ID]       = stall_flag_ex_i | (stall_flag_hdu_i & ~jump_flag_i);
+    assign stall_flag_o[`CU_FLUSH]          = jump_flag_o | flush_flag_clint_i;
     assign stall_flag_o[`CU_STALL_DISPATCH] = stall_flag_ex_i;
 
 endmodule

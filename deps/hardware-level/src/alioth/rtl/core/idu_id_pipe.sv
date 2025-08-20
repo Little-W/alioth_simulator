@@ -70,7 +70,7 @@ module idu_id_pipe (
 );
 
     wire                        flush_en = stall_flag_i[`CU_FLUSH];
-    wire                        stall_en = stall_flag_i[`CU_STALL];
+    wire                        stall_en = stall_flag_i[`CU_STALL_ID];
     wire                        reg_update_en = ~stall_en;
 
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = flush_en ? `ZeroWord : inst_addr_i;

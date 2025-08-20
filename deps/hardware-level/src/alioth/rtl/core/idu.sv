@@ -58,7 +58,8 @@ module idu (
     output wire [`INST_DATA_WIDTH-1:0] inst_o,  // 新增：指令内容输出
     output wire rs1_re_o,  // 新增：rs1寄存器是否需要访问
     output wire rs2_re_o,  // 新增：rs2寄存器是否需要
-    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o  // 新增：ex单元类型输出
+    output wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_o,  // 新增：ex单元类型输出
+    output wire irs_stall_flag_o  // 指令保留栈FIFO暂停信号输出
 );
 
     // 内部连线，连接id和id_pipe
@@ -80,18 +81,58 @@ module idu (
     wire                          id_pipe_rs2_re;
     wire [`EX_INFO_BUS_WIDTH-1:0] id_ex_info_bus;  // 新增
 
+    // FIFO输出信号定义
+    wire [  `INST_DATA_WIDTH-1:0] fifo_inst;
+    wire [  `INST_ADDR_WIDTH-1:0] fifo_inst_addr;
+    wire                          fifo_is_pred_branch;
+    wire                          fifo_inst_valid;
+    wire                          fifo_full;
+
+    wire                          stall_idu_req;
+
+    // FIFO控制信号（可根据实际需求调整）
+    wire                          push_req;
+    wire                          fifo_stall;
+    wire                          fifo_flush;
+
+    assign irs_stall_flag_o = fifo_full;  // 指令保留栈FIFO满时暂停IF阶段
+    assign stall_idu_req = stall_flag_i[`CU_STALL_ID];
+    assign push_req = stall_idu_req;  // 当ID阶段需要暂停时，推入新指令
+    assign fifo_stall = stall_idu_req;  // 当ID阶段需要暂停时，FIFO也需要暂停
+    assign fifo_flush = stall_flag_i[`CU_FLUSH];  // 当需要flush时，FIFO也需要flush
+
+    // 实例化inst_reserve_stack FIFO
+    inst_reserve_stack #(
+        .FIFO_DEPTH(4)
+    ) u_inst_reserve_stack (
+        .clk             (clk),
+        .rst_n           (rst_n),
+        .push_req_i      (push_req),
+        .fifo_stall_i    (fifo_stall),
+        .fifo_flush_i    (fifo_flush),
+        .fifo_full_o     (fifo_full),
+        .inst_i          (inst_i),
+        .inst_addr_i     (inst_addr_i),
+        .is_pred_branch_i(is_pred_branch_i),
+        .inst_valid_i    (inst_valid_i),
+        .inst_o          (fifo_inst),
+        .inst_addr_o     (fifo_inst_addr),
+        .is_pred_branch_o(fifo_is_pred_branch),
+        .inst_valid_o    (fifo_inst_valid)
+    );
+
     // 输出最终rs1_re/rs2_re信号
     assign rs1_re_o = id_pipe_rs1_re;
     assign rs2_re_o = id_pipe_rs2_re;
 
-    // 实例化id模块
+    // 实例化id模块，输入改为FIFO输出
     idu_decode u_idu_decode (
         .rst_n(rst_n),
 
-        // from if_id
-        .inst_i      (inst_i),
-        .inst_addr_i (inst_addr_i),
-        .inst_valid_i(inst_valid_i), // 新增：指令有效输入
+        // from if_id (改为fifo输出)
+        .inst_i      (fifo_inst),
+        .inst_addr_i (fifo_inst_addr),
+        .inst_valid_i(fifo_inst_valid), // 新增：指令有效输入
 
         // to regs
         .reg1_raddr_o(id_reg1_raddr),
@@ -121,7 +162,7 @@ module idu (
         .rst_n(rst_n),
 
         // from id
-        .inst_i          (inst_i),            // 新增：指令内容输入
+        .inst_i          (fifo_inst),            // 新增：指令内容输入
         .inst_addr_i     (id_inst_addr),
         .reg_we_i        (id_reg_we),
         .reg_waddr_i     (id_reg_waddr),
@@ -135,10 +176,10 @@ module idu (
         .csr_raddr_i     (id_csr_raddr),
         .dec_info_bus_i  (id_dec_info_bus),
         .dec_imm_i       (id_dec_imm),
-        .is_pred_branch_i(is_pred_branch_i),  // 添加预测分支信号输入
-        .inst_valid_i    (inst_valid_i),      // 新增：指令有效输入
-        .illegal_inst_i  (id_illegal_inst),   // 新增：非法指令输入
-        .ex_info_bus_i   (id_ex_info_bus),    // 新增
+        .is_pred_branch_i(fifo_is_pred_branch),  // 改为fifo输出
+        .inst_valid_i    (fifo_inst_valid),      // 改为fifo输出
+        .illegal_inst_i  (id_illegal_inst),      // 新增：非法指令输入
+        .ex_info_bus_i   (id_ex_info_bus),       // 新增
 
         // from ctrl
         .stall_flag_i(stall_flag_i),

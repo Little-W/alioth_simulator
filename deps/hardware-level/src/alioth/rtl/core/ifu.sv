@@ -31,16 +31,16 @@ module ifu (
     input wire rst_n,
 
     // 来自控制模块
-    input wire                        jump_flag_i,     // 跳转标志
-    input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,     // 跳转地址
-    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i,    // 流水线暂停标志
+    input wire                        jump_flag_i,  // 跳转标志
+    input wire [`INST_ADDR_WIDTH-1:0] jump_addr_i,  // 跳转地址
+    input wire [   `CU_BUS_WIDTH-1:0] stall_flag_i, // 流水线暂停标志
 
     // 输出到ID阶段的信息
     output wire [`INST_DATA_WIDTH-1:0] inst_o,             // 指令内容
     output wire [`INST_ADDR_WIDTH-1:0] inst_addr_o,        // 指令地址
     output wire                        read_resp_error_o,  // AXI读响应错误信号
     output wire                        is_pred_branch_o,   // 添加预测分支指令标志输出
-    output wire                        inst_valid_o,        // 添加指令有效信号输出
+    output wire                        inst_valid_o,       // 添加指令有效信号输出
 
     // AXI接口
     // AXI读地址通道
@@ -84,32 +84,32 @@ module ifu (
     wire pc_misaligned;  // 新增：PC非对齐信号
 
     wire axi_pc_stall;
-    wire stall_axi = (stall_flag_i != 0) | pc_misaligned;  // AXI暂停信号，增加pc_misaligned
-    wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
-    wire stall_if = stall_flag_i[`CU_STALL];  // IF阶段暂停信号
+    wire stall_if = stall_flag_i[`CU_STALL_IF];  // IF阶段暂停信号
     wire flush_flag = stall_flag_i[`CU_FLUSH];  // 冲刷信号
+    wire stall_axi = stall_if | flush_flag | pc_misaligned;  // AXI暂停信号，增加pc_misaligned
+    wire stall_pc = stall_axi || axi_pc_stall;  // PC暂停信号
     // 实例化静态分支预测单元
     sbpu u_sbpu (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_data),        // 指令内容
-        .inst_valid_i    (inst_valid),       // 指令有效信号
-        .pc_i            (inst_addr),        // 指令地址
-        .any_stall_i     (stall_axi),        // 流水线暂停信号
-        .branch_taken_o  (branch_taken),     // 预测是否为分支
-        .branch_addr_o   (branch_addr),      // 预测的分支地址
+        .inst_i          (inst_data),      // 指令内容
+        .inst_valid_i    (inst_valid),     // 指令有效信号
+        .pc_i            (inst_addr),      // 指令地址
+        .any_stall_i     (stall_axi),      // 流水线暂停信号
+        .branch_taken_o  (branch_taken),   // 预测是否为分支
+        .branch_addr_o   (branch_addr),    // 预测的分支地址
         .is_pred_branch_o(is_pred_branch)  // 当前指令是否为预测分支
     );
 
     // 实例化IFetch模块，现不再包含ifu_pipe功能
     ifu_ifetch u_ifu_ifetch (
-        .clk               (clk),
-        .rst_n             (rst_n),
-        .jump_flag_i       (jump_flag),      // 使用合并后的跳转标志
-        .jump_addr_i       (jump_addr),      // 使用合并后的跳转地址
-        .stall_pc_i        (stall_pc),
-        .axi_arready_i     (M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
-        .pc_o              (pc),             // PC输出
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .jump_flag_i    (jump_flag),      // 使用合并后的跳转标志
+        .jump_addr_i    (jump_addr),      // 使用合并后的跳转地址
+        .stall_pc_i     (stall_pc),
+        .axi_arready_i  (M_AXI_ARREADY),  // 连接AXI读地址通道准备好信号
+        .pc_o           (pc),             // PC输出
         .pc_misaligned_o(pc_misaligned)   // 新增：连接PC非对齐信号
     );
 
@@ -117,16 +117,16 @@ module ifu (
     ifu_pipe u_ifu_pipe (
         .clk             (clk),
         .rst_n           (rst_n),
-        .inst_i          (inst_data),        // 使用从AXI读取的指令
-        .inst_addr_i     (inst_addr),        // 使用从AXI读取的指令地址
-        .is_pred_branch_i(is_pred_branch),   // 连接预测分支信号
+        .inst_i          (inst_data),         // 使用从AXI读取的指令
+        .inst_addr_i     (inst_addr),         // 使用从AXI读取的指令地址
+        .is_pred_branch_i(is_pred_branch),    // 连接预测分支信号
         .flush_flag_i    (flush_flag),
-        .inst_valid_i    (inst_valid),       // 从AXI控制器获取的有效信号
-        .stall_i         (stall_if),         // 连接IF阶段暂停信号
-        .inst_o          (inst_o),           // 指令输出
-        .inst_addr_o     (inst_addr_o),      // 指令地址输出
-        .is_pred_branch_o(is_pred_branch_r), // 连接预测分支信号输出
-        .inst_valid_o    (inst_valid_o)      // 连接指令有效信号输出
+        .inst_valid_i    (inst_valid),        // 从AXI控制器获取的有效信号
+        .stall_i         (stall_if),          // 连接IF阶段暂停信号
+        .inst_o          (inst_o),            // 指令输出
+        .inst_addr_o     (inst_addr_o),       // 指令地址输出
+        .is_pred_branch_o(is_pred_branch_r),  // 连接预测分支信号输出
+        .inst_valid_o    (inst_valid_o)       // 连接指令有效信号输出
     );
 
     // 将内部信号连接到输出端口

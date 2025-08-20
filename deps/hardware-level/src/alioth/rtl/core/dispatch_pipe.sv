@@ -246,10 +246,10 @@ module dispatch_pipe (
     output wire illegal_inst_o
 );
 
-    wire                        flush_en = |stall_flag_i;
-    wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
-    wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
-    wire                        reg_update_en = ~stall_en;
+    wire                        flush_en = stall_flag_i[`CU_STALL_ID] |
+                                           stall_flag_i[`CU_FLUSH];
+    wire stall_en = stall_flag_i[`CU_STALL_DISPATCH];
+    wire reg_update_en = ~stall_en;
 
     // 指令地址寄存器
     wire [`INST_ADDR_WIDTH-1:0] inst_addr_dnxt = inst_addr_i;

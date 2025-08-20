@@ -79,7 +79,7 @@ module cpu_top (
     wire idu_rs1_re_o;
     wire idu_rs2_re_o;
     wire [`EX_INFO_BUS_WIDTH-1:0] idu_ex_info_bus_o;  // 新增：IDU ex_info_bus信号
-
+    wire idu_irs_stall_flag_o;
     // exu模块输出信号
     wire exu_stall_flag_o;
     wire exu_jump_flag_o;
@@ -451,6 +451,7 @@ module cpu_top (
         .stall_flag_ex_i   (exu_stall_flag_o),
         .flush_flag_clint_i(clint_int_assert_o),     // 添加连接到clint的flush信号
         .stall_flag_hdu_i  (dispatch_stall_flag_o),  // 修改为从dispatch获取HDU暂停信号
+        .stall_flag_irs_i  (idu_irs_stall_flag_o),   // 添加连接到IDU的IRS暂停信号
         .stall_flag_o      (ctrl_stall_flag_o),
         .jump_flag_o       (ctrl_jump_flag_o),
         .jump_addr_o       (ctrl_jump_addr_o)
@@ -517,7 +518,8 @@ module cpu_top (
         // 新增rs1/rs2读使能信号输出
         .rs1_re_o        (idu_rs1_re_o),
         .rs2_re_o        (idu_rs2_re_o),
-        .ex_info_bus_o   (idu_ex_info_bus_o)      // 新增
+        .ex_info_bus_o   (idu_ex_info_bus_o),     // 新增
+        .irs_stall_flag_o(idu_irs_stall_flag_o)
     );
 
     // 添加dispatch模块例化 - 修改增加新的接口
@@ -624,12 +626,12 @@ module cpu_top (
         .mul_commit_id_o(dispatch_mul_commit_id),
         .div_commit_id_o(dispatch_div_commit_id),
 
-        .req_csr_o    (dispatch_req_csr),
-        .csr_op1_o    (dispatch_csr_op1),
-        .csr_addr_o   (dispatch_csr_addr),
-        .csr_csrrw_o  (dispatch_csr_csrrw),
-        .csr_csrrs_o  (dispatch_csr_csrrs),
-        .csr_csrrc_o  (dispatch_csr_csrrc),
+        .req_csr_o     (dispatch_req_csr),
+        .csr_op1_o     (dispatch_csr_op1),
+        .csr_addr_o    (dispatch_csr_addr),
+        .csr_csrrw_o   (dispatch_csr_csrrw),
+        .csr_csrrs_o   (dispatch_csr_csrrs),
+        .csr_csrrc_o   (dispatch_csr_csrrc),
         .csr_pass_op1_o(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_o         (dispatch_req_mem),
@@ -732,12 +734,12 @@ module cpu_top (
         .mul_commit_id_i(dispatch_mul_commit_id),
         .div_commit_id_i(dispatch_div_commit_id),
 
-        .req_csr_i    (dispatch_req_csr),
-        .csr_op1_i    (dispatch_csr_op1),
-        .csr_addr_i   (dispatch_csr_addr),
-        .csr_csrrw_i  (dispatch_csr_csrrw),
-        .csr_csrrs_i  (dispatch_csr_csrrs),
-        .csr_csrrc_i  (dispatch_csr_csrrc),
+        .req_csr_i     (dispatch_req_csr),
+        .csr_op1_i     (dispatch_csr_op1),
+        .csr_addr_i    (dispatch_csr_addr),
+        .csr_csrrw_i   (dispatch_csr_csrrw),
+        .csr_csrrs_i   (dispatch_csr_csrrs),
+        .csr_csrrc_i   (dispatch_csr_csrrc),
         .csr_pass_op1_i(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_i      (dispatch_req_mem),
