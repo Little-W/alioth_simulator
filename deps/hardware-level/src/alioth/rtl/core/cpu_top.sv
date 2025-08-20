@@ -556,7 +556,6 @@ module cpu_top (
         .ex_info_bus_i(idu_ex_info_bus_o),  // 新增：连接IDU ex_info_bus到dispatch
 
         // 长指令有效信号 - 用于HDU
-        .rd_we_i(idu_reg_we_o),
         .clint_req_valid_i(clint_req_valid_o),  // 添加中断请求有效信号输入
 
         // 写回阶段提交信号
