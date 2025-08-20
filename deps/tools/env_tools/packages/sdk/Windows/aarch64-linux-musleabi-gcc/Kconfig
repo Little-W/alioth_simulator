@@ -1,0 +1,25 @@
+# Kconfig file for package aarch64-linux-musleabi-gcc
+menuconfig PKG_USING_AARCH64_LINUX_MUSLEABI_GCC
+    bool "aarch64-linux-musleabi-gcc toolchain (for smart)"
+    default n
+
+if PKG_USING_AARCH64_LINUX_MUSLEABI_GCC
+
+    config PKG_AARCH64_LINUX_MUSLEABI_GCC_PATH
+        string
+        default "sdk/Windows/aarch64-linux-musleabi-gcc"
+
+    choice
+        prompt "Version"
+        help
+            Select the package version
+
+        config PKG_USING_AARCH64_LINUX_MUSLEABI_GCC_LATEST
+            bool "latest"
+    endchoice
+
+    config PKG_AARCH64_LINUX_MUSLEABI_GCC_VER
+       string
+       default "latest"   if PKG_USING_AARCH64_LINUX_MUSLEABI_GCC_LATEST
+
+endif

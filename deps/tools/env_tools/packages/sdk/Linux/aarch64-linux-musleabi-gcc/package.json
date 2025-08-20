@@ -1,0 +1,27 @@
+{
+    "name": "aarch64-linux-musleabi-gcc",
+    "description": "AArch64 RT-Thread Smart GNU Toolchain",
+    "description_zh": "AArch64 RT-Thread Smart GNU 工具链",
+    "enable": "PKG_USING_AARCH64_LINUX_MUSLEABI_GCC",
+    "keywords": [
+        "aarch64-linux-musleabi-gcc"
+    ],
+    "category": "misc",
+    "author": {
+        "name": "bernard.xiong",
+        "email": "bernard.xiong@gmail.com",
+        "github": "bernard.xiong"
+    },
+    "license": "GPL-2.0",
+    "repository": "https://gcc.gnu.org",
+    "icon": "unknown",
+    "homepage": "https://gcc.gnu.org",
+    "doc": "unknown",
+    "site": [
+        {
+            "version": "latest",
+            "URL": "https://download.rt-thread.org/download/rt-smart/toolchains/aarch64-linux-musleabi_for_x86_64-pc-linux-gnu_latest.tar.bz2",
+            "filename": "aarch64-linux-musleabi_for_x86_64-pc-linux-gnu_latest.tar.bz2"
+        }
+    ]
+}
