@@ -1,0 +1,27 @@
+{
+    "name": "riscv64-linux-musleabi-gcc",
+    "description": "RISCV RT-Thread Smart GNU Toolchain",
+    "description_zh": "RISCV RT-Thread Smart GNU 工具链",
+    "enable": "PKG_USING_RISCV_LINUX_MUSLEABI_GCC",
+    "keywords": [
+        "riscv64-linux-musleabi-gcc"
+    ],
+    "category": "misc",
+    "author": {
+        "name": "bernard.xiong",
+        "email": "bernard.xiong@gmail.com",
+        "github": "bernard.xiong"
+    },
+    "license": "GPL-2.0",
+    "repository": "http://gcc.gnu.org",
+    "icon": "unknown",
+    "homepage": "http://gcc.gnu.org",
+    "doc": "unknown",
+    "site": [
+        {
+            "version": "latest",
+            "URL": "https://download.rt-thread.org/download/rt-smart/toolchains/riscv64-linux-musleabi_for_i686-w64-mingw32_latest.zip",
+            "filename": "riscv64-linux-musleabi_for_i686-w64-mingw32_latest.zip"
+        }
+    ]
+}

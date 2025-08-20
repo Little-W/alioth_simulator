@@ -1,0 +1,27 @@
+{
+    "name": "arm-linux-musleabi-gcc",
+    "description": "Arm RT-Thread Smart GNU Toolchain",
+    "description_zh": "ARM RT-Thread Smart GNU 工具链",
+    "enable": "PKG_USING_ARM_LINUX_MUSLEABI_GCC",
+    "keywords": [
+        "arm-linux-musleabi-gcc"
+    ],
+    "category": "misc",
+    "author": {
+        "name": "bernard.xiong",
+        "email": "bernard.xiong@gmail.com",
+        "github": "bernard.xiong"
+    },
+    "license": "GPL-2.0",
+    "repository": "https://gcc.gnu.org",
+    "icon": "unknown",
+    "homepage": "https://gcc.gnu.org",
+    "doc": "unknown",
+    "site": [
+        {
+            "version": "latest",
+            "URL": "https://download.rt-thread.org/download/rt-smart/toolchains/arm-linux-musleabi_for_i686-w64-mingw32_latest.zip",
+            "filename": "arm-linux-musleabi_for_i686-w64-mingw32_latest.zip"
+        }
+    ]
+}
