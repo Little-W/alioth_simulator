@@ -59,7 +59,8 @@ module dispatch (
     input wire [`EX_INFO_BUS_WIDTH-1:0] ex_info_bus_i,
 
     // 长指令有效信号 - 用于HDU
-    input wire rd_access_inst_valid_i,
+    input wire rd_we_i,           // 指令是否写寄存器
+    input wire clint_req_valid_i, // CLINT请求信号
 
     // 写回阶段提交信号 - 用于HDU
     input wire                        commit_valid_i,
@@ -69,6 +70,9 @@ module dispatch (
     output wire                        hazard_stall_o,
     output wire                        long_inst_atom_lock_o,
     output wire [`COMMIT_ID_WIDTH-1:0] commit_id_o,
+    // 新增：寄存器读取地址输出
+    output wire [ `REG_ADDR_WIDTH-1:0] reg1_raddr_o,
+    output wire [ `REG_ADDR_WIDTH-1:0] reg2_raddr_o,
     output wire [`INST_ADDR_WIDTH-1:0] pipe_inst_addr_o,
     output wire [`INST_DATA_WIDTH-1:0] pipe_inst_o,
     // 指令有效信号输出
@@ -76,14 +80,15 @@ module dispatch (
     // 向其他模块输出的额外信号
     output wire                        pipe_reg_we_o,
     output wire [ `REG_ADDR_WIDTH-1:0] pipe_reg_waddr_o,
-    output wire                        pipe_csr_we_o,
-    output wire [ `BUS_ADDR_WIDTH-1:0] pipe_csr_waddr_o,
-    output wire [ `BUS_ADDR_WIDTH-1:0] pipe_csr_raddr_o,
-    output wire [                31:0] pipe_dec_imm_o,
-    output wire [  `DECINFO_WIDTH-1:0] pipe_dec_info_bus_o,
+
+    output wire                       pipe_csr_we_o,
+    output wire [`BUS_ADDR_WIDTH-1:0] pipe_csr_waddr_o,
+    output wire [`BUS_ADDR_WIDTH-1:0] pipe_csr_raddr_o,
+    output wire [               31:0] pipe_dec_imm_o,
+    output wire [ `DECINFO_WIDTH-1:0] pipe_dec_info_bus_o,
     // 寄存rs1/rs2数据
-    output wire [                31:0] pipe_rs1_rdata_o,
-    output wire [                31:0] pipe_rs2_rdata_o,
+    output wire [               31:0] pipe_rs1_rdata_o,
+    output wire [               31:0] pipe_rs2_rdata_o,
 
     // dispatch to ALU
     output wire                     req_alu_o,
@@ -174,117 +179,209 @@ module dispatch (
 
     // 内部连线，用于连接dispatch_logic和dispatch_pipe
 
-    wire [`COMMIT_ID_WIDTH-1:0] hdu_long_inst_id;
+    wire [  `COMMIT_ID_WIDTH-1:0] hdu_long_inst_id;
 
     // 新增：hdu旁路信号连线
-    wire                        alu_pass_op1;
-    wire                        alu_pass_op2;
+    wire                          alu_pass_op1;
+    wire                          alu_pass_op2;
     // 新增：MUL/DIV/CSR旁路信号连线
-    wire                        mul_pass_op1;
-    wire                        mul_pass_op2;
-    wire                        div_pass_op1;
-    wire                        div_pass_op2;
-    wire                        csr_pass_op1;
+    wire                          mul_pass_op1;
+    wire                          mul_pass_op2;
+    wire                          div_pass_op1;
+    wire                          div_pass_op2;
+    wire                          csr_pass_op1;
+
+    // 新增：FIFO相关信号
+    wire                          push_req;
+    wire                          fifo_stall;
+    wire                          fifo_full;
+
+    // FIFO输出信号
+    wire                          fifo_inst_valid;
+    wire                          fifo_illegal_inst;
+    wire [    `DECINFO_WIDTH-1:0] fifo_dec_info_bus;
+    wire [                  31:0] fifo_dec_imm;
+    wire [  `INST_ADDR_WIDTH-1:0] fifo_dec_pc;
+    wire [  `INST_DATA_WIDTH-1:0] fifo_inst;
+    wire                          fifo_is_pred_branch;
+    wire [   `REG_ADDR_WIDTH-1:0] fifo_reg_waddr;
+    wire [   `REG_ADDR_WIDTH-1:0] fifo_reg1_raddr;
+    wire [   `REG_ADDR_WIDTH-1:0] fifo_reg2_raddr;
+    wire                          fifo_reg_we;
+    wire                          fifo_rs1_re;
+    wire                          fifo_rs2_re;
+    wire                          fifo_csr_we;
+    wire [   `BUS_ADDR_WIDTH-1:0] fifo_csr_waddr;
+    wire [   `BUS_ADDR_WIDTH-1:0] fifo_csr_raddr;
+    wire [`EX_INFO_BUS_WIDTH-1:0] fifo_ex_info_bus;
+    wire                          fifo_rd_we;
 
     // 用于连接dispatch_logic输出到dispatch_pipe输入的内部地址、掩码和数据信号
-    wire [                31:0] logic_mem_addr;
-    wire [                 3:0] logic_mem_wmask;
-    wire [                31:0] logic_mem_wdata;
+    wire [                  31:0] logic_mem_addr;
+    wire [                   3:0] logic_mem_wmask;
+    wire [                  31:0] logic_mem_wdata;
 
     // 用于连接dispatch_logic输出到dispatch_pipe输入的内部信号
-    wire                        logic_req_alu;
-    wire [                31:0] logic_alu_op1;
-    wire [                31:0] logic_alu_op2;
-    wire [   `ALU_OP_WIDTH-1:0] logic_alu_op_info;
+    wire                          logic_req_alu;
+    wire [                  31:0] logic_alu_op1;
+    wire [                  31:0] logic_alu_op2;
+    wire [     `ALU_OP_WIDTH-1:0] logic_alu_op_info;
 
-    wire                        logic_req_bjp;
-    wire                        logic_bjp_op_jal;
-    wire                        logic_bjp_op_beq;
-    wire                        logic_bjp_op_bne;
-    wire                        logic_bjp_op_blt;
-    wire                        logic_bjp_op_bltu;
-    wire                        logic_bjp_op_bge;
-    wire                        logic_bjp_op_bgeu;
-    wire                        logic_bjp_op_jalr;
-    wire [                31:0] logic_bjp_adder_result;
-    wire [                31:0] logic_bjp_next_pc;
-    wire                        logic_op1_eq_op2;
-    wire                        logic_op1_ge_op2_signed;
-    wire                        logic_op1_ge_op2_unsigned;
+    wire                          logic_req_bjp;
+    wire                          logic_bjp_op_jal;
+    wire                          logic_bjp_op_beq;
+    wire                          logic_bjp_op_bne;
+    wire                          logic_bjp_op_blt;
+    wire                          logic_bjp_op_bltu;
+    wire                          logic_bjp_op_bge;
+    wire                          logic_bjp_op_bgeu;
+    wire                          logic_bjp_op_jalr;
+    wire [                  31:0] logic_bjp_adder_result;
+    wire [                  31:0] logic_bjp_next_pc;
+    wire                          logic_op1_eq_op2;
+    wire                          logic_op1_ge_op2_signed;
+    wire                          logic_op1_ge_op2_unsigned;
 
-    wire [                31:0] logic_mul_op1;
-    wire [                31:0] logic_mul_op2;
-    wire                        logic_mul_op_mul;
-    wire                        logic_mul_op_mulh;
-    wire                        logic_mul_op_mulhsu;
-    wire                        logic_mul_op_mulhu;
+    wire [                  31:0] logic_mul_op1;
+    wire [                  31:0] logic_mul_op2;
+    wire                          logic_mul_op_mul;
+    wire                          logic_mul_op_mulh;
+    wire                          logic_mul_op_mulhsu;
+    wire                          logic_mul_op_mulhu;
 
-    wire                        logic_req_mul;
-    wire [`COMMIT_ID_WIDTH-1:0] logic_mul_commit_id;
+    wire                          logic_req_mul;
+    wire [  `COMMIT_ID_WIDTH-1:0] logic_mul_commit_id;
 
-    wire [                31:0] logic_div_op1;
-    wire [                31:0] logic_div_op2;
-    wire                        logic_div_op_div;
-    wire                        logic_div_op_divu;
-    wire                        logic_div_op_rem;
-    wire                        logic_div_op_remu;
+    wire [                  31:0] logic_div_op1;
+    wire [                  31:0] logic_div_op2;
+    wire                          logic_div_op_div;
+    wire                          logic_div_op_divu;
+    wire                          logic_div_op_rem;
+    wire                          logic_div_op_remu;
 
-    wire                        logic_req_div;
-    wire [`COMMIT_ID_WIDTH-1:0] logic_div_commit_id;
+    wire                          logic_req_div;
+    wire [  `COMMIT_ID_WIDTH-1:0] logic_div_commit_id;
 
-    wire                        logic_req_csr;
-    wire [                31:0] logic_csr_op1;
-    wire [                31:0] logic_csr_addr;
-    wire                        logic_csr_csrrw;
-    wire                        logic_csr_csrrs;
-    wire                        logic_csr_csrrc;
+    wire                          logic_req_csr;
+    wire [                  31:0] logic_csr_op1;
+    wire [                  31:0] logic_csr_addr;
+    wire                          logic_csr_csrrw;
+    wire                          logic_csr_csrrs;
+    wire                          logic_csr_csrrc;
 
-    wire                        logic_req_mem;
-    wire [                31:0] logic_mem_op1;
-    wire [                31:0] logic_mem_op2;
-    wire [                31:0] logic_mem_rs2_data;
-    wire                        logic_mem_op_lb;
-    wire                        logic_mem_op_lh;
-    wire                        logic_mem_op_lw;
-    wire                        logic_mem_op_lbu;
-    wire                        logic_mem_op_lhu;
-    wire                        logic_mem_op_sb;
-    wire                        logic_mem_op_sh;
-    wire                        logic_mem_op_sw;
-    wire                        logic_mem_op_load;
-    wire                        logic_mem_op_store;
-    wire [`COMMIT_ID_WIDTH-1:0] logic_mem_commit_id;
+    wire                          logic_req_mem;
+    wire [                  31:0] logic_mem_op1;
+    wire [                  31:0] logic_mem_op2;
+    wire [                  31:0] logic_mem_rs2_data;
+    wire                          logic_mem_op_lb;
+    wire                          logic_mem_op_lh;
+    wire                          logic_mem_op_lw;
+    wire                          logic_mem_op_lbu;
+    wire                          logic_mem_op_lhu;
+    wire                          logic_mem_op_sb;
+    wire                          logic_mem_op_sh;
+    wire                          logic_mem_op_sw;
+    wire                          logic_mem_op_load;
+    wire                          logic_mem_op_store;
+    wire [  `COMMIT_ID_WIDTH-1:0] logic_mem_commit_id;
 
-    wire                        logic_sys_op_nop;
-    wire                        logic_sys_op_mret;
-    wire                        logic_sys_op_ecall;
-    wire                        logic_sys_op_ebreak;
-    wire                        logic_sys_op_fence;
-    wire                        logic_sys_op_dret;
+    wire                          logic_sys_op_nop;
+    wire                          logic_sys_op_mret;
+    wire                          logic_sys_op_ecall;
+    wire                          logic_sys_op_ebreak;
+    wire                          logic_sys_op_fence;
+    wire                          logic_sys_op_dret;
 
     // 未对齐访存异常信号
-    wire                        logic_misaligned_load;
-    wire                        logic_misaligned_store;
+    wire                          logic_misaligned_load;
+    wire                          logic_misaligned_store;
+
+    wire                          hdu_hazard_detect;
+
+    // FIFO控制信号逻辑
+    assign push_req        = hdu_hazard_detect;
+    assign fifo_stall      = (stall_flag_i[`CU_STALL_DISPATCH]) || hdu_hazard_detect;
+
+    // hazard_stall_o连接到FIFO满状态
+    assign hazard_stall_o  = fifo_full;
+
+    // 寄存器读地址输出连接到FIFO输出
+    assign reg1_raddr_o    = fifo_reg1_raddr;
+    assign reg2_raddr_o    = fifo_reg2_raddr;
 
     assign mem_commit_id_o = commit_id_o;
     assign mul_commit_id_o = commit_id_o;
     assign div_commit_id_o = commit_id_o;
 
+    // 实例化保留栈FIFO模块
+    dispatch_reserve_stack #(
+        .FIFO_DEPTH(4)
+    ) u_dispatch_reserve_stack (
+        .clk  (clk),
+        .rst_n(rst_n),
+
+        // FIFO控制信号
+        .push_req_i  (push_req),
+        .fifo_stall_i(fifo_stall),
+        .fifo_full_o (fifo_full),
+        .fifo_flush_i(stall_flag_i[`CU_FLUSH] | clint_req_valid_i),
+
+        // 输入信号组
+        .inst_valid_i    (inst_valid_i && !stall_flag_i),
+        .illegal_inst_i  (illegal_inst_i),
+        .dec_info_bus_i  (dec_info_bus_i),
+        .dec_imm_i       (dec_imm_i),
+        .dec_pc_i        (dec_pc_i),
+        .inst_i          (inst_i),
+        .is_pred_branch_i(is_pred_branch_i),
+        .reg_waddr_i     (reg_waddr_i),
+        .reg1_raddr_i    (reg1_raddr_i),
+        .reg2_raddr_i    (reg2_raddr_i),
+        .reg_we_i        (reg_we_i),
+        .rs1_re_i        (rs1_re_i),
+        .rs2_re_i        (rs2_re_i),
+        .csr_we_i        (csr_we_i),
+        .csr_waddr_i     (csr_waddr_i),
+        .csr_raddr_i     (csr_raddr_i),
+        .ex_info_bus_i   (ex_info_bus_i),
+        .rd_we_i         (rd_we_i),
+
+        // 输出信号组
+        .inst_valid_o    (fifo_inst_valid),
+        .illegal_inst_o  (fifo_illegal_inst),
+        .dec_info_bus_o  (fifo_dec_info_bus),
+        .dec_imm_o       (fifo_dec_imm),
+        .dec_pc_o        (fifo_dec_pc),
+        .inst_o          (fifo_inst),
+        .is_pred_branch_o(fifo_is_pred_branch),
+        .reg_waddr_o     (fifo_reg_waddr),
+        .reg1_raddr_o    (fifo_reg1_raddr),
+        .reg2_raddr_o    (fifo_reg2_raddr),
+        .reg_we_o        (fifo_reg_we),
+        .rs1_re_o        (fifo_rs1_re),
+        .rs2_re_o        (fifo_rs2_re),
+        .csr_we_o        (fifo_csr_we),
+        .csr_waddr_o     (fifo_csr_waddr),
+        .csr_raddr_o     (fifo_csr_raddr),
+        .ex_info_bus_o   (fifo_ex_info_bus),
+        .rd_we_o         (fifo_rd_we)
+    );
+
     // 实例化HDU模块
     hdu u_hdu (
         .clk                  (clk),
         .rst_n                (rst_n),
-        .inst_valid           (rd_access_inst_valid_i),
-        .rd_addr              (reg_waddr_i),
-        .rs1_addr             (reg1_raddr_i),
-        .rs2_addr             (reg2_raddr_i),
-        .rd_we                (reg_we_i),
-        .rs1_re               (rs1_re_i),
-        .rs2_re               (rs2_re_i),
-        .ex_info_bus          (ex_info_bus_i),           // 新增：连接到hdu
+        .rd_we_i              (fifo_rd_we),
+        .rd_addr              (fifo_reg_waddr),
+        .rs1_addr             (fifo_reg1_raddr),
+        .rs2_addr             (fifo_reg2_raddr),
+        .rd_we                (fifo_reg_we),
+        .rs1_re               (fifo_rs1_re),
+        .rs2_re               (fifo_rs2_re),
+        .ex_info_bus          (fifo_ex_info_bus),
         .commit_valid_i       (commit_valid_i),
         .commit_id_i          (commit_id_i),
-        .hazard_stall_o       (hazard_stall_o),
+        .hazard_stall_o       (hdu_hazard_detect),
         .commit_id_o          (hdu_long_inst_id),
         .long_inst_atom_lock_o(long_inst_atom_lock_o),
         // 新增旁路信号输出
@@ -300,9 +397,9 @@ module dispatch (
 
     // 实例化dispatch_logic模块
     dispatch_logic u_dispatch_logic (
-        .dec_info_bus_i(dec_info_bus_i),
-        .dec_imm_i     (dec_imm_i),
-        .dec_pc_i      (dec_pc_i),
+        .dec_info_bus_i(fifo_dec_info_bus),
+        .dec_imm_i     (fifo_dec_imm),
+        .dec_pc_i      (fifo_dec_pc),
         .rs1_rdata_i   (rs1_rdata_i),
         .rs2_rdata_i   (rs2_rdata_i),
 
@@ -387,25 +484,25 @@ module dispatch (
         .rst_n       (rst_n),
         .stall_flag_i(stall_flag_i),
 
-        .inst_valid_i(inst_valid_i),
-        .inst_addr_i (dec_pc_i),
-        .inst_i      (inst_i),
+        .inst_valid_i(fifo_inst_valid),
+        .inst_addr_i (fifo_dec_pc),
+        .inst_i      (fifo_inst),
         .commit_id_i (hdu_long_inst_id),
 
         // 额外的IDU信号输入
-        .reg_we_i        (reg_we_i),
-        .reg_waddr_i     (reg_waddr_i),
-        .csr_we_i        (csr_we_i),
-        .csr_waddr_i     (csr_waddr_i),
-        .csr_raddr_i     (csr_raddr_i),
-        .dec_imm_i       (dec_imm_i),
-        .dec_info_bus_i  (dec_info_bus_i),
+        .reg_we_i        (fifo_reg_we),
+        .reg_waddr_i     (fifo_reg_waddr),
+        .csr_we_i        (fifo_csr_we),
+        .csr_waddr_i     (fifo_csr_waddr),
+        .csr_raddr_i     (fifo_csr_raddr),
+        .dec_imm_i       (fifo_dec_imm),
+        .dec_info_bus_i  (fifo_dec_info_bus),
         // 寄存rs1/rs2数据
         .rs1_rdata_i     (rs1_rdata_i),
         .rs2_rdata_i     (rs2_rdata_i),
-        .is_pred_branch_i(is_pred_branch_i),  // 连接预测分支信号输入
+        .is_pred_branch_i(fifo_is_pred_branch),
         // 新增：非法指令信号输入
-        .illegal_inst_i  (illegal_inst_i),
+        .illegal_inst_i  (fifo_illegal_inst),
 
         // ALU信号输入
         .req_alu_i     (logic_req_alu),

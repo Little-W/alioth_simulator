@@ -246,7 +246,7 @@ module dispatch_pipe (
     output wire illegal_inst_o
 );
 
-    wire                        flush_en = |stall_flag_i;
+    wire                        flush_en = 0;
     wire                        stall_en = stall_flag_i[`CU_STALL_DISPATCH];
     wire                        inst_info_stall_en = stall_flag_i[`CU_STALL];
     wire                        reg_update_en = ~stall_en;

@@ -301,6 +301,8 @@ module cpu_top (
 
     wire [31:0] dispatch_rs1_rdata;
     wire [31:0] dispatch_rs2_rdata;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_reg1_raddr_o;
+    wire [`REG_ADDR_WIDTH-1:0] dispatch_reg2_raddr_o;
 
     // AXI接口信号 - EXU
     wire [`BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
@@ -356,7 +358,6 @@ module cpu_top (
     // wire is_muldiv_long_inst = (idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MULDIV);
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
-    wire rd_access_inst_valid = idu_reg_we_o && !ctrl_stall_flag_o && !clint_req_valid_o;
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
 
     // CLINT AXI-Lite接口信号
@@ -464,9 +465,9 @@ module cpu_top (
         .we_i    (wbu_reg_we_o),
         .waddr_i (wbu_reg_waddr_o),
         .wdata_i (wbu_reg_wdata_o),
-        .raddr1_i(idu_reg1_raddr_o),
+        .raddr1_i(dispatch_reg1_raddr_o),
         .rdata1_o(regs_rdata1_o),
-        .raddr2_i(idu_reg2_raddr_o),
+        .raddr2_i(dispatch_reg2_raddr_o),
         .rdata2_o(regs_rdata2_o)
     );
 
@@ -555,7 +556,8 @@ module cpu_top (
         .ex_info_bus_i(idu_ex_info_bus_o),  // 新增：连接IDU ex_info_bus到dispatch
 
         // 长指令有效信号 - 用于HDU
-        .rd_access_inst_valid_i(rd_access_inst_valid),
+        .rd_we_i(idu_reg_we_o),
+        .clint_req_valid_i(clint_req_valid_o),  // 添加中断请求有效信号输入
 
         // 写回阶段提交信号
         .commit_valid_i(wbu_commit_valid_o),
@@ -565,6 +567,8 @@ module cpu_top (
         .hazard_stall_o       (dispatch_stall_flag_o),
         .long_inst_atom_lock_o(dispatch_long_inst_atom_lock_o),
         .commit_id_o          (dispatch_commit_id_o),
+        .reg1_raddr_o         (dispatch_reg1_raddr_o),
+        .reg2_raddr_o         (dispatch_reg2_raddr_o),
 
         .pipe_inst_valid_o(dispatch_inst_valid_o),
 
@@ -625,12 +629,12 @@ module cpu_top (
         .mul_commit_id_o(dispatch_mul_commit_id),
         .div_commit_id_o(dispatch_div_commit_id),
 
-        .req_csr_o    (dispatch_req_csr),
-        .csr_op1_o    (dispatch_csr_op1),
-        .csr_addr_o   (dispatch_csr_addr),
-        .csr_csrrw_o  (dispatch_csr_csrrw),
-        .csr_csrrs_o  (dispatch_csr_csrrs),
-        .csr_csrrc_o  (dispatch_csr_csrrc),
+        .req_csr_o     (dispatch_req_csr),
+        .csr_op1_o     (dispatch_csr_op1),
+        .csr_addr_o    (dispatch_csr_addr),
+        .csr_csrrw_o   (dispatch_csr_csrrw),
+        .csr_csrrs_o   (dispatch_csr_csrrs),
+        .csr_csrrc_o   (dispatch_csr_csrrc),
         .csr_pass_op1_o(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_o         (dispatch_req_mem),
@@ -733,12 +737,12 @@ module cpu_top (
         .mul_commit_id_i(dispatch_mul_commit_id),
         .div_commit_id_i(dispatch_div_commit_id),
 
-        .req_csr_i    (dispatch_req_csr),
-        .csr_op1_i    (dispatch_csr_op1),
-        .csr_addr_i   (dispatch_csr_addr),
-        .csr_csrrw_i  (dispatch_csr_csrrw),
-        .csr_csrrs_i  (dispatch_csr_csrrs),
-        .csr_csrrc_i  (dispatch_csr_csrrc),
+        .req_csr_i     (dispatch_req_csr),
+        .csr_op1_i     (dispatch_csr_op1),
+        .csr_addr_i    (dispatch_csr_addr),
+        .csr_csrrw_i   (dispatch_csr_csrrw),
+        .csr_csrrs_i   (dispatch_csr_csrrs),
+        .csr_csrrc_i   (dispatch_csr_csrrc),
         .csr_pass_op1_i(dispatch_csr_pass_op), // 新增：CSR旁路信号
 
         .req_mem_i      (dispatch_req_mem),
