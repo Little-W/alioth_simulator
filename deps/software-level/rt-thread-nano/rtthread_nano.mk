@@ -52,6 +52,7 @@ CFLAGS += -O3 -mtune=alioth
 COREMARK_CFLAGS := "\"-O3 -mtune=alioth -ffunction-sections -fdata-sections -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4 -fno-strict-aliasing -frename-registers\""
 
 CFLAGS += -DRTOS_RTTHREAD=1
+CFLAGS += -DHAS_FLOAT=1
 CFLAGS += -DFLAGS_STR=$(COREMARK_CFLAGS)
 
 
