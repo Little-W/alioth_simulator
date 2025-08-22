@@ -29,7 +29,7 @@ Original Author: Shay Gal-on
 #define FLAGS_STR "-O2 -fno-common -funroll-loops -finline-functions --param max-inline-insns-auto=20 -falign-functions=4 -falign-jumps=4 -falign-loops=4"
 #endif
 #define PERFORMANCE_RUN 1
-#define ITERATIONS 1000
+#define ITERATIONS 10000
 
 /************************/
 /* Data types and settings */
