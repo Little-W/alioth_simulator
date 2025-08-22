@@ -24,7 +24,7 @@ std::condition_variable uart_rx_cv;
 
 // UART协议相关参数
 constexpr double UART_BAUD = 115200.0;
-constexpr double CLK_FREQ = 100000000.0; // 100MHz
+constexpr double CLK_FREQ = 242000000.0; // 100MHz
 constexpr long UART_BIT_TICKS = static_cast<long>(CLK_FREQ / UART_BAUD + 0.5); // 四舍五入为整数
 
 // UART RX状态机

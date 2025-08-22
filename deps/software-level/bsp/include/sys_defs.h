@@ -17,11 +17,11 @@ extern "C"
 #include "gcc_defs.h"
 
 #ifndef SYSTEM_CLOCK
-#define SYSTEM_CLOCK (100000000UL)
+#define SYSTEM_CLOCK (242000000UL)
 #endif
 
 #ifndef SYSTEM_CLOCK_MHZ
-#define SYSTEM_CLOCK_MHZ (100UL)
+#define SYSTEM_CLOCK_MHZ (242UL)
 #endif
 
 #define CPU_FREQ_HZ (SYSTEM_CLOCK)
