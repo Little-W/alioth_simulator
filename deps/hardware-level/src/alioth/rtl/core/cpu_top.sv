@@ -346,11 +346,6 @@ module cpu_top (
     wire exu_axi_rvalid;
     wire exu_axi_rready;
 
-    // 新增 BHT 回写接口信号
-    wire bht_update_valid;  // BHT更新有效
-    wire [`INST_ADDR_WIDTH-1:0] bht_update_pc;  // BHT更新的PC
-    wire bht_real_taken;  // 分支实际结果
-
     // 给dispatch和HDU的译码信息
     wire dis_is_pred_branch_o;
     wire ext_int_req;
@@ -413,17 +408,11 @@ module cpu_top (
 
     // IFU模块例化
     ifu u_ifu (
-        .clk         (clk),
-        .rst_n       (rst_n),
-        .jump_flag_i (ctrl_jump_flag_o),
-        .jump_addr_i (ctrl_jump_addr_o),
-        .stall_flag_i(ctrl_stall_flag_o),
-
-        // 连接 BHT 回写接口
-        .update_valid_i(bht_update_valid),
-        .update_pc_i   (bht_update_pc),
-        .real_taken_i  (bht_real_taken),
-
+        .clk              (clk),
+        .rst_n            (rst_n),
+        .jump_flag_i      (ctrl_jump_flag_o),
+        .jump_addr_i      (ctrl_jump_addr_o),
+        .stall_flag_i     (ctrl_stall_flag_o),
         .inst_o           (if_inst_o),
         .inst_addr_o      (if_inst_addr_o),
         .read_resp_error_o(ifu_read_resp_error_o),
@@ -509,7 +498,7 @@ module cpu_top (
         .inst_i          (if_inst_o),
         .inst_addr_i     (if_inst_addr_o),
         .stall_flag_i    (ctrl_stall_flag_o),
-        .is_pred_branch_i(if_is_pred_branch_o), // 连接预测分支信号输入
+        .is_pred_branch_i(if_is_pred_branch_o),  // 连接预测分支信号输入
         .inst_valid_i    (if_inst_valid_o),      // 添加指令有效信号输入
 
         .csr_raddr_o     (idu_csr_raddr_o),
@@ -817,10 +806,6 @@ module cpu_top (
         .exu_op_mret_o  (exu_mret_o),
 
         .misaligned_fetch_o(misaligned_fetch_o),  // 新增misaligned fetch信号输出
-        // BHT回写接口连接
-        .update_valid_o(bht_update_valid),
-        .update_pc_o   (bht_update_pc),
-        .real_taken_o  (bht_real_taken),
         // 添加AXI接口连接 - 保持不变
         .M_AXI_AWID        (exu_axi_awid),
         .M_AXI_AWADDR      (exu_axi_awaddr),

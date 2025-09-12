@@ -76,6 +76,3 @@
 `define APB_DEV_COUNT 8    // 外设数量
 
 `define FPGA_SOURCE 1 // FPGA源代码标志
-
-// 分支预测配置
-`define BHT_ENTRIES 256      // BHT表项数，必须为2的幂

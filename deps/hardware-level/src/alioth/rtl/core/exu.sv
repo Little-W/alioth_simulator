@@ -184,11 +184,6 @@ module exu (
     output wire exu_op_ebreak_o,
     output wire exu_op_mret_o,
 
-    // BHT回写接口输出
-    output wire                        update_valid_o,  // 需要更新BHT
-    output wire [`INST_ADDR_WIDTH-1:0] update_pc_o,     // 被更新指令PC
-    output wire                        real_taken_o,    // 分支实际结果
-
     // misaligned_fetch信号输出
     output wire                     misaligned_fetch_o,
     // AXI接口 - 新增
@@ -285,11 +280,6 @@ module exu (
     // 新增：misaligned_fetch信号连线
     wire                        misaligned_fetch_bru;
     // wire misaligned_fetch_alu; // 目前ALU不产生该信号，仅作为输入
-
-    // BHT 回写相关信号
-    wire                        bru_update_valid;  // BHT 更新有效信号
-    wire [`INST_ADDR_WIDTH-1:0] bru_update_pc;  // BHT 更新的 PC
-    wire                        bru_real_taken;  // 分支实际结果
 
     // 地址生成单元模块例化 
     exu_lsu #(
@@ -393,7 +383,6 @@ module exu (
 
     // 分支单元模块例化 - 使用从顶层接收的dispatch信号
     exu_bru u_bru (
-        .clk                  (clk),
         .rst_n                (rst_n),
         .req_bjp_i            (req_bjp_i),
         .bjp_op_jal_i         (bjp_op_jal_i),
@@ -404,8 +393,8 @@ module exu (
         .bjp_op_bge_i         (bjp_op_bge_i),
         .bjp_op_bgeu_i        (bjp_op_bgeu_i),
         .bjp_op_jalr_i        (bjp_op_jalr_i),
-        .is_pred_branch_i     (is_pred_branch_i),       // 预测分支指令标志输入
-        .inst_addr_i          (inst_addr_i),
+        .is_pred_branch_i     (is_pred_branch_i),       // 新增：预测分支指令标志输入
+        // 新增信号
         .bjp_adder_result_i   (bjp_adder_result_i),
         .bjp_next_pc_i        (bjp_next_pc_i),
         .op1_eq_op2_i         (op1_eq_op2_i),
@@ -416,11 +405,8 @@ module exu (
         .int_addr_i           (int_addr_i),
         .jump_flag_o          (bru_jump_flag),
         .jump_addr_o          (bru_jump_addr),
-        .misaligned_fetch_o   (misaligned_fetch_bru),
         // 新增：连接misaligned_fetch信号
-        .update_valid_o       (bru_update_valid),       // 连接回写有效信号
-        .update_pc_o          (bru_update_pc),          // 连接回写PC
-        .real_taken_o         (bru_real_taken)          // 连接实际跳转结果
+        .misaligned_fetch_o   (misaligned_fetch_bru)
     );
 
     // CSR处理单元模块例化
@@ -504,26 +490,25 @@ module exu (
     );
 
     assign mul_reg_wdata_o = mul_reg_wdata;
-    assign mul_reg_we_o    = mul_reg_we;
+    assign mul_reg_we_o = mul_reg_we;
     assign mul_reg_waddr_o = mul_reg_waddr;
     assign mul_commit_id_o = mul_commit_id;
 
     assign div_reg_wdata_o = div_reg_wdata;
-    assign div_reg_we_o    = div_reg_we;
+    assign div_reg_we_o = div_reg_we;
     assign div_reg_waddr_o = div_reg_waddr;
     assign div_commit_id_o = div_commit_id;
 
-    assign stall_flag_o    = mul_stall_flag | div_stall_flag | alu_stall | csr_stall | mem_stall_o;
-    assign jump_flag_o     = bru_jump_flag || int_jump_i;
-    assign jump_addr_o     = int_jump_i ? int_addr_i : bru_jump_addr;
+    assign stall_flag_o = mul_stall_flag | div_stall_flag | alu_stall | csr_stall | mem_stall_o;
+    assign jump_flag_o = bru_jump_flag || int_jump_i;
+    assign jump_addr_o = int_jump_i ? int_addr_i : bru_jump_addr;
 
     // 将SYS操作信号连接到输出
-    assign exu_op_ecall_o  = sys_op_ecall_i;
+    assign exu_op_ecall_o = sys_op_ecall_i;
     assign exu_op_ebreak_o = sys_op_ebreak_i;
-    assign exu_op_mret_o   = sys_op_mret_i;
+    assign exu_op_mret_o = sys_op_mret_i;
 
-    assign update_valid_o  = bru_update_valid;
-    assign update_pc_o     = bru_update_pc;
-    assign real_taken_o    = bru_real_taken;
+    // 新增：misaligned_fetch信号输出
+    assign misaligned_fetch_o = misaligned_fetch_bru;
 
 endmodule

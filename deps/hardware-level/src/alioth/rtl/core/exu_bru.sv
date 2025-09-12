@@ -26,19 +26,17 @@
 
 
 module exu_bru (
-    input wire                        clk,
-    input wire                        rst_n,
-    input wire                        req_bjp_i,
-    input wire                        bjp_op_jal_i,      // JAL指令标志
-    input wire                        bjp_op_beq_i,
-    input wire                        bjp_op_bne_i,
-    input wire                        bjp_op_blt_i,
-    input wire                        bjp_op_bltu_i,
-    input wire                        bjp_op_bge_i,
-    input wire                        bjp_op_bgeu_i,
-    input wire                        bjp_op_jalr_i,     // JALR指令标志
-    input wire                        is_pred_branch_i,  // 前级是否进行了分支预测
-    input wire [`INST_ADDR_WIDTH-1:0] inst_addr_i,       // 当前指令PC
+    input wire        rst_n,
+    input wire        req_bjp_i,
+    input wire        bjp_op_jal_i,     // JAL指令标志
+    input wire        bjp_op_beq_i,
+    input wire        bjp_op_bne_i,
+    input wire        bjp_op_blt_i,
+    input wire        bjp_op_bltu_i,
+    input wire        bjp_op_bge_i,
+    input wire        bjp_op_bgeu_i,
+    input wire        bjp_op_jalr_i,    // JALR指令标志
+    input wire        is_pred_branch_i, // 前级是否进行了分支预测
 
     input wire [31:0] bjp_adder_result_i,
     input wire [31:0] bjp_next_pc_i,
@@ -54,14 +52,8 @@ module exu_bru (
     // 跳转输出
     output wire                        jump_flag_o,
     output wire [`INST_ADDR_WIDTH-1:0] jump_addr_o,
-
-    // BHT回写接口
-    output wire                        update_valid_o,  // 需要更新BHT
-    output wire [`INST_ADDR_WIDTH-1:0] update_pc_o,     // 被更新指令PC
-    output wire                        real_taken_o,    // 分支实际结果
-
     // 新增：非对齐跳转信号
-    output wire misaligned_fetch_o
+    output wire                        misaligned_fetch_o
 );
     // 内部信号
     wire        jump_flag;
@@ -69,9 +61,9 @@ module exu_bru (
     wire        branch_cond;
 
     // 使用dispatch_pipe传递下来的比较结果
-    wire        op1_eq_op2 = op1_eq_op2_i;
-    wire        op1_ge_op2_signed = op1_ge_op2_signed_i;
-    wire        op1_ge_op2_unsigned = op1_ge_op2_unsigned_i;
+    wire op1_eq_op2          = op1_eq_op2_i;
+    wire op1_ge_op2_signed   = op1_ge_op2_signed_i;
+    wire op1_ge_op2_unsigned = op1_ge_op2_unsigned_i;
 
     // 预测回退条件：当预测分支但实际不需要跳转
     assign branch_cond = req_bjp_i & (
@@ -94,35 +86,6 @@ module exu_bru (
     // 跳转地址选择逻辑
     assign jump_addr_o = (sys_op_fence_i || pred_rollback) ? bjp_next_pc_i :
                          (bjp_op_jalr_i ? jalr_target_addr : bjp_adder_result_i);
-
-    // BHT回写接口实现
-    // 仅当处理条件分支指令时更新BHT
-    wire is_cond_branch = req_bjp_i & (bjp_op_beq_i | bjp_op_bne_i | bjp_op_blt_i | 
-                          bjp_op_bltu_i | bjp_op_bge_i | bjp_op_bgeu_i);
-
-    wire update_valid_d = is_cond_branch & ~int_assert_i;  // 当前是条件分支且非中断
-    wire [`INST_ADDR_WIDTH-1:0] update_pc_d = inst_addr_i;  // 当前指令的PC
-    wire real_taken_d = branch_cond & ~bjp_op_jalr_i;  // 实际分支结果（排除JALR）
-
-    reg update_valid_q;
-    reg [`INST_ADDR_WIDTH-1:0] update_pc_q;
-    reg real_taken_q;
-
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            update_valid_q <= 1'b0;
-            update_pc_q    <= {`INST_ADDR_WIDTH{1'b0}};
-            real_taken_q   <= 1'b0;
-        end else begin
-            update_valid_q <= update_valid_d;
-            update_pc_q    <= update_pc_d;
-            real_taken_q   <= real_taken_d;
-        end
-    end
-
-    assign update_valid_o = update_valid_q;
-    assign update_pc_o    = update_pc_q;
-    assign real_taken_o   = real_taken_q;
 
     // 非对齐跳转判断（跳转地址低2位非0）
     assign misaligned_fetch_o = ((jump_addr_o[1:0] != 2'b00) && (jump_flag || bjp_op_jal_i));
