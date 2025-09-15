@@ -331,12 +331,12 @@ module mems #(
     wire [3:0] m1_clint_r_outstanding_cnt;  // M1访问CLINT的读事务计数器
     wire [3:0] m1_plic_r_outstanding_cnt;  // M1访问PLIC的读事务计数器
 
-    wire m0_has_active_itcm_r = m0_itcm_r_outstanding_cnt > 0;
-    wire m1_has_active_itcm_r = m1_itcm_r_outstanding_cnt > 0;
-    wire m1_has_active_dtcm_r = m1_dtcm_r_outstanding_cnt > 0;
-    wire m1_has_active_apb_r = m1_apb_r_outstanding_cnt > 0;
-    wire m1_has_active_clint_r = m1_clint_r_outstanding_cnt > 0;
-    wire m1_has_active_plic_r = m1_plic_r_outstanding_cnt > 0;
+    wire m0_has_active_itcm_r;
+    wire m1_has_active_itcm_r;
+    wire m1_has_active_dtcm_r;
+    wire m1_has_active_apb_r;
+    wire m1_has_active_clint_r;
+    wire m1_has_active_plic_r;
 
     // R通道事务信号
     wire m0_itcm_ar_trans = M0_AXI_ARVALID && M0_AXI_ARREADY && is_m0_itcm_r;
@@ -362,11 +362,11 @@ module mems #(
     wire [3:0] m1_clint_w_outstanding_cnt;  // M1访问CLINT的写数据outstanding
     wire [3:0] m1_plic_w_outstanding_cnt;  // M1访问PLIC的写数据outstanding
 
-    wire m1_has_active_itcm_w = m1_itcm_w_outstanding_cnt > 0;
-    wire m1_has_active_dtcm_w = m1_dtcm_w_outstanding_cnt > 0;
-    wire m1_has_active_apb_w = m1_apb_w_outstanding_cnt > 0;
-    wire m1_has_active_clint_w = m1_clint_w_outstanding_cnt > 0;
-    wire m1_has_active_plic_w = m1_plic_w_outstanding_cnt > 0;
+    wire m1_has_active_itcm_w;
+    wire m1_has_active_dtcm_w;
+    wire m1_has_active_apb_w;
+    wire m1_has_active_clint_w;
+    wire m1_has_active_plic_w;
 
     // AW通道事务信号
     wire m1_itcm_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_itcm_w;
@@ -389,11 +389,11 @@ module mems #(
     wire [3:0] m1_clint_b_outstanding_cnt;  // M1访问CLINT的写响应outstanding
     wire [3:0] m1_plic_b_outstanding_cnt;  // M1访问PLIC的写响应outstanding
 
-    wire m1_has_active_itcm_b = m1_itcm_b_outstanding_cnt > 0;
-    wire m1_has_active_dtcm_b = m1_dtcm_b_outstanding_cnt > 0;
-    wire m1_has_active_apb_b = m1_apb_b_outstanding_cnt > 0;
-    wire m1_has_active_clint_b = m1_clint_b_outstanding_cnt > 0;
-    wire m1_has_active_plic_b = m1_plic_b_outstanding_cnt > 0;
+    wire m1_has_active_itcm_b;
+    wire m1_has_active_dtcm_b;
+    wire m1_has_active_apb_b;
+    wire m1_has_active_clint_b;
+    wire m1_has_active_plic_b;
 
     // B通道事务信号
     wire m1_itcm_b_trans = itcm_bvalid && M1_AXI_BREADY && m1_select_itcm_b;
@@ -402,174 +402,22 @@ module mems #(
     wire m1_clint_b_trans = OM1_AXI_BVALID && M1_AXI_BREADY && m1_select_clint_b;
     wire m1_plic_b_trans = OM2_AXI_BVALID && M1_AXI_BREADY && m1_select_plic_b;
 
-    // ==================== outstanding计数器更新逻辑 ====================
-    // 读通道计数器信号定义（下一个周期是否有未完成事务）
-    wire [3:0] m0_itcm_r_outstanding_cnt_nxt;
-    wire [3:0] m1_itcm_r_outstanding_cnt_nxt;
-    wire [3:0] m1_dtcm_r_outstanding_cnt_nxt;
-    wire [3:0] m1_apb_r_outstanding_cnt_nxt;
-    wire [3:0] m1_clint_r_outstanding_cnt_nxt;
-    wire [3:0] m1_itcm_w_outstanding_cnt_nxt;
-    wire [3:0] m1_dtcm_w_outstanding_cnt_nxt;
-    wire [3:0] m1_apb_w_outstanding_cnt_nxt;
-    wire [3:0] m1_clint_w_outstanding_cnt_nxt;
-    wire [3:0] m1_itcm_b_outstanding_cnt_nxt;
-    wire [3:0] m1_dtcm_b_outstanding_cnt_nxt;
-    wire [3:0] m1_apb_b_outstanding_cnt_nxt;
-    wire [3:0] m1_clint_b_outstanding_cnt_nxt;
-    wire [3:0] m1_plic_r_outstanding_cnt_nxt;
-    wire [3:0] m1_plic_w_outstanding_cnt_nxt;
-    wire [3:0] m1_plic_b_outstanding_cnt_nxt;
-
-    wire m1_has_active_itcm_r_nxt = (m1_itcm_r_outstanding_cnt_nxt > 0);
-    wire m1_has_active_dtcm_r_nxt = (m1_dtcm_r_outstanding_cnt_nxt > 0);
-    wire m1_has_active_apb_r_nxt = (m1_apb_r_outstanding_cnt_nxt > 0);
-    wire m1_has_active_clint_r_nxt = (m1_clint_r_outstanding_cnt_nxt > 0);
-    wire m1_has_active_plic_r_nxt = (m1_plic_r_outstanding_cnt_nxt > 0);
-
-    wire m1_has_active_itcm_w_nxt = (m1_itcm_w_outstanding_cnt_nxt > 0);
-    wire m1_has_active_dtcm_w_nxt = (m1_dtcm_w_outstanding_cnt_nxt > 0);
-    wire m1_has_active_apb_w_nxt = (m1_apb_w_outstanding_cnt_nxt > 0);
-    wire m1_has_active_clint_w_nxt = (m1_clint_w_outstanding_cnt_nxt > 0);
-    wire m1_has_active_plic_w_nxt = (m1_plic_w_outstanding_cnt_nxt > 0);
-
-    wire m1_has_active_itcm_b_nxt = (m1_itcm_b_outstanding_cnt_nxt > 0);
-    wire m1_has_active_dtcm_b_nxt = (m1_dtcm_b_outstanding_cnt_nxt > 0);
-    wire m1_has_active_apb_b_nxt = (m1_apb_b_outstanding_cnt_nxt > 0);
-    wire m1_has_active_clint_b_nxt = (m1_clint_b_outstanding_cnt_nxt > 0);
-    wire m1_has_active_plic_b_nxt = (m1_plic_b_outstanding_cnt_nxt > 0);
-
-    // R通道
-    wire m0_itcm_inc = m0_itcm_ar_trans & ~m0_itcm_r_trans;
-    wire m0_itcm_dec = ~m0_itcm_ar_trans & m0_itcm_r_trans;
-    wire m0_itcm_keep = (m0_itcm_ar_trans & m0_itcm_r_trans) | (~m0_itcm_ar_trans & ~m0_itcm_r_trans);
-    assign m0_itcm_r_outstanding_cnt_nxt =
-            ({4{m0_itcm_inc}} & (m0_itcm_r_outstanding_cnt + 4'd1)) |
-            ({4{m0_itcm_dec}} & (m0_itcm_r_outstanding_cnt - 4'd1)) |
-            ({4{m0_itcm_keep}} & m0_itcm_r_outstanding_cnt);
-
-    wire m1_itcm_inc = m1_itcm_ar_trans & ~m1_itcm_r_trans;
-    wire m1_itcm_dec = ~m1_itcm_ar_trans & m1_itcm_r_trans;
-    wire m1_itcm_keep = (m1_itcm_ar_trans & m1_itcm_r_trans) | (~m1_itcm_ar_trans & ~m1_itcm_r_trans);
-    assign m1_itcm_r_outstanding_cnt_nxt =
-            ({4{m1_itcm_inc}} & (m1_itcm_r_outstanding_cnt + 4'd1)) |
-            ({4{m1_itcm_dec}} & (m1_itcm_r_outstanding_cnt - 4'd1)) |
-            ({4{m1_itcm_keep}} & m1_itcm_r_outstanding_cnt);
-
-    wire m1_dtcm_inc = m1_dtcm_ar_trans & ~m1_dtcm_r_trans;
-    wire m1_dtcm_dec = ~m1_dtcm_ar_trans & m1_dtcm_r_trans;
-    wire m1_dtcm_keep = (m1_dtcm_ar_trans & m1_dtcm_r_trans) | (~m1_dtcm_ar_trans & ~m1_dtcm_r_trans);
-    assign m1_dtcm_r_outstanding_cnt_nxt =
-            ({4{m1_dtcm_inc}} & (m1_dtcm_r_outstanding_cnt + 4'd1)) |
-            ({4{m1_dtcm_dec}} & (m1_dtcm_r_outstanding_cnt - 4'd1)) |
-            ({4{m1_dtcm_keep}} & m1_dtcm_r_outstanding_cnt);
-
-    wire m1_apb_r_inc = m1_apb_ar_trans & ~m1_apb_r_trans;
-    wire m1_apb_r_dec = ~m1_apb_ar_trans & m1_apb_r_trans;
-    wire m1_apb_r_keep = (m1_apb_ar_trans & m1_apb_r_trans) | (~m1_apb_ar_trans & ~m1_apb_r_trans);
-    assign m1_apb_r_outstanding_cnt_nxt =
-            ({4{m1_apb_r_inc}} & (m1_apb_r_outstanding_cnt + 4'd1)) |
-            ({4{m1_apb_r_dec}} & (m1_apb_r_outstanding_cnt - 4'd1)) |
-            ({4{m1_apb_r_keep}} & m1_apb_r_outstanding_cnt);
-
-    wire m1_clint_r_inc = m1_clint_ar_trans & ~m1_clint_r_trans;
-    wire m1_clint_r_dec = ~m1_clint_ar_trans & m1_clint_r_trans;
-    wire m1_clint_r_keep = (m1_clint_ar_trans & m1_clint_r_trans) | (~m1_clint_ar_trans & ~m1_clint_r_trans);
-    assign m1_clint_r_outstanding_cnt_nxt =
-            ({4{m1_clint_r_inc}} & (m1_clint_r_outstanding_cnt + 4'd1)) |
-            ({4{m1_clint_r_dec}} & (m1_clint_r_outstanding_cnt - 4'd1)) |
-            ({4{m1_clint_r_keep}} & m1_clint_r_outstanding_cnt);
-
-    // PLIC R通道
-    wire m1_plic_r_inc = m1_plic_ar_trans & ~m1_plic_r_trans;
-    wire m1_plic_r_dec = ~m1_plic_ar_trans & m1_plic_r_trans;
-    wire m1_plic_r_keep = (m1_plic_ar_trans & m1_plic_r_trans) | (~m1_plic_ar_trans & ~m1_plic_r_trans);
-    assign m1_plic_r_outstanding_cnt_nxt =
-            ({4{m1_plic_r_inc}} & (m1_plic_r_outstanding_cnt + 4'd1)) |
-            ({4{m1_plic_r_dec}} & (m1_plic_r_outstanding_cnt - 4'd1)) |
-            ({4{m1_plic_r_keep}} & m1_plic_r_outstanding_cnt);
-    // W通道
-    wire m1_itcm_w_inc = m1_itcm_aw_trans & ~m1_itcm_w_trans;
-    wire m1_itcm_w_dec = ~m1_itcm_aw_trans & m1_itcm_w_trans;
-    wire m1_itcm_w_keep = (m1_itcm_aw_trans & m1_itcm_w_trans) | (~m1_itcm_aw_trans & ~m1_itcm_w_trans);
-    assign m1_itcm_w_outstanding_cnt_nxt =
-            ({4{m1_itcm_w_inc}} & (m1_itcm_w_outstanding_cnt + 4'd1)) |
-            ({4{m1_itcm_w_dec}} & (m1_itcm_w_outstanding_cnt - 4'd1)) |
-            ({4{m1_itcm_w_keep}} & m1_itcm_w_outstanding_cnt);
-
-    wire m1_dtcm_w_inc = m1_dtcm_aw_trans & ~m1_dtcm_w_trans;
-    wire m1_dtcm_w_dec = ~m1_dtcm_aw_trans & m1_dtcm_w_trans;
-    wire m1_dtcm_w_keep = (m1_dtcm_aw_trans & m1_dtcm_w_trans) | (~m1_dtcm_aw_trans & ~m1_dtcm_w_trans);
-    assign m1_dtcm_w_outstanding_cnt_nxt =
-            ({4{m1_dtcm_w_inc}} & (m1_dtcm_w_outstanding_cnt + 4'd1)) |
-            ({4{m1_dtcm_w_dec}} & (m1_dtcm_w_outstanding_cnt - 4'd1)) |
-            ({4{m1_dtcm_w_keep}} & m1_dtcm_w_outstanding_cnt);
-
-    wire m1_apb_w_inc = m1_apb_aw_trans & ~m1_apb_w_trans;
-    wire m1_apb_w_dec = ~m1_apb_aw_trans & m1_apb_w_trans;
-    wire m1_apb_w_keep = (m1_apb_aw_trans & m1_apb_w_trans) | (~m1_apb_aw_trans & ~m1_apb_w_trans);
-    assign m1_apb_w_outstanding_cnt_nxt =
-            ({4{m1_apb_w_inc}} & (m1_apb_w_outstanding_cnt + 4'd1)) |
-            ({4{m1_apb_w_dec}} & (m1_apb_w_outstanding_cnt - 4'd1)) |
-            ({4{m1_apb_w_keep}} & m1_apb_w_outstanding_cnt);
-
-    wire m1_clint_w_inc = m1_clint_aw_trans & ~m1_clint_w_trans;
-    wire m1_clint_w_dec = ~m1_clint_aw_trans & m1_clint_w_trans;
-    wire m1_clint_w_keep = (m1_clint_aw_trans & m1_clint_w_trans) | (~m1_clint_aw_trans & ~m1_clint_w_trans);
-    assign m1_clint_w_outstanding_cnt_nxt =
-            ({4{m1_clint_w_inc}} & (m1_clint_w_outstanding_cnt + 4'd1)) |
-            ({4{m1_clint_w_dec}} & (m1_clint_w_outstanding_cnt - 4'd1)) |
-            ({4{m1_clint_w_keep}} & m1_clint_w_outstanding_cnt);
-
-    // PLIC W通道
-    wire m1_plic_w_inc = m1_plic_aw_trans & ~m1_plic_w_trans;
-    wire m1_plic_w_dec = ~m1_plic_aw_trans & m1_plic_w_trans;
-    wire m1_plic_w_keep = (m1_plic_aw_trans & m1_plic_w_trans) | (~m1_plic_aw_trans & ~m1_plic_w_trans);
-    assign m1_plic_w_outstanding_cnt_nxt =
-            ({4{m1_plic_w_inc}} & (m1_plic_w_outstanding_cnt + 4'd1)) |
-            ({4{m1_plic_w_dec}} & (m1_plic_w_outstanding_cnt - 4'd1)) |
-            ({4{m1_plic_w_keep}} & m1_plic_w_outstanding_cnt);
-    // B通道
-    wire m1_itcm_b_inc = m1_itcm_aw_trans & ~m1_itcm_b_trans;
-    wire m1_itcm_b_dec = ~m1_itcm_aw_trans & m1_itcm_b_trans;
-    wire m1_itcm_b_keep = (m1_itcm_aw_trans & m1_itcm_b_trans) | (~m1_itcm_aw_trans & ~m1_itcm_b_trans);
-    assign m1_itcm_b_outstanding_cnt_nxt =
-            ({4{m1_itcm_b_inc}} & (m1_itcm_b_outstanding_cnt + 4'd1)) |
-            ({4{m1_itcm_b_dec}} & (m1_itcm_b_outstanding_cnt - 4'd1)) |
-            ({4{m1_itcm_b_keep}} & m1_itcm_b_outstanding_cnt);
-
-    wire m1_dtcm_b_inc = m1_dtcm_aw_trans & ~m1_dtcm_b_trans;
-    wire m1_dtcm_b_dec = ~m1_dtcm_aw_trans & m1_dtcm_b_trans;
-    wire m1_dtcm_b_keep = (m1_dtcm_aw_trans & m1_dtcm_b_trans) | (~m1_dtcm_aw_trans & ~m1_dtcm_b_trans);
-    assign m1_dtcm_b_outstanding_cnt_nxt =
-            ({4{m1_dtcm_b_inc}} & (m1_dtcm_b_outstanding_cnt + 4'd1)) |
-            ({4{m1_dtcm_b_dec}} & (m1_dtcm_b_outstanding_cnt - 4'd1)) |
-            ({4{m1_dtcm_b_keep}} & m1_dtcm_b_outstanding_cnt);
-
-    wire m1_apb_b_inc = m1_apb_aw_trans & ~m1_apb_b_trans;
-    wire m1_apb_b_dec = ~m1_apb_aw_trans & m1_apb_b_trans;
-    wire m1_apb_b_keep = (m1_apb_aw_trans & m1_apb_b_trans) | (~m1_apb_aw_trans & ~m1_apb_b_trans);
-    assign m1_apb_b_outstanding_cnt_nxt =
-            ({4{m1_apb_b_inc}} & (m1_apb_b_outstanding_cnt + 4'd1)) |
-            ({4{m1_apb_b_dec}} & (m1_apb_b_outstanding_cnt - 4'd1)) |
-            ({4{m1_apb_b_keep}} & m1_apb_b_outstanding_cnt);
-
-    wire m1_clint_b_inc = m1_clint_aw_trans & ~m1_clint_b_trans;
-    wire m1_clint_b_dec = ~m1_clint_aw_trans & m1_clint_b_trans;
-    wire m1_clint_b_keep = (m1_clint_aw_trans & m1_clint_b_trans) | (~m1_clint_aw_trans & ~m1_clint_b_trans);
-    assign m1_clint_b_outstanding_cnt_nxt =
-            ({4{m1_clint_b_inc}} & (m1_clint_b_outstanding_cnt + 4'd1)) |
-            ({4{m1_clint_b_dec}} & (m1_clint_b_outstanding_cnt - 4'd1)) |
-            ({4{m1_clint_b_keep}} & m1_clint_b_outstanding_cnt);
-
-    // PLIC B通道
-    wire m1_plic_b_inc = m1_plic_aw_trans & ~m1_plic_b_trans;
-    wire m1_plic_b_dec = ~m1_plic_aw_trans & m1_plic_b_trans;
-    wire m1_plic_b_keep = (m1_plic_aw_trans & m1_plic_b_trans) | (~m1_plic_aw_trans & ~m1_plic_b_trans);
-    assign m1_plic_b_outstanding_cnt_nxt =
-            ({4{m1_plic_b_inc}} & (m1_plic_b_outstanding_cnt + 4'd1)) |
-            ({4{m1_plic_b_dec}} & (m1_plic_b_outstanding_cnt - 4'd1)) |
-            ({4{m1_plic_b_keep}} & m1_plic_b_outstanding_cnt);
+    // ==================== 下一周期预测信号 ====================
+    wire m1_has_active_itcm_r_nxt;
+    wire m1_has_active_dtcm_r_nxt;
+    wire m1_has_active_apb_r_nxt;
+    wire m1_has_active_clint_r_nxt;
+    wire m1_has_active_plic_r_nxt;
+    wire m1_has_active_itcm_w_nxt;
+    wire m1_has_active_dtcm_w_nxt;
+    wire m1_has_active_apb_w_nxt;
+    wire m1_has_active_clint_w_nxt;
+    wire m1_has_active_plic_w_nxt;
+    wire m1_has_active_itcm_b_nxt;
+    wire m1_has_active_dtcm_b_nxt;
+    wire m1_has_active_apb_b_nxt;
+    wire m1_has_active_clint_b_nxt;
+    wire m1_has_active_plic_b_nxt;
 
     // ==================== 优先级跟踪寄存器 ====================
     // bit 0: ITCM, bit 1: DTCM, bit 2: APB, bit 3: CLINT, bit 4: PLIC
@@ -674,168 +522,184 @@ module mems #(
         end
     end
 
-    // ==================== outstanding计数器寄存器实例化 ====================
-    // R通道
-    gnrl_dfflr #(
-        .DW(4)
-    ) m0_itcm_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m0_itcm_r_outstanding_cnt_nxt),
-        .qout (m0_itcm_r_outstanding_cnt)
+    // ==================== 事务计数器模块实例化 ====================
+    // R通道计数器
+    bus_trans_cnt m0_itcm_r_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m0_itcm_ar_trans),
+        .transaction_end          (m0_itcm_r_trans),
+        .outstanding_count        (m0_itcm_r_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m0_has_active_itcm_r),
+        .has_active_transaction_nxt ()  // 未使用
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_itcm_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_itcm_r_outstanding_cnt_nxt),
-        .qout (m1_itcm_r_outstanding_cnt)
+    bus_trans_cnt m1_itcm_r_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_itcm_ar_trans),
+        .transaction_end          (m1_itcm_r_trans),
+        .outstanding_count        (m1_itcm_r_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_itcm_r),
+        .has_active_transaction_nxt (m1_has_active_itcm_r_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_dtcm_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_dtcm_r_outstanding_cnt_nxt),
-        .qout (m1_dtcm_r_outstanding_cnt)
+    bus_trans_cnt m1_dtcm_r_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_dtcm_ar_trans),
+        .transaction_end          (m1_dtcm_r_trans),
+        .outstanding_count        (m1_dtcm_r_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_dtcm_r),
+        .has_active_transaction_nxt (m1_has_active_dtcm_r_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_apb_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_apb_r_outstanding_cnt_nxt),
-        .qout (m1_apb_r_outstanding_cnt)
+    bus_trans_cnt m1_apb_r_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_apb_ar_trans),
+        .transaction_end          (m1_apb_r_trans),
+        .outstanding_count        (m1_apb_r_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_apb_r),
+        .has_active_transaction_nxt (m1_has_active_apb_r_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_clint_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_clint_r_outstanding_cnt_nxt),
-        .qout (m1_clint_r_outstanding_cnt)
+    bus_trans_cnt m1_clint_r_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_clint_ar_trans),
+        .transaction_end          (m1_clint_r_trans),
+        .outstanding_count        (m1_clint_r_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_clint_r),
+        .has_active_transaction_nxt (m1_has_active_clint_r_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_plic_r_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_plic_r_outstanding_cnt_nxt),
-        .qout (m1_plic_r_outstanding_cnt)
+    bus_trans_cnt m1_plic_r_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_plic_ar_trans),
+        .transaction_end          (m1_plic_r_trans),
+        .outstanding_count        (m1_plic_r_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_plic_r),
+        .has_active_transaction_nxt (m1_has_active_plic_r_nxt)
     );
 
-    // W通道
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_itcm_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_itcm_w_outstanding_cnt_nxt),
-        .qout (m1_itcm_w_outstanding_cnt)
+    // W通道计数器
+    bus_trans_cnt m1_itcm_w_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_itcm_aw_trans),
+        .transaction_end          (m1_itcm_w_trans),
+        .outstanding_count        (m1_itcm_w_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_itcm_w),
+        .has_active_transaction_nxt (m1_has_active_itcm_w_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_dtcm_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_dtcm_w_outstanding_cnt_nxt),
-        .qout (m1_dtcm_w_outstanding_cnt)
+    bus_trans_cnt m1_dtcm_w_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_dtcm_aw_trans),
+        .transaction_end          (m1_dtcm_w_trans),
+        .outstanding_count        (m1_dtcm_w_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_dtcm_w),
+        .has_active_transaction_nxt (m1_has_active_dtcm_w_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_apb_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_apb_w_outstanding_cnt_nxt),
-        .qout (m1_apb_w_outstanding_cnt)
+    bus_trans_cnt m1_apb_w_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_apb_aw_trans),
+        .transaction_end          (m1_apb_w_trans),
+        .outstanding_count        (m1_apb_w_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_apb_w),
+        .has_active_transaction_nxt (m1_has_active_apb_w_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_clint_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_clint_w_outstanding_cnt_nxt),
-        .qout (m1_clint_w_outstanding_cnt)
+    bus_trans_cnt m1_clint_w_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_clint_aw_trans),
+        .transaction_end          (m1_clint_w_trans),
+        .outstanding_count        (m1_clint_w_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_clint_w),
+        .has_active_transaction_nxt (m1_has_active_clint_w_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_plic_w_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_plic_w_outstanding_cnt_nxt),
-        .qout (m1_plic_w_outstanding_cnt)
+    bus_trans_cnt m1_plic_w_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_plic_aw_trans),
+        .transaction_end          (m1_plic_w_trans),
+        .outstanding_count        (m1_plic_w_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_plic_w),
+        .has_active_transaction_nxt (m1_has_active_plic_w_nxt)
     );
 
-    // B通道
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_itcm_b_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_itcm_b_outstanding_cnt_nxt),
-        .qout (m1_itcm_b_outstanding_cnt)
+    // B通道计数器
+    bus_trans_cnt m1_itcm_b_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_itcm_aw_trans),
+        .transaction_end          (m1_itcm_b_trans),
+        .outstanding_count        (m1_itcm_b_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_itcm_b),
+        .has_active_transaction_nxt (m1_has_active_itcm_b_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_dtcm_b_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_dtcm_b_outstanding_cnt_nxt),
-        .qout (m1_dtcm_b_outstanding_cnt)
+    bus_trans_cnt m1_dtcm_b_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_dtcm_aw_trans),
+        .transaction_end          (m1_dtcm_b_trans),
+        .outstanding_count        (m1_dtcm_b_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_dtcm_b),
+        .has_active_transaction_nxt (m1_has_active_dtcm_b_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_apb_b_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_apb_b_outstanding_cnt_nxt),
-        .qout (m1_apb_b_outstanding_cnt)
+    bus_trans_cnt m1_apb_b_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_apb_aw_trans),
+        .transaction_end          (m1_apb_b_trans),
+        .outstanding_count        (m1_apb_b_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_apb_b),
+        .has_active_transaction_nxt (m1_has_active_apb_b_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_clint_b_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_clint_b_outstanding_cnt_nxt),
-        .qout (m1_clint_b_outstanding_cnt)
+    bus_trans_cnt m1_clint_b_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_clint_aw_trans),
+        .transaction_end          (m1_clint_b_trans),
+        .outstanding_count        (m1_clint_b_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_clint_b),
+        .has_active_transaction_nxt (m1_has_active_clint_b_nxt)
     );
 
-    gnrl_dfflr #(
-        .DW(4)
-    ) m1_plic_b_cnt_dfflr (
-        .clk  (clk),
-        .rst_n(rst_n),
-        .lden (1'b1),
-        .dnxt (m1_plic_b_outstanding_cnt_nxt),
-        .qout (m1_plic_b_outstanding_cnt)
+    bus_trans_cnt m1_plic_b_counter (
+        .clk                      (clk),
+        .rst_n                    (rst_n),
+        .transaction_start        (m1_plic_aw_trans),
+        .transaction_end          (m1_plic_b_trans),
+        .outstanding_count        (m1_plic_b_outstanding_cnt),
+        .outstanding_count_nxt    (),  // 未使用
+        .has_active_transaction   (m1_has_active_plic_b),
+        .has_active_transaction_nxt (m1_has_active_plic_b_nxt)
     );
 
     // ==================== 主机间仲裁逻辑（M0 vs M1 对 ITCM）====================
