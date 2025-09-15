@@ -19,8 +19,8 @@
 `define PC_WRITE_TOHOST 32'h80000040
 `endif
 
-`define ITCM alioth_soc_top_0.u_cpu_top.u_mems.itcm_inst.ram_inst
-`define DTCM alioth_soc_top_0.u_cpu_top.u_mems.dtcm_inst.ram_inst
+`define ITCM alioth_soc_top_0.u_imem.ram_inst
+`define DTCM alioth_soc_top_0.u_dmem.ram_inst
 
 // 支持dump使能区间
 parameter DUMP_START_CYCLE = 133262798;

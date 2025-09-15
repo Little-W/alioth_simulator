@@ -30,28 +30,117 @@ module cpu_top (
     input  wire                             clk,
     input  wire                             rst_n,
     input  wire [                      7:0] irq_sources,      // 中断ID
-    // APB AXI-Lite 接口信号
-    output wire                             OM0_AXI_ACLK,
-    output wire                             OM0_AXI_ARESETN,
-    output wire [    `BUS_ADDR_WIDTH-1 : 0] OM0_AXI_AWADDR,
-    output wire [                    2 : 0] OM0_AXI_AWPROT,
-    output wire                             OM0_AXI_AWVALID,
-    input  wire                             OM0_AXI_AWREADY,
-    output wire [    `BUS_DATA_WIDTH-1 : 0] OM0_AXI_WDATA,
-    output wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM0_AXI_WSTRB,
-    output wire                             OM0_AXI_WVALID,
-    input  wire                             OM0_AXI_WREADY,
-    input  wire [                    1 : 0] OM0_AXI_BRESP,
-    input  wire                             OM0_AXI_BVALID,
-    output wire                             OM0_AXI_BREADY,
-    output wire [    `BUS_ADDR_WIDTH-1 : 0] OM0_AXI_ARADDR,
-    output wire [                    2 : 0] OM0_AXI_ARPROT,
-    output wire                             OM0_AXI_ARVALID,
-    input  wire                             OM0_AXI_ARREADY,
-    input  wire [    `BUS_DATA_WIDTH-1 : 0] OM0_AXI_RDATA,
-    input  wire [                    1 : 0] OM0_AXI_RRESP,
-    input  wire                             OM0_AXI_RVALID,
-    output wire                             OM0_AXI_RREADY
+
+    // M0 AXI接口 - IFU指令获取
+    output wire [`BUS_ID_WIDTH-1:0]         M0_AXI_ARID,
+    output wire [`INST_ADDR_WIDTH-1:0]      M0_AXI_ARADDR,
+    output wire [7:0]                       M0_AXI_ARLEN,
+    output wire [2:0]                       M0_AXI_ARSIZE,
+    output wire [1:0]                       M0_AXI_ARBURST,
+    output wire                             M0_AXI_ARLOCK,
+    output wire [3:0]                       M0_AXI_ARCACHE,
+    output wire [2:0]                       M0_AXI_ARPROT,
+    output wire [3:0]                       M0_AXI_ARQOS,
+    output wire [3:0]                       M0_AXI_ARUSER,
+    output wire                             M0_AXI_ARVALID,
+    input  wire                             M0_AXI_ARREADY,
+    input  wire [`BUS_ID_WIDTH-1:0]         M0_AXI_RID,
+    input  wire [`INST_DATA_WIDTH-1:0]      M0_AXI_RDATA,
+    input  wire [1:0]                       M0_AXI_RRESP,
+    input  wire                             M0_AXI_RLAST,
+    input  wire [3:0]                       M0_AXI_RUSER,
+    input  wire                             M0_AXI_RVALID,
+    output wire                             M0_AXI_RREADY,
+
+    // M1 AXI接口 - EXU数据访问
+    output wire [`BUS_ID_WIDTH-1:0]         M1_AXI_AWID,
+    output wire [31:0]                      M1_AXI_AWADDR,
+    output wire [7:0]                       M1_AXI_AWLEN,
+    output wire [2:0]                       M1_AXI_AWSIZE,
+    output wire [1:0]                       M1_AXI_AWBURST,
+    output wire                             M1_AXI_AWLOCK,
+    output wire [3:0]                       M1_AXI_AWCACHE,
+    output wire [2:0]                       M1_AXI_AWPROT,
+    output wire [3:0]                       M1_AXI_AWQOS,
+    output wire                             M1_AXI_AWUSER,
+    output wire                             M1_AXI_AWVALID,
+    input  wire                             M1_AXI_AWREADY,
+    output wire [31:0]                      M1_AXI_WDATA,
+    output wire [3:0]                       M1_AXI_WSTRB,
+    output wire                             M1_AXI_WLAST,
+    output wire                             M1_AXI_WUSER,
+    output wire                             M1_AXI_WVALID,
+    input  wire                             M1_AXI_WREADY,
+    input  wire [`BUS_ID_WIDTH-1:0]         M1_AXI_BID,
+    input  wire [1:0]                       M1_AXI_BRESP,
+    input  wire                             M1_AXI_BUSER,
+    input  wire                             M1_AXI_BVALID,
+    output wire                             M1_AXI_BREADY,
+    output wire [`BUS_ID_WIDTH-1:0]         M1_AXI_ARID,
+    output wire [31:0]                      M1_AXI_ARADDR,
+    output wire [7:0]                       M1_AXI_ARLEN,
+    output wire [2:0]                       M1_AXI_ARSIZE,
+    output wire [1:0]                       M1_AXI_ARBURST,
+    output wire                             M1_AXI_ARLOCK,
+    output wire [3:0]                       M1_AXI_ARCACHE,
+    output wire [2:0]                       M1_AXI_ARPROT,
+    output wire [3:0]                       M1_AXI_ARQOS,
+    output wire                             M1_AXI_ARUSER,
+    output wire                             M1_AXI_ARVALID,
+    input  wire                             M1_AXI_ARREADY,
+    input  wire [`BUS_ID_WIDTH-1:0]         M1_AXI_RID,
+    input  wire [31:0]                      M1_AXI_RDATA,
+    input  wire [1:0]                       M1_AXI_RRESP,
+    input  wire                             M1_AXI_RLAST,
+    input  wire                             M1_AXI_RUSER,
+    input  wire                             M1_AXI_RVALID,
+    output wire                             M1_AXI_RREADY,
+
+    // OM1 AXI-Lite接口 - CLINT
+    input  wire                             OM1_AXI_ACLK,
+    input  wire                             OM1_AXI_ARESETN,
+    input  wire [`BUS_ADDR_WIDTH-1 : 0]     OM1_AXI_AWADDR,
+    input  wire [2:0]                       OM1_AXI_AWPROT,
+    input  wire                             OM1_AXI_AWVALID,
+    output wire                             OM1_AXI_AWREADY,
+    input  wire [`BUS_DATA_WIDTH-1 : 0]     OM1_AXI_WDATA,
+    input  wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM1_AXI_WSTRB,
+    input  wire                             OM1_AXI_WVALID,
+    output wire                             OM1_AXI_WREADY,
+    output wire [1:0]                       OM1_AXI_BRESP,
+    output wire                             OM1_AXI_BVALID,
+    input  wire                             OM1_AXI_BREADY,
+    input  wire [`BUS_ADDR_WIDTH-1 : 0]     OM1_AXI_ARADDR,
+    input  wire [2:0]                       OM1_AXI_ARPROT,
+    input  wire                             OM1_AXI_ARVALID,
+    output wire                             OM1_AXI_ARREADY,
+    output wire [`BUS_DATA_WIDTH-1 : 0]     OM1_AXI_RDATA,
+    output wire [1:0]                       OM1_AXI_RRESP,
+    output wire                             OM1_AXI_RVALID,
+    input  wire                             OM1_AXI_RREADY,
+
+    // OM2 AXI-Lite接口 - PLIC
+    input  wire                             OM2_AXI_ACLK,
+    input  wire                             OM2_AXI_ARESETN,
+    input  wire [`PLIC_ADDR_WIDTH-1 : 0]    OM2_AXI_AWADDR,
+    input  wire [2:0]                       OM2_AXI_AWPROT,
+    input  wire                             OM2_AXI_AWVALID,
+    output wire                             OM2_AXI_AWREADY,
+    input  wire [`BUS_DATA_WIDTH-1 : 0]     OM2_AXI_WDATA,
+    input  wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM2_AXI_WSTRB,
+    input  wire                             OM2_AXI_WVALID,
+    output wire                             OM2_AXI_WREADY,
+    output wire [1:0]                       OM2_AXI_BRESP,
+    output wire                             OM2_AXI_BVALID,
+    input  wire                             OM2_AXI_BREADY,
+    input  wire [`PLIC_ADDR_WIDTH-1 : 0]    OM2_AXI_ARADDR,
+    input  wire [2:0]                       OM2_AXI_ARPROT,
+    input  wire                             OM2_AXI_ARVALID,
+    output wire                             OM2_AXI_ARREADY,
+    output wire [`BUS_DATA_WIDTH-1 : 0]     OM2_AXI_RDATA,
+    output wire [1:0]                       OM2_AXI_RRESP,
+    output wire                             OM2_AXI_RVALID,
+    input  wire                             OM2_AXI_RREADY
 );
 
     // pc_reg模块输出信号
@@ -188,34 +277,13 @@ module cpu_top (
     wire dispatch_illegal_inst_o;  // dispatch输出非法指令信号
     wire misaligned_fetch_o;  // EXU输出misaligned fetch信号
 
-    // AXI接口信号 - IFU
-    wire [`BUS_ID_WIDTH-1:0] ifu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [`INST_ADDR_WIDTH-1:0] ifu_axi_araddr;
-    wire [7:0] ifu_axi_arlen;
-    wire [2:0] ifu_axi_arsize;
-    wire [1:0] ifu_axi_arburst;
-    wire ifu_axi_arlock;
-    wire [3:0] ifu_axi_arcache;
-    wire [2:0] ifu_axi_arprot;
-    wire [3:0] ifu_axi_arqos;
-    wire [3:0] ifu_axi_aruser;
-    wire ifu_axi_arvalid;
-    wire ifu_axi_arready;
-    wire [`BUS_ID_WIDTH-1:0] ifu_axi_rid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [`INST_DATA_WIDTH-1:0] ifu_axi_rdata;
-    wire [1:0] ifu_axi_rresp;
-    wire ifu_axi_rlast;
-    wire [3:0] ifu_axi_ruser;
-    wire ifu_axi_rvalid;
-    wire ifu_axi_rready;
-
     // dispatch to ALU
     wire [31:0] dispatch_alu_op1;
     wire [31:0] dispatch_alu_op2;
     wire dispatch_req_alu;
     wire [`ALU_OP_WIDTH-1:0] dispatch_alu_op_info;
     wire dispatch_alu_pass_op1;  // 新增：ALU旁路信号
-    wire dispatch_alu_pass_op2;  // 新增：ALU旁路信
+    wire dispatch_alu_pass_op2;  // 新增：ALU旁路信号
 
     // dispatch to Bru
     wire dispatch_req_bjp;
@@ -302,50 +370,6 @@ module cpu_top (
     wire [31:0] dispatch_rs1_rdata;
     wire [31:0] dispatch_rs2_rdata;
 
-    // AXI接口信号 - EXU
-    wire [`BUS_ID_WIDTH-1:0] exu_axi_awid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [31:0] exu_axi_awaddr;
-    wire [7:0] exu_axi_awlen;
-    wire [2:0] exu_axi_awsize;
-    wire [1:0] exu_axi_awburst;
-    wire exu_axi_awlock;
-    wire [3:0] exu_axi_awcache;
-    wire [2:0] exu_axi_awprot;
-    wire [3:0] exu_axi_awqos;
-    wire exu_axi_awuser;
-    wire exu_axi_awvalid;
-    wire exu_axi_awready;
-    wire [31:0] exu_axi_wdata;
-    wire [3:0] exu_axi_wstrb;
-    wire exu_axi_wlast;
-    wire exu_axi_wuser;
-    wire exu_axi_wvalid;
-    wire exu_axi_wready;
-    wire [`BUS_ID_WIDTH-1:0] exu_axi_bid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [1:0] exu_axi_bresp;
-    wire exu_axi_buser;
-    wire exu_axi_bvalid;
-    wire exu_axi_bready;
-    wire [`BUS_ID_WIDTH-1:0] exu_axi_arid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [31:0] exu_axi_araddr;
-    wire [7:0] exu_axi_arlen;
-    wire [2:0] exu_axi_arsize;
-    wire [1:0] exu_axi_arburst;
-    wire exu_axi_arlock;
-    wire [3:0] exu_axi_arcache;
-    wire [2:0] exu_axi_arprot;
-    wire [3:0] exu_axi_arqos;
-    wire exu_axi_aruser;
-    wire exu_axi_arvalid;
-    wire exu_axi_arready;
-    wire [`BUS_ID_WIDTH-1:0] exu_axi_rid;  // 使用BUS_ID_WIDTH定义位宽
-    wire [31:0] exu_axi_rdata;
-    wire [1:0] exu_axi_rresp;
-    wire exu_axi_rlast;
-    wire exu_axi_ruser;
-    wire exu_axi_rvalid;
-    wire exu_axi_rready;
-
     // 给dispatch和HDU的译码信息
     wire dis_is_pred_branch_o;
     wire ext_int_req;
@@ -357,54 +381,6 @@ module cpu_top (
     // wire is_mem_long_inst = ((idu_dec_info_bus_o[`DECINFO_GRP_BUS] == `DECINFO_GRP_MEM) && idu_dec_info_bus_o[`DECINFO_MEM_OP_LOAD]);
     // wire is_long_inst = is_muldiv_long_inst | is_mem_long_inst;
     wire jump_addr_valid = dispatch_bjp_op_jal || exu_jump_flag_o;
-
-    // CLINT AXI-Lite接口信号
-    wire OM1_AXI_ACLK;
-    wire OM1_AXI_ARESETN;
-    wire [`BUS_ADDR_WIDTH-1 : 0] OM1_AXI_AWADDR;
-    wire [2 : 0] OM1_AXI_AWPROT;
-    wire OM1_AXI_AWVALID;
-    wire OM1_AXI_AWREADY;
-    wire [`BUS_DATA_WIDTH-1 : 0] OM1_AXI_WDATA;
-    wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM1_AXI_WSTRB;
-    wire OM1_AXI_WVALID;
-    wire OM1_AXI_WREADY;
-    wire [1 : 0] OM1_AXI_BRESP;
-    wire OM1_AXI_BVALID;
-    wire OM1_AXI_BREADY;
-    wire [`BUS_ADDR_WIDTH-1 : 0] OM1_AXI_ARADDR;
-    wire [2 : 0] OM1_AXI_ARPROT;
-    wire OM1_AXI_ARVALID;
-    wire OM1_AXI_ARREADY;
-    wire [`BUS_DATA_WIDTH-1 : 0] OM1_AXI_RDATA;
-    wire [1 : 0] OM1_AXI_RRESP;
-    wire OM1_AXI_RVALID;
-    wire OM1_AXI_RREADY;
-
-
-    // PLIC AXI-Lite接口信号
-    wire OM2_AXI_ACLK;
-    wire OM2_AXI_ARESETN;
-    wire [`PLIC_ADDR_WIDTH-1 : 0] OM2_AXI_AWADDR;
-    wire [2 : 0] OM2_AXI_AWPROT;
-    wire OM2_AXI_AWVALID;
-    wire OM2_AXI_AWREADY;
-    wire [`BUS_DATA_WIDTH-1 : 0] OM2_AXI_WDATA;
-    wire [(`BUS_DATA_WIDTH/8)-1 : 0] OM2_AXI_WSTRB;
-    wire OM2_AXI_WVALID;
-    wire OM2_AXI_WREADY;
-    wire [1 : 0] OM2_AXI_BRESP;
-    wire OM2_AXI_BVALID;
-    wire OM2_AXI_BREADY;
-    wire [`PLIC_ADDR_WIDTH-1 : 0] OM2_AXI_ARADDR;
-    wire [2 : 0] OM2_AXI_ARPROT;
-    wire OM2_AXI_ARVALID;
-    wire OM2_AXI_ARREADY;
-    wire [`BUS_DATA_WIDTH-1 : 0] OM2_AXI_RDATA;
-    wire [1 : 0] OM2_AXI_RRESP;
-    wire OM2_AXI_RVALID;
-    wire OM2_AXI_RREADY;
-
 
     // IFU模块例化
     ifu u_ifu (
@@ -420,25 +396,25 @@ module cpu_top (
         .inst_valid_o     (if_inst_valid_o),        // 添加指令有效信号输出
 
         // AXI接口
-        .M_AXI_ARID   (ifu_axi_arid),
-        .M_AXI_ARADDR (ifu_axi_araddr),
-        .M_AXI_ARLEN  (ifu_axi_arlen),
-        .M_AXI_ARSIZE (ifu_axi_arsize),
-        .M_AXI_ARBURST(ifu_axi_arburst),
-        .M_AXI_ARLOCK (ifu_axi_arlock),
-        .M_AXI_ARCACHE(ifu_axi_arcache),
-        .M_AXI_ARPROT (ifu_axi_arprot),
-        .M_AXI_ARQOS  (ifu_axi_arqos),
-        .M_AXI_ARUSER (ifu_axi_aruser),
-        .M_AXI_ARVALID(ifu_axi_arvalid),
-        .M_AXI_ARREADY(ifu_axi_arready),
-        .M_AXI_RID    (ifu_axi_rid),
-        .M_AXI_RDATA  (ifu_axi_rdata),
-        .M_AXI_RRESP  (ifu_axi_rresp),
-        .M_AXI_RLAST  (ifu_axi_rlast),
-        .M_AXI_RUSER  (ifu_axi_ruser),
-        .M_AXI_RVALID (ifu_axi_rvalid),
-        .M_AXI_RREADY (ifu_axi_rready)
+        .M_AXI_ARID   (M0_AXI_ARID),
+        .M_AXI_ARADDR (M0_AXI_ARADDR),
+        .M_AXI_ARLEN  (M0_AXI_ARLEN),
+        .M_AXI_ARSIZE (M0_AXI_ARSIZE),
+        .M_AXI_ARBURST(M0_AXI_ARBURST),
+        .M_AXI_ARLOCK (M0_AXI_ARLOCK),
+        .M_AXI_ARCACHE(M0_AXI_ARCACHE),
+        .M_AXI_ARPROT (M0_AXI_ARPROT),
+        .M_AXI_ARQOS  (M0_AXI_ARQOS),
+        .M_AXI_ARUSER (M0_AXI_ARUSER),
+        .M_AXI_ARVALID(M0_AXI_ARVALID),
+        .M_AXI_ARREADY(M0_AXI_ARREADY),
+        .M_AXI_RID    (M0_AXI_RID),
+        .M_AXI_RDATA  (M0_AXI_RDATA),
+        .M_AXI_RRESP  (M0_AXI_RRESP),
+        .M_AXI_RLAST  (M0_AXI_RLAST),
+        .M_AXI_RUSER  (M0_AXI_RUSER),
+        .M_AXI_RVALID (M0_AXI_RVALID),
+        .M_AXI_RREADY (M0_AXI_RREADY)
     );
 
     // ctrl模块例化 - 修改使用来自dispatch的HDU暂停信号
@@ -807,48 +783,48 @@ module cpu_top (
 
         .misaligned_fetch_o(misaligned_fetch_o),  // 新增misaligned fetch信号输出
         // 添加AXI接口连接 - 保持不变
-        .M_AXI_AWID        (exu_axi_awid),
-        .M_AXI_AWADDR      (exu_axi_awaddr),
-        .M_AXI_AWLEN       (exu_axi_awlen),
-        .M_AXI_AWSIZE      (exu_axi_awsize),
-        .M_AXI_AWBURST     (exu_axi_awburst),
-        .M_AXI_AWLOCK      (exu_axi_awlock),
-        .M_AXI_AWCACHE     (exu_axi_awcache),
-        .M_AXI_AWPROT      (exu_axi_awprot),
-        .M_AXI_AWQOS       (exu_axi_awqos),
-        .M_AXI_AWUSER      (exu_axi_awuser),
-        .M_AXI_AWVALID     (exu_axi_awvalid),
-        .M_AXI_AWREADY     (exu_axi_awready),
-        .M_AXI_WDATA       (exu_axi_wdata),
-        .M_AXI_WSTRB       (exu_axi_wstrb),
-        .M_AXI_WLAST       (exu_axi_wlast),
-        .M_AXI_WUSER       (exu_axi_wuser),
-        .M_AXI_WVALID      (exu_axi_wvalid),
-        .M_AXI_WREADY      (exu_axi_wready),
-        .M_AXI_BID         (exu_axi_bid),
-        .M_AXI_BRESP       (exu_axi_bresp),
-        .M_AXI_BUSER       (exu_axi_buser),
-        .M_AXI_BVALID      (exu_axi_bvalid),
-        .M_AXI_BREADY      (exu_axi_bready),
-        .M_AXI_ARID        (exu_axi_arid),
-        .M_AXI_ARADDR      (exu_axi_araddr),
-        .M_AXI_ARLEN       (exu_axi_arlen),
-        .M_AXI_ARSIZE      (exu_axi_arsize),
-        .M_AXI_ARBURST     (exu_axi_arburst),
-        .M_AXI_ARLOCK      (exu_axi_arlock),
-        .M_AXI_ARCACHE     (exu_axi_arcache),
-        .M_AXI_ARPROT      (exu_axi_arprot),
-        .M_AXI_ARQOS       (exu_axi_arqos),
-        .M_AXI_ARUSER      (exu_axi_aruser),
-        .M_AXI_ARVALID     (exu_axi_arvalid),
-        .M_AXI_ARREADY     (exu_axi_arready),
-        .M_AXI_RID         (exu_axi_rid),
-        .M_AXI_RDATA       (exu_axi_rdata),
-        .M_AXI_RRESP       (exu_axi_rresp),
-        .M_AXI_RLAST       (exu_axi_rlast),
-        .M_AXI_RUSER       (exu_axi_ruser),
-        .M_AXI_RVALID      (exu_axi_rvalid),
-        .M_AXI_RREADY      (exu_axi_rready)
+        .M_AXI_AWID        (M1_AXI_AWID),
+        .M_AXI_AWADDR      (M1_AXI_AWADDR),
+        .M_AXI_AWLEN       (M1_AXI_AWLEN),
+        .M_AXI_AWSIZE      (M1_AXI_AWSIZE),
+        .M_AXI_AWBURST     (M1_AXI_AWBURST),
+        .M_AXI_AWLOCK      (M1_AXI_AWLOCK),
+        .M_AXI_AWCACHE     (M1_AXI_AWCACHE),
+        .M_AXI_AWPROT      (M1_AXI_AWPROT),
+        .M_AXI_AWQOS       (M1_AXI_AWQOS),
+        .M_AXI_AWUSER      (M1_AXI_AWUSER),
+        .M_AXI_AWVALID     (M1_AXI_AWVALID),
+        .M_AXI_AWREADY     (M1_AXI_AWREADY),
+        .M_AXI_WDATA       (M1_AXI_WDATA),
+        .M_AXI_WSTRB       (M1_AXI_WSTRB),
+        .M_AXI_WLAST       (M1_AXI_WLAST),
+        .M_AXI_WUSER       (M1_AXI_WUSER),
+        .M_AXI_WVALID      (M1_AXI_WVALID),
+        .M_AXI_WREADY      (M1_AXI_WREADY),
+        .M_AXI_BID         (M1_AXI_BID),
+        .M_AXI_BRESP       (M1_AXI_BRESP),
+        .M_AXI_BUSER       (M1_AXI_BUSER),
+        .M_AXI_BVALID      (M1_AXI_BVALID),
+        .M_AXI_BREADY      (M1_AXI_BREADY),
+        .M_AXI_ARID        (M1_AXI_ARID),
+        .M_AXI_ARADDR      (M1_AXI_ARADDR),
+        .M_AXI_ARLEN       (M1_AXI_ARLEN),
+        .M_AXI_ARSIZE      (M1_AXI_ARSIZE),
+        .M_AXI_ARBURST     (M1_AXI_ARBURST),
+        .M_AXI_ARLOCK      (M1_AXI_ARLOCK),
+        .M_AXI_ARCACHE     (M1_AXI_ARCACHE),
+        .M_AXI_ARPROT      (M1_AXI_ARPROT),
+        .M_AXI_ARQOS       (M1_AXI_ARQOS),
+        .M_AXI_ARUSER      (M1_AXI_ARUSER),
+        .M_AXI_ARVALID     (M1_AXI_ARVALID),
+        .M_AXI_ARREADY     (M1_AXI_ARREADY),
+        .M_AXI_RID         (M1_AXI_RID),
+        .M_AXI_RDATA       (M1_AXI_RDATA),
+        .M_AXI_RRESP       (M1_AXI_RRESP),
+        .M_AXI_RLAST       (M1_AXI_RLAST),
+        .M_AXI_RUSER       (M1_AXI_RUSER),
+        .M_AXI_RVALID      (M1_AXI_RVALID),
+        .M_AXI_RREADY      (M1_AXI_RREADY)
     );
 
     // wbu模块例化
@@ -991,157 +967,6 @@ module cpu_top (
         .S_AXI_RREADY (OM2_AXI_RREADY),
         .irq_sources  (irq_sources),
         .irq_valid    (ext_int_req)
-    );
-
-    // mems模块例化
-    mems #(
-        .ITCM_ADDR_WIDTH     (`ITCM_ADDR_WIDTH),
-        .DTCM_ADDR_WIDTH     (`DTCM_ADDR_WIDTH),
-        .DATA_WIDTH          (`BUS_DATA_WIDTH),
-        .C_AXI_ID_WIDTH      (`BUS_ID_WIDTH),
-        .C_AXI_DATA_WIDTH    (`BUS_DATA_WIDTH),
-        .C_AXI_ADDR_WIDTH    (`BUS_ADDR_WIDTH),
-        .C_OM0_AXI_ADDR_WIDTH(32),
-        .C_OM0_AXI_DATA_WIDTH(32),
-        .C_OM1_AXI_ADDR_WIDTH(32),
-        .C_OM1_AXI_DATA_WIDTH(32),
-        .C_OM2_AXI_ADDR_WIDTH(`PLIC_ADDR_WIDTH),
-        .C_OM2_AXI_DATA_WIDTH(`BUS_DATA_WIDTH)
-    ) u_mems (
-        .clk  (clk),
-        .rst_n(rst_n),
-
-        // 端口0 - IFU指令获取接口 (M0)
-        .M0_AXI_ARID   (ifu_axi_arid),
-        .M0_AXI_ARADDR (ifu_axi_araddr),
-        .M0_AXI_ARLEN  (ifu_axi_arlen),
-        .M0_AXI_ARSIZE (ifu_axi_arsize),
-        .M0_AXI_ARBURST(ifu_axi_arburst),
-        .M0_AXI_ARLOCK (ifu_axi_arlock),
-        .M0_AXI_ARCACHE(ifu_axi_arcache),
-        .M0_AXI_ARPROT (ifu_axi_arprot),
-        .M0_AXI_ARQOS  (ifu_axi_arqos),
-        .M0_AXI_ARUSER (ifu_axi_aruser),
-        .M0_AXI_ARVALID(ifu_axi_arvalid),
-        .M0_AXI_ARREADY(ifu_axi_arready),
-        .M0_AXI_RID    (ifu_axi_rid),
-        .M0_AXI_RDATA  (ifu_axi_rdata),
-        .M0_AXI_RRESP  (ifu_axi_rresp),
-        .M0_AXI_RLAST  (ifu_axi_rlast),
-        .M0_AXI_RUSER  (ifu_axi_ruser),
-        .M0_AXI_RVALID (ifu_axi_rvalid),
-        .M0_AXI_RREADY (ifu_axi_rready),
-
-        // 端口1 - EXU数据访问接口 (M1)
-        .M1_AXI_AWID   (exu_axi_awid),
-        .M1_AXI_AWADDR (exu_axi_awaddr),
-        .M1_AXI_AWLEN  (exu_axi_awlen),
-        .M1_AXI_AWSIZE (exu_axi_awsize),
-        .M1_AXI_AWBURST(exu_axi_awburst),
-        .M1_AXI_AWLOCK (exu_axi_awlock),
-        .M1_AXI_AWCACHE(exu_axi_awcache),
-        .M1_AXI_AWPROT (exu_axi_awprot),
-        .M1_AXI_AWQOS  (exu_axi_awqos),
-        .M1_AXI_AWUSER (exu_axi_awuser),
-        .M1_AXI_AWVALID(exu_axi_awvalid),
-        .M1_AXI_AWREADY(exu_axi_awready),
-        .M1_AXI_WDATA  (exu_axi_wdata),
-        .M1_AXI_WSTRB  (exu_axi_wstrb),
-        .M1_AXI_WLAST  (exu_axi_wlast),
-        .M1_AXI_WVALID (exu_axi_wvalid),
-        .M1_AXI_WREADY (exu_axi_wready),
-        .M1_AXI_BID    (exu_axi_bid),
-        .M1_AXI_BRESP  (exu_axi_bresp),
-        .M1_AXI_BVALID (exu_axi_bvalid),
-        .M1_AXI_BREADY (exu_axi_bready),
-        .M1_AXI_ARID   (exu_axi_arid),
-        .M1_AXI_ARADDR (exu_axi_araddr),
-        .M1_AXI_ARLEN  (exu_axi_arlen),
-        .M1_AXI_ARSIZE (exu_axi_arsize),
-        .M1_AXI_ARBURST(exu_axi_arburst),
-        .M1_AXI_ARLOCK (exu_axi_arlock),
-        .M1_AXI_ARCACHE(exu_axi_arcache),
-        .M1_AXI_ARPROT (exu_axi_arprot),
-        .M1_AXI_ARQOS  (exu_axi_arqos),
-        .M1_AXI_ARUSER (exu_axi_aruser),
-        .M1_AXI_ARVALID(exu_axi_arvalid),
-        .M1_AXI_ARREADY(exu_axi_arready),
-        .M1_AXI_RID    (exu_axi_rid),
-        .M1_AXI_RDATA  (exu_axi_rdata),
-        .M1_AXI_RRESP  (exu_axi_rresp),
-        .M1_AXI_RLAST  (exu_axi_rlast),
-        .M1_AXI_RUSER  (exu_axi_ruser),
-        .M1_AXI_RVALID (exu_axi_rvalid),
-        .M1_AXI_RREADY (exu_axi_rready),
-
-        // APB AXI-Lite 接口连接
-        .OM0_AXI_ACLK   (OM0_AXI_ACLK),
-        .OM0_AXI_ARESETN(OM0_AXI_ARESETN),
-        .OM0_AXI_AWADDR (OM0_AXI_AWADDR),
-        .OM0_AXI_AWPROT (OM0_AXI_AWPROT),
-        .OM0_AXI_AWVALID(OM0_AXI_AWVALID),
-        .OM0_AXI_AWREADY(OM0_AXI_AWREADY),
-        .OM0_AXI_WDATA  (OM0_AXI_WDATA),
-        .OM0_AXI_WSTRB  (OM0_AXI_WSTRB),
-        .OM0_AXI_WVALID (OM0_AXI_WVALID),
-        .OM0_AXI_WREADY (OM0_AXI_WREADY),
-        .OM0_AXI_BRESP  (OM0_AXI_BRESP),
-        .OM0_AXI_BVALID (OM0_AXI_BVALID),
-        .OM0_AXI_BREADY (OM0_AXI_BREADY),
-        .OM0_AXI_ARADDR (OM0_AXI_ARADDR),
-        .OM0_AXI_ARPROT (OM0_AXI_ARPROT),
-        .OM0_AXI_ARVALID(OM0_AXI_ARVALID),
-        .OM0_AXI_ARREADY(OM0_AXI_ARREADY),
-        .OM0_AXI_RDATA  (OM0_AXI_RDATA),
-        .OM0_AXI_RRESP  (OM0_AXI_RRESP),
-        .OM0_AXI_RVALID (OM0_AXI_RVALID),
-        .OM0_AXI_RREADY (OM0_AXI_RREADY),
-
-        // CLINT AXI-Lite 接口内部连线
-        .OM1_AXI_ACLK   (OM1_AXI_ACLK),
-        .OM1_AXI_ARESETN(OM1_AXI_ARESETN),
-        .OM1_AXI_AWADDR (OM1_AXI_AWADDR),
-        .OM1_AXI_AWPROT (OM1_AXI_AWPROT),
-        .OM1_AXI_AWVALID(OM1_AXI_AWVALID),
-        .OM1_AXI_AWREADY(OM1_AXI_AWREADY),
-        .OM1_AXI_WDATA  (OM1_AXI_WDATA),
-        .OM1_AXI_WSTRB  (OM1_AXI_WSTRB),
-        .OM1_AXI_WVALID (OM1_AXI_WVALID),
-        .OM1_AXI_WREADY (OM1_AXI_WREADY),
-        .OM1_AXI_BRESP  (OM1_AXI_BRESP),
-        .OM1_AXI_BVALID (OM1_AXI_BVALID),
-        .OM1_AXI_BREADY (OM1_AXI_BREADY),
-        .OM1_AXI_ARADDR (OM1_AXI_ARADDR),
-        .OM1_AXI_ARPROT (OM1_AXI_ARPROT),
-        .OM1_AXI_ARVALID(OM1_AXI_ARVALID),
-        .OM1_AXI_ARREADY(OM1_AXI_ARREADY),
-        .OM1_AXI_RDATA  (OM1_AXI_RDATA),
-        .OM1_AXI_RRESP  (OM1_AXI_RRESP),
-        .OM1_AXI_RVALID (OM1_AXI_RVALID),
-        .OM1_AXI_RREADY (OM1_AXI_RREADY),
-
-        // PLIC AXI-Lite 接口
-        .OM2_AXI_ACLK   (OM2_AXI_ACLK),
-        .OM2_AXI_ARESETN(OM2_AXI_ARESETN),
-        .OM2_AXI_AWADDR (OM2_AXI_AWADDR),
-        .OM2_AXI_AWPROT (OM2_AXI_AWPROT),
-        .OM2_AXI_AWVALID(OM2_AXI_AWVALID),
-        .OM2_AXI_AWREADY(OM2_AXI_AWREADY),
-        .OM2_AXI_WDATA  (OM2_AXI_WDATA),
-        .OM2_AXI_WSTRB  (OM2_AXI_WSTRB),
-        .OM2_AXI_WVALID (OM2_AXI_WVALID),
-        .OM2_AXI_WREADY (OM2_AXI_WREADY),
-        .OM2_AXI_BRESP  (OM2_AXI_BRESP),
-        .OM2_AXI_BVALID (OM2_AXI_BVALID),
-        .OM2_AXI_BREADY (OM2_AXI_BREADY),
-        .OM2_AXI_ARADDR (OM2_AXI_ARADDR),
-        .OM2_AXI_ARPROT (OM2_AXI_ARPROT),
-        .OM2_AXI_ARVALID(OM2_AXI_ARVALID),
-        .OM2_AXI_ARREADY(OM2_AXI_ARREADY),
-        .OM2_AXI_RDATA  (OM2_AXI_RDATA),
-        .OM2_AXI_RRESP  (OM2_AXI_RRESP),
-        .OM2_AXI_RVALID (OM2_AXI_RVALID),
-        .OM2_AXI_RREADY (OM2_AXI_RREADY)
     );
 
     // 定义原子操作忙信号 - 使用dispatch提供的HDU原子锁信号

@@ -24,10 +24,10 @@
 
 `include "defines.svh"
 
-// 内存模块，包含ITCM和DTCM
-module mems #(
-    parameter ITCM_ADDR_WIDTH = 16,  // ITCM地址宽度
-    parameter DTCM_ADDR_WIDTH = 16,  // DTCM地址宽度
+// AXI互连模块
+module axi_interconnect #(
+    parameter IMEM_ADDR_WIDTH = 16,  // IMEM地址宽度
+    parameter DMEM_ADDR_WIDTH = 16,  // DMEM地址宽度
     parameter DATA_WIDTH      = 32,  // RAM数据宽度
 
     // AXI接口参数
@@ -190,63 +190,102 @@ module mems #(
     input  wire [    C_OM2_AXI_DATA_WIDTH-1 : 0] OM2_AXI_RDATA,
     input  wire [                         1 : 0] OM2_AXI_RRESP,
     input  wire                                  OM2_AXI_RVALID,
-    output wire                                  OM2_AXI_RREADY
+    output wire                                  OM2_AXI_RREADY,
+
+    // IMEM AXI接口 (指令存储器)
+    // 写地址通道
+    output wire [  C_AXI_ID_WIDTH-1:0] IMEM_AXI_AWID,
+    output wire [C_AXI_ADDR_WIDTH-1:0] IMEM_AXI_AWADDR,
+    output wire [                 7:0] IMEM_AXI_AWLEN,
+    output wire [                 2:0] IMEM_AXI_AWSIZE,
+    output wire [                 1:0] IMEM_AXI_AWBURST,
+    output wire                        IMEM_AXI_AWLOCK,
+    output wire [                 3:0] IMEM_AXI_AWCACHE,
+    output wire [                 2:0] IMEM_AXI_AWPROT,
+    output wire                        IMEM_AXI_AWVALID,
+    input  wire                        IMEM_AXI_AWREADY,
+
+    // 写数据通道
+    output wire [    C_AXI_DATA_WIDTH-1:0] IMEM_AXI_WDATA,
+    output wire [(C_AXI_DATA_WIDTH/8)-1:0] IMEM_AXI_WSTRB,
+    output wire                            IMEM_AXI_WLAST,
+    output wire                            IMEM_AXI_WVALID,
+    input  wire                            IMEM_AXI_WREADY,
+
+    // 写响应通道
+    input  wire [C_AXI_ID_WIDTH-1:0] IMEM_AXI_BID,
+    input  wire [               1:0] IMEM_AXI_BRESP,
+    input  wire                      IMEM_AXI_BVALID,
+    output wire                      IMEM_AXI_BREADY,
+
+    // 读地址通道
+    output wire [  C_AXI_ID_WIDTH-1:0] IMEM_AXI_ARID,
+    output wire [C_AXI_ADDR_WIDTH-1:0] IMEM_AXI_ARADDR,
+    output wire [                 7:0] IMEM_AXI_ARLEN,
+    output wire [                 2:0] IMEM_AXI_ARSIZE,
+    output wire [                 1:0] IMEM_AXI_ARBURST,
+    output wire                        IMEM_AXI_ARLOCK,
+    output wire [                 3:0] IMEM_AXI_ARCACHE,
+    output wire [                 2:0] IMEM_AXI_ARPROT,
+    output wire                        IMEM_AXI_ARVALID,
+    input  wire                        IMEM_AXI_ARREADY,
+
+    // 读数据通道
+    input  wire [  C_AXI_ID_WIDTH-1:0] IMEM_AXI_RID,
+    input  wire [C_AXI_DATA_WIDTH-1:0] IMEM_AXI_RDATA,
+    input  wire [                 1:0] IMEM_AXI_RRESP,
+    input  wire                        IMEM_AXI_RLAST,
+    input  wire                        IMEM_AXI_RVALID,
+    output wire                        IMEM_AXI_RREADY,
+
+    // DMEM AXI接口 (数据存储器)
+    // 写地址通道
+    output wire [  C_AXI_ID_WIDTH-1:0] DMEM_AXI_AWID,
+    output wire [C_AXI_ADDR_WIDTH-1:0] DMEM_AXI_AWADDR,
+    output wire [                 7:0] DMEM_AXI_AWLEN,
+    output wire [                 2:0] DMEM_AXI_AWSIZE,
+    output wire [                 1:0] DMEM_AXI_AWBURST,
+    output wire                        DMEM_AXI_AWLOCK,
+    output wire [                 3:0] DMEM_AXI_AWCACHE,
+    output wire [                 2:0] DMEM_AXI_AWPROT,
+    output wire                        DMEM_AXI_AWVALID,
+    input  wire                        DMEM_AXI_AWREADY,
+
+    // 写数据通道
+    output wire [    C_AXI_DATA_WIDTH-1:0] DMEM_AXI_WDATA,
+    output wire [(C_AXI_DATA_WIDTH/8)-1:0] DMEM_AXI_WSTRB,
+    output wire                            DMEM_AXI_WLAST,
+    output wire                            DMEM_AXI_WVALID,
+    input  wire                            DMEM_AXI_WREADY,
+
+    // 写响应通道
+    input  wire [C_AXI_ID_WIDTH-1:0] DMEM_AXI_BID,
+    input  wire [               1:0] DMEM_AXI_BRESP,
+    input  wire                      DMEM_AXI_BVALID,
+    output wire                      DMEM_AXI_BREADY,
+
+    // 读地址通道
+    output wire [  C_AXI_ID_WIDTH-1:0] DMEM_AXI_ARID,
+    output wire [C_AXI_ADDR_WIDTH-1:0] DMEM_AXI_ARADDR,
+    output wire [                 7:0] DMEM_AXI_ARLEN,
+    output wire [                 2:0] DMEM_AXI_ARSIZE,
+    output wire [                 1:0] DMEM_AXI_ARBURST,
+    output wire                        DMEM_AXI_ARLOCK,
+    output wire [                 3:0] DMEM_AXI_ARCACHE,
+    output wire [                 2:0] DMEM_AXI_ARPROT,
+    output wire                        DMEM_AXI_ARVALID,
+    input  wire                        DMEM_AXI_ARREADY,
+
+    // 读数据通道
+    input  wire [  C_AXI_ID_WIDTH-1:0] DMEM_AXI_RID,
+    input  wire [C_AXI_DATA_WIDTH-1:0] DMEM_AXI_RDATA,
+    input  wire [                 1:0] DMEM_AXI_RRESP,
+    input  wire                        DMEM_AXI_RLAST,
+    input  wire                        DMEM_AXI_RVALID,
+    output wire                        DMEM_AXI_RREADY
 );
 
 
-    // ITCM与DTCM的接口信号
-    // ITCM读地址通道
-    wire                        itcm_arready;
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_arid;
-    wire [C_AXI_ADDR_WIDTH-1:0] itcm_araddr;
-    wire [                 7:0] itcm_arlen;
-    wire [                 2:0] itcm_arsize;
-    wire [                 1:0] itcm_arburst;
-    wire                        itcm_arlock;
-    wire [                 3:0] itcm_arcache;
-    wire [                 2:0] itcm_arprot;
-    wire                        itcm_arvalid;
-
-    // ITCM读数据通道
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_rid;
-    wire [C_AXI_DATA_WIDTH-1:0] itcm_rdata;
-    wire [                 1:0] itcm_rresp;
-    wire                        itcm_rlast;
-    wire                        itcm_rvalid;
-    wire                        itcm_rready;
-
-    // DTCM读地址通道
-    wire                        dtcm_arready;
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_arid;
-    wire [C_AXI_ADDR_WIDTH-1:0] dtcm_araddr;
-    wire [                 7:0] dtcm_arlen;
-    wire [                 2:0] dtcm_arsize;
-    wire [                 1:0] dtcm_arburst;
-    wire                        dtcm_arlock;
-    wire [                 3:0] dtcm_arcache;
-    wire [                 2:0] dtcm_arprot;
-    wire                        dtcm_arvalid;
-
-    // DTCM读数据通道
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_rid;
-    wire [C_AXI_DATA_WIDTH-1:0] dtcm_rdata;
-    wire [                 1:0] dtcm_rresp;
-    wire                        dtcm_rlast;
-    wire                        dtcm_rvalid;
-    wire                        dtcm_rready;
-
-    // 写响应通道连接
-    wire [  C_AXI_ID_WIDTH-1:0] itcm_bid;
-    wire [                 1:0] itcm_bresp;
-    wire                        itcm_bvalid;
-    wire                        itcm_wready;
-    wire                        itcm_awready;
-
-    wire [  C_AXI_ID_WIDTH-1:0] dtcm_bid;
-    wire [                 1:0] dtcm_bresp;
-    wire                        dtcm_bvalid;
-    wire                        dtcm_wready;
-    wire                        dtcm_awready;
 
     localparam ITCM_BASE_ADDR = `ITCM_BASE_ADDR;
     localparam DTCM_BASE_ADDR = `DTCM_BASE_ADDR;
@@ -376,8 +415,8 @@ module mems #(
     wire m1_plic_aw_trans = M1_AXI_AWVALID && M1_AXI_AWREADY && is_m1_plic_w;
 
     // W通道事务信号
-    wire m1_itcm_w_trans = M1_AXI_WVALID && itcm_wready && m1_select_itcm_w;
-    wire m1_dtcm_w_trans = M1_AXI_WVALID && dtcm_wready && m1_select_dtcm_w;
+    wire m1_itcm_w_trans = M1_AXI_WVALID && IMEM_AXI_WREADY && m1_select_itcm_w;
+    wire m1_dtcm_w_trans = M1_AXI_WVALID && DMEM_AXI_WREADY && m1_select_dtcm_w;
     wire m1_apb_w_trans = M1_AXI_WVALID && OM0_AXI_WREADY && m1_select_apb_w;
     wire m1_clint_w_trans = M1_AXI_WVALID && OM1_AXI_WREADY && m1_select_clint_w;
     wire m1_plic_w_trans = M1_AXI_WVALID && OM2_AXI_WREADY && m1_select_plic_w;
@@ -396,8 +435,8 @@ module mems #(
     wire m1_has_active_plic_b;
 
     // B通道事务信号
-    wire m1_itcm_b_trans = itcm_bvalid && M1_AXI_BREADY && m1_select_itcm_b;
-    wire m1_dtcm_b_trans = dtcm_bvalid && M1_AXI_BREADY && m1_select_dtcm_b;
+    wire m1_itcm_b_trans = IMEM_AXI_BVALID && M1_AXI_BREADY && m1_select_itcm_b;
+    wire m1_dtcm_b_trans = DMEM_AXI_BVALID && M1_AXI_BREADY && m1_select_dtcm_b;
     wire m1_apb_b_trans = OM0_AXI_BVALID && M1_AXI_BREADY && m1_select_apb_b;
     wire m1_clint_b_trans = OM1_AXI_BVALID && M1_AXI_BREADY && m1_select_clint_b;
     wire m1_plic_b_trans = OM2_AXI_BVALID && M1_AXI_BREADY && m1_select_plic_b;
@@ -774,41 +813,81 @@ module mems #(
     assign itcm_wvalid = m1_select_itcm_w && M1_AXI_WVALID;
     assign dtcm_wvalid = m1_select_dtcm_w && M1_AXI_WVALID;
 
+    // IMEM写地址通道连接
+    assign IMEM_AXI_AWID = M1_AXI_AWID;
+    assign IMEM_AXI_AWADDR = M1_AXI_AWADDR;
+    assign IMEM_AXI_AWLEN = M1_AXI_AWLEN;
+    assign IMEM_AXI_AWSIZE = M1_AXI_AWSIZE;
+    assign IMEM_AXI_AWBURST = M1_AXI_AWBURST;
+    assign IMEM_AXI_AWLOCK = M1_AXI_AWLOCK;
+    assign IMEM_AXI_AWCACHE = M1_AXI_AWCACHE;
+    assign IMEM_AXI_AWPROT = M1_AXI_AWPROT;
+    assign IMEM_AXI_AWVALID = itcm_wvalid;
+
+    // IMEM写数据通道连接
+    assign IMEM_AXI_WDATA = M1_AXI_WDATA;
+    assign IMEM_AXI_WSTRB = M1_AXI_WSTRB;
+    assign IMEM_AXI_WLAST = M1_AXI_WLAST;
+    assign IMEM_AXI_WVALID = itcm_wvalid;
+
+    // IMEM写响应通道连接
+    assign IMEM_AXI_BREADY = itcm_bready;
+
+    // DMEM写地址通道连接
+    assign DMEM_AXI_AWID = M1_AXI_AWID;
+    assign DMEM_AXI_AWADDR = M1_AXI_AWADDR;
+    assign DMEM_AXI_AWLEN = M1_AXI_AWLEN;
+    assign DMEM_AXI_AWSIZE = M1_AXI_AWSIZE;
+    assign DMEM_AXI_AWBURST = M1_AXI_AWBURST;
+    assign DMEM_AXI_AWLOCK = M1_AXI_AWLOCK;
+    assign DMEM_AXI_AWCACHE = M1_AXI_AWCACHE;
+    assign DMEM_AXI_AWPROT = M1_AXI_AWPROT;
+    assign DMEM_AXI_AWVALID = dtcm_wvalid;
+
+    // DMEM写数据通道连接
+    assign DMEM_AXI_WDATA = M1_AXI_WDATA;
+    assign DMEM_AXI_WSTRB = M1_AXI_WSTRB;
+    assign DMEM_AXI_WLAST = M1_AXI_WLAST;
+    assign DMEM_AXI_WVALID = dtcm_wvalid;
+
+    // DMEM写响应通道连接
+    assign DMEM_AXI_BREADY = dtcm_bready;
+
     // ==================== 端口连接信号 ====================
 
-    // 根据仲裁结果选择ITCM的输入
-    assign itcm_arid = m1_itcm_ar_grant ? M1_AXI_ARID : (m0_itcm_ar_grant ? M0_AXI_ARID : '0);
-    assign itcm_araddr = m1_itcm_ar_grant ? M1_AXI_ARADDR : (m0_itcm_ar_grant ? M0_AXI_ARADDR : '0);
-    assign itcm_arlen = m1_itcm_ar_grant ? M1_AXI_ARLEN : (m0_itcm_ar_grant ? M0_AXI_ARLEN : '0);
-    assign itcm_arsize = m1_itcm_ar_grant ? M1_AXI_ARSIZE : (m0_itcm_ar_grant ? M0_AXI_ARSIZE : '0);
-    assign itcm_arburst = m1_itcm_ar_grant ? M1_AXI_ARBURST : (m0_itcm_ar_grant ? M0_AXI_ARBURST : '0);
-    assign itcm_arlock = m1_itcm_ar_grant ? M1_AXI_ARLOCK : (m0_itcm_ar_grant ? M0_AXI_ARLOCK : '0);
-    assign itcm_arcache = m1_itcm_ar_grant ? M1_AXI_ARCACHE : (m0_itcm_ar_grant ? M0_AXI_ARCACHE : '0);
-    assign itcm_arprot = m1_itcm_ar_grant ? M1_AXI_ARPROT : (m0_itcm_ar_grant ? M0_AXI_ARPROT : '0);
-    assign itcm_arvalid = m1_itcm_ar_grant ? M1_AXI_ARVALID : (m0_itcm_ar_grant ? M0_AXI_ARVALID : 1'b0);
+    // 根据仲裁结果选择IMEM的输入
+    assign IMEM_AXI_ARID = m1_itcm_ar_grant ? M1_AXI_ARID : (m0_itcm_ar_grant ? M0_AXI_ARID : '0);
+    assign IMEM_AXI_ARADDR = m1_itcm_ar_grant ? M1_AXI_ARADDR : (m0_itcm_ar_grant ? M0_AXI_ARADDR : '0);
+    assign IMEM_AXI_ARLEN = m1_itcm_ar_grant ? M1_AXI_ARLEN : (m0_itcm_ar_grant ? M0_AXI_ARLEN : '0);
+    assign IMEM_AXI_ARSIZE = m1_itcm_ar_grant ? M1_AXI_ARSIZE : (m0_itcm_ar_grant ? M0_AXI_ARSIZE : '0);
+    assign IMEM_AXI_ARBURST = m1_itcm_ar_grant ? M1_AXI_ARBURST : (m0_itcm_ar_grant ? M0_AXI_ARBURST : '0);
+    assign IMEM_AXI_ARLOCK = m1_itcm_ar_grant ? M1_AXI_ARLOCK : (m0_itcm_ar_grant ? M0_AXI_ARLOCK : '0);
+    assign IMEM_AXI_ARCACHE = m1_itcm_ar_grant ? M1_AXI_ARCACHE : (m0_itcm_ar_grant ? M0_AXI_ARCACHE : '0);
+    assign IMEM_AXI_ARPROT = m1_itcm_ar_grant ? M1_AXI_ARPROT : (m0_itcm_ar_grant ? M0_AXI_ARPROT : '0);
+    assign IMEM_AXI_ARVALID = m1_itcm_ar_grant ? M1_AXI_ARVALID : (m0_itcm_ar_grant ? M0_AXI_ARVALID : 1'b0);
 
-    // DTCM只在被授权时连接到端口1
-    assign dtcm_arid = M1_AXI_ARID;
-    assign dtcm_araddr = M1_AXI_ARADDR;
-    assign dtcm_arlen = M1_AXI_ARLEN;
-    assign dtcm_arsize = M1_AXI_ARSIZE;
-    assign dtcm_arburst = M1_AXI_ARBURST;
-    assign dtcm_arlock = M1_AXI_ARLOCK;
-    assign dtcm_arcache = M1_AXI_ARCACHE;
-    assign dtcm_arprot = M1_AXI_ARPROT;
-    assign dtcm_arvalid = m1_dtcm_ar_grant ? M1_AXI_ARVALID : 1'b0;
+    // DMEM只在被授权时连接到端口1
+    assign DMEM_AXI_ARID = M1_AXI_ARID;
+    assign DMEM_AXI_ARADDR = M1_AXI_ARADDR;
+    assign DMEM_AXI_ARLEN = M1_AXI_ARLEN;
+    assign DMEM_AXI_ARSIZE = M1_AXI_ARSIZE;
+    assign DMEM_AXI_ARBURST = M1_AXI_ARBURST;
+    assign DMEM_AXI_ARLOCK = M1_AXI_ARLOCK;
+    assign DMEM_AXI_ARCACHE = M1_AXI_ARCACHE;
+    assign DMEM_AXI_ARPROT = M1_AXI_ARPROT;
+    assign DMEM_AXI_ARVALID = m1_dtcm_ar_grant ? M1_AXI_ARVALID : 1'b0;
 
     // 端口输出连接
     // 端口0连接
-    assign M0_AXI_ARREADY = is_m0_itcm_r ? (itcm_arready && m0_itcm_ar_grant) : 1'b0;
-    assign M0_AXI_RID = itcm_rid;
-    assign M0_AXI_RDATA = itcm_rdata;
-    assign M0_AXI_RRESP = itcm_rresp;
-    assign M0_AXI_RLAST = itcm_rlast;
+    assign M0_AXI_ARREADY = is_m0_itcm_r ? (IMEM_AXI_ARREADY && m0_itcm_ar_grant) : 1'b0;
+    assign M0_AXI_RID = IMEM_AXI_RID;
+    assign M0_AXI_RDATA = IMEM_AXI_RDATA;
+    assign M0_AXI_RRESP = IMEM_AXI_RRESP;
+    assign M0_AXI_RLAST = IMEM_AXI_RLAST;
     assign M0_AXI_RUSER = 4'b0;
 
     // RVALID信号也需要考虑FIFO中的数据
-    assign M0_AXI_RVALID = itcm_rvalid && m0_select_itcm_r;
+    assign M0_AXI_RVALID = IMEM_AXI_RVALID && m0_select_itcm_r;
 
     // APB接口连接到外部
     assign OM0_AXI_ACLK = clk;
@@ -858,180 +937,62 @@ module mems #(
     assign OM2_AXI_RREADY = M1_AXI_RREADY && m1_select_plic_r;
 
     // 处理读通道ready信号的连接
-    assign itcm_rready = m0_itcm_rready || m1_itcm_rready;
-    assign dtcm_rready = m1_dtcm_rready;
+    assign IMEM_AXI_RREADY = m0_itcm_rready || m1_itcm_rready;
+    assign DMEM_AXI_RREADY = m1_dtcm_rready;
 
     // 端口1读数据通道的选择逻辑
-    assign M1_AXI_RID = m1_select_itcm_r ? itcm_rid :
-                        m1_select_dtcm_r ? dtcm_rid : 0; // APB/CLINT/PLIC是AXI-Lite，无ID
-    assign M1_AXI_RDATA = m1_select_itcm_r ? itcm_rdata :
-                          m1_select_dtcm_r ? dtcm_rdata :
+    assign M1_AXI_RID = m1_select_itcm_r ? IMEM_AXI_RID :
+                        m1_select_dtcm_r ? DMEM_AXI_RID : 0; // APB/CLINT/PLIC是AXI-Lite，无ID
+    assign M1_AXI_RDATA = m1_select_itcm_r ? IMEM_AXI_RDATA :
+                          m1_select_dtcm_r ? DMEM_AXI_RDATA :
                           m1_select_apb_r ? OM0_AXI_RDATA :
                           m1_select_clint_r ? OM1_AXI_RDATA :
                           m1_select_plic_r ? OM2_AXI_RDATA : 0;
-    assign M1_AXI_RRESP = m1_select_itcm_r ? itcm_rresp :
-                          m1_select_dtcm_r ? dtcm_rresp :
+    assign M1_AXI_RRESP = m1_select_itcm_r ? IMEM_AXI_RRESP :
+                          m1_select_dtcm_r ? DMEM_AXI_RRESP :
                           m1_select_apb_r ? OM0_AXI_RRESP :
                           m1_select_clint_r ? OM1_AXI_RRESP :
                           m1_select_plic_r ? OM2_AXI_RRESP : 0;
-    assign M1_AXI_RLAST = m1_select_itcm_r ? itcm_rlast :
-                          m1_select_dtcm_r ? dtcm_rlast :
+    assign M1_AXI_RLAST = m1_select_itcm_r ? IMEM_AXI_RLAST :
+                          m1_select_dtcm_r ? DMEM_AXI_RLAST :
                           (m1_select_apb_r || m1_select_clint_r || m1_select_plic_r) ? 1'b1 : 0; // AXI-Lite每次传输都是LAST
-    assign M1_AXI_RVALID = m1_select_itcm_r ? itcm_rvalid :
-                           m1_select_dtcm_r ? dtcm_rvalid :
+    assign M1_AXI_RVALID = m1_select_itcm_r ? IMEM_AXI_RVALID :
+                           m1_select_dtcm_r ? DMEM_AXI_RVALID :
                            m1_select_apb_r ? OM0_AXI_RVALID :
                            m1_select_clint_r ? OM1_AXI_RVALID :
                            m1_select_plic_r ? OM2_AXI_RVALID : 0;
     // 端口1写响应通道的选择逻辑
-    assign M1_AXI_BID = m1_select_itcm_b ? itcm_bid :
-                        m1_select_dtcm_b ? dtcm_bid : 0; // APB/CLINT/PLIC是AXI-Lite，无ID
-    assign M1_AXI_BRESP = m1_select_itcm_b ? itcm_bresp :
-                          m1_select_dtcm_b ? dtcm_bresp :
+    assign M1_AXI_BID = m1_select_itcm_b ? IMEM_AXI_BID :
+                        m1_select_dtcm_b ? DMEM_AXI_BID : 0; // APB/CLINT/PLIC是AXI-Lite，无ID
+    assign M1_AXI_BRESP = m1_select_itcm_b ? IMEM_AXI_BRESP :
+                          m1_select_dtcm_b ? DMEM_AXI_BRESP :
                           m1_select_apb_b ? OM0_AXI_BRESP :
                           m1_select_clint_b ? OM1_AXI_BRESP :
                           m1_select_plic_b ? OM2_AXI_BRESP : 0;
-    assign M1_AXI_BVALID = m1_select_itcm_b ? itcm_bvalid :
-                           m1_select_dtcm_b ? dtcm_bvalid :
+    assign M1_AXI_BVALID = m1_select_itcm_b ? IMEM_AXI_BVALID :
+                           m1_select_dtcm_b ? DMEM_AXI_BVALID :
                            m1_select_apb_b ? OM0_AXI_BVALID :
                            m1_select_clint_b ? OM1_AXI_BVALID :
                            m1_select_plic_b ? OM2_AXI_BVALID : 0;
 
     // 更新Ready信号连接
-    assign M1_AXI_ARREADY = (is_m1_itcm_r && itcm_arready) ||
-                            (is_m1_dtcm_r && dtcm_arready) ||
+    assign M1_AXI_ARREADY = (is_m1_itcm_r && IMEM_AXI_ARREADY) ||
+                            (is_m1_dtcm_r && DMEM_AXI_ARREADY) ||
                             (is_m1_apb_r && OM0_AXI_ARREADY) ||
                             (is_m1_clint_r && OM1_AXI_ARREADY) ||
                             (is_m1_plic_r && OM2_AXI_ARREADY);
-    assign M1_AXI_AWREADY = (is_m1_itcm_w && itcm_awready) ||
-                            (is_m1_dtcm_w && dtcm_awready) ||
+    assign M1_AXI_AWREADY = (is_m1_itcm_w && IMEM_AXI_AWREADY) ||
+                            (is_m1_dtcm_w && DMEM_AXI_AWREADY) ||
                             (is_m1_apb_w && OM0_AXI_AWREADY) ||
                             (is_m1_clint_w && OM1_AXI_AWREADY) ||
                             (is_m1_plic_w && OM2_AXI_AWREADY);
-    assign M1_AXI_WREADY = (m1_select_itcm_w && itcm_wready) ||
-                           (m1_select_dtcm_w && dtcm_wready) ||
+    assign M1_AXI_WREADY = (m1_select_itcm_w && IMEM_AXI_WREADY) ||
+                           (m1_select_dtcm_w && DMEM_AXI_WREADY) ||
                            (m1_select_apb_w && OM0_AXI_WREADY) ||
                            (m1_select_clint_w && OM1_AXI_WREADY) ||
                            (m1_select_plic_w && OM2_AXI_WREADY);
 
-    // ITCM实例连接
-    gnrl_ram_pseudo_dual_axi #(
-        .ADDR_WIDTH        (ITCM_ADDR_WIDTH),
-        .DATA_WIDTH        (DATA_WIDTH),
-        .INIT_MEM          (`INIT_ITCM),
-        .INIT_FILE         (`ITCM_INIT_FILE),
-        .C_S_AXI_ID_WIDTH  (C_AXI_ID_WIDTH),
-        .C_S_AXI_DATA_WIDTH(C_AXI_DATA_WIDTH),
-        .C_S_AXI_ADDR_WIDTH(ITCM_ADDR_WIDTH)
-    ) itcm_inst (
-        // 全局信号
-        .S_AXI_ACLK   (clk),
-        .S_AXI_ARESETN(rst_n),
 
-        // 写地址通道
-        .S_AXI_AWID   (M1_AXI_AWID),
-        .S_AXI_AWADDR (M1_AXI_AWADDR[ITCM_ADDR_WIDTH-1:0]),
-        .S_AXI_AWLEN  (M1_AXI_AWLEN),
-        .S_AXI_AWSIZE (M1_AXI_AWSIZE),
-        .S_AXI_AWBURST(M1_AXI_AWBURST),
-        .S_AXI_AWLOCK (M1_AXI_AWLOCK),
-        .S_AXI_AWCACHE(M1_AXI_AWCACHE),
-        .S_AXI_AWPROT (M1_AXI_AWPROT),
-        .S_AXI_AWVALID(itcm_wvalid),
-        .S_AXI_AWREADY(itcm_awready),
-
-        // 写数据通道
-        .S_AXI_WDATA (M1_AXI_WDATA),
-        .S_AXI_WSTRB (M1_AXI_WSTRB),
-        .S_AXI_WLAST (M1_AXI_WLAST),
-        .S_AXI_WVALID(itcm_wvalid),
-        .S_AXI_WREADY(itcm_wready),
-
-        // 写响应通道
-        .S_AXI_BID   (itcm_bid),
-        .S_AXI_BRESP (itcm_bresp),
-        .S_AXI_BVALID(itcm_bvalid),
-        .S_AXI_BREADY(itcm_bready),
-
-        // 读地址通道
-        .S_AXI_ARID   (itcm_arid),
-        .S_AXI_ARADDR (itcm_araddr[ITCM_ADDR_WIDTH-1:0]),
-        .S_AXI_ARLEN  (itcm_arlen),
-        .S_AXI_ARSIZE (itcm_arsize),
-        .S_AXI_ARBURST(itcm_arburst),
-        .S_AXI_ARLOCK (itcm_arlock),
-        .S_AXI_ARCACHE(itcm_arcache),
-        .S_AXI_ARPROT (itcm_arprot),
-        .S_AXI_ARVALID(itcm_arvalid),
-        .S_AXI_ARREADY(itcm_arready),
-
-        // 读数据通道
-        .S_AXI_RID   (itcm_rid),
-        .S_AXI_RDATA (itcm_rdata),
-        .S_AXI_RRESP (itcm_rresp),
-        .S_AXI_RLAST (itcm_rlast),
-        .S_AXI_RVALID(itcm_rvalid),
-        .S_AXI_RREADY(itcm_rready)
-    );
-
-    // DTCM实例连接
-    gnrl_ram_pseudo_dual_axi #(
-        .ADDR_WIDTH        (DTCM_ADDR_WIDTH),
-        .DATA_WIDTH        (DATA_WIDTH),
-        .INIT_MEM          (`INIT_DTCM),
-        .INIT_FILE         (`DTCM_INIT_FILE),
-        .C_S_AXI_ID_WIDTH  (C_AXI_ID_WIDTH),
-        .C_S_AXI_DATA_WIDTH(C_AXI_DATA_WIDTH),
-        .C_S_AXI_ADDR_WIDTH(DTCM_ADDR_WIDTH)
-    ) dtcm_inst (
-        // 全局信号
-        .S_AXI_ACLK   (clk),
-        .S_AXI_ARESETN(rst_n),
-
-        // 写地址通道
-        .S_AXI_AWID   (M1_AXI_AWID),
-        .S_AXI_AWADDR (M1_AXI_AWADDR[DTCM_ADDR_WIDTH-1:0]),
-        .S_AXI_AWLEN  (M1_AXI_AWLEN),
-        .S_AXI_AWSIZE (M1_AXI_AWSIZE),
-        .S_AXI_AWBURST(M1_AXI_AWBURST),
-        .S_AXI_AWLOCK (M1_AXI_AWLOCK),
-        .S_AXI_AWCACHE(M1_AXI_AWCACHE),
-        .S_AXI_AWPROT (M1_AXI_AWPROT),
-        .S_AXI_AWVALID(dtcm_wvalid),
-        .S_AXI_AWREADY(dtcm_awready),
-
-        // 写数据通道
-        .S_AXI_WDATA (M1_AXI_WDATA),
-        .S_AXI_WSTRB (M1_AXI_WSTRB),
-        .S_AXI_WLAST (M1_AXI_WLAST),
-        .S_AXI_WVALID(dtcm_wvalid),
-        .S_AXI_WREADY(dtcm_wready),
-
-        // 写响应通道
-        .S_AXI_BID   (dtcm_bid),
-        .S_AXI_BRESP (dtcm_bresp),
-        .S_AXI_BVALID(dtcm_bvalid),
-        .S_AXI_BREADY(dtcm_bready),
-
-        // 读地址通道
-        .S_AXI_ARID   (dtcm_arid),
-        .S_AXI_ARADDR (dtcm_araddr[DTCM_ADDR_WIDTH-1:0]),
-        .S_AXI_ARLEN  (dtcm_arlen),
-        .S_AXI_ARSIZE (dtcm_arsize),
-        .S_AXI_ARBURST(dtcm_arburst),
-        .S_AXI_ARLOCK (dtcm_arlock),
-        .S_AXI_ARCACHE(dtcm_arcache),
-        .S_AXI_ARPROT (dtcm_arprot),
-        .S_AXI_ARVALID(dtcm_arvalid),
-        .S_AXI_ARREADY(dtcm_arready),
-
-        // 读数据通道
-        .S_AXI_RID   (dtcm_rid),
-        .S_AXI_RDATA (dtcm_rdata),
-        .S_AXI_RRESP (dtcm_rresp),
-        .S_AXI_RLAST (dtcm_rlast),
-        .S_AXI_RVALID(dtcm_rvalid),
-        .S_AXI_RREADY(dtcm_rready)
-    );
 
 endmodule
 
