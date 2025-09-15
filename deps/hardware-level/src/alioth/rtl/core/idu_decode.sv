@@ -161,6 +161,7 @@ module idu_decode (
     wire inst_rem = opcode_0110011 & funct3_110 & funct7_0000001;
     wire inst_remu = opcode_0110011 & funct3_111 & funct7_0000001;
     wire inst_nop = (inst == `INST_NOP);
+    wire inst_wfi = (inst == `INST_WFI);
     wire inst_mret = (inst == `INST_MRET);
     wire inst_dret = (inst == `INST_DRET);
 
@@ -268,7 +269,7 @@ module idu_decode (
     assign dec_sys_info_bus[`DECINFO_GRP_BUS]    = `DECINFO_GRP_SYS;
     assign dec_sys_info_bus[`DECINFO_SYS_ECALL]  = inst_ecall;
     assign dec_sys_info_bus[`DECINFO_SYS_EBREAK] = inst_ebreak;
-    assign dec_sys_info_bus[`DECINFO_SYS_NOP]    = inst_nop;
+    assign dec_sys_info_bus[`DECINFO_SYS_NOP]    = inst_nop | inst_wfi;  // WFI作为NOP处理
     assign dec_sys_info_bus[`DECINFO_SYS_MRET]   = inst_mret;
     assign dec_sys_info_bus[`DECINFO_SYS_DRET]   = inst_dret;
     assign dec_sys_info_bus[`DECINFO_SYS_FENCE]  = inst_fence | inst_fence_i;
@@ -278,7 +279,7 @@ module idu_decode (
     wire op_bjp = inst_jal | inst_jalr | inst_type_branch;
     wire op_muldiv = inst_type_muldiv;
     wire op_csr = insr_type_cstr & (funct3_001 | funct3_010 | funct3_011 | funct3_101 | funct3_110 | funct3_111);
-    wire op_sys = inst_ebreak | inst_ecall | inst_nop | inst_mret | inst_fence | inst_fence_i | inst_dret;
+    wire op_sys = inst_ebreak | inst_ecall | inst_nop | inst_wfi | inst_mret | inst_fence | inst_fence_i | inst_dret;
     wire op_mem = inst_type_load | inst_type_store;
 
     assign dec_info_bus_o = ({`DECINFO_WIDTH{op_alu}} & {{`DECINFO_WIDTH-`DECINFO_ALU_BUS_WIDTH{1'b0}}, dec_alu_info_bus}) |
@@ -292,7 +293,7 @@ module idu_decode (
     // 是否需要访问rs1寄存器 - 优化为使用指令类型判断
     wire access_rs1 = (~inst_lui) & (~inst_auipc) & (~inst_jal) & 
                       (~inst_ecall) & (~inst_ebreak) & (~inst_csr_i_type) & 
-                      (~inst_nop) & (~inst_fence) & (~inst_fence_i) & (~inst_mret);
+                      (~inst_nop) & (~inst_wfi) & (~inst_fence) & (~inst_fence_i) & (~inst_mret);
 
     assign reg1_raddr_o = access_rs1 ? rs1 : 5'h0;
     assign rs1_re_o     = access_rs1 && (rs1 != 0);
