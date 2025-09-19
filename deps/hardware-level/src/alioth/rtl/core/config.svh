@@ -26,6 +26,12 @@
 `define PLIC_BASE_ADDR 32'h0C00_0000         // PLIC基地址
 `define PLIC_SIZE (1 << `PLIC_ADDR_WIDTH)    // PLIC大小：64KB
 
+// DEBUG模块地址配置
+`define DM_ADDR_WIDTH 12     // DM地址宽度，12位
+`define DM_BASE_ADDR 32'h0000_0000           // DM基地址
+`define DM_SIZE (1 << `DM_ADDR_WIDTH)        // DM大小：4KB (0x0000_0000 -- 0x0000_0FFF)
+`define DM_HALT_ADDR `DM_BASE_ADDR + 32'h0000_0800 // DM HALT寄存器地址
+
 // 内存初始化控制
 `define INIT_ITCM 0       // 控制ITCM是否初始化，1表示初始化，0表示不初始化
 `define ITCM_INIT_FILE "main_itcm.mem" // ITCM初始化文件路径
